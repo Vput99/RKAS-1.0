@@ -1,18 +1,20 @@
 import React, { useState, useEffect } from 'react';
-import { LayoutDashboard, Wallet, FileCheck, Settings, Menu, User, BookOpen, FileBarChart } from 'lucide-react';
+import { LayoutDashboard, Wallet, FileCheck, Settings as SettingsIcon, Menu, User, BookOpen, FileBarChart } from 'lucide-react';
 import Dashboard from './components/Dashboard';
 import TransactionTable from './components/TransactionTable';
 import BudgetPlanning from './components/BudgetPlanning';
 import SPJRealization from './components/SPJRealization';
 import Reports from './components/Reports';
+import Settings from './components/Settings';
 import ChatAssistant from './components/ChatAssistant';
-import { getBudgets, addBudget, updateBudget, deleteBudget } from './lib/db';
-import { Budget, TransactionType } from './types';
+import { getBudgets, addBudget, updateBudget, deleteBudget, getSchoolProfile } from './lib/db';
+import { Budget, TransactionType, SchoolProfile } from './types';
 
 function App() {
-  const [activeTab, setActiveTab] = useState<'dashboard' | 'income' | 'planning' | 'spj' | 'reports'>('dashboard');
+  const [activeTab, setActiveTab] = useState<'dashboard' | 'income' | 'planning' | 'spj' | 'reports' | 'settings'>('dashboard');
   const [isSidebarOpen, setSidebarOpen] = useState(true);
   const [data, setData] = useState<Budget[]>([]);
+  const [schoolProfile, setSchoolProfile] = useState<SchoolProfile | null>(null);
   const [loading, setLoading] = useState(true);
 
   // Load Data
@@ -22,8 +24,12 @@ function App() {
 
   const fetchData = async () => {
     setLoading(true);
-    const result = await getBudgets();
-    setData(result);
+    const [budgets, profile] = await Promise.all([
+      getBudgets(),
+      getSchoolProfile()
+    ]);
+    setData(budgets);
+    setSchoolProfile(profile);
     setLoading(false);
   };
 
@@ -105,9 +111,16 @@ function App() {
           <NavItem id="reports" label="Laporan" icon={FileBarChart} />
           
           <div className="pt-8 mt-8 border-t border-gray-100">
-             <button className="w-full flex items-center gap-3 px-4 py-3 text-gray-400 hover:text-gray-600 transition">
-                <Settings size={20} />
-                <span className={`${!isSidebarOpen && 'lg:hidden xl:block'}`}>Pengaturan</span>
+             <button 
+                onClick={() => { setActiveTab('settings'); if (window.innerWidth < 1024) setSidebarOpen(false); }}
+                className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg transition-all duration-200 ${
+                  activeTab === 'settings' 
+                    ? 'bg-blue-600 text-white shadow-lg shadow-blue-500/30' 
+                    : 'text-gray-600 hover:bg-gray-100'
+                }`}
+             >
+                <SettingsIcon size={20} />
+                <span className={`${!isSidebarOpen && 'lg:hidden xl:block'} font-medium`}>Pengaturan</span>
              </button>
           </div>
         </nav>
@@ -125,8 +138,10 @@ function App() {
           </button>
           <div className="flex items-center gap-4 ml-auto">
              <div className="text-right hidden sm:block">
-               <p className="text-sm font-bold text-gray-800">SD Negeri 1 Contoh</p>
-               <p className="text-xs text-gray-500">Tahun Anggaran 2026</p>
+               <p className="text-sm font-bold text-gray-800">
+                  {schoolProfile?.name || 'Nama Sekolah Belum Diatur'}
+               </p>
+               <p className="text-xs text-gray-500">Tahun Anggaran {schoolProfile?.fiscalYear || '2026'}</p>
              </div>
              <div className="w-10 h-10 bg-gray-200 rounded-full flex items-center justify-center text-gray-500">
                <User size={20} />
@@ -168,6 +183,11 @@ function App() {
                 )}
                 {activeTab === 'reports' && (
                   <Reports data={data} />
+                )}
+                {activeTab === 'settings' && (
+                  <Settings 
+                    onProfileUpdate={(updated) => setSchoolProfile(updated)} 
+                  />
                 )}
               </>
             )}

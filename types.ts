@@ -113,6 +113,19 @@ export interface Budget {
   created_at?: string;
 }
 
+export interface SchoolProfile {
+  name: string;
+  npsn: string;
+  address: string;
+  headmaster: string;
+  headmasterNip: string;
+  treasurer: string;
+  treasurerNip: string;
+  fiscalYear: string;
+  studentCount: number;
+  budgetCeiling: number; // Pagu Anggaran Total
+}
+
 export interface SummaryStats {
   totalIncome: number;
   totalExpense: number;

@@ -1,5 +1,5 @@
 import { supabase } from './supabase';
-import { Budget, TransactionType, SNPStandard, BOSPComponent } from '../types';
+import { Budget, TransactionType, SNPStandard, BOSPComponent, SchoolProfile } from '../types';
 
 // Mock data reflecting BOSP structure
 const MOCK_DATA: Budget[] = [
@@ -77,6 +77,20 @@ const MOCK_DATA: Budget[] = [
 ];
 
 const LOCAL_KEY = 'rkas_local_data_v7';
+const SCHOOL_PROFILE_KEY = 'rkas_school_profile_v1';
+
+const DEFAULT_PROFILE: SchoolProfile = {
+  name: 'SD Negeri 1 Contoh',
+  npsn: '12345678',
+  address: 'Jl. Pendidikan No. 1',
+  headmaster: 'Budi Santoso, S.Pd',
+  headmasterNip: '19800101 200501 1 001',
+  treasurer: 'Siti Aminah, S.Pd',
+  treasurerNip: '19850202 201001 2 002',
+  fiscalYear: '2026',
+  studentCount: 150,
+  budgetCeiling: 150000000 // approx 150 * 1jt per student
+};
 
 export const getBudgets = async (): Promise<Budget[]> => {
   if (supabase) {
@@ -137,4 +151,62 @@ export const deleteBudget = async (id: string): Promise<boolean> => {
   const updated = current.filter(b => b.id !== id);
   localStorage.setItem(LOCAL_KEY, JSON.stringify(updated));
   return true;
+};
+
+// --- School Profile Functions ---
+
+export const getSchoolProfile = async (): Promise<SchoolProfile> => {
+  if (supabase) {
+    try {
+      const { data } = await supabase.from('school_profiles').select('*').single();
+      if (data) {
+        return {
+          name: data.name,
+          npsn: data.npsn,
+          address: data.address,
+          headmaster: data.headmaster,
+          headmasterNip: data.headmaster_nip,
+          treasurer: data.treasurer,
+          treasurerNip: data.treasurer_nip,
+          fiscalYear: data.fiscal_year,
+          studentCount: data.student_count,
+          budgetCeiling: data.budget_ceiling
+        };
+      }
+    } catch (error) {
+      console.warn("Supabase profile fetch error or empty, using defaults.", error);
+    }
+  }
+  
+  const local = localStorage.getItem(SCHOOL_PROFILE_KEY);
+  if (local) return JSON.parse(local);
+  
+  localStorage.setItem(SCHOOL_PROFILE_KEY, JSON.stringify(DEFAULT_PROFILE));
+  return DEFAULT_PROFILE;
+};
+
+export const saveSchoolProfile = async (profile: SchoolProfile): Promise<SchoolProfile> => {
+  if (supabase) {
+    const dbPayload = {
+      id: 1, // Singleton Row
+      name: profile.name,
+      npsn: profile.npsn,
+      address: profile.address,
+      headmaster: profile.headmaster,
+      headmaster_nip: profile.headmasterNip,
+      treasurer: profile.treasurer,
+      treasurer_nip: profile.treasurerNip,
+      fiscal_year: profile.fiscalYear,
+      student_count: profile.studentCount,
+      budget_ceiling: profile.budgetCeiling,
+      updated_at: new Date().toISOString()
+    };
+    
+    const { error } = await supabase.from('school_profiles').upsert(dbPayload);
+    if (error) console.error("Supabase profile save error:", error);
+  }
+
+  // Save to local storage as backup
+  localStorage.setItem(SCHOOL_PROFILE_KEY, JSON.stringify(profile));
+  return profile;
 };
