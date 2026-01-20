@@ -1,6 +1,6 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Budget, TransactionType, AccountCodes, RealizationDetail } from '../types';
-import { FileText, Save, X, Calendar, Search, CheckCircle2, UploadCloud, FileCheck2, AlertCircle } from 'lucide-react';
+import { FileText, Save, X, Calendar, Search, CheckCircle2, FileCheck2, AlertCircle, CheckSquare, Square } from 'lucide-react';
 
 interface SPJRealizationProps {
   data: Budget[];
@@ -12,30 +12,66 @@ const MONTHS = [
   'Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember'
 ];
 
-// Helper to determine evidence needed
-const getEvidenceSuggestion = (description: string, accountCode?: string): string => {
+// Helper to determine evidence needed as a list
+const getEvidenceList = (description: string, accountCode?: string): string[] => {
   const text = (description + ' ' + (accountCode || '')).toLowerCase();
   
   if (text.includes('honor') || text.includes('gaji') || text.includes('jasa')) {
-    return "SK Tugas/SK Pembagian Tugas, Daftar Hadir, Tanda Terima/Kuitansi Honor, Bukti Transfer (Non-Tunai).";
+    return [
+      "SK Tugas / SK Pembagian Tugas",
+      "Daftar Hadir Guru/Tendik",
+      "Tanda Terima / Kuitansi Honor",
+      "Bukti Transfer (Jika Non-Tunai)",
+      "Bukti Potong Pajak (PPh 21) jika ada"
+    ];
   }
   if (text.includes('listrik') || text.includes('air') || text.includes('internet') || text.includes('langganan')) {
-    return "Surat Tagihan/Invoice, Bukti Pembayaran/Struk Bank/Kuitansi.";
+    return [
+      "Surat Tagihan / Invoice Provider",
+      "Bukti Pembayaran / Struk Bank / ATM",
+      "Kuitansi Asli"
+    ];
   }
   if (text.includes('makan') || text.includes('minum') || text.includes('konsumsi')) {
-    return "Nota/Faktur Pembelian, Daftar Hadir Peserta Rapat/Kegiatan, Undangan, Notulen/Laporan Kegiatan, Foto Kegiatan.";
+    return [
+      "Nota / Faktur Pembelian (Detail Menu)",
+      "Daftar Hadir Peserta Rapat/Kegiatan",
+      "Undangan Kegiatan",
+      "Notulen / Laporan Singkat Kegiatan",
+      "Foto Dokumentasi Kegiatan"
+    ];
   }
   if (text.includes('perjalanan') || text.includes('dinas')) {
-    return "Surat Tugas, SPPD, Tiket/Bukti Transportasi, Nota BBM (jika sewa), Laporan Perjalanan Dinas.";
+    return [
+      "Surat Tugas Kepala Sekolah",
+      "SPPD (Surat Perintah Perjalanan Dinas)",
+      "Tiket / Bukti Transportasi",
+      "Nota BBM / Sewa Kendaraan",
+      "Laporan Hasil Perjalanan Dinas"
+    ];
   }
-  if (text.includes('modal') || text.includes('buku') || text.includes('laptop') || text.includes('bangunan')) {
-    return "Faktur/Nota, Berita Acara Serah Terima (BAST), Berita Acara Pemeriksaan Barang, Foto Barang, Catatan Aset.";
+  if (text.includes('modal') || text.includes('buku') || text.includes('laptop') || text.includes('bangunan') || text.includes('meja') || text.includes('kursi')) {
+    return [
+      "Faktur / Nota Pembelian",
+      "Berita Acara Serah Terima (BAST)",
+      "Berita Acara Pemeriksaan Barang",
+      "Foto Dokumentasi Barang",
+      "Catatan Pencatatan Buku Aset/Inventaris"
+    ];
   }
-  if (text.includes('atk') || text.includes('bahan')) {
-    return "Nota/Faktur Pembelian, Struk Belanja.";
+  if (text.includes('atk') || text.includes('bahan') || text.includes('alat')) {
+    return [
+      "Nota / Faktur Pembelian",
+      "Struk Belanja Detail Barang",
+      "Foto Barang (Opsional)"
+    ];
   }
 
-  return "Kuitansi/Nota/Faktur Pembelian yang sah.";
+  return [
+    "Kuitansi / Nota yang sah",
+    "Faktur Pajak (Jika ada)",
+    "Dokumentasi Pendukung Lainnya"
+  ];
 };
 
 const SPJRealization: React.FC<SPJRealizationProps> = ({ data, onUpdate }) => {
@@ -46,8 +82,11 @@ const SPJRealization: React.FC<SPJRealizationProps> = ({ data, onUpdate }) => {
   const [activeMonthIndex, setActiveMonthIndex] = useState<number>(0); // 1-12
   const [formAmount, setFormAmount] = useState<string>('');
   const [formDate, setFormDate] = useState<string>('');
-  const [formFile, setFormFile] = useState<File | null>(null);
   const [existingFileName, setExistingFileName] = useState<string>('');
+  
+  // Checklist State
+  const [evidenceItems, setEvidenceItems] = useState<string[]>([]);
+  const [checkedEvidence, setCheckedEvidence] = useState<string[]>([]);
 
   const [searchTerm, setSearchTerm] = useState('');
 
@@ -67,6 +106,11 @@ const SPJRealization: React.FC<SPJRealizationProps> = ({ data, onUpdate }) => {
       : new Date().getMonth() + 1;
     
     selectMonthForEditing(item, initialMonth);
+    
+    // Load evidence list
+    const items = getEvidenceList(item.description, item.account_code);
+    setEvidenceItems(items);
+    
     setIsModalOpen(true);
   };
 
@@ -74,25 +118,28 @@ const SPJRealization: React.FC<SPJRealizationProps> = ({ data, onUpdate }) => {
     setActiveMonthIndex(month);
     const existingRealization = item.realizations?.find(r => r.month === month);
     
+    // Reset Checklist whenever changing month
+    setCheckedEvidence([]); 
+
     if (existingRealization) {
       setFormAmount(existingRealization.amount.toString());
       setFormDate(existingRealization.date.split('T')[0]);
       setExistingFileName(existingRealization.evidence_file || '');
     } else {
-      // Propose amount: Total / Number of months? Or just 0
-      // For routine (e.g. 12 months), total amount usually represents the year total.
-      // So expected per month = Total / months count.
       const monthsCount = item.realization_months?.length || 1;
       const suggestedAmount = Math.floor(item.amount / monthsCount);
       setFormAmount(suggestedAmount.toString());
       
-      // Default date: end of that month in 2026
-      // Handle leap year etc roughly
       const lastDay = new Date(2026, month, 0).getDate();
       setFormDate(`2026-${month.toString().padStart(2, '0')}-${lastDay}`);
       setExistingFileName('');
     }
-    setFormFile(null);
+  };
+
+  const toggleEvidence = (item: string) => {
+    setCheckedEvidence(prev => 
+      prev.includes(item) ? prev.filter(i => i !== item) : [...prev, item]
+    );
   };
 
   const handleSaveSPJ = (e: React.FormEvent) => {
@@ -104,7 +151,7 @@ const SPJRealization: React.FC<SPJRealizationProps> = ({ data, onUpdate }) => {
       month: activeMonthIndex,
       amount: Number(formAmount),
       date: new Date(formDate).toISOString(),
-      evidence_file: formFile ? formFile.name : existingFileName
+      evidence_file: existingFileName // Preserve existing file reference if any, though upload UI is removed
     };
 
     // Merge with existing realizations
@@ -116,10 +163,6 @@ const SPJRealization: React.FC<SPJRealizationProps> = ({ data, onUpdate }) => {
       realizations: updatedRealizations
     });
 
-    // Don't close modal immediately, allows editing other months if routine
-    // Update local state to reflect change visually if needed (though onUpdate triggers re-render of props)
-    // For UX, maybe close if it's single month, stay open if routine? 
-    // Let's close for now to indicate success.
     setIsModalOpen(false); 
     setSelectedBudget(null);
   };
@@ -133,7 +176,7 @@ const SPJRealization: React.FC<SPJRealizationProps> = ({ data, onUpdate }) => {
       <div className="flex justify-between items-end">
         <div>
            <h2 className="text-xl font-bold text-gray-800">Peng-SPJ-an & Realisasi</h2>
-           <p className="text-sm text-gray-500">Input realisasi per bulan dan upload bukti fisik.</p>
+           <p className="text-sm text-gray-500">Input realisasi per bulan dan ceklist kelengkapan bukti.</p>
         </div>
         <div className="relative">
           <Search className="absolute left-3 top-2.5 text-gray-400" size={16} />
@@ -228,7 +271,7 @@ const SPJRealization: React.FC<SPJRealizationProps> = ({ data, onUpdate }) => {
       {/* Modal Input SPJ */}
       {isModalOpen && selectedBudget && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-xl shadow-xl w-full max-w-2xl overflow-hidden animate-fade-in-up flex flex-col max-h-[90vh]">
+          <div className="bg-white rounded-xl shadow-xl w-full max-w-2xl overflow-hidden animate-fade-in-up flex flex-col max-h-[95vh]">
             <div className="px-6 py-4 border-b border-gray-100 flex justify-between items-center bg-gray-50 flex-shrink-0">
                <div className="flex items-center gap-2">
                  <FileCheck2 className="text-blue-600" size={20} />
@@ -262,7 +305,7 @@ const SPJRealization: React.FC<SPJRealizationProps> = ({ data, onUpdate }) => {
                )}
 
                <div className="flex-1 overflow-y-auto p-6">
-                 <form onSubmit={handleSaveSPJ} className="space-y-5">
+                 <form onSubmit={handleSaveSPJ} className="space-y-6">
                     
                     <div>
                       <h4 className="font-bold text-gray-800">{selectedBudget.description}</h4>
@@ -271,17 +314,6 @@ const SPJRealization: React.FC<SPJRealizationProps> = ({ data, onUpdate }) => {
                          <span>•</span>
                          <span>Pagu Total: {formatRupiah(selectedBudget.amount)}</span>
                       </div>
-                    </div>
-
-                    {/* Evidence Recommendation Box */}
-                    <div className="bg-yellow-50 border border-yellow-100 p-3 rounded-lg flex gap-3">
-                       <AlertCircle className="text-yellow-600 flex-shrink-0 mt-0.5" size={16} />
-                       <div>
-                          <p className="text-xs font-bold text-yellow-800 mb-1">Rekomendasi Bukti Fisik:</p>
-                          <p className="text-xs text-yellow-700 leading-relaxed">
-                            {getEvidenceSuggestion(selectedBudget.description, selectedBudget.account_code)}
-                          </p>
-                       </div>
                     </div>
 
                     <div className="grid grid-cols-2 gap-4">
@@ -313,29 +345,38 @@ const SPJRealization: React.FC<SPJRealizationProps> = ({ data, onUpdate }) => {
                        </div>
                     </div>
 
-                    {/* File Upload Simulation */}
-                    <div>
-                       <label className="block text-sm font-medium text-gray-700 mb-1">Upload Bukti Fisik (Scan PDF/Foto)</label>
-                       <div className="border-2 border-dashed border-gray-300 rounded-xl p-6 flex flex-col items-center justify-center text-center hover:bg-gray-50 transition cursor-pointer relative">
-                          <input 
-                            type="file" 
-                            className="absolute inset-0 opacity-0 cursor-pointer"
-                            onChange={(e) => setFormFile(e.target.files ? e.target.files[0] : null)}
-                            accept="image/*,.pdf"
-                          />
-                          {formFile || existingFileName ? (
-                            <div className="flex flex-col items-center text-green-600">
-                               <FileText size={32} className="mb-2" />
-                               <span className="font-medium text-sm">{formFile ? formFile.name : existingFileName}</span>
-                               <span className="text-xs text-gray-400 mt-1">{formFile ? '(Siap Upload)' : '(Sudah Tersimpan)'}</span>
-                            </div>
-                          ) : (
-                            <div className="flex flex-col items-center text-gray-400">
-                               <UploadCloud size={32} className="mb-2" />
-                               <span className="text-sm font-medium text-gray-600">Klik untuk upload file</span>
-                               <span className="text-xs">Mendukung JPG, PNG, PDF (Max 2MB)</span>
-                            </div>
-                          )}
+                    {/* Evidence Checklist */}
+                    <div className="bg-yellow-50 border border-yellow-100 p-4 rounded-xl">
+                       <div className="flex items-center justify-between mb-3">
+                         <div className="flex items-center gap-2">
+                            <AlertCircle className="text-yellow-600" size={18} />
+                            <h5 className="text-sm font-bold text-yellow-800">Kelengkapan Bukti Fisik</h5>
+                         </div>
+                         <span className="text-xs font-bold text-yellow-700 bg-yellow-100 px-2 py-1 rounded-full">
+                           {checkedEvidence.length}/{evidenceItems.length} Terpenuhi
+                         </span>
+                       </div>
+                       
+                       <div className="space-y-2">
+                         {evidenceItems.map((item, idx) => {
+                           const isChecked = checkedEvidence.includes(item);
+                           return (
+                             <div 
+                               key={idx} 
+                               onClick={() => toggleEvidence(item)}
+                               className={`flex items-start gap-3 p-2 rounded-lg cursor-pointer transition select-none ${
+                                 isChecked ? 'bg-yellow-100/50' : 'hover:bg-white/50'
+                               }`}
+                             >
+                               <div className={`mt-0.5 flex-shrink-0 text-yellow-600`}>
+                                 {isChecked ? <CheckSquare size={18} /> : <Square size={18} />}
+                               </div>
+                               <span className={`text-xs ${isChecked ? 'text-gray-600 line-through' : 'text-gray-800'}`}>
+                                 {item}
+                               </span>
+                             </div>
+                           )
+                         })}
                        </div>
                     </div>
 
