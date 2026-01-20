@@ -1,6 +1,6 @@
 import React, { useMemo, useState, useEffect } from 'react';
 import { Budget, TransactionType, AccountCodes, BankStatement } from '../types';
-import { FileDown, Printer, FileText, TrendingUp, Table2, List, Calendar, FilterX, Upload, Plus, Trash2, CheckCircle2, AlertCircle, AlertTriangle } from 'lucide-react';
+import { FileDown, Printer, FileText, TrendingUp, Table2, List, Calendar, FilterX, Upload, Plus, Trash2, CheckCircle2, AlertCircle, AlertTriangle, Download } from 'lucide-react';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import { getBankStatements, saveBankStatement, deleteBankStatement } from '../lib/db';
@@ -185,6 +185,33 @@ const Reports: React.FC<ReportsProps> = ({ data }) => {
           await deleteBankStatement(id);
           await loadBankStatements();
       }
+  };
+
+  const handleDownloadStatement = (stmt: BankStatement) => {
+    // Simulasi download karena penyimpanan file fisik (Storage Bucket) belum dikonfigurasi
+    const fileContent = `
+METADATA REKENING KORAN (SIMULASI)
+----------------------------------
+Bulan         : ${MONTHS[stmt.month - 1]}
+Tahun         : ${stmt.year}
+Saldo Akhir   : ${formatRupiah(stmt.closing_balance)}
+Nama File Asli: ${stmt.file_name}
+Tanggal Upload: ${stmt.updated_at ? new Date(stmt.updated_at).toLocaleString('id-ID') : '-'}
+
+CATATAN PENTING:
+File fisik asli belum tersimpan di Cloud Storage. 
+Ini adalah file teks simulasi yang dihasilkan oleh sistem.
+    `;
+    
+    const blob = new Blob([fileContent], { type: 'text/plain' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `Rekening_Koran_${MONTHS[stmt.month-1]}_${stmt.year}.txt`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
   };
 
 
@@ -719,12 +746,22 @@ const Reports: React.FC<ReportsProps> = ({ data }) => {
                                             </span>
                                         </td>
                                         <td className="px-4 py-3 text-right">
-                                            <button 
-                                                onClick={() => handleDeleteStatement(stmt.id)}
-                                                className="text-gray-400 hover:text-red-500 transition"
-                                            >
-                                                <Trash2 size={16} />
-                                            </button>
+                                            <div className="flex justify-end gap-2">
+                                                <button 
+                                                    onClick={() => handleDownloadStatement(stmt)}
+                                                    className="text-blue-500 hover:text-blue-700 transition"
+                                                    title="Download"
+                                                >
+                                                    <Download size={16} />
+                                                </button>
+                                                <button 
+                                                    onClick={() => handleDeleteStatement(stmt.id)}
+                                                    className="text-gray-400 hover:text-red-500 transition"
+                                                    title="Hapus"
+                                                >
+                                                    <Trash2 size={16} />
+                                                </button>
+                                            </div>
                                         </td>
                                     </tr>
                                 ))
