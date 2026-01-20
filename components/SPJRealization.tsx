@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { Budget, TransactionType, AccountCodes, RealizationDetail } from '../types';
-import { FileText, Save, X, Calendar, Search, CheckCircle2, FileCheck2, AlertCircle, CheckSquare, Square, Sparkles, Loader2, ShoppingCart, Filter, TrendingUp, Wallet } from 'lucide-react';
+import { FileText, Save, X, Calendar, Search, CheckCircle2, FileCheck2, AlertCircle, CheckSquare, Square, Sparkles, Loader2, ShoppingCart, Filter, TrendingUp, Wallet, Check, ListChecks } from 'lucide-react';
 import { suggestEvidenceList } from '../lib/gemini';
 
 interface SPJRealizationProps {
@@ -32,7 +32,6 @@ const getEvidenceList = (description: string, accountCode?: string): string[] =>
   }
 
   // 2. BELANJA BARANG / ATK / BAHAN / ALAT KEBERSIHAN / ALAT LISTRIK (LAMPU)
-  // FIX: Menambahkan 'lampu', 'kabel', 'alat listrik' agar masuk kategori Barang/SIPLah, bukan Konstruksi.
   if (
     text.includes('atk') || text.includes('bahan') || text.includes('alat tulis') || 
     text.includes('kertas') || text.includes('kebersihan') || text.includes('spanduk') || 
@@ -92,8 +91,6 @@ const getEvidenceList = (description: string, accountCode?: string): string[] =>
   }
 
   // 6. PEMELIHARAAN / JASA TUKANG
-  // FIX: Hanya masuk sini jika eksplisit menyebut 'jasa', 'tukang', 'servis', atau 'upah'.
-  // Jika hanya 'pemeliharaan' tapi barangnya 'lampu', sudah tertangkap di poin 2.
   if (text.includes('pemeliharaan') || text.includes('servis') || text.includes('perbaikan') || text.includes('tukang') || text.includes('rehab')) {
     return [
       "Surat Perintah Kerja (SPK) Manual (Jika Jasa Perorangan)",
@@ -108,7 +105,6 @@ const getEvidenceList = (description: string, accountCode?: string): string[] =>
   }
 
   // 7. LANGGANAN DAYA & JASA (Listrik, Internet)
-  // FIX: Pastikan tidak menangkap 'alat listrik' atau 'lampu', hanya tagihan.
   if ((text.includes('listrik') && !text.includes('alat')) || text.includes('air') || text.includes('internet') || text.includes('langganan') || text.includes('telepon') || text.includes('wifi')) {
     return [
       "Invoice / Tagihan Resmi Penyedia (PLN/Telkom)",
@@ -130,6 +126,7 @@ const getEvidenceList = (description: string, accountCode?: string): string[] =>
 const SPJRealization: React.FC<SPJRealizationProps> = ({ data, onUpdate }) => {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [selectedBudget, setSelectedBudget] = useState<Budget | null>(null);
+  const [selectedBatchIds, setSelectedBatchIds] = useState<string[]>([]);
   
   // View State
   const [viewMonth, setViewMonth] = useState<number>(new Date().getMonth() + 1); // Tab Filter
@@ -138,6 +135,7 @@ const SPJRealization: React.FC<SPJRealizationProps> = ({ data, onUpdate }) => {
   // Form State
   const [activeMonthIndex, setActiveMonthIndex] = useState<number>(0); 
   const [formAmount, setFormAmount] = useState<string>('');
+  const [batchAmounts, setBatchAmounts] = useState<Record<string, number>>({});
   const [formDate, setFormDate] = useState<string>('');
   const [existingFileName, setExistingFileName] = useState<string>('');
   
@@ -179,6 +177,7 @@ const SPJRealization: React.FC<SPJRealizationProps> = ({ data, onUpdate }) => {
 
   const handleOpenSPJ = (item: Budget) => {
     setSelectedBudget(item);
+    setSelectedBatchIds([item.id]); // Single mode
     
     // Default to currently viewed month in the modal
     selectMonthForEditing(item, viewMonth);
@@ -190,10 +189,49 @@ const SPJRealization: React.FC<SPJRealizationProps> = ({ data, onUpdate }) => {
     setIsModalOpen(true);
   };
 
+  const handleBatchSPJ = () => {
+    if (selectedBatchIds.length === 0) return;
+    
+    // Pick the first item as the "representative" for description logic
+    const firstItem = data.find(d => d.id === selectedBatchIds[0]);
+    if (!firstItem) return;
+
+    setSelectedBudget(null); // Indicates batch mode if null but selectedBatchIds has items
+    setActiveMonthIndex(viewMonth);
+    
+    // Set default date
+    const lastDay = new Date(2026, viewMonth, 0).getDate();
+    setFormDate(`2026-${viewMonth.toString().padStart(2, '0')}-${lastDay}`);
+    setExistingFileName('');
+    setCheckedEvidence([]);
+
+    // Initialize amounts for all selected items
+    const amounts: Record<string, number> = {};
+    selectedBatchIds.forEach(id => {
+       const item = data.find(d => d.id === id);
+       if (item) {
+          const monthsCount = item.realization_months?.length || 1;
+          // Check if already realized, if so use that amount, otherwise forecast
+          const existing = item.realizations?.find(r => r.month === viewMonth);
+          amounts[id] = existing ? existing.amount : Math.floor(item.amount / monthsCount);
+       }
+    });
+    setBatchAmounts(amounts);
+
+    // Get evidence from first item (assuming batch usually shares type)
+    const items = getEvidenceList(firstItem.description, firstItem.account_code);
+    setEvidenceItems(items);
+
+    setIsModalOpen(true);
+  };
+
   const handleGetAIEvidence = async () => {
-    if (!selectedBudget) return;
+    // If batch, use the first selected item for AI context
+    const item = selectedBudget || data.find(d => d.id === selectedBatchIds[0]);
+    if (!item) return;
+
     setIsAiLoading(true);
-    const aiSuggestions = await suggestEvidenceList(selectedBudget.description, selectedBudget.account_code || '');
+    const aiSuggestions = await suggestEvidenceList(item.description, item.account_code || '');
     if (aiSuggestions && aiSuggestions.length > 0) {
       setEvidenceItems(aiSuggestions);
       setCheckedEvidence(prev => prev.filter(p => aiSuggestions.includes(p)));
@@ -229,34 +267,50 @@ const SPJRealization: React.FC<SPJRealizationProps> = ({ data, onUpdate }) => {
     );
   };
 
+  const toggleRowSelection = (id: string) => {
+    setSelectedBatchIds(prev => 
+      prev.includes(id) ? prev.filter(i => i !== id) : [...prev, id]
+    );
+  };
+
   const handleSaveSPJ = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!selectedBudget) return;
 
-    // Create new realization item
-    const newRealization: RealizationDetail = {
-      month: activeMonthIndex,
-      amount: Number(formAmount),
-      date: new Date(formDate).toISOString(),
-      evidence_file: existingFileName 
-    };
+    // Handle Batch Save
+    if (selectedBatchIds.length > 0) {
+       selectedBatchIds.forEach(id => {
+          const item = data.find(d => d.id === id);
+          if (!item) return;
 
-    // Merge with existing realizations
-    const currentRealizations = selectedBudget.realizations || [];
-    const otherRealizations = currentRealizations.filter(r => r.month !== activeMonthIndex);
-    const updatedRealizations = [...otherRealizations, newRealization];
+          // Determine amount: if single mode use formAmount, if batch use batchAmounts
+          const amountToSave = selectedBudget ? Number(formAmount) : (batchAmounts[id] || 0);
 
-    onUpdate(selectedBudget.id, {
-      realizations: updatedRealizations
-    });
+          const newRealization: RealizationDetail = {
+            month: activeMonthIndex,
+            amount: amountToSave,
+            date: new Date(formDate).toISOString(),
+            evidence_file: existingFileName || 'Nota Kolektif'
+          };
+
+          const currentRealizations = item.realizations || [];
+          const otherRealizations = currentRealizations.filter(r => r.month !== activeMonthIndex);
+          const updatedRealizations = [...otherRealizations, newRealization];
+
+          onUpdate(id, { realizations: updatedRealizations });
+       });
+    }
 
     setIsModalOpen(false); 
     setSelectedBudget(null);
+    setSelectedBatchIds([]); // Clear selection after save
   };
 
   const formatRupiah = (num: number) => {
     return new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', maximumFractionDigits: 0 }).format(num);
   };
+
+  // Check if we are in batch mode inside modal
+  const isBatchMode = !selectedBudget && selectedBatchIds.length > 0;
 
   return (
     <div className="space-y-6">
@@ -265,7 +319,7 @@ const SPJRealization: React.FC<SPJRealizationProps> = ({ data, onUpdate }) => {
       <div className="flex flex-col md:flex-row md:justify-between md:items-end gap-4">
         <div>
            <h2 className="text-xl font-bold text-gray-800">Peng-SPJ-an & Realisasi</h2>
-           <p className="text-sm text-gray-500">Input realisasi per bulan dan ceklist kelengkapan bukti (Standar SIPLah & Juknis 2026).</p>
+           <p className="text-sm text-gray-500">Input realisasi per bulan. Gunakan fitur checkbox untuk <b>satu nota banyak item</b>.</p>
         </div>
         <div className="relative w-full md:w-auto">
           <Search className="absolute left-3 top-2.5 text-gray-400" size={16} />
@@ -288,7 +342,7 @@ const SPJRealization: React.FC<SPJRealizationProps> = ({ data, onUpdate }) => {
              return (
                <button
                  key={monthNum}
-                 onClick={() => setViewMonth(monthNum)}
+                 onClick={() => { setViewMonth(monthNum); setSelectedBatchIds([]); }}
                  className={`px-4 py-2 rounded-lg text-xs font-medium whitespace-nowrap transition-all ${
                    isActive 
                      ? 'bg-blue-600 text-white shadow-md' 
@@ -346,15 +400,31 @@ const SPJRealization: React.FC<SPJRealizationProps> = ({ data, onUpdate }) => {
          </div>
       </div>
 
-      <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
-        <div className="px-6 py-4 border-b border-gray-100 bg-gray-50 flex items-center gap-2">
-           <Filter size={16} className="text-gray-400" />
-           <h3 className="text-sm font-bold text-gray-700">Daftar Kegiatan Bulan {MONTHS[viewMonth-1]}</h3>
+      <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden relative">
+        <div className="px-6 py-4 border-b border-gray-100 bg-gray-50 flex items-center justify-between">
+           <div className="flex items-center gap-2">
+              <Filter size={16} className="text-gray-400" />
+              <h3 className="text-sm font-bold text-gray-700">Daftar Kegiatan Bulan {MONTHS[viewMonth-1]}</h3>
+           </div>
+           
+           {/* Batch Action Button */}
+           {selectedBatchIds.length > 0 && (
+             <button 
+                onClick={handleBatchSPJ}
+                className="animate-fade-in px-4 py-1.5 bg-indigo-600 text-white text-xs font-bold rounded-full shadow-lg hover:bg-indigo-700 transition flex items-center gap-2"
+             >
+                <ListChecks size={14} />
+                Input SPJ Kolektif ({selectedBatchIds.length})
+             </button>
+           )}
         </div>
         <div className="overflow-x-auto">
           <table className="w-full text-left text-sm text-gray-600">
             <thead className="bg-gray-50 border-b border-gray-100 text-gray-700">
               <tr>
+                <th className="px-4 py-4 w-10 text-center">
+                   <CheckSquare size={16} className="mx-auto text-gray-400" />
+                </th>
                 <th className="px-4 py-4 font-semibold w-1/3">Uraian Kegiatan</th>
                 <th className="px-4 py-4 font-semibold text-right">Pagu (Per Bulan)</th>
                 <th className="px-4 py-4 font-semibold text-right">Realisasi (Per Bulan)</th>
@@ -365,7 +435,7 @@ const SPJRealization: React.FC<SPJRealizationProps> = ({ data, onUpdate }) => {
             <tbody className="divide-y divide-gray-100">
               {expensesInMonth.length === 0 ? (
                 <tr>
-                  <td colSpan={5} className="px-6 py-12 text-center text-gray-400">
+                  <td colSpan={6} className="px-6 py-12 text-center text-gray-400">
                     <div className="flex flex-col items-center gap-2">
                        <FileText size={32} className="opacity-20" />
                        <p>Tidak ada jadwal kegiatan di bulan {MONTHS[viewMonth-1]}.</p>
@@ -380,9 +450,18 @@ const SPJRealization: React.FC<SPJRealizationProps> = ({ data, onUpdate }) => {
                   const realizationThisMonth = item.realizations?.find(r => r.month === viewMonth);
                   const amountRealized = realizationThisMonth?.amount || 0;
                   const isDone = amountRealized > 0;
+                  const isSelected = selectedBatchIds.includes(item.id);
                   
                   return (
-                    <tr key={item.id} className="hover:bg-gray-50 transition-colors">
+                    <tr key={item.id} className={`transition-colors ${isSelected ? 'bg-indigo-50/60' : 'hover:bg-gray-50'}`}>
+                      <td className="px-4 py-4 text-center">
+                         <button 
+                           onClick={() => toggleRowSelection(item.id)}
+                           className={`transition ${isSelected ? 'text-indigo-600' : 'text-gray-300 hover:text-gray-400'}`}
+                         >
+                            {isSelected ? <CheckSquare size={18} /> : <Square size={18} />}
+                         </button>
+                      </td>
                       <td className="px-4 py-4">
                         <div className="font-medium text-gray-800">{item.description}</div>
                          <div className="text-[10px] text-gray-400 font-mono mt-1">
@@ -418,7 +497,7 @@ const SPJRealization: React.FC<SPJRealizationProps> = ({ data, onUpdate }) => {
                                : 'bg-blue-600 text-white hover:bg-blue-700'
                           }`}
                         >
-                          {isDone ? 'Edit SPJ' : 'Input SPJ'}
+                          {isDone ? 'Edit' : 'Input'}
                         </button>
                       </td>
                     </tr>
@@ -430,30 +509,36 @@ const SPJRealization: React.FC<SPJRealizationProps> = ({ data, onUpdate }) => {
         </div>
       </div>
 
-      {/* Modal Input SPJ */}
-      {isModalOpen && selectedBudget && (
+      {/* Modal Input SPJ (Supports Single & Batch) */}
+      {isModalOpen && (selectedBudget || selectedBatchIds.length > 0) && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
           <div className="bg-white rounded-xl shadow-xl w-full max-w-2xl overflow-hidden animate-fade-in-up flex flex-col max-h-[95vh]">
             <div className="px-6 py-4 border-b border-gray-100 flex justify-between items-center bg-gray-50 flex-shrink-0">
                <div className="flex items-center gap-2">
-                 <FileCheck2 className="text-blue-600" size={20} />
-                 <h3 className="font-bold text-gray-800">Input Realisasi (SPJ)</h3>
+                 {isBatchMode ? (
+                    <ListChecks className="text-indigo-600" size={20} />
+                 ) : (
+                    <FileCheck2 className="text-blue-600" size={20} />
+                 )}
+                 <h3 className="font-bold text-gray-800">
+                   {isBatchMode ? `Input Realisasi Kolektif (${selectedBatchIds.length} Item)` : 'Input Realisasi (SPJ)'}
+                 </h3>
                </div>
-               <button onClick={() => setIsModalOpen(false)}><X size={20} className="text-gray-400 hover:text-gray-600" /></button>
+               <button onClick={() => { setIsModalOpen(false); setSelectedBatchIds([]); }}><X size={20} className="text-gray-400 hover:text-gray-600" /></button>
             </div>
             
             <div className="flex flex-1 overflow-hidden">
-               {/* Sidebar Months */}
-               {(selectedBudget.realization_months?.length || 0) > 1 && (
+               {/* Sidebar Months (Only for Single Mode) */}
+               {(!isBatchMode && (selectedBudget?.realization_months?.length || 0) > 1) && (
                  <div className="w-40 bg-gray-50 border-r border-gray-100 overflow-y-auto p-2 space-y-1">
                     <p className="px-2 py-2 text-xs font-bold text-gray-500 uppercase">Pilih Bulan</p>
-                    {selectedBudget.realization_months?.sort((a,b)=>a-b).map(m => {
+                    {selectedBudget?.realization_months?.sort((a,b)=>a-b).map(m => {
                        const isDone = selectedBudget.realizations?.some(r => r.month === m);
                        const isActive = activeMonthIndex === m;
                        return (
                          <button
                            key={m}
-                           onClick={() => selectMonthForEditing(selectedBudget, m)}
+                           onClick={() => selectedBudget && selectMonthForEditing(selectedBudget, m)}
                            className={`w-full text-left px-3 py-2 rounded-lg text-xs flex justify-between items-center transition ${
                              isActive ? 'bg-white border border-blue-200 shadow-sm text-blue-700 font-bold' : 'hover:bg-gray-100 text-gray-600'
                            }`}
@@ -469,43 +554,107 @@ const SPJRealization: React.FC<SPJRealizationProps> = ({ data, onUpdate }) => {
                <div className="flex-1 overflow-y-auto p-6">
                  <form onSubmit={handleSaveSPJ} className="space-y-6">
                     
+                    {/* Header Info */}
                     <div>
-                      <h4 className="font-bold text-gray-800">{selectedBudget.description}</h4>
-                      <div className="flex items-center gap-2 text-xs text-gray-500 mt-1">
-                         <span className="bg-gray-100 px-2 py-0.5 rounded">Bulan: {MONTHS[activeMonthIndex-1]}</span>
-                         <span>•</span>
-                         <span>Pagu Total: {formatRupiah(selectedBudget.amount)}</span>
-                      </div>
+                      {!isBatchMode && selectedBudget ? (
+                        <>
+                          <h4 className="font-bold text-gray-800">{selectedBudget.description}</h4>
+                          <div className="flex items-center gap-2 text-xs text-gray-500 mt-1">
+                             <span className="bg-gray-100 px-2 py-0.5 rounded">Bulan: {MONTHS[activeMonthIndex-1]}</span>
+                             <span>•</span>
+                             <span>Pagu Total: {formatRupiah(selectedBudget.amount)}</span>
+                          </div>
+                        </>
+                      ) : (
+                         <div className="bg-indigo-50 p-3 rounded-lg border border-indigo-100">
+                            <p className="text-sm text-indigo-800 font-bold mb-2">Item yang dipilih:</p>
+                            <ul className="text-xs text-gray-600 space-y-1 max-h-32 overflow-y-auto">
+                               {selectedBatchIds.map(id => {
+                                  const item = data.find(d => d.id === id);
+                                  return (
+                                     <li key={id} className="flex justify-between">
+                                        <span>• {item?.description}</span>
+                                        <span className="font-mono">{item?.account_code}</span>
+                                     </li>
+                                  )
+                               })}
+                            </ul>
+                         </div>
+                      )}
                     </div>
 
-                    <div className="grid grid-cols-2 gap-4">
-                       <div>
-                         <label className="block text-sm font-medium text-gray-700 mb-1">Nilai Realisasi (Rp)</label>
-                         <input 
-                           type="number" 
-                           required
-                           min="0"
-                           value={formAmount}
-                           onChange={(e) => setFormAmount(e.target.value)}
-                           className="w-full px-3 py-2 border border-blue-200 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none text-lg font-mono text-blue-800 font-bold"
-                           placeholder="0"
-                         />
+                    {/* Amount Input */}
+                    {isBatchMode ? (
+                       <div className="space-y-3">
+                          <label className="block text-sm font-medium text-gray-700">Rincian Nilai Realisasi per Item</label>
+                          {selectedBatchIds.map(id => {
+                              const item = data.find(d => d.id === id);
+                              if(!item) return null;
+                              return (
+                                <div key={id} className="flex items-center gap-2">
+                                   <span className="text-xs text-gray-600 flex-1 truncate">{item.description}</span>
+                                   <input 
+                                     type="number" 
+                                     className="w-32 px-2 py-1 border border-gray-300 rounded text-right text-sm font-mono focus:border-indigo-500 outline-none"
+                                     value={batchAmounts[id] || 0}
+                                     onChange={(e) => setBatchAmounts(prev => ({...prev, [id]: Number(e.target.value)}))}
+                                   />
+                                </div>
+                              )
+                          })}
+                          <div className="flex justify-end pt-2 border-t border-gray-100">
+                             <span className="text-sm font-bold text-gray-700 mr-2">Total Nota:</span>
+                             <span className="text-sm font-bold text-indigo-700">
+                                {formatRupiah(Object.values(batchAmounts).reduce((a: number, b: number) => a + b, 0))}
+                             </span>
+                          </div>
                        </div>
-
-                       <div>
-                         <label className="block text-sm font-medium text-gray-700 mb-1">Tanggal Kuitansi/Nota</label>
-                         <div className="relative">
-                           <Calendar size={18} className="absolute left-3 top-2.5 text-gray-400" />
+                    ) : (
+                       <div className="grid grid-cols-2 gap-4">
+                         <div>
+                           <label className="block text-sm font-medium text-gray-700 mb-1">Nilai Realisasi (Rp)</label>
                            <input 
-                              type="date" 
-                              required
-                              value={formDate}
-                              onChange={(e) => setFormDate(e.target.value)}
-                              className="w-full pl-10 pr-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none"
+                             type="number" 
+                             required
+                             min="0"
+                             value={formAmount}
+                             onChange={(e) => setFormAmount(e.target.value)}
+                             className="w-full px-3 py-2 border border-blue-200 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none text-lg font-mono text-blue-800 font-bold"
+                             placeholder="0"
                            />
                          </div>
+                         <div>
+                           <label className="block text-sm font-medium text-gray-700 mb-1">Tanggal Kuitansi/Nota</label>
+                           <div className="relative">
+                             <Calendar size={18} className="absolute left-3 top-2.5 text-gray-400" />
+                             <input 
+                                type="date" 
+                                required
+                                value={formDate}
+                                onChange={(e) => setFormDate(e.target.value)}
+                                className="w-full pl-10 pr-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none"
+                             />
+                           </div>
+                         </div>
                        </div>
-                    </div>
+                    )}
+                    
+                    {/* Date Input for Batch Mode (Shown separately because layout differs) */}
+                    {isBatchMode && (
+                        <div>
+                           <label className="block text-sm font-medium text-gray-700 mb-1">Tanggal Kuitansi/Nota (Satu untuk semua)</label>
+                           <div className="relative">
+                             <Calendar size={18} className="absolute left-3 top-2.5 text-gray-400" />
+                             <input 
+                                type="date" 
+                                required
+                                value={formDate}
+                                onChange={(e) => setFormDate(e.target.value)}
+                                className="w-full pl-10 pr-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none"
+                             />
+                           </div>
+                        </div>
+                    )}
 
                     {/* Evidence Checklist */}
                     <div className="bg-yellow-50 border border-yellow-100 p-4 rounded-xl">
@@ -559,17 +708,17 @@ const SPJRealization: React.FC<SPJRealizationProps> = ({ data, onUpdate }) => {
                     <div className="pt-2 flex gap-3">
                       <button 
                         type="button" 
-                        onClick={() => setIsModalOpen(false)}
+                        onClick={() => { setIsModalOpen(false); setSelectedBatchIds([]); }}
                         className="flex-1 px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition"
                       >
                         Tutup
                       </button>
                       <button 
                         type="submit" 
-                        className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition flex items-center justify-center gap-2"
+                        className={`flex-1 px-4 py-2 text-white rounded-lg transition flex items-center justify-center gap-2 ${isBatchMode ? 'bg-indigo-600 hover:bg-indigo-700' : 'bg-blue-600 hover:bg-blue-700'}`}
                       >
                         <Save size={18} />
-                        Simpan Realisasi
+                        Simpan {isBatchMode ? 'Kolektif' : 'Realisasi'}
                       </button>
                     </div>
 
