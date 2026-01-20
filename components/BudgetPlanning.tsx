@@ -5,9 +5,9 @@ import { analyzeBudgetEntry } from '../lib/gemini';
 
 interface BudgetPlanningProps {
   data: Budget[];
-  onAdd: (item: Omit<Budget, 'id' | 'created_at'>) => void;
-  onUpdate: (id: string, item: Partial<Budget>) => void;
-  onDelete: (id: string) => void;
+  onAdd: (item: Omit<Budget, 'id' | 'created_at'>) => Promise<void>;
+  onUpdate: (id: string, item: Partial<Budget>) => Promise<void>;
+  onDelete: (id: string) => Promise<void>;
 }
 
 const MONTHS = [
@@ -36,6 +36,7 @@ const BudgetPlanning: React.FC<BudgetPlanningProps> = ({ data, onAdd, onUpdate, 
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [isEligible, setIsEligible] = useState<boolean | null>(null);
   const [warningMessage, setWarningMessage] = useState('');
+  const [isSaving, setIsSaving] = useState(false);
 
   // Filter only expenses for planning
   const expenseData = data.filter(d => d.type === TransactionType.EXPENSE);
@@ -60,6 +61,7 @@ const BudgetPlanning: React.FC<BudgetPlanningProps> = ({ data, onAdd, onUpdate, 
     setRealizationMonths([1]);
     setIsEligible(null);
     setWarningMessage('');
+    setIsSaving(false);
   };
 
   const handleEditClick = (item: Budget) => {
@@ -126,12 +128,14 @@ const BudgetPlanning: React.FC<BudgetPlanningProps> = ({ data, onAdd, onUpdate, 
     setIsAnalyzing(false);
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (realizationMonths.length === 0) {
       alert("Pilih setidaknya satu bulan realisasi.");
       return;
     }
+    
+    setIsSaving(true);
 
     const budgetData = {
       type: TransactionType.EXPENSE,
@@ -151,10 +155,12 @@ const BudgetPlanning: React.FC<BudgetPlanningProps> = ({ data, onAdd, onUpdate, 
     };
 
     if (editingId) {
-      onUpdate(editingId, budgetData);
+      await onUpdate(editingId, budgetData);
     } else {
-      onAdd(budgetData);
+      await onAdd(budgetData);
     }
+    
+    setIsSaving(false);
     setIsModalOpen(false);
     resetForm();
   };
@@ -475,15 +481,26 @@ const BudgetPlanning: React.FC<BudgetPlanningProps> = ({ data, onAdd, onUpdate, 
                     type="button" 
                     onClick={() => setIsModalOpen(false)}
                     className="px-4 py-2 text-gray-600 hover:bg-gray-100 rounded-lg transition"
+                    disabled={isSaving}
                   >
                     Batal
                   </button>
                   <button 
                     type="submit" 
-                    className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition shadow-sm flex items-center gap-2"
+                    disabled={isSaving}
+                    className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition shadow-sm flex items-center gap-2 disabled:opacity-70 disabled:cursor-not-allowed"
                   >
-                    <Save size={16} />
-                    {editingId ? 'Simpan Perubahan' : 'Simpan Data'}
+                    {isSaving ? (
+                        <>
+                           <Loader2 size={16} className="animate-spin" />
+                           Menyimpan...
+                        </>
+                    ) : (
+                        <>
+                           <Save size={16} />
+                           {editingId ? 'Simpan Perubahan' : 'Simpan Data'}
+                        </>
+                    )}
                   </button>
                 </div>
 

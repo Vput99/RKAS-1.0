@@ -62,6 +62,7 @@ CREATE POLICY "Public Access Profiles" ON public.school_profiles FOR ALL USING (
 -- 5. PENTING: Aktifkan Realtime (Agar data update otomatis antar device)
 -- Menambahkan tabel ke publikasi supabase_realtime
 BEGIN;
+  -- Reset publikasi realtime untuk memastikan konfigurasi bersih
   DROP PUBLICATION IF EXISTS supabase_realtime;
   CREATE PUBLICATION supabase_realtime FOR TABLE budgets, school_profiles;
 COMMIT;

@@ -37,7 +37,7 @@ function App() {
         { event: '*', schema: 'public', table: 'budgets' },
         (payload) => {
           console.log('Realtime update received (Budgets):', payload);
-          // When change happens, re-fetch data to keep UI in sync
+          // Refresh full data to ensure consistency
           getBudgets().then(setData);
         }
       )
@@ -74,26 +74,39 @@ function App() {
   };
 
   const handleAdd = async (item: Omit<Budget, 'id' | 'created_at'>) => {
+    // 1. Call DB
     const newItem = await addBudget(item);
-    if (newItem && !supabase) {
-      // If offline/local, update state manually. 
-      // If online, the Realtime subscription will handle the update, 
-      // but updating manually here makes UI feel snappier (Optimistic UI)
-      setData(prev => [newItem, ...prev]);
+    
+    // 2. Optimistic Update (Immediate Feedback)
+    if (newItem) {
+      setData(prev => {
+        // Prevent duplicates if Realtime fires quickly
+        if (prev.some(p => p.id === newItem.id)) return prev;
+        return [newItem, ...prev];
+      });
     }
   };
 
   const handleUpdate = async (id: string, updates: Partial<Budget>) => {
+    // Optimistic Update immediately
+    setData(prev => prev.map(item => item.id === id ? { ...item, ...updates } : item));
+    
     const updatedItem = await updateBudget(id, updates);
-    if (updatedItem && !supabase) {
-      setData(prev => prev.map(item => item.id === id ? updatedItem : item));
+    if (!updatedItem) {
+        // Revert if failed (fetch data again)
+        fetchData();
     }
   };
 
   const handleDelete = async (id: string) => {
+    // Optimistic Delete
+    const originalData = [...data];
+    setData(prev => prev.filter(item => item.id !== id));
+
     const success = await deleteBudget(id);
-    if (success && !supabase) {
-      setData(prev => prev.filter(item => item.id !== id));
+    if (!success) {
+        // Revert if failed
+        setData(originalData);
     }
   };
 

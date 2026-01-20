@@ -3,6 +3,7 @@ import { SchoolProfile } from '../types';
 import { Save, School, Users, Wallet, Calendar, AlertCircle, Database, Wifi, WifiOff, CheckCircle2, FileText, Activity } from 'lucide-react';
 import { getSchoolProfile, saveSchoolProfile, checkDatabaseConnection } from '../lib/db';
 import { supabase } from '../lib/supabase';
+import { isAiConfigured } from '../lib/gemini';
 
 interface SettingsProps {
   onProfileUpdate: (profile: SchoolProfile) => void;
@@ -25,7 +26,7 @@ const Settings: React.FC<SettingsProps> = ({ onProfileUpdate }) => {
   const [loading, setLoading] = useState(true);
   const [saved, setSaved] = useState(false);
   const [isConnected, setIsConnected] = useState<boolean | null>(null);
-  const [envStatus, setEnvStatus] = useState({ url: false, key: false });
+  const [envStatus, setEnvStatus] = useState({ url: false, key: false, ai: false });
 
   useEffect(() => {
     loadProfile();
@@ -36,10 +37,12 @@ const Settings: React.FC<SettingsProps> = ({ onProfileUpdate }) => {
   const checkEnvVars = () => {
     // Check if variables are loaded (without exposing values)
     const isUrlSet = !!supabase; 
-    // If supabase client exists, it means URL and Key were provided in lib/supabase.ts
+    const isAiSet = isAiConfigured();
+    
     setEnvStatus({
       url: isUrlSet,
-      key: isUrlSet
+      key: isUrlSet,
+      ai: isAiSet
     });
   };
 
@@ -108,57 +111,56 @@ const Settings: React.FC<SettingsProps> = ({ onProfileUpdate }) => {
          </div>
       </div>
 
-      {/* Diagnostic Panel (Only visible if offline) */}
-      {!isConnected && (
-        <div className="bg-gray-800 text-gray-300 p-5 rounded-xl text-sm font-mono space-y-3 border border-gray-700 shadow-xl">
-           <div className="flex items-center gap-2 text-white font-bold border-b border-gray-700 pb-2 mb-2">
-              <Activity size={16} className="text-red-400" /> DIAGNOSA MASALAH KONEKSI
-           </div>
-           
-           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div className="bg-gray-900/50 p-3 rounded">
-                 <span className="block text-gray-500 text-xs mb-1">Status Variabel Environment:</span>
-                 {envStatus.url ? (
-                    <span className="text-green-400 font-bold">✅ Ditemukan</span>
-                 ) : (
-                    <span className="text-red-400 font-bold">❌ Tidak Ditemukan (URL/Key Kosong)</span>
-                 )}
-              </div>
-              <div className="bg-gray-900/50 p-3 rounded">
-                 <span className="block text-gray-500 text-xs mb-1">Tes Koneksi Server:</span>
-                 <span className="text-red-400 font-bold">❌ Gagal (Tidak ada respon)</span>
-              </div>
-           </div>
+      {/* Diagnostic Panel */}
+      <div className="bg-gray-800 text-gray-300 p-5 rounded-xl text-sm font-mono space-y-3 border border-gray-700 shadow-xl">
+         <div className="flex items-center gap-2 text-white font-bold border-b border-gray-700 pb-2 mb-2">
+            <Activity size={16} className="text-blue-400" /> STATUS SISTEM & ENVIRONMENT
+         </div>
+         
+         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div className="bg-gray-900/50 p-3 rounded">
+               <span className="block text-gray-500 text-xs mb-1">Supabase URL & Key:</span>
+               {envStatus.url ? (
+                  <span className="text-green-400 font-bold">✅ Ditemukan</span>
+               ) : (
+                  <span className="text-red-400 font-bold">❌ Missing Configuration</span>
+               )}
+            </div>
+            <div className="bg-gray-900/50 p-3 rounded">
+               <span className="block text-gray-500 text-xs mb-1">Koneksi Database:</span>
+               {isConnected ? (
+                   <span className="text-green-400 font-bold">✅ Terhubung</span>
+               ) : (
+                   <span className="text-orange-400 font-bold">⚠️ Offline / Lokal</span>
+               )}
+            </div>
+            <div className="bg-gray-900/50 p-3 rounded">
+               <span className="block text-gray-500 text-xs mb-1">Gemini AI (Google):</span>
+               {envStatus.ai ? (
+                  <span className="text-green-400 font-bold">✅ Terkonfigurasi</span>
+               ) : (
+                  <span className="text-red-400 font-bold">❌ Missing API_KEY</span>
+               )}
+            </div>
+         </div>
 
-           <div className="mt-4 pt-4 border-t border-gray-600">
-              <p className="text-yellow-400 font-bold mb-2 flex items-center gap-2">
-                <AlertCircle size={16} /> SOLUSI PERBAIKAN DI VERCEL:
-              </p>
-              <div className="bg-gray-900 p-4 rounded text-gray-300 space-y-3">
-                <p>Aplikasi Vite memerlukan prefix <code>VITE_</code> agar variabel bisa dibaca oleh browser.</p>
-                <ol className="list-decimal pl-5 space-y-2">
-                   <li>
-                     Buka Dashboard Vercel &gt; Settings &gt; Environment Variables.
-                   </li>
-                   <li>
-                     Ganti nama (Edit) variabel Anda menjadi:
-                     <ul className="list-disc pl-5 mt-1 text-white font-bold">
-                       <li>Key 1: <span className="text-green-400">VITE_SUPABASE_URL</span></li>
-                       <li>Key 2: <span className="text-green-400">VITE_SUPABASE_ANON_KEY</span></li>
-                     </ul>
-                     <span className="text-xs text-gray-500 block mt-1">(Jangan gunakan hanya SUPABASE_URL tanpa awalan VITE_)</span>
-                   </li>
-                   <li>
-                     <strong>PENTING:</strong> Setelah mengubah nama variabel, buka tab <strong>Deployments</strong>, klik titik tiga pada deployment paling atas, lalu pilih <strong>Redeploy</strong>.
-                   </li>
-                   <li>
-                     Tanpa Redeploy, perubahan nama variabel tidak akan diterapkan.
-                   </li>
-                </ol>
-              </div>
-           </div>
-        </div>
-      )}
+         {!isConnected && (
+             <div className="mt-4 pt-4 border-t border-gray-600">
+                <p className="text-yellow-400 font-bold mb-2 flex items-center gap-2">
+                  <AlertCircle size={16} /> PETUNJUK SETUP ENV:
+                </p>
+                <div className="bg-gray-900 p-4 rounded text-gray-300 space-y-3">
+                  <p>Pastikan variabel berikut ada di Vercel atau file <code>.env</code> lokal Anda:</p>
+                  <ul className="list-disc pl-5 mt-1 text-white text-xs space-y-1">
+                     <li><code>VITE_SUPABASE_URL</code></li>
+                     <li><code>VITE_SUPABASE_ANON_KEY</code></li>
+                     <li><code>VITE_API_KEY</code> (Untuk AI Gemini)</li>
+                  </ul>
+                  <p className="text-xs text-gray-500">Jika deploy di Vercel, jangan lupa Redeploy setelah update environment variable.</p>
+                </div>
+             </div>
+         )}
+      </div>
 
       <form onSubmit={handleSubmit} className="space-y-6">
         

@@ -21,7 +21,29 @@ const getEnv = (key: string) => {
 };
 
 const apiKey = getEnv('API_KEY') || getEnv('VITE_API_KEY') || '';
+
+// Export status check for UI
+export const isAiConfigured = () => !!apiKey;
+
 const ai = apiKey ? new GoogleGenAI({ apiKey }) : null;
+
+// Helper to robustly parse JSON from AI response (handles markdown code blocks)
+const parseAIResponse = (text: string | undefined) => {
+  if (!text) return null;
+  try {
+    let clean = text.trim();
+    // Remove markdown formatting if present (```json ... ```)
+    if (clean.startsWith('```json')) {
+      clean = clean.replace(/^```json\s*/, '').replace(/\s*```$/, '');
+    } else if (clean.startsWith('```')) {
+      clean = clean.replace(/^```\s*/, '').replace(/\s*```$/, '');
+    }
+    return JSON.parse(clean);
+  } catch (e) {
+    console.error("Failed to parse JSON from AI:", text);
+    return null;
+  }
+};
 
 export const analyzeBudgetEntry = async (description: string): Promise<{ 
   bosp_component: string, 
@@ -44,9 +66,9 @@ export const analyzeBudgetEntry = async (description: string): Promise<{
       unit_estimate: 'Paket',
       price_estimate: 0,
       realization_months_estimate: [1],
-      suggestion: "API Key not found or configured correctly.",
+      suggestion: "Fitur AI belum aktif. Masukkan API_KEY di pengaturan environment.",
       is_eligible: true,
-      warning: ""
+      warning: "AI Offline"
     };
   }
 
@@ -120,7 +142,7 @@ export const analyzeBudgetEntry = async (description: string): Promise<{
       }
     });
 
-    const result = response.text ? JSON.parse(response.text) : null;
+    const result = parseAIResponse(response.text);
     return result || { 
       bosp_component: BOSPComponent.LAINNYA, 
       snp_standard: SNPStandard.LAINNYA, 
@@ -131,21 +153,21 @@ export const analyzeBudgetEntry = async (description: string): Promise<{
       realization_months_estimate: [1],
       suggestion: description,
       is_eligible: true,
-      warning: ""
+      warning: "Gagal memproses respon AI."
     };
   } catch (error) {
     console.error("Gemini Error:", error);
     return {
       bosp_component: BOSPComponent.LAINNYA,
-      snp_standard: SNPStandard.LAINNYA,
+      snp_standard: SNPStandard.LAINNYA, 
       account_code: '',
       quantity_estimate: 1,
       unit_estimate: 'Paket',
       price_estimate: 0,
       realization_months_estimate: [1],
-      suggestion: "Error connecting to AI assistant.",
+      suggestion: "Terjadi kesalahan koneksi ke AI.",
       is_eligible: true,
-      warning: ""
+      warning: "Connection Error"
     };
   }
 };
@@ -173,7 +195,7 @@ export const suggestEvidenceList = async (description: string, accountCode: stri
       }
     });
 
-    const result = response.text ? JSON.parse(response.text) : null;
+    const result = parseAIResponse(response.text);
     return Array.isArray(result) ? result : [];
   } catch (error) {
     console.error("Gemini Error:", error);
@@ -182,7 +204,7 @@ export const suggestEvidenceList = async (description: string, accountCode: stri
 };
 
 export const chatWithFinancialAdvisor = async (query: string, context: string) => {
-  if (!ai) return "AI key belum dikonfigurasi. Harap masukkan API Key di pengaturan environment Vercel.";
+  if (!ai) return "Fitur AI belum aktif. Harap masukkan API Key (VITE_API_KEY) di pengaturan environment.";
 
   try {
     const response = await ai.models.generateContent({
@@ -197,6 +219,7 @@ export const chatWithFinancialAdvisor = async (query: string, context: string) =
     });
     return response.text;
   } catch (e) {
-    return "Maaf, saya tidak dapat memproses permintaan saat ini.";
+    console.error("Chat Error:", e);
+    return "Maaf, saya tidak dapat memproses permintaan saat ini karena gangguan koneksi.";
   }
 }

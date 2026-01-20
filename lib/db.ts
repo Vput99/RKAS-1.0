@@ -14,66 +14,6 @@ const MOCK_DATA: Budget[] = [
     realization_months: [1],
     status: 'approved' 
   },
-  { 
-    id: '2', 
-    type: TransactionType.EXPENSE, 
-    description: 'Pengadaan Buku Teks Utama Kurikulum Merdeka', 
-    quantity: 300,
-    unit: 'Eksemplar',
-    unit_price: 50000,
-    amount: 15000000, 
-    // Realisasi sama dengan anggaran (Pas) - Single month
-    realizations: [
-      { month: 2, amount: 15000000, date: '2026-02-15', evidence_file: 'kuitansi_buku_001.pdf' }
-    ],
-    date: '2026-02-10', 
-    bosp_component: BOSPComponent.PERPUSTAKAAN,
-    category: SNPStandard.SARPRAS,
-    account_code: '5.2.02.13.01.0001',
-    realization_months: [2],
-    status: 'approved',
-    is_bosp_eligible: true
-  },
-  { 
-    id: '3', 
-    type: TransactionType.EXPENSE, 
-    description: 'Pengecatan Ruang Kelas 1 dan 2', 
-    quantity: 2,
-    unit: 'Ruang',
-    unit_price: 2500000,
-    amount: 5000000, 
-    // Realisasi lebih kecil (Ada SILPA)
-    realizations: [
-       { month: 2, amount: 4850000, date: '2026-02-25', evidence_file: 'nota_toko_cat.jpg' }
-    ],
-    date: '2026-02-20', 
-    bosp_component: BOSPComponent.SARPRAS,
-    category: SNPStandard.SARPRAS,
-    account_code: '5.1.02.03.02.0111',
-    realization_months: [2],
-    status: 'draft',
-    is_bosp_eligible: true
-  },
-  { 
-    id: '4', 
-    type: TransactionType.EXPENSE, 
-    description: 'Honor Guru Ekstrakurikuler Pramuka', 
-    quantity: 12,
-    unit: 'Bulan',
-    unit_price: 250000,
-    amount: 3000000, 
-    // Belum direalisasikan semua, baru bulan 1
-    realizations: [
-      { month: 1, amount: 250000, date: '2026-01-31', evidence_file: 'sk_honor_jan.pdf' }
-    ],
-    date: '2026-03-01', 
-    bosp_component: BOSPComponent.PEMBELAJARAN,
-    category: SNPStandard.PTK,
-    account_code: '5.1.02.02.01.0013',
-    realization_months: [1,2,3,4,5,6,7,8,9,10,11,12],
-    status: 'approved',
-    is_bosp_eligible: true
-  },
 ];
 
 const LOCAL_KEY = 'rkas_local_data_v7';
@@ -89,13 +29,12 @@ const DEFAULT_PROFILE: SchoolProfile = {
   treasurerNip: '19850202 201001 2 002',
   fiscalYear: '2026',
   studentCount: 150,
-  budgetCeiling: 150000000 // approx 150 * 1jt per student
+  budgetCeiling: 150000000 
 };
 
 export const checkDatabaseConnection = async (): Promise<boolean> => {
   if (!supabase) return false;
   try {
-    // Ping with a lightweight query (head request)
     const { error } = await supabase.from('school_profiles').select('count', { count: 'exact', head: true });
     return !error;
   } catch (e) {
@@ -107,28 +46,49 @@ export const checkDatabaseConnection = async (): Promise<boolean> => {
 export const getBudgets = async (): Promise<Budget[]> => {
   if (supabase) {
     const { data, error } = await supabase.from('budgets').select('*').order('date', { ascending: false });
-    if (!error && data) return data as Budget[];
+    if (error) {
+        console.error("Error fetching budgets:", error);
+        // Do not fallback to local if supabase is configured but errors (to avoid split brain)
+        return []; 
+    }
+    if (data) return data as Budget[];
   }
   
-  // Fallback to local storage
+  // Only use local storage if Supabase is NOT configured (Offline Mode)
   const local = localStorage.getItem(LOCAL_KEY);
   if (local) return JSON.parse(local);
   
-  // Initialize mock data if empty
   localStorage.setItem(LOCAL_KEY, JSON.stringify(MOCK_DATA));
   return MOCK_DATA;
 };
 
 export const addBudget = async (item: Omit<Budget, 'id' | 'created_at'>): Promise<Budget | null> => {
+  // Generate ID locally first for Optimistic UI support if needed
   const newItem = { ...item, id: crypto.randomUUID(), created_at: new Date().toISOString() };
   
   if (supabase) {
-    const { data, error } = await supabase.from('budgets').insert([item]).select();
-    if (!error && data) return data[0] as Budget;
-    console.error("Supabase insert error:", error);
+    // Sanitize payload: ensure realizations is array, undefined fields handled
+    const dbPayload = {
+        ...item,
+        // Ensure strictly typed fields for Postgres
+        realizations: item.realizations || [], 
+        realization_months: item.realization_months || [],
+        quantity: item.quantity || 0,
+        unit_price: item.unit_price || 0,
+    };
+
+    const { data, error } = await supabase.from('budgets').insert([dbPayload]).select();
+    
+    if (error) {
+        console.error("Supabase insert error:", error);
+        alert(`Gagal menyimpan data ke Cloud: ${error.message}\n\nPastikan Anda sudah menjalankan script SQL di Database.`);
+        return null; // Return null to indicate failure
+    }
+    
+    return data ? data[0] as Budget : null;
   }
 
-  // Local Storage Fallback
+  // Local Storage Logic (Only runs if supabase is null)
   const current = await getBudgets();
   const updated = [newItem, ...current];
   localStorage.setItem(LOCAL_KEY, JSON.stringify(updated));
@@ -138,7 +98,12 @@ export const addBudget = async (item: Omit<Budget, 'id' | 'created_at'>): Promis
 export const updateBudget = async (id: string, updates: Partial<Budget>): Promise<Budget | null> => {
   if (supabase) {
     const { data, error } = await supabase.from('budgets').update(updates).eq('id', id).select();
-    if (!error && data) return data[0] as Budget;
+    if (error) {
+        console.error("Supabase update error:", error);
+        alert(`Gagal mengupdate data: ${error.message}`);
+        return null;
+    }
+    return data ? data[0] as Budget : null;
   }
 
   const current = await getBudgets();
@@ -156,7 +121,12 @@ export const updateBudget = async (id: string, updates: Partial<Budget>): Promis
 export const deleteBudget = async (id: string): Promise<boolean> => {
   if (supabase) {
     const { error } = await supabase.from('budgets').delete().eq('id', id);
-    return !error;
+    if (error) {
+        console.error("Supabase delete error:", error);
+        alert(`Gagal menghapus data: ${error.message}`);
+        return false;
+    }
+    return true;
   }
   
   const current = await getBudgets();
@@ -170,7 +140,11 @@ export const deleteBudget = async (id: string): Promise<boolean> => {
 export const getSchoolProfile = async (): Promise<SchoolProfile> => {
   if (supabase) {
     try {
-      const { data } = await supabase.from('school_profiles').select('*').single();
+      const { data, error } = await supabase.from('school_profiles').select('*').single();
+      if (error && error.code !== 'PGRST116') { // PGRST116 is "Row not found" which is fine initially
+          console.error("Profile fetch error:", error);
+      }
+      
       if (data) {
         return {
           name: data.name,
@@ -186,7 +160,7 @@ export const getSchoolProfile = async (): Promise<SchoolProfile> => {
         };
       }
     } catch (error) {
-      console.warn("Supabase profile fetch error or empty, using defaults.", error);
+      console.warn("Supabase profile fetch error.", error);
     }
   }
   
@@ -215,10 +189,13 @@ export const saveSchoolProfile = async (profile: SchoolProfile): Promise<SchoolP
     };
     
     const { error } = await supabase.from('school_profiles').upsert(dbPayload);
-    if (error) console.error("Supabase profile save error:", error);
+    if (error) {
+        console.error("Supabase profile save error:", error);
+        alert(`Gagal menyimpan profil: ${error.message}`);
+    }
   }
 
-  // Save to local storage as backup
+  // Save to local storage as backup/cache
   localStorage.setItem(SCHOOL_PROFILE_KEY, JSON.stringify(profile));
   return profile;
 };
