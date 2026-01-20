@@ -1,7 +1,26 @@
 import { GoogleGenAI, Type } from "@google/genai";
 import { SNPStandard, BOSPComponent, AccountCodes } from "../types";
 
-const apiKey = process.env.API_KEY || '';
+// Helper to safely get environment variables
+const getEnv = (key: string) => {
+  try {
+    // @ts-ignore
+    if (typeof import.meta !== 'undefined' && import.meta.env && import.meta.env[key]) {
+      // @ts-ignore
+      return import.meta.env[key];
+    }
+  } catch (e) {}
+
+  try {
+    if (typeof process !== 'undefined' && process.env && process.env[key]) {
+      return process.env[key];
+    }
+  } catch (e) {}
+  
+  return '';
+};
+
+const apiKey = getEnv('API_KEY') || getEnv('VITE_API_KEY') || '';
 const ai = apiKey ? new GoogleGenAI({ apiKey }) : null;
 
 export const analyzeBudgetEntry = async (description: string): Promise<{ 
@@ -25,7 +44,7 @@ export const analyzeBudgetEntry = async (description: string): Promise<{
       unit_estimate: 'Paket',
       price_estimate: 0,
       realization_months_estimate: [1],
-      suggestion: "API Key not found.",
+      suggestion: "API Key not found or configured correctly.",
       is_eligible: true,
       warning: ""
     };
@@ -163,7 +182,7 @@ export const suggestEvidenceList = async (description: string, accountCode: stri
 };
 
 export const chatWithFinancialAdvisor = async (query: string, context: string) => {
-  if (!ai) return "AI not configured.";
+  if (!ai) return "AI key belum dikonfigurasi. Harap masukkan API Key di pengaturan environment Vercel.";
 
   try {
     const response = await ai.models.generateContent({
