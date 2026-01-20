@@ -92,6 +92,18 @@ const DEFAULT_PROFILE: SchoolProfile = {
   budgetCeiling: 150000000 // approx 150 * 1jt per student
 };
 
+export const checkDatabaseConnection = async (): Promise<boolean> => {
+  if (!supabase) return false;
+  try {
+    // Ping with a lightweight query (head request)
+    const { error } = await supabase.from('school_profiles').select('count', { count: 'exact', head: true });
+    return !error;
+  } catch (e) {
+    console.error("Supabase connection check failed:", e);
+    return false;
+  }
+};
+
 export const getBudgets = async (): Promise<Budget[]> => {
   if (supabase) {
     const { data, error } = await supabase.from('budgets').select('*').order('date', { ascending: false });

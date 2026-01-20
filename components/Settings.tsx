@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { SchoolProfile } from '../types';
-import { Save, School, Users, Wallet, Calendar, AlertCircle } from 'lucide-react';
-import { getSchoolProfile, saveSchoolProfile } from '../lib/db';
+import { Save, School, Users, Wallet, Calendar, AlertCircle, Database, Wifi, WifiOff, CheckCircle2, FileText } from 'lucide-react';
+import { getSchoolProfile, saveSchoolProfile, checkDatabaseConnection } from '../lib/db';
 
 interface SettingsProps {
   onProfileUpdate: (profile: SchoolProfile) => void;
@@ -23,9 +23,11 @@ const Settings: React.FC<SettingsProps> = ({ onProfileUpdate }) => {
   
   const [loading, setLoading] = useState(true);
   const [saved, setSaved] = useState(false);
+  const [isConnected, setIsConnected] = useState<boolean | null>(null);
 
   useEffect(() => {
     loadProfile();
+    checkConnection();
   }, []);
 
   const loadProfile = async () => {
@@ -33,6 +35,11 @@ const Settings: React.FC<SettingsProps> = ({ onProfileUpdate }) => {
     setProfile(data);
     setLoading(false);
   };
+
+  const checkConnection = async () => {
+    const status = await checkDatabaseConnection();
+    setIsConnected(status);
+  }
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
     const { name, value } = e.target;
@@ -64,6 +71,28 @@ const Settings: React.FC<SettingsProps> = ({ onProfileUpdate }) => {
            <h2 className="text-xl font-bold text-gray-800">Pengaturan Sekolah</h2>
            <p className="text-sm text-gray-500">Kelola data identitas sekolah dan pagu anggaran.</p>
         </div>
+      </div>
+
+      {/* Connection Status Card */}
+      <div className={`rounded-xl shadow-sm border p-4 flex items-center justify-between ${isConnected ? 'bg-green-50 border-green-200' : 'bg-orange-50 border-orange-200'}`}>
+         <div className="flex items-center gap-4">
+            <div className={`p-3 rounded-full ${isConnected ? 'bg-green-200 text-green-700' : 'bg-orange-200 text-orange-700'}`}>
+               <Database size={24} />
+            </div>
+            <div>
+               <h3 className={`font-bold ${isConnected ? 'text-green-800' : 'text-orange-800'}`}>
+                  {isConnected ? 'Terhubung ke Database Cloud' : 'Mode Penyimpanan Lokal'}
+               </h3>
+               <p className={`text-sm ${isConnected ? 'text-green-600' : 'text-orange-700'}`}>
+                  {isConnected 
+                     ? 'Data tersimpan aman di Supabase (Cloud). Data tidak akan hilang saat browser ditutup.' 
+                     : 'Data tersimpan di Browser (Local Storage). Hubungkan ke Supabase di Vercel agar data permanen.'}
+               </p>
+            </div>
+         </div>
+         <div className="hidden sm:block">
+            {isConnected ? <Wifi className="text-green-500" size={24} /> : <WifiOff className="text-orange-400" size={24} />}
+         </div>
       </div>
 
       <form onSubmit={handleSubmit} className="space-y-6">
@@ -248,8 +277,5 @@ const Settings: React.FC<SettingsProps> = ({ onProfileUpdate }) => {
     </div>
   );
 };
-
-// Import needed for component
-import { CheckCircle2, FileText } from 'lucide-react';
 
 export default Settings;

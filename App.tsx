@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { LayoutDashboard, Wallet, FileCheck, Settings as SettingsIcon, Menu, User, BookOpen, FileBarChart } from 'lucide-react';
+import { LayoutDashboard, Wallet, FileCheck, Settings as SettingsIcon, Menu, User, BookOpen, FileBarChart, Wifi } from 'lucide-react';
 import Dashboard from './components/Dashboard';
 import TransactionTable from './components/TransactionTable';
 import BudgetPlanning from './components/BudgetPlanning';
@@ -7,7 +7,7 @@ import SPJRealization from './components/SPJRealization';
 import Reports from './components/Reports';
 import Settings from './components/Settings';
 import ChatAssistant from './components/ChatAssistant';
-import { getBudgets, addBudget, updateBudget, deleteBudget, getSchoolProfile } from './lib/db';
+import { getBudgets, addBudget, updateBudget, deleteBudget, getSchoolProfile, checkDatabaseConnection } from './lib/db';
 import { Budget, TransactionType, SchoolProfile } from './types';
 
 function App() {
@@ -16,11 +16,18 @@ function App() {
   const [data, setData] = useState<Budget[]>([]);
   const [schoolProfile, setSchoolProfile] = useState<SchoolProfile | null>(null);
   const [loading, setLoading] = useState(true);
+  const [isOnline, setIsOnline] = useState(false);
 
   // Load Data
   useEffect(() => {
     fetchData();
+    checkConnection();
   }, []);
+
+  const checkConnection = async () => {
+    const status = await checkDatabaseConnection();
+    setIsOnline(status);
+  }
 
   const fetchData = async () => {
     setLoading(true);
@@ -141,9 +148,16 @@ function App() {
                <p className="text-sm font-bold text-gray-800">
                   {schoolProfile?.name || 'Nama Sekolah Belum Diatur'}
                </p>
-               <p className="text-xs text-gray-500">Tahun Anggaran {schoolProfile?.fiscalYear || '2026'}</p>
+               <div className="flex items-center justify-end gap-2 text-xs text-gray-500">
+                  <span>Tahun {schoolProfile?.fiscalYear || '2026'}</span>
+                  <span className="text-gray-300">|</span>
+                  <span className={`flex items-center gap-1 font-medium ${isOnline ? 'text-green-600' : 'text-orange-500'}`}>
+                    <span className={`w-2 h-2 rounded-full ${isOnline ? 'bg-green-500' : 'bg-orange-500'}`}></span>
+                    {isOnline ? 'Cloud' : 'Lokal'}
+                  </span>
+               </div>
              </div>
-             <div className="w-10 h-10 bg-gray-200 rounded-full flex items-center justify-center text-gray-500">
+             <div className="w-10 h-10 bg-gray-200 rounded-full flex items-center justify-center text-gray-500 border border-gray-100">
                <User size={20} />
              </div>
           </div>
