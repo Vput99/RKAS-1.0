@@ -85,10 +85,27 @@ DROP POLICY IF EXISTS "Public Access Profiles" ON public.school_profiles;
 CREATE POLICY "Public Access Budgets" ON public.budgets FOR ALL USING (true) WITH CHECK (true);
 CREATE POLICY "Public Access Profiles" ON public.school_profiles FOR ALL USING (true) WITH CHECK (true);
 
--- 7. Aktifkan Realtime (Agar data langsung muncul tanpa refresh)
+-- 7. (Baru) Table Bank Statements (Rekening Koran)
+CREATE TABLE IF NOT EXISTS public.bank_statements (
+    id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL,
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL,
+    month INTEGER NOT NULL,
+    year INTEGER NOT NULL,
+    closing_balance NUMERIC DEFAULT 0,
+    file_name TEXT,
+    notes TEXT
+);
+
+-- RLS for Bank Statements
+ALTER TABLE public.bank_statements ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS "Public Access Bank Statements" ON public.bank_statements;
+CREATE POLICY "Public Access Bank Statements" ON public.bank_statements FOR ALL USING (true) WITH CHECK (true);
+
+-- 8. Aktifkan Realtime (Agar data langsung muncul tanpa refresh)
 BEGIN;
   DROP PUBLICATION IF EXISTS supabase_realtime;
-  CREATE PUBLICATION supabase_realtime FOR TABLE budgets, school_profiles;
+  CREATE PUBLICATION supabase_realtime FOR TABLE budgets, school_profiles, bank_statements;
 COMMIT;
 
 -- Selesai.

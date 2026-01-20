@@ -229,11 +229,8 @@ export const saveBankStatement = async (statement: BankStatement): Promise<BankS
   const updated = [...filtered, statement].sort((a,b) => a.month - b.month);
   
   if (supabase) {
-     try {
-       await supabase.from('bank_statements').upsert(statement);
-     } catch (e) {
-       console.warn("Could not save to Supabase bank_statements table (likely missing). Saved locally.");
-     }
+     const { error } = await supabase.from('bank_statements').upsert(statement);
+     if (error) console.warn("Supabase bank_statements upsert error (table likely missing):", error);
   }
 
   localStorage.setItem(BANK_STATEMENT_KEY, JSON.stringify(updated));

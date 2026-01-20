@@ -660,7 +660,7 @@ const Reports: React.FC<ReportsProps> = ({ data }) => {
 
                     <div>
                         <label className="block text-xs font-bold text-gray-600 mb-1">Upload File (PDF/Scan)</label>
-                        <div className="border-2 border-dashed border-gray-200 rounded-lg p-4 text-center hover:bg-gray-50 transition cursor-pointer">
+                        <label className="block border-2 border-dashed border-gray-200 rounded-lg p-4 text-center hover:bg-gray-50 transition cursor-pointer relative">
                            <Upload className="mx-auto text-gray-300 mb-2" size={24} />
                            <p className="text-xs text-gray-500">
                                {bsFile ? bsFile : "Klik untuk pilih file"}
@@ -668,10 +668,10 @@ const Reports: React.FC<ReportsProps> = ({ data }) => {
                            <input 
                               type="file" 
                               className="hidden" 
-                              // Fake file upload for now, just storing name
+                              accept=".pdf,.jpg,.jpeg,.png"
                               onChange={(e) => setBsFile(e.target.files?.[0]?.name || '')}
                            />
-                        </div>
+                        </label>
                     </div>
 
                     <button 
