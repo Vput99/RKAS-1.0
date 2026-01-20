@@ -1,6 +1,6 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { Budget, TransactionType, AccountCodes, RealizationDetail } from '../types';
-import { FileText, Save, X, Calendar, Search, CheckCircle2, FileCheck2, AlertCircle, CheckSquare, Square, Sparkles, Loader2, ShoppingCart } from 'lucide-react';
+import { FileText, Save, X, Calendar, Search, CheckCircle2, FileCheck2, AlertCircle, CheckSquare, Square, Sparkles, Loader2, ShoppingCart, Filter, TrendingUp, Wallet } from 'lucide-react';
 import { suggestEvidenceList } from '../lib/gemini';
 
 interface SPJRealizationProps {
@@ -18,7 +18,6 @@ const getEvidenceList = (description: string, accountCode?: string): string[] =>
   const text = (description + ' ' + (accountCode || '')).toLowerCase();
   
   // 1. HONORARIUM (Guri Honorer / Tendik / Ekstra)
-  // Honorarium tidak lewat SIPLah, tapi Non-Tunai Transfer Bank.
   if (text.includes('honor') || text.includes('gaji') || text.includes('jasa narasumber') || text.includes('instruktur') || text.includes('pembina')) {
     return [
       "SK Penetapan / Surat Tugas dari Kepala Sekolah (Tahun Berjalan)",
@@ -32,9 +31,14 @@ const getEvidenceList = (description: string, accountCode?: string): string[] =>
     ];
   }
 
-  // 2. BELANJA BARANG / ATK / BAHAN / ALAT KEBERSIHAN
-  // Prioritas SIPLah untuk pengadaan barang.
-  if (text.includes('atk') || text.includes('bahan') || text.includes('alat tulis') || text.includes('kertas') || text.includes('kebersihan') || text.includes('spanduk') || text.includes('cetak') || text.includes('penggandaan')) {
+  // 2. BELANJA BARANG / ATK / BAHAN / ALAT KEBERSIHAN / ALAT LISTRIK (LAMPU)
+  // FIX: Menambahkan 'lampu', 'kabel', 'alat listrik' agar masuk kategori Barang/SIPLah, bukan Konstruksi.
+  if (
+    text.includes('atk') || text.includes('bahan') || text.includes('alat tulis') || 
+    text.includes('kertas') || text.includes('kebersihan') || text.includes('spanduk') || 
+    text.includes('cetak') || text.includes('penggandaan') || 
+    text.includes('lampu') || text.includes('kabel') || text.includes('alat listrik') || text.includes('saklar')
+  ) {
     return [
       "Dokumen Cetak Pesanan SIPLah",
       "Invoice / Faktur Penjualan (Dari SIPLah)",
@@ -47,7 +51,6 @@ const getEvidenceList = (description: string, accountCode?: string): string[] =>
   }
 
   // 3. MAKAN MINUM (KONSUMSI)
-  // Biasanya Offline/Non-SIPLah kecuali ada penyedia katering di SIPLah.
   if (text.includes('makan') || text.includes('minum') || text.includes('konsumsi') || text.includes('rapat') || text.includes('snack')) {
     return [
       "Surat Undangan & Daftar Hadir Kegiatan",
@@ -74,7 +77,6 @@ const getEvidenceList = (description: string, accountCode?: string): string[] =>
   }
 
   // 5. BELANJA MODAL / ASET (Laptop, Meja, Kursi, AC, Buku)
-  // Wajib SIPLah dan Masuk KIB.
   if (text.includes('modal') || text.includes('buku') || text.includes('laptop') || text.includes('komputer') || text.includes('printer') || text.includes('meja') || text.includes('kursi') || text.includes('aset') || text.includes('elektronik')) {
     return [
       "Dokumen Cetak Pesanan SIPLah (SPK Digital)",
@@ -90,6 +92,8 @@ const getEvidenceList = (description: string, accountCode?: string): string[] =>
   }
 
   // 6. PEMELIHARAAN / JASA TUKANG
+  // FIX: Hanya masuk sini jika eksplisit menyebut 'jasa', 'tukang', 'servis', atau 'upah'.
+  // Jika hanya 'pemeliharaan' tapi barangnya 'lampu', sudah tertangkap di poin 2.
   if (text.includes('pemeliharaan') || text.includes('servis') || text.includes('perbaikan') || text.includes('tukang') || text.includes('rehab')) {
     return [
       "Surat Perintah Kerja (SPK) Manual (Jika Jasa Perorangan)",
@@ -104,7 +108,8 @@ const getEvidenceList = (description: string, accountCode?: string): string[] =>
   }
 
   // 7. LANGGANAN DAYA & JASA (Listrik, Internet)
-  if (text.includes('listrik') || text.includes('air') || text.includes('internet') || text.includes('langganan') || text.includes('telepon') || text.includes('wifi')) {
+  // FIX: Pastikan tidak menangkap 'alat listrik' atau 'lampu', hanya tagihan.
+  if ((text.includes('listrik') && !text.includes('alat')) || text.includes('air') || text.includes('internet') || text.includes('langganan') || text.includes('telepon') || text.includes('wifi')) {
     return [
       "Invoice / Tagihan Resmi Penyedia (PLN/Telkom)",
       "Bukti Pembayaran Valid (Struk Bank / NTPN / Bukti Transfer)",
@@ -126,8 +131,12 @@ const SPJRealization: React.FC<SPJRealizationProps> = ({ data, onUpdate }) => {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [selectedBudget, setSelectedBudget] = useState<Budget | null>(null);
   
-  // State for the form
-  const [activeMonthIndex, setActiveMonthIndex] = useState<number>(0); // 1-12
+  // View State
+  const [viewMonth, setViewMonth] = useState<number>(new Date().getMonth() + 1); // Tab Filter
+  const [searchTerm, setSearchTerm] = useState('');
+
+  // Form State
+  const [activeMonthIndex, setActiveMonthIndex] = useState<number>(0); 
   const [formAmount, setFormAmount] = useState<string>('');
   const [formDate, setFormDate] = useState<string>('');
   const [existingFileName, setExistingFileName] = useState<string>('');
@@ -137,24 +146,42 @@ const SPJRealization: React.FC<SPJRealizationProps> = ({ data, onUpdate }) => {
   const [checkedEvidence, setCheckedEvidence] = useState<string[]>([]);
   const [isAiLoading, setIsAiLoading] = useState(false);
 
-  const [searchTerm, setSearchTerm] = useState('');
+  // Filter Data based on Month Tab
+  const expensesInMonth = useMemo(() => {
+    return data.filter(d => 
+      d.type === TransactionType.EXPENSE && 
+      d.status !== 'rejected' &&
+      d.realization_months?.includes(viewMonth) && // Only show items planned for this month
+      d.description.toLowerCase().includes(searchTerm.toLowerCase())
+    );
+  }, [data, viewMonth, searchTerm]);
 
-  // Only show Expenses that are not 'rejected'
-  const expenses = data.filter(d => 
-    d.type === TransactionType.EXPENSE && 
-    d.status !== 'rejected' &&
-    d.description.toLowerCase().includes(searchTerm.toLowerCase())
-  );
+  // Calculate Monthly Stats
+  const monthStats = useMemo(() => {
+    let totalPlanned = 0;
+    let totalRealized = 0;
+
+    expensesInMonth.forEach(item => {
+      // Calculate estimated plan for this specific month (Total / num months)
+      const numMonths = item.realization_months?.length || 1;
+      const monthlyPlan = item.amount / numMonths;
+      totalPlanned += monthlyPlan;
+
+      // Find realization strictly for this month
+      const realization = item.realizations?.find(r => r.month === viewMonth);
+      if (realization) {
+        totalRealized += realization.amount;
+      }
+    });
+
+    return { totalPlanned, totalRealized };
+  }, [expensesInMonth, viewMonth]);
 
   const handleOpenSPJ = (item: Budget) => {
     setSelectedBudget(item);
     
-    // Default to first month in plan or current month
-    const initialMonth = (item.realization_months && item.realization_months.length > 0) 
-      ? item.realization_months[0] 
-      : new Date().getMonth() + 1;
-    
-    selectMonthForEditing(item, initialMonth);
+    // Default to currently viewed month in the modal
+    selectMonthForEditing(item, viewMonth);
     
     // Load evidence list
     const items = getEvidenceList(item.description, item.account_code);
@@ -233,51 +260,126 @@ const SPJRealization: React.FC<SPJRealizationProps> = ({ data, onUpdate }) => {
 
   return (
     <div className="space-y-6">
-      <div className="flex justify-between items-end">
+      
+      {/* Header & Search */}
+      <div className="flex flex-col md:flex-row md:justify-between md:items-end gap-4">
         <div>
            <h2 className="text-xl font-bold text-gray-800">Peng-SPJ-an & Realisasi</h2>
            <p className="text-sm text-gray-500">Input realisasi per bulan dan ceklist kelengkapan bukti (Standar SIPLah & Juknis 2026).</p>
         </div>
-        <div className="relative">
+        <div className="relative w-full md:w-auto">
           <Search className="absolute left-3 top-2.5 text-gray-400" size={16} />
           <input 
             type="text" 
             placeholder="Cari kegiatan..." 
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
-            className="pl-9 pr-4 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:border-blue-500 w-64"
+            className="pl-9 pr-4 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:border-blue-500 w-full md:w-64 shadow-sm"
           />
         </div>
       </div>
 
+      {/* Month Tabs */}
+      <div className="bg-white p-2 rounded-xl border border-gray-200 shadow-sm">
+        <div className="flex overflow-x-auto gap-2 no-scrollbar pb-1 md:pb-0">
+          {MONTHS.map((m, idx) => {
+             const monthNum = idx + 1;
+             const isActive = viewMonth === monthNum;
+             return (
+               <button
+                 key={monthNum}
+                 onClick={() => setViewMonth(monthNum)}
+                 className={`px-4 py-2 rounded-lg text-xs font-medium whitespace-nowrap transition-all ${
+                   isActive 
+                     ? 'bg-blue-600 text-white shadow-md' 
+                     : 'text-gray-600 hover:bg-gray-100'
+                 }`}
+               >
+                 {m}
+               </button>
+             )
+          })}
+        </div>
+      </div>
+
+      {/* Monthly Summary Card */}
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+         <div className="bg-gradient-to-r from-blue-50 to-indigo-50 border border-blue-100 p-4 rounded-xl flex items-center justify-between">
+            <div>
+              <p className="text-xs text-blue-600 font-bold uppercase mb-1">Rencana {MONTHS[viewMonth-1]}</p>
+              <h3 className="text-lg font-bold text-blue-900">{formatRupiah(monthStats.totalPlanned)}</h3>
+            </div>
+            <div className="p-2 bg-blue-100 rounded-lg text-blue-600">
+               <Wallet size={20} />
+            </div>
+         </div>
+         
+         <div className="bg-white border border-gray-200 p-4 rounded-xl flex items-center justify-between">
+            <div>
+              <p className="text-xs text-gray-500 font-bold uppercase mb-1">Realisasi {MONTHS[viewMonth-1]}</p>
+              <h3 className={`text-lg font-bold ${monthStats.totalRealized > 0 ? 'text-green-600' : 'text-gray-400'}`}>
+                {formatRupiah(monthStats.totalRealized)}
+              </h3>
+            </div>
+            <div className={`p-2 rounded-lg ${monthStats.totalRealized > 0 ? 'bg-green-100 text-green-600' : 'bg-gray-100 text-gray-400'}`}>
+               <TrendingUp size={20} />
+            </div>
+         </div>
+
+         <div className="bg-white border border-gray-200 p-4 rounded-xl flex flex-col justify-center">
+             <div className="flex justify-between items-center text-xs mb-1">
+               <span className="font-bold text-gray-500">Serapan Bulan Ini</span>
+               <span className="font-bold text-blue-600">
+                 {monthStats.totalPlanned > 0 
+                    ? ((monthStats.totalRealized / monthStats.totalPlanned) * 100).toFixed(0) 
+                    : 0}%
+               </span>
+             </div>
+             <div className="w-full bg-gray-100 rounded-full h-2">
+                <div 
+                  className={`h-2 rounded-full transition-all duration-500 ${
+                    monthStats.totalRealized >= monthStats.totalPlanned ? 'bg-green-500' : 'bg-blue-500'
+                  }`}
+                  style={{ width: `${monthStats.totalPlanned > 0 ? Math.min((monthStats.totalRealized / monthStats.totalPlanned) * 100, 100) : 0}%` }}
+                ></div>
+             </div>
+         </div>
+      </div>
+
       <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
+        <div className="px-6 py-4 border-b border-gray-100 bg-gray-50 flex items-center gap-2">
+           <Filter size={16} className="text-gray-400" />
+           <h3 className="text-sm font-bold text-gray-700">Daftar Kegiatan Bulan {MONTHS[viewMonth-1]}</h3>
+        </div>
         <div className="overflow-x-auto">
           <table className="w-full text-left text-sm text-gray-600">
             <thead className="bg-gray-50 border-b border-gray-100 text-gray-700">
               <tr>
                 <th className="px-4 py-4 font-semibold w-1/3">Uraian Kegiatan</th>
-                <th className="px-4 py-4 font-semibold text-right">Pagu Anggaran</th>
-                <th className="px-4 py-4 font-semibold text-right">Total Realisasi</th>
-                <th className="px-4 py-4 font-semibold text-center">Progres Bulan</th>
+                <th className="px-4 py-4 font-semibold text-right">Pagu (Per Bulan)</th>
+                <th className="px-4 py-4 font-semibold text-right">Realisasi (Per Bulan)</th>
+                <th className="px-4 py-4 font-semibold text-center">Status Bukti</th>
                 <th className="px-4 py-4 font-semibold text-right">Aksi</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-100">
-              {expenses.length === 0 ? (
+              {expensesInMonth.length === 0 ? (
                 <tr>
                   <td colSpan={5} className="px-6 py-12 text-center text-gray-400">
                     <div className="flex flex-col items-center gap-2">
                        <FileText size={32} className="opacity-20" />
-                       <p>Belum ada data belanja untuk di-SPJ-kan.</p>
+                       <p>Tidak ada jadwal kegiatan di bulan {MONTHS[viewMonth-1]}.</p>
                     </div>
                   </td>
                 </tr>
               ) : (
-                expenses.map((item) => {
-                  const totalRealized = item.realizations?.reduce((acc, r) => acc + r.amount, 0) || 0;
-                  const plannedMonths = item.realization_months || [1];
-                  const realizedMonthsCount = item.realizations?.length || 0;
-                  const isFullyRealized = realizedMonthsCount >= plannedMonths.length && totalRealized > 0;
+                expensesInMonth.map((item) => {
+                  // Monthly Specific Logic
+                  const numMonths = item.realization_months?.length || 1;
+                  const monthlyBudget = item.amount / numMonths;
+                  const realizationThisMonth = item.realizations?.find(r => r.month === viewMonth);
+                  const amountRealized = realizationThisMonth?.amount || 0;
+                  const isDone = amountRealized > 0;
                   
                   return (
                     <tr key={item.id} className="hover:bg-gray-50 transition-colors">
@@ -288,35 +390,35 @@ const SPJRealization: React.FC<SPJRealizationProps> = ({ data, onUpdate }) => {
                          </div>
                       </td>
                       <td className="px-4 py-4 text-right font-mono text-gray-900">
-                         {formatRupiah(item.amount)}
+                         {formatRupiah(monthlyBudget)}
+                         <div className="text-[10px] text-gray-400">Est. RPD</div>
                       </td>
-                      <td className="px-4 py-4 text-right font-mono font-medium text-blue-700">
-                         {formatRupiah(totalRealized)}
-                         <div className="text-[10px] text-gray-400">
-                           Sisa: {formatRupiah(item.amount - totalRealized)}
-                         </div>
+                      <td className="px-4 py-4 text-right font-mono font-medium">
+                         <span className={amountRealized > 0 ? 'text-green-700' : 'text-gray-400'}>
+                            {formatRupiah(amountRealized)}
+                         </span>
                       </td>
                       <td className="px-4 py-4 text-center">
-                        <div className="flex items-center justify-center gap-1">
-                          <span className={`text-xs font-bold ${isFullyRealized ? 'text-green-600' : 'text-orange-500'}`}>
-                            {realizedMonthsCount} / {plannedMonths.length}
-                          </span>
-                          <span className="text-[10px] text-gray-400">Bln</span>
-                        </div>
-                        {/* Mini progress bar */}
-                        <div className="w-16 h-1.5 bg-gray-100 rounded-full mx-auto mt-1">
-                          <div 
-                            className={`h-1.5 rounded-full ${isFullyRealized ? 'bg-green-500' : 'bg-orange-400'}`} 
-                            style={{ width: `${(realizedMonthsCount / plannedMonths.length) * 100}%` }}
-                          ></div>
-                        </div>
+                         {isDone ? (
+                            <span className="inline-flex items-center gap-1 px-2 py-1 bg-green-50 text-green-700 rounded text-xs font-medium border border-green-100">
+                               <CheckCircle2 size={12} /> Selesai
+                            </span>
+                         ) : (
+                            <span className="inline-flex items-center gap-1 px-2 py-1 bg-gray-100 text-gray-500 rounded text-xs border border-gray-200">
+                               <Square size={12} /> Belum
+                            </span>
+                         )}
                       </td>
                       <td className="px-4 py-4 text-right">
                         <button 
                           onClick={() => handleOpenSPJ(item)}
-                          className="px-3 py-1.5 bg-blue-600 text-white hover:bg-blue-700 rounded text-xs font-medium transition shadow-sm"
+                          className={`px-3 py-1.5 rounded text-xs font-medium transition shadow-sm ${
+                            isDone 
+                               ? 'bg-white border border-gray-200 text-gray-600 hover:bg-gray-50'
+                               : 'bg-blue-600 text-white hover:bg-blue-700'
+                          }`}
                         >
-                          Kelola SPJ
+                          {isDone ? 'Edit SPJ' : 'Input SPJ'}
                         </button>
                       </td>
                     </tr>

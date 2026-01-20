@@ -181,14 +181,11 @@ export const suggestEvidenceList = async (description: string, accountCode: stri
       contents: `Context: Juknis BOSP 2026 for Elementary Schools (SD) in Indonesia.
       Task: List the required physical evidence documents (Bukti Fisik SPJ) for the following expense transaction.
       
-      CRITICAL RULE:
-      If the expense is related to purchasing Goods (Barang), Equipment (Alat), Books (Buku), or Assets (Modal), you MUST prioritize documents from **SIPLah** (Sistem Informasi Pengadaan Sekolah).
+      CRITICAL RULE 1 (Goods/Assets):
+      If the expense is related to purchasing Goods, Equipment, Lights (Lampu), Electronics, or Maintenance Materials (Bahan), you MUST prioritize documents from **SIPLah** (Invoice, BAST). Even if the budget category is "Pemeliharaan/Maintenance", if the item is a physical good (like a bulb), it counts as a Goods Purchase.
       
-      Required SIPLah documents usually include:
-      - Dokumen Cetak Pesanan SIPLah
-      - Invoice / Faktur SIPLah
-      - BAST (Berita Acara Serah Terima) Digital SIPLah
-      - Bukti Setor Pajak (via Marketplace)
+      CRITICAL RULE 2 (Services):
+      Only recommend "SPK/Surat Perintah Kerja" or "Upah Tukang" if the description specifically mentions "Jasa", "Tukang", "Upah", or "Service".
       
       Expense Description: "${description}"
       Account Code: "${accountCode}"
