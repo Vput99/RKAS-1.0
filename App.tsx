@@ -1,15 +1,16 @@
 import React, { useState, useEffect } from 'react';
-import { LayoutDashboard, Wallet, FileCheck, Settings, Menu, User, BookOpen } from 'lucide-react';
+import { LayoutDashboard, Wallet, FileCheck, Settings, Menu, User, BookOpen, FileBarChart } from 'lucide-react';
 import Dashboard from './components/Dashboard';
 import TransactionTable from './components/TransactionTable';
 import BudgetPlanning from './components/BudgetPlanning';
 import SPJRealization from './components/SPJRealization';
+import Reports from './components/Reports';
 import ChatAssistant from './components/ChatAssistant';
 import { getBudgets, addBudget, updateBudget, deleteBudget } from './lib/db';
 import { Budget, TransactionType } from './types';
 
 function App() {
-  const [activeTab, setActiveTab] = useState<'dashboard' | 'income' | 'planning' | 'spj'>('dashboard');
+  const [activeTab, setActiveTab] = useState<'dashboard' | 'income' | 'planning' | 'spj' | 'reports'>('dashboard');
   const [isSidebarOpen, setSidebarOpen] = useState(true);
   const [data, setData] = useState<Budget[]>([]);
   const [loading, setLoading] = useState(true);
@@ -101,6 +102,7 @@ function App() {
           <NavItem id="income" label="Pendapatan" icon={Wallet} />
           <NavItem id="planning" label="Penganggaran" icon={BookOpen} />
           <NavItem id="spj" label="Peng-SPJ-an" icon={FileCheck} />
+          <NavItem id="reports" label="Laporan" icon={FileBarChart} />
           
           <div className="pt-8 mt-8 border-t border-gray-100">
              <button className="w-full flex items-center gap-3 px-4 py-3 text-gray-400 hover:text-gray-600 transition">
@@ -163,6 +165,9 @@ function App() {
                     data={data}
                     onUpdate={handleUpdate}
                   />
+                )}
+                {activeTab === 'reports' && (
+                  <Reports data={data} />
                 )}
               </>
             )}
