@@ -1,0 +1,5 @@
+{
+  "name": "RKAS Pintar SD",
+  "description": "Aplikasi Rencana Kegiatan dan Anggaran Sekolah (RKAS) untuk SD dengan integrasi Supabase dan AI Gemini.",
+  "requestFramePermissions": []
+}
