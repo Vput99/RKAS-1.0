@@ -180,12 +180,20 @@ export const suggestEvidenceList = async (description: string, accountCode: stri
       model: 'gemini-3-flash-preview',
       contents: `Context: Juknis BOSP 2026 for Elementary Schools (SD) in Indonesia.
       Task: List the required physical evidence documents (Bukti Fisik SPJ) for the following expense transaction.
-      The list should be specific and compliant with Indonesian audit requirements (tax invoices, transfer proof for non-cash, etc).
+      
+      CRITICAL RULE:
+      If the expense is related to purchasing Goods (Barang), Equipment (Alat), Books (Buku), or Assets (Modal), you MUST prioritize documents from **SIPLah** (Sistem Informasi Pengadaan Sekolah).
+      
+      Required SIPLah documents usually include:
+      - Dokumen Cetak Pesanan SIPLah
+      - Invoice / Faktur SIPLah
+      - BAST (Berita Acara Serah Terima) Digital SIPLah
+      - Bukti Setor Pajak (via Marketplace)
       
       Expense Description: "${description}"
       Account Code: "${accountCode}"
       
-      Return ONLY a JSON array of strings. Example: ["Kuitansi", "Faktur", "Dokumentasi"].`,
+      Return ONLY a JSON array of strings. Example: ["Invoice SIPLah", "BAST Digital SIPLah", "Dokumentasi"].`,
       config: {
         responseMimeType: "application/json",
         responseSchema: {

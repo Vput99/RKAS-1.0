@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Budget, TransactionType, AccountCodes, RealizationDetail } from '../types';
-import { FileText, Save, X, Calendar, Search, CheckCircle2, FileCheck2, AlertCircle, CheckSquare, Square, Sparkles, Loader2 } from 'lucide-react';
+import { FileText, Save, X, Calendar, Search, CheckCircle2, FileCheck2, AlertCircle, CheckSquare, Square, Sparkles, Loader2, ShoppingCart } from 'lucide-react';
 import { suggestEvidenceList } from '../lib/gemini';
 
 interface SPJRealizationProps {
@@ -13,101 +13,92 @@ const MONTHS = [
   'Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember'
 ];
 
-// Helper to determine evidence needed based on Juknis BOSP 2026
+// Helper to determine evidence needed based on Juknis BOSP 2026 & SIPLah Context
 const getEvidenceList = (description: string, accountCode?: string): string[] => {
   const text = (description + ' ' + (accountCode || '')).toLowerCase();
   
   // 1. HONORARIUM (Guri Honorer / Tendik / Ekstra)
-  // Juknis 2026 menekankan pembayaran Non-Tunai dan SK yang valid.
+  // Honorarium tidak lewat SIPLah, tapi Non-Tunai Transfer Bank.
   if (text.includes('honor') || text.includes('gaji') || text.includes('jasa narasumber') || text.includes('instruktur') || text.includes('pembina')) {
     return [
       "SK Penetapan / Surat Tugas dari Kepala Sekolah (Tahun Berjalan)",
-      "Surat Perjanjian Kerja (SPK) untuk Guru/Tendik Non-ASN",
+      "Surat Perjanjian Kerja (SPK)",
       "Daftar Hadir / Absensi Bulan Berjalan (Tanda Tangan Lengkap)",
-      "Jurnal Kegiatan / Laporan Pelaksanaan Tugas",
+      "Laporan Pelaksanaan Tugas / Jurnal Kegiatan",
       "Daftar Tanda Terima Honorarium (Bruto, Potongan Pajak, Netto)",
-      "Bukti Transfer Bank (Wajib Non-Tunai)",
+      "Bukti Transfer Bank ke Rekening Penerima (CMS/Teller)",
       "Bukti Setor Pajak PPh 21 (Kode Billing & NTPN)",
-      "Fotokopi KTP & NPWP Penerima (Jika baru)"
+      "Fotokopi KTP & NPWP Penerima"
     ];
   }
 
-  // 2. BELANJA BARANG / ATK / BAHAN HABIS PAKAI
-  // Penekanan pada Faktur Pajak untuk transaksi > 2 Juta dan BAST.
-  if (text.includes('atk') || text.includes('bahan') || text.includes('alat tulis') || text.includes('kertas') || text.includes('kebersihan') || text.includes('spanduk')) {
-    const isBigTransaction = text.includes('cetak') || text.includes('penggandaan'); 
-    const baseList = [
-      "Nota / Invoice Pembelian (Cap Toko & Tanda Tangan)",
-      "Kuitansi Pengeluaran Sekolah (Bermaterai jika > Rp 5 Juta)",
-      "Berita Acara Serah Terima (BAST) Barang",
-      "Berita Acara Pemeriksaan Barang",
-      "Foto Dokumentasi Barang",
+  // 2. BELANJA BARANG / ATK / BAHAN / ALAT KEBERSIHAN
+  // Prioritas SIPLah untuk pengadaan barang.
+  if (text.includes('atk') || text.includes('bahan') || text.includes('alat tulis') || text.includes('kertas') || text.includes('kebersihan') || text.includes('spanduk') || text.includes('cetak') || text.includes('penggandaan')) {
+    return [
+      "Dokumen Cetak Pesanan SIPLah",
+      "Invoice / Faktur Penjualan (Dari SIPLah)",
+      "Berita Acara Serah Terima (BAST) Digital SIPLah",
+      "Bukti Transfer ke Rekening Marketplace (Bukan Rekening Penjual)",
+      "Bukti Setor / Pungut Pajak (Oleh Marketplace SIPLah)",
+      "Foto Dokumentasi Barang yang diterima",
+      "Kuitansi Manual (Hanya jika pembelian Non-SIPLah / Mendesak < Rp 200rb)"
     ];
-
-    if (isBigTransaction) {
-       baseList.push("Bukti Setor Pajak PPh 23 (Untuk Jasa Cetak/Penggandaan)");
-    } else {
-       baseList.push("Bukti Pungut PPN & PPh 22 (Jika Transaksi > Rp 2 Juta)");
-    }
-    
-    return baseList;
   }
 
-  // 3. MAKAN MINUM (KONSUMSI RAPAT/KEGIATAN)
-  // Wajib ada Undangan dan Notulen.
+  // 3. MAKAN MINUM (KONSUMSI)
+  // Biasanya Offline/Non-SIPLah kecuali ada penyedia katering di SIPLah.
   if (text.includes('makan') || text.includes('minum') || text.includes('konsumsi') || text.includes('rapat') || text.includes('snack')) {
     return [
-      "Surat Undangan Kegiatan",
-      "Daftar Hadir Peserta Kegiatan",
+      "Surat Undangan & Daftar Hadir Kegiatan",
       "Notulen / Laporan Hasil Kegiatan",
       "Nota / Bon Pembelian Konsumsi (Rincian Menu Jelas)",
-      "Kuitansi Pembayaran",
-      "Bukti Setor PPh 23 (Jika Jasa Katering/Prasmanan)",
-      "Bukti Setor Pajak Daerah (PB1) 10% (Jika makan di Restoran)",
-      "Foto Dokumentasi Kegiatan (Open Camera)"
+      "Kuitansi Pembayaran (Bermaterai jika > Rp 5 Juta)",
+      "Bukti Setor PPh 23 (Jasa Katering) atau Pajak Daerah (PB1)",
+      "Foto Dokumentasi Kegiatan (Open Camera)",
+      "Dokumen SIPLah (Jika memesan Katering via SIPLah)"
     ];
   }
 
   // 4. PERJALANAN DINAS
   if (text.includes('perjalanan') || text.includes('dinas') || text.includes('transport') || text.includes('sppd')) {
     return [
-      "Surat Tugas (Ditandatangani KS, Tanggal sesuai pelaksanaan)",
-      "SPPD (Surat Perintah Perjalanan Dinas) - Cap & TTD Instansi Tujuan",
+      "Surat Tugas (Ditandatangani KS)",
+      "SPPD (Surat Perintah Perjalanan Dinas) - Cap Instansi Tujuan",
       "Laporan Hasil Perjalanan Dinas",
-      "Tiket / Bukti Transportasi Riil (Bukan Tulisan Tangan)",
-      "Nota BBM (Jika menggunakan kendaraan sewa/pribadi sesuai SBM)",
+      "Tiket / Bukti Transportasi Riil",
+      "Nota BBM (Jika kendaraan pribadi/sewa)",
       "Kuitansi / Bill Hotel (Jika Menginap)",
       "Daftar Pengeluaran Riil (Format Lampiran Juknis)"
     ];
   }
 
   // 5. BELANJA MODAL / ASET (Laptop, Meja, Kursi, AC, Buku)
-  // Wajib masuk Buku Inventaris (KIB).
-  if (text.includes('modal') || text.includes('buku') || text.includes('laptop') || text.includes('komputer') || text.includes('printer') || text.includes('meja') || text.includes('kursi') || text.includes('aset')) {
+  // Wajib SIPLah dan Masuk KIB.
+  if (text.includes('modal') || text.includes('buku') || text.includes('laptop') || text.includes('komputer') || text.includes('printer') || text.includes('meja') || text.includes('kursi') || text.includes('aset') || text.includes('elektronik')) {
     return [
-      "Surat Pesanan (SP) / SPK (Kontrak Pengadaan)",
-      "Faktur / Nota Pembelian Asli",
-      "Berita Acara Serah Terima (BAST)",
-      "Berita Acara Pemeriksaan Hasil Pekerjaan",
-      "Bukti Setor PPN (11%) & PPh 22 (1.5%)",
+      "Dokumen Cetak Pesanan SIPLah (SPK Digital)",
+      "Invoice / Faktur Penjualan (Dari SIPLah)",
+      "Berita Acara Serah Terima (BAST) Digital SIPLah",
+      "Berita Acara Pemeriksaan Barang (Internal Sekolah)",
+      "Bukti Transfer ke Rekening Marketplace",
+      "Bukti Pungut/Setor Pajak (Oleh Marketplace SIPLah)",
       "Foto Dokumentasi Barang (Fisik di Sekolah)",
       "Fotokopi Pencatatan di Buku Inventaris Aset / KIB",
-      "Kartu Garansi (Untuk Elektronik)",
-      "Labeling Barang (Kode Aset)"
+      "Kartu Garansi Resmi"
     ];
   }
 
-  // 6. PEMELIHARAAN / JASA TUKANG / SERVIS
+  // 6. PEMELIHARAAN / JASA TUKANG
   if (text.includes('pemeliharaan') || text.includes('servis') || text.includes('perbaikan') || text.includes('tukang') || text.includes('rehab')) {
     return [
-      "Surat Perintah Kerja (SPK) / Surat Pesanan",
-      "Rincian Rencana Anggaran Biaya (RAB) Pekerjaan",
-      "Nota / Kuitansi Pembelian Bahan Material",
+      "Surat Perintah Kerja (SPK) Manual (Jika Jasa Perorangan)",
+      "RAB (Rincian Anggaran Biaya) Pekerjaan",
+      "Nota Belanja Bahan Material (Bisa SIPLah / Toko Bangunan)",
       "Kuitansi Upah Tukang",
-      "Daftar Hadir Tukang / Pekerja",
-      "Berita Acara Penyelesaian Pekerjaan",
-      "Berita Acara Serah Terima (BAST)",
-      "Bukti Setor PPh 21 (Upah Tukang) atau PPh 23 (Jasa Badan Usaha)",
+      "Daftar Hadir Tukang",
+      "Berita Acara Penyelesaian Pekerjaan & BAST",
+      "Bukti Setor PPh 21 (Upah Tukang)",
       "Foto Dokumentasi (0%, 50%, 100%)"
     ];
   }
@@ -115,19 +106,19 @@ const getEvidenceList = (description: string, accountCode?: string): string[] =>
   // 7. LANGGANAN DAYA & JASA (Listrik, Internet)
   if (text.includes('listrik') || text.includes('air') || text.includes('internet') || text.includes('langganan') || text.includes('telepon') || text.includes('wifi')) {
     return [
-      "Surat Tagihan / Invoice Resmi dari Penyedia (PLN/Telkom/ISP)",
-      "Bukti Pembayaran Valid (Struk Bank / Bukti Transfer / NTPN)",
-      "Kuitansi Internal Sekolah (Sebagai cover bukti bayar)"
+      "Invoice / Tagihan Resmi Penyedia (PLN/Telkom)",
+      "Bukti Pembayaran Valid (Struk Bank / NTPN / Bukti Transfer)",
+      "Bukti Transaksi Marketplace (Jika bayar via Tokopedia/Shopee/dll)"
     ];
   }
 
   // Default fallback
   return [
-    "Kuitansi / Bukti Pembayaran Sah",
-    "Nota / Faktur Rincian Barang/Jasa",
-    "Bukti Setor Pajak (Sesuai ketentuan perpajakan)",
+    "Dokumen SIPLah (Invoice, BAST, Bukti Pesanan)",
+    "Bukti Pembayaran Non-Tunai / Transfer",
+    "Bukti Pajak (Dipungut Marketplace/Setor Sendiri)",
     "Dokumentasi Foto",
-    "Berita Acara Serah Terima (BAST)"
+    "Kuitansi / Nota (Jika Transaksi Manual)"
   ];
 };
 
@@ -165,7 +156,7 @@ const SPJRealization: React.FC<SPJRealizationProps> = ({ data, onUpdate }) => {
     
     selectMonthForEditing(item, initialMonth);
     
-    // Load evidence list based on Juknis 2026 logic (Default Static)
+    // Load evidence list
     const items = getEvidenceList(item.description, item.account_code);
     setEvidenceItems(items);
     
@@ -178,8 +169,6 @@ const SPJRealization: React.FC<SPJRealizationProps> = ({ data, onUpdate }) => {
     const aiSuggestions = await suggestEvidenceList(selectedBudget.description, selectedBudget.account_code || '');
     if (aiSuggestions && aiSuggestions.length > 0) {
       setEvidenceItems(aiSuggestions);
-      // Keep previously checked items if they intersect with new list, otherwise reset would be safer but annoying
-      // Let's keep intersection
       setCheckedEvidence(prev => prev.filter(p => aiSuggestions.includes(p)));
     }
     setIsAiLoading(false);
@@ -222,7 +211,7 @@ const SPJRealization: React.FC<SPJRealizationProps> = ({ data, onUpdate }) => {
       month: activeMonthIndex,
       amount: Number(formAmount),
       date: new Date(formDate).toISOString(),
-      evidence_file: existingFileName // Preserve existing file reference if any, though upload UI is removed
+      evidence_file: existingFileName 
     };
 
     // Merge with existing realizations
@@ -247,7 +236,7 @@ const SPJRealization: React.FC<SPJRealizationProps> = ({ data, onUpdate }) => {
       <div className="flex justify-between items-end">
         <div>
            <h2 className="text-xl font-bold text-gray-800">Peng-SPJ-an & Realisasi</h2>
-           <p className="text-sm text-gray-500">Input realisasi per bulan dan ceklist kelengkapan bukti (Juknis BOSP 2026).</p>
+           <p className="text-sm text-gray-500">Input realisasi per bulan dan ceklist kelengkapan bukti (Standar SIPLah & Juknis 2026).</p>
         </div>
         <div className="relative">
           <Search className="absolute left-3 top-2.5 text-gray-400" size={16} />
@@ -352,7 +341,7 @@ const SPJRealization: React.FC<SPJRealizationProps> = ({ data, onUpdate }) => {
             </div>
             
             <div className="flex flex-1 overflow-hidden">
-               {/* Sidebar Months for Routine Expenses */}
+               {/* Sidebar Months */}
                {(selectedBudget.realization_months?.length || 0) > 1 && (
                  <div className="w-40 bg-gray-50 border-r border-gray-100 overflow-y-auto p-2 space-y-1">
                     <p className="px-2 py-2 text-xs font-bold text-gray-500 uppercase">Pilih Bulan</p>
@@ -402,7 +391,7 @@ const SPJRealization: React.FC<SPJRealizationProps> = ({ data, onUpdate }) => {
                        </div>
 
                        <div>
-                         <label className="block text-sm font-medium text-gray-700 mb-1">Tanggal Kuitansi</label>
+                         <label className="block text-sm font-medium text-gray-700 mb-1">Tanggal Kuitansi/Nota</label>
                          <div className="relative">
                            <Calendar size={18} className="absolute left-3 top-2.5 text-gray-400" />
                            <input 
@@ -433,12 +422,15 @@ const SPJRealization: React.FC<SPJRealizationProps> = ({ data, onUpdate }) => {
                                 {isAiLoading ? <Loader2 size={12} className="animate-spin" /> : <Sparkles size={12} />}
                                 Saran AI
                             </button>
-                            <span className="text-xs font-bold text-yellow-700 bg-yellow-100 px-2 py-1 rounded-full">
-                              {checkedEvidence.length}/{evidenceItems.length} Terpenuhi
-                            </span>
                          </div>
                        </div>
                        
+                       {/* SIPLah Badge */}
+                       <div className="flex items-center gap-2 mb-3 bg-white p-2 rounded border border-yellow-200">
+                          <ShoppingCart size={16} className="text-orange-500" />
+                          <span className="text-xs text-gray-600">Pastikan belanja barang/modal menggunakan <b>SIPLah</b>.</span>
+                       </div>
+
                        <div className="space-y-2">
                          {evidenceItems.map((item, idx) => {
                            const isChecked = checkedEvidence.includes(item);
