@@ -1,13 +1,15 @@
 import React, { useState, useEffect } from 'react';
-import { LayoutDashboard, Wallet, ShoppingCart, Settings, Menu, User } from 'lucide-react';
+import { LayoutDashboard, Wallet, FileCheck, Settings, Menu, User, BookOpen } from 'lucide-react';
 import Dashboard from './components/Dashboard';
 import TransactionTable from './components/TransactionTable';
+import BudgetPlanning from './components/BudgetPlanning';
+import SPJRealization from './components/SPJRealization';
 import ChatAssistant from './components/ChatAssistant';
-import { getBudgets, addBudget, deleteBudget } from './lib/db';
+import { getBudgets, addBudget, updateBudget, deleteBudget } from './lib/db';
 import { Budget, TransactionType } from './types';
 
 function App() {
-  const [activeTab, setActiveTab] = useState<'dashboard' | 'income' | 'expense'>('dashboard');
+  const [activeTab, setActiveTab] = useState<'dashboard' | 'income' | 'planning' | 'spj'>('dashboard');
   const [isSidebarOpen, setSidebarOpen] = useState(true);
   const [data, setData] = useState<Budget[]>([]);
   const [loading, setLoading] = useState(true);
@@ -28,6 +30,13 @@ function App() {
     const newItem = await addBudget(item);
     if (newItem) {
       setData(prev => [newItem, ...prev]);
+    }
+  };
+
+  const handleUpdate = async (id: string, updates: Partial<Budget>) => {
+    const updatedItem = await updateBudget(id, updates);
+    if (updatedItem) {
+      setData(prev => prev.map(item => item.id === id ? updatedItem : item));
     }
   };
 
@@ -90,7 +99,8 @@ function App() {
         <nav className="p-4 space-y-2">
           <NavItem id="dashboard" label="Dashboard" icon={LayoutDashboard} />
           <NavItem id="income" label="Pendapatan" icon={Wallet} />
-          <NavItem id="expense" label="Belanja" icon={ShoppingCart} />
+          <NavItem id="planning" label="Penganggaran" icon={BookOpen} />
+          <NavItem id="spj" label="Peng-SPJ-an" icon={FileCheck} />
           
           <div className="pt-8 mt-8 border-t border-gray-100">
              <button className="w-full flex items-center gap-3 px-4 py-3 text-gray-400 hover:text-gray-600 transition">
@@ -114,7 +124,7 @@ function App() {
           <div className="flex items-center gap-4 ml-auto">
              <div className="text-right hidden sm:block">
                <p className="text-sm font-bold text-gray-800">SD Negeri 1 Contoh</p>
-               <p className="text-xs text-gray-500">Tahun Anggaran 2024</p>
+               <p className="text-xs text-gray-500">Tahun Anggaran 2026</p>
              </div>
              <div className="w-10 h-10 bg-gray-200 rounded-full flex items-center justify-center text-gray-500">
                <User size={20} />
@@ -140,12 +150,18 @@ function App() {
                     onDelete={handleDelete}
                   />
                 )}
-                {activeTab === 'expense' && (
-                  <TransactionTable 
-                    type={TransactionType.EXPENSE} 
+                {activeTab === 'planning' && (
+                  <BudgetPlanning 
                     data={data} 
-                    onAdd={handleAdd} 
+                    onAdd={handleAdd}
+                    onUpdate={handleUpdate}
                     onDelete={handleDelete}
+                  />
+                )}
+                {activeTab === 'spj' && (
+                  <SPJRealization 
+                    data={data}
+                    onUpdate={handleUpdate}
                   />
                 )}
               </>
@@ -159,8 +175,5 @@ function App() {
     </div>
   );
 }
-
-// User Icon component was missing in import, adding a local SVG placeholder if needed or importing from lucide
-// Added to import list above: User
 
 export default App;

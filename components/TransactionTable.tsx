@@ -38,8 +38,9 @@ const TransactionTable: React.FC<TransactionTableProps> = ({ type, data, onAdd, 
       setIsEligible(result.is_eligible);
       setWarningMessage(result.warning);
 
-      if (result.amount_estimate > 0 && !amount) {
-        setAmount(result.amount_estimate.toString());
+      const estimatedAmount = result.quantity_estimate * result.price_estimate;
+      if (estimatedAmount > 0 && !amount) {
+        setAmount(estimatedAmount.toString());
       }
       if (result.suggestion) {
         setDescription(result.suggestion);

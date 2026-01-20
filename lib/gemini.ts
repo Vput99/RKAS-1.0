@@ -1,5 +1,5 @@
 import { GoogleGenAI, Type } from "@google/genai";
-import { SNPStandard, BOSPComponent } from "../types";
+import { SNPStandard, BOSPComponent, AccountCodes } from "../types";
 
 const apiKey = process.env.API_KEY || '';
 const ai = apiKey ? new GoogleGenAI({ apiKey }) : null;
@@ -7,7 +7,11 @@ const ai = apiKey ? new GoogleGenAI({ apiKey }) : null;
 export const analyzeBudgetEntry = async (description: string): Promise<{ 
   bosp_component: string, 
   snp_standard: string, 
-  amount_estimate: number, 
+  account_code: string,
+  quantity_estimate: number,
+  unit_estimate: string,
+  price_estimate: number,
+  realization_months_estimate: number[],
   suggestion: string,
   is_eligible: boolean,
   warning: string 
@@ -16,7 +20,11 @@ export const analyzeBudgetEntry = async (description: string): Promise<{
     return {
       bosp_component: BOSPComponent.LAINNYA,
       snp_standard: SNPStandard.SARPRAS,
-      amount_estimate: 0,
+      account_code: '',
+      quantity_estimate: 1,
+      unit_estimate: 'Paket',
+      price_estimate: 0,
+      realization_months_estimate: [1],
       suggestion: "API Key not found.",
       is_eligible: true,
       warning: ""
@@ -28,12 +36,18 @@ export const analyzeBudgetEntry = async (description: string): Promise<{
       model: 'gemini-3-flash-preview',
       contents: `User input: "${description}". 
       Context: Rencana Kegiatan dan Anggaran Sekolah (RKAS) SD Tahun 2026.
+      Available Account Codes (Kode Rekening): ${JSON.stringify(AccountCodes)}.
       
       Task:
-      1. Map the input to the correct 'Komponen BOSP' (Juknis BOSP) and 'Standar Nasional Pendidikan (SNP)'.
-      2. Check against "Larangan Penggunaan Dana BOSP" (e.g., no buying clothing for teachers, no investments, no borrowing, no building construction strictly maintenance).
-      3. Estimate a realistic cost in IDR.
-      4. Refine the description to formal administrative Indonesian.`,
+      1. Map input to 'Komponen BOSP' and 'SNP'.
+      2. Select the most appropriate 'Kode Rekening' key (e.g., 5.1.02.01.01.0024).
+      3. Check prohibitions.
+      4. Estimate the details:
+         - Quantity (Volume).
+         - Unit (Satuan).
+         - Unit Price (Harga Satuan).
+         - Realization Months: If the expense is recurring monthly (e.g., Listrik, Internet, Honor, Langganan), return [1, 2, ..., 12]. If it's a one-time event (e.g., buying a Laptop), return the most likely single month (e.g., [2]).
+      5. Refine description.`,
       config: {
         responseMimeType: "application/json",
         responseSchema: {
@@ -42,28 +56,45 @@ export const analyzeBudgetEntry = async (description: string): Promise<{
             bosp_component: {
               type: Type.STRING,
               enum: Object.values(BOSPComponent),
-              description: "The BOSP Component category"
+              description: "The BOSP Component"
             },
             snp_standard: {
               type: Type.STRING,
               enum: Object.values(SNPStandard),
               description: "The SNP category"
             },
-            amount_estimate: {
+            account_code: {
+               type: Type.STRING,
+               description: "The exact key for Kode Rekening"
+            },
+            quantity_estimate: {
               type: Type.NUMBER,
-              description: "Estimated cost in IDR"
+              description: "Estimated volume/quantity"
+            },
+            unit_estimate: {
+              type: Type.STRING,
+              description: "Estimated unit (Satuan)"
+            },
+            price_estimate: {
+              type: Type.NUMBER,
+              description: "Estimated unit price in IDR"
+            },
+            realization_months_estimate: {
+              type: Type.ARRAY,
+              items: { type: Type.NUMBER },
+              description: "Array of months (1-12)"
             },
             suggestion: {
               type: Type.STRING,
-              description: "Formal description suitable for RKAS reporting"
+              description: "Formal description"
             },
             is_eligible: {
               type: Type.BOOLEAN,
-              description: "True if allowed by Juknis BOSP, False if prohibited"
+              description: "Allowed by Juknis?"
             },
             warning: {
               type: Type.STRING,
-              description: "If prohibited, explain why based on Juknis regulations. Empty if allowed."
+              description: "Warning message if any"
             }
           }
         }
@@ -74,7 +105,11 @@ export const analyzeBudgetEntry = async (description: string): Promise<{
     return result || { 
       bosp_component: BOSPComponent.LAINNYA, 
       snp_standard: SNPStandard.LAINNYA, 
-      amount_estimate: 0, 
+      account_code: '',
+      quantity_estimate: 1,
+      unit_estimate: 'Paket',
+      price_estimate: 0, 
+      realization_months_estimate: [1],
       suggestion: description,
       is_eligible: true,
       warning: ""
@@ -84,7 +119,11 @@ export const analyzeBudgetEntry = async (description: string): Promise<{
     return {
       bosp_component: BOSPComponent.LAINNYA,
       snp_standard: SNPStandard.LAINNYA,
-      amount_estimate: 0,
+      account_code: '',
+      quantity_estimate: 1,
+      unit_estimate: 'Paket',
+      price_estimate: 0,
+      realization_months_estimate: [1],
       suggestion: "Error connecting to AI assistant.",
       is_eligible: true,
       warning: ""
@@ -98,12 +137,7 @@ export const chatWithFinancialAdvisor = async (query: string, context: string) =
   try {
     const response = await ai.models.generateContent({
       model: 'gemini-3-flash-preview',
-      contents: `You are an expert RKAS Consultant specializing in Juknis BOSP 2026 (Bantuan Operasional Satuan Pendidikan) for Elementary Schools (SD).
-      
-      Strict Rules:
-      1. Ensure all advice complies with Permendikbudristek regarding BOSP.
-      2. Highlight prohibitions (e.g., buying land, medium/heavy construction, stocks, lending money).
-      3. Focus on the 11 components of BOSP financing relevant to SD.
+      contents: `You are an expert RKAS Consultant specializing in Juknis BOSP 2026 for Elementary Schools (SD).
       
       Context of current budget: ${context}
       
