@@ -1,15 +1,54 @@
 import { supabase } from './supabase';
-import { Budget, TransactionType, SNPStandard } from '../types';
+import { Budget, TransactionType, SNPStandard, BOSPComponent } from '../types';
 
-// Mock data for initial load if Supabase is not connected
+// Mock data reflecting BOSP structure
 const MOCK_DATA: Budget[] = [
-  { id: '1', type: TransactionType.INCOME, description: 'Dana BOS Tahap 1', amount: 150000000, date: '2024-01-15', category: 'Dana BOS', status: 'approved' },
-  { id: '2', type: TransactionType.EXPENSE, description: 'Pembelian Buku Paket Tematik', amount: 15000000, date: '2024-02-10', category: SNPStandard.ISI, status: 'approved' },
-  { id: '3', type: TransactionType.EXPENSE, description: 'Perbaikan Atap Perpustakaan', amount: 5000000, date: '2024-02-20', category: SNPStandard.SARPRAS, status: 'draft' },
-  { id: '4', type: TransactionType.EXPENSE, description: 'Honor Guru Ekstrakurikuler', amount: 3000000, date: '2024-03-01', category: SNPStandard.PTK, status: 'approved' },
+  { 
+    id: '1', 
+    type: TransactionType.INCOME, 
+    description: 'Dana BOSP Reguler Tahap 1', 
+    amount: 150000000, 
+    date: '2026-01-15', 
+    bosp_component: 'Penerimaan',
+    category: 'Dana Transfer', 
+    status: 'approved' 
+  },
+  { 
+    id: '2', 
+    type: TransactionType.EXPENSE, 
+    description: 'Pengadaan Buku Teks Utama Kurikulum Merdeka', 
+    amount: 15000000, 
+    date: '2026-02-10', 
+    bosp_component: BOSPComponent.PERPUSTAKAAN,
+    category: SNPStandard.SARPRAS, 
+    status: 'approved',
+    is_bosp_eligible: true
+  },
+  { 
+    id: '3', 
+    type: TransactionType.EXPENSE, 
+    description: 'Pengecatan Ruang Kelas 1 dan 2', 
+    amount: 5000000, 
+    date: '2026-02-20', 
+    bosp_component: BOSPComponent.SARPRAS,
+    category: SNPStandard.SARPRAS, 
+    status: 'draft',
+    is_bosp_eligible: true
+  },
+  { 
+    id: '4', 
+    type: TransactionType.EXPENSE, 
+    description: 'Honor Guru Ekstrakurikuler Pramuka', 
+    amount: 3000000, 
+    date: '2026-03-01', 
+    bosp_component: BOSPComponent.PEMBELAJARAN,
+    category: SNPStandard.PTK, 
+    status: 'approved',
+    is_bosp_eligible: true
+  },
 ];
 
-const LOCAL_KEY = 'rkas_local_data';
+const LOCAL_KEY = 'rkas_local_data_v2';
 
 export const getBudgets = async (): Promise<Budget[]> => {
   if (supabase) {
@@ -33,8 +72,6 @@ export const addBudget = async (item: Omit<Budget, 'id' | 'created_at'>): Promis
     const { data, error } = await supabase.from('budgets').insert([item]).select();
     if (!error && data) return data[0] as Budget;
     console.error("Supabase insert error:", error);
-    // If Supabase fails (e.g. RLS or network), we could fallback, but usually we just throw or return null.
-    // For this hybrid demo, we will strictly use one source of truth based on `supabase` existence.
   }
 
   // Local Storage Fallback

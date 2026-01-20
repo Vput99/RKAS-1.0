@@ -1,15 +1,25 @@
 import { GoogleGenAI, Type } from "@google/genai";
-import { SNPStandard } from "../types";
+import { SNPStandard, BOSPComponent } from "../types";
 
 const apiKey = process.env.API_KEY || '';
 const ai = apiKey ? new GoogleGenAI({ apiKey }) : null;
 
-export const analyzeBudgetEntry = async (description: string): Promise<{ category: string, amount_estimate: number, suggestion: string }> => {
+export const analyzeBudgetEntry = async (description: string): Promise<{ 
+  bosp_component: string, 
+  snp_standard: string, 
+  amount_estimate: number, 
+  suggestion: string,
+  is_eligible: boolean,
+  warning: string 
+}> => {
   if (!ai) {
     return {
-      category: SNPStandard.SARPRAS,
+      bosp_component: BOSPComponent.LAINNYA,
+      snp_standard: SNPStandard.SARPRAS,
       amount_estimate: 0,
-      suggestion: "API Key not found. Please configure Gemini API Key."
+      suggestion: "API Key not found.",
+      is_eligible: true,
+      warning: ""
     };
   }
 
@@ -17,19 +27,27 @@ export const analyzeBudgetEntry = async (description: string): Promise<{ categor
     const response = await ai.models.generateContent({
       model: 'gemini-3-flash-preview',
       contents: `User input: "${description}". 
-      Based on this input for an Indonesian Elementary School (SD) budget:
-      1. Determine the most appropriate Standar Nasional Pendidikan (SNP) category.
-      2. Estimate a realistic cost in IDR (Rupiah) for a single unit if applicable (just a rough guess based on common prices).
-      3. Provide a more formal description string.`,
+      Context: Rencana Kegiatan dan Anggaran Sekolah (RKAS) SD Tahun 2026.
+      
+      Task:
+      1. Map the input to the correct 'Komponen BOSP' (Juknis BOSP) and 'Standar Nasional Pendidikan (SNP)'.
+      2. Check against "Larangan Penggunaan Dana BOSP" (e.g., no buying clothing for teachers, no investments, no borrowing, no building construction strictly maintenance).
+      3. Estimate a realistic cost in IDR.
+      4. Refine the description to formal administrative Indonesian.`,
       config: {
         responseMimeType: "application/json",
         responseSchema: {
           type: Type.OBJECT,
           properties: {
-            category: {
+            bosp_component: {
+              type: Type.STRING,
+              enum: Object.values(BOSPComponent),
+              description: "The BOSP Component category"
+            },
+            snp_standard: {
               type: Type.STRING,
               enum: Object.values(SNPStandard),
-              description: "The SNP category best fitting the description"
+              description: "The SNP category"
             },
             amount_estimate: {
               type: Type.NUMBER,
@@ -37,7 +55,15 @@ export const analyzeBudgetEntry = async (description: string): Promise<{ categor
             },
             suggestion: {
               type: Type.STRING,
-              description: "A formal, administrative description of the activity"
+              description: "Formal description suitable for RKAS reporting"
+            },
+            is_eligible: {
+              type: Type.BOOLEAN,
+              description: "True if allowed by Juknis BOSP, False if prohibited"
+            },
+            warning: {
+              type: Type.STRING,
+              description: "If prohibited, explain why based on Juknis regulations. Empty if allowed."
             }
           }
         }
@@ -45,13 +71,23 @@ export const analyzeBudgetEntry = async (description: string): Promise<{ categor
     });
 
     const result = response.text ? JSON.parse(response.text) : null;
-    return result || { category: SNPStandard.LAINNYA, amount_estimate: 0, suggestion: description };
+    return result || { 
+      bosp_component: BOSPComponent.LAINNYA, 
+      snp_standard: SNPStandard.LAINNYA, 
+      amount_estimate: 0, 
+      suggestion: description,
+      is_eligible: true,
+      warning: ""
+    };
   } catch (error) {
     console.error("Gemini Error:", error);
     return {
-      category: SNPStandard.LAINNYA,
+      bosp_component: BOSPComponent.LAINNYA,
+      snp_standard: SNPStandard.LAINNYA,
       amount_estimate: 0,
-      suggestion: "Error connecting to AI assistant."
+      suggestion: "Error connecting to AI assistant.",
+      is_eligible: true,
+      warning: ""
     };
   }
 };
@@ -62,12 +98,18 @@ export const chatWithFinancialAdvisor = async (query: string, context: string) =
   try {
     const response = await ai.models.generateContent({
       model: 'gemini-3-flash-preview',
-      contents: `You are an expert school treasurer consultant (Konsultan Dana BOS). 
+      contents: `You are an expert RKAS Consultant specializing in Juknis BOSP 2026 (Bantuan Operasional Satuan Pendidikan) for Elementary Schools (SD).
+      
+      Strict Rules:
+      1. Ensure all advice complies with Permendikbudristek regarding BOSP.
+      2. Highlight prohibitions (e.g., buying land, medium/heavy construction, stocks, lending money).
+      3. Focus on the 11 components of BOSP financing relevant to SD.
+      
       Context of current budget: ${context}
       
       User Question: ${query}
       
-      Answer in Indonesian, be professional, helpful, and concise.`,
+      Answer in formal but helpful Indonesian.`,
     });
     return response.text;
   } catch (e) {

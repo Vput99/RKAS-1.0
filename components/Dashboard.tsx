@@ -7,7 +7,7 @@ interface DashboardProps {
   data: Budget[];
 }
 
-const COLORS = ['#0088FE', '#00C49F', '#FFBB28', '#FF8042', '#8884d8', '#82ca9d', '#ffc658', '#8dd1e1'];
+const COLORS = ['#0088FE', '#00C49F', '#FFBB28', '#FF8042', '#8884d8', '#82ca9d', '#ffc658', '#8dd1e1', '#a4de6c', '#d0ed57'];
 
 const Dashboard: React.FC<DashboardProps> = ({ data }) => {
   
@@ -17,12 +17,14 @@ const Dashboard: React.FC<DashboardProps> = ({ data }) => {
     return { income, expense, balance: income - expense };
   }, [data]);
 
-  const expenseByCategory = useMemo(() => {
+  const expenseByComponent = useMemo(() => {
     const expenses = data.filter(d => d.type === TransactionType.EXPENSE);
     const grouped: Record<string, number> = {};
     expenses.forEach(item => {
-      // Shorten category name for chart
-      const key = item.category.split('.')[1] ? item.category.split('.')[1].trim() : item.category; 
+      // Use BOSP Component as key, strip the number prefix for cleaner chart labels
+      // e.g., "1. PPDB" -> "PPDB"
+      const rawKey = item.bosp_component || item.category;
+      const key = rawKey.includes('.') ? rawKey.split('.').slice(1).join('.').trim() : rawKey;
       grouped[key] = (grouped[key] || 0) + item.amount;
     });
     return Object.entries(grouped).map(([name, value]) => ({ name, value }));
@@ -45,6 +47,10 @@ const Dashboard: React.FC<DashboardProps> = ({ data }) => {
 
   return (
     <div className="space-y-6 animate-fade-in">
+      <div className="bg-blue-50 border border-blue-100 p-4 rounded-xl text-blue-800 text-sm">
+        <strong>Info BOSP 2026:</strong> Dashboard ini disesuaikan dengan Komponen Pembiayaan Juknis BOSP terbaru untuk SD.
+      </div>
+
       {/* Cards */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
         <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-100 flex items-center space-x-4">
@@ -61,7 +67,7 @@ const Dashboard: React.FC<DashboardProps> = ({ data }) => {
             <ArrowDownCircle size={32} />
           </div>
           <div>
-            <p className="text-sm text-gray-500 font-medium">Total Belanja</p>
+            <p className="text-sm text-gray-500 font-medium">Realisasi Belanja</p>
             <h3 className="text-2xl font-bold text-gray-800">{formatRupiah(stats.expense)}</h3>
           </div>
         </div>
@@ -80,12 +86,12 @@ const Dashboard: React.FC<DashboardProps> = ({ data }) => {
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {/* Expense Breakdown */}
         <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-100">
-          <h4 className="text-lg font-bold text-gray-800 mb-4">Alokasi Dana per Standar SNP</h4>
+          <h4 className="text-lg font-bold text-gray-800 mb-4">Penggunaan Dana per Komponen BOSP</h4>
           <div className="h-64">
             <ResponsiveContainer width="100%" height="100%">
               <PieChart>
                 <Pie
-                  data={expenseByCategory}
+                  data={expenseByComponent}
                   cx="50%"
                   cy="50%"
                   labelLine={false}
@@ -93,12 +99,12 @@ const Dashboard: React.FC<DashboardProps> = ({ data }) => {
                   fill="#8884d8"
                   dataKey="value"
                 >
-                  {expenseByCategory.map((entry, index) => (
+                  {expenseByComponent.map((entry, index) => (
                     <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
                   ))}
                 </Pie>
                 <RechartsTooltip formatter={(value: number) => formatRupiah(value)} />
-                <Legend layout="horizontal" verticalAlign="bottom" align="center" wrapperStyle={{ fontSize: '12px', paddingTop: '10px' }} />
+                <Legend layout="horizontal" verticalAlign="bottom" align="center" wrapperStyle={{ fontSize: '10px', paddingTop: '10px' }} />
               </PieChart>
             </ResponsiveContainer>
           </div>

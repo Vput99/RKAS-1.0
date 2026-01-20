@@ -15,14 +15,30 @@ export enum SNPStandard {
   LAINNYA = 'Lainnya'
 }
 
+export enum BOSPComponent {
+  PPDB = '1. Penerimaan Peserta Didik Baru',
+  PERPUSTAKAAN = '2. Pengembangan Perpustakaan',
+  PEMBELAJARAN = '3. Kegiatan Pembelajaran & Ekstrakurikuler',
+  ASESMEN = '4. Asesmen & Evaluasi Pembelajaran',
+  ADMINISTRASI = '5. Administrasi Kegiatan Sekolah',
+  PROFESI_GURU = '6. Pengembangan Profesi Guru & Tendik',
+  LANGGANAN = '7. Langganan Daya dan Jasa',
+  SARPRAS = '8. Pemeliharaan Sarana & Prasarana',
+  MULTIMEDIA = '9. Penyediaan Alat Multimedia Pembelajaran',
+  LAINNYA = 'Lainnya / Non-BOSP'
+}
+
 export interface Budget {
   id: string;
   type: TransactionType;
   description: string;
   amount: number;
   date: string;
+  bosp_component: BOSPComponent | string; // New field for Juknis compliance
   category: SNPStandard | string;
   status: 'draft' | 'approved' | 'rejected';
+  is_bosp_eligible?: boolean; // AI validation flag
+  warning_message?: string; // AI warning for prohibited items
   notes?: string;
   created_at?: string;
 }

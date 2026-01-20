@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
-import { Budget, SNPStandard, TransactionType } from '../types';
-import { Plus, Trash2, Sparkles, Search, Loader2 } from 'lucide-react';
+import { Budget, SNPStandard, BOSPComponent, TransactionType } from '../types';
+import { Plus, Trash2, Sparkles, Search, Loader2, AlertTriangle, CheckCircle } from 'lucide-react';
 import { analyzeBudgetEntry } from '../lib/gemini';
 
 interface TransactionTableProps {
@@ -14,17 +14,30 @@ const TransactionTable: React.FC<TransactionTableProps> = ({ type, data, onAdd, 
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [description, setDescription] = useState('');
   const [amount, setAmount] = useState('');
-  const [category, setCategory] = useState(type === TransactionType.INCOME ? 'Dana BOS' : SNPStandard.SARPRAS);
+  const [category, setCategory] = useState(type === TransactionType.INCOME ? 'Dana Transfer' : SNPStandard.SARPRAS);
+  const [bospComponent, setBospComponent] = useState(type === TransactionType.INCOME ? 'Penerimaan' : BOSPComponent.SARPRAS);
   const [isAnalyzing, setIsAnalyzing] = useState(false);
+  
+  // Validation states
+  const [isEligible, setIsEligible] = useState<boolean | null>(null);
+  const [warningMessage, setWarningMessage] = useState('');
 
   const filteredData = data.filter(d => d.type === type);
 
   const handleAIAnalysis = async () => {
     if (!description || description.length < 3) return;
     setIsAnalyzing(true);
+    setWarningMessage('');
+    setIsEligible(null);
+
     const result = await analyzeBudgetEntry(description);
+    
     if (result) {
-      setCategory(result.category);
+      setCategory(result.snp_standard);
+      setBospComponent(result.bosp_component);
+      setIsEligible(result.is_eligible);
+      setWarningMessage(result.warning);
+
       if (result.amount_estimate > 0 && !amount) {
         setAmount(result.amount_estimate.toString());
       }
@@ -43,7 +56,10 @@ const TransactionTable: React.FC<TransactionTableProps> = ({ type, data, onAdd, 
       amount: Number(amount),
       date: new Date().toISOString(),
       category,
+      bosp_component: bospComponent,
       status: 'draft',
+      is_bosp_eligible: isEligible === null ? true : isEligible, // Default to true if manual entry
+      warning_message: warningMessage,
       notes: ''
     });
     setIsModalOpen(false);
@@ -53,7 +69,10 @@ const TransactionTable: React.FC<TransactionTableProps> = ({ type, data, onAdd, 
   const resetForm = () => {
     setDescription('');
     setAmount('');
-    setCategory(type === TransactionType.INCOME ? 'Dana BOS' : SNPStandard.SARPRAS);
+    setCategory(type === TransactionType.INCOME ? 'Dana Transfer' : SNPStandard.SARPRAS);
+    setBospComponent(type === TransactionType.INCOME ? 'Penerimaan' : BOSPComponent.SARPRAS);
+    setIsEligible(null);
+    setWarningMessage('');
   };
 
   return (
@@ -75,8 +94,8 @@ const TransactionTable: React.FC<TransactionTableProps> = ({ type, data, onAdd, 
             <thead className="bg-gray-50 border-b border-gray-100">
               <tr>
                 <th className="px-6 py-4 font-semibold">Tanggal</th>
-                <th className="px-6 py-4 font-semibold">Uraian</th>
-                <th className="px-6 py-4 font-semibold">Kategori</th>
+                <th className="px-6 py-4 font-semibold">Uraian Kegiatan</th>
+                <th className="px-6 py-4 font-semibold">Komponen BOSP</th>
                 <th className="px-6 py-4 font-semibold text-right">Jumlah</th>
                 <th className="px-6 py-4 font-semibold text-center">Status</th>
                 <th className="px-6 py-4 font-semibold text-right">Aksi</th>
@@ -90,12 +109,20 @@ const TransactionTable: React.FC<TransactionTableProps> = ({ type, data, onAdd, 
               ) : (
                 filteredData.map((item) => (
                   <tr key={item.id} className="hover:bg-gray-50 transition-colors">
-                    <td className="px-6 py-4">{new Date(item.date).toLocaleDateString('id-ID')}</td>
-                    <td className="px-6 py-4 font-medium text-gray-800">{item.description}</td>
+                    <td className="px-6 py-4 whitespace-nowrap">{new Date(item.date).toLocaleDateString('id-ID')}</td>
                     <td className="px-6 py-4">
-                      <span className="px-2 py-1 bg-gray-100 rounded text-xs text-gray-600 truncate max-w-[200px] block">
-                        {item.category.length > 30 ? item.category.substring(0, 30) + '...' : item.category}
-                      </span>
+                      <div className="font-medium text-gray-800">{item.description}</div>
+                      {item.warning_message && (
+                        <div className="text-xs text-red-500 flex items-center gap-1 mt-1">
+                          <AlertTriangle size={12} /> {item.warning_message}
+                        </div>
+                      )}
+                    </td>
+                    <td className="px-6 py-4">
+                       <div className="text-xs font-medium text-blue-700 bg-blue-50 px-2 py-1 rounded inline-block mb-1">
+                          {item.bosp_component.replace(/^\d+\.\s/, '')}
+                       </div>
+                       <div className="text-xs text-gray-400">{item.category}</div>
                     </td>
                     <td className="px-6 py-4 text-right font-mono">
                       {new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR' }).format(item.amount)}
@@ -128,84 +155,125 @@ const TransactionTable: React.FC<TransactionTableProps> = ({ type, data, onAdd, 
       {/* Modal */}
       {isModalOpen && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-xl shadow-xl w-full max-w-lg overflow-hidden animate-fade-in-up">
-            <div className="px-6 py-4 border-b border-gray-100 flex justify-between items-center">
-              <h3 className="text-lg font-bold text-gray-800">Tambah {type === TransactionType.INCOME ? 'Sumber Dana' : 'Kegiatan'}</h3>
+          <div className="bg-white rounded-xl shadow-xl w-full max-w-2xl overflow-hidden animate-fade-in-up">
+            <div className="px-6 py-4 border-b border-gray-100 flex justify-between items-center bg-gray-50">
+              <h3 className="text-lg font-bold text-gray-800">
+                {type === TransactionType.INCOME ? 'Tambah Sumber Dana' : 'Tambah Kegiatan RKAS'}
+              </h3>
               <button onClick={() => setIsModalOpen(false)} className="text-gray-400 hover:text-gray-600">&times;</button>
             </div>
             
-            <form onSubmit={handleSubmit} className="p-6 space-y-4">
+            <form onSubmit={handleSubmit} className="p-6 space-y-5">
               
               {/* AI Helper for Expense */}
               {type === TransactionType.EXPENSE && (
-                <div className="bg-indigo-50 p-4 rounded-lg border border-indigo-100">
+                <div className="bg-gradient-to-r from-blue-50 to-indigo-50 p-4 rounded-lg border border-blue-100">
                   <div className="flex items-start gap-3">
-                    <Sparkles className="text-indigo-600 mt-1 flex-shrink-0" size={20} />
+                    <Sparkles className="text-blue-600 mt-1 flex-shrink-0" size={20} />
                     <div className="w-full">
-                      <p className="text-sm text-indigo-800 mb-2 font-medium">Bantuan AI Gemini</p>
-                      <p className="text-xs text-indigo-600 mb-3">
-                        Ketik rencana kegiatan (misal: "Beli laptop") lalu klik tombol di bawah untuk auto-kategori.
+                      <p className="text-sm text-blue-900 mb-1 font-bold">Validasi Otomatis Juknis BOSP</p>
+                      <p className="text-xs text-blue-700 mb-3">
+                        Masukkan rencana kegiatan, AI akan menentukan Komponen BOSP, Kode SNP, dan mengecek larangan penggunaan dana.
                       </p>
-                      <button 
-                        type="button" 
-                        onClick={handleAIAnalysis}
-                        disabled={isAnalyzing}
-                        className="text-xs bg-indigo-600 text-white px-3 py-1.5 rounded hover:bg-indigo-700 transition flex items-center gap-2"
-                      >
-                        {isAnalyzing ? <Loader2 size={14} className="animate-spin" /> : <Search size={14} />}
-                        Analisa & Estimasi
-                      </button>
+                      <div className="flex gap-2">
+                         <input 
+                           type="text" 
+                           value={description}
+                           onChange={(e) => setDescription(e.target.value)}
+                           className="flex-1 text-sm border-blue-200 rounded px-3 py-1.5 focus:ring-2 focus:ring-blue-400 outline-none"
+                           placeholder="Misal: Perbaikan atap perpustakaan bocor"
+                         />
+                        <button 
+                          type="button" 
+                          onClick={handleAIAnalysis}
+                          disabled={isAnalyzing || !description}
+                          className="text-xs bg-blue-600 text-white px-3 py-1.5 rounded hover:bg-blue-700 transition flex items-center gap-2 disabled:opacity-50"
+                        >
+                          {isAnalyzing ? <Loader2 size={14} className="animate-spin" /> : <Search size={14} />}
+                          Cek Juknis
+                        </button>
+                      </div>
+                      
+                      {/* Validation Result */}
+                      {isEligible === true && (
+                         <div className="mt-3 text-xs text-green-700 flex items-center gap-1 bg-green-50 p-2 rounded border border-green-100">
+                            <CheckCircle size={14} /> Kegiatan ini diperbolehkan dalam Juknis BOSP.
+                         </div>
+                      )}
+                      {isEligible === false && (
+                         <div className="mt-3 text-xs text-red-700 flex items-start gap-1 bg-red-50 p-2 rounded border border-red-100">
+                            <AlertTriangle size={14} className="mt-0.5 flex-shrink-0" /> 
+                            <span><b>Peringatan:</b> {warningMessage}</span>
+                         </div>
+                      )}
                     </div>
                   </div>
                 </div>
               )}
 
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Uraian / Nama Kegiatan</label>
-                <input 
-                  required
-                  type="text" 
-                  value={description}
-                  onChange={(e) => setDescription(e.target.value)}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition"
-                  placeholder={type === TransactionType.INCOME ? "Contoh: Dana BOS Tahap 1" : "Contoh: Pembelian Alat Tulis Kantor"}
-                />
-              </div>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="md:col-span-2">
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Uraian / Nama Kegiatan</label>
+                  <input 
+                    required
+                    type="text" 
+                    value={description}
+                    onChange={(e) => setDescription(e.target.value)}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition"
+                    placeholder="Uraian kegiatan lengkap..."
+                  />
+                </div>
 
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Jumlah Anggaran (Rp)</label>
-                <input 
-                  required
-                  type="number" 
-                  value={amount}
-                  onChange={(e) => setAmount(e.target.value)}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition"
-                  placeholder="0"
-                />
-              </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Jumlah Anggaran (Rp)</label>
+                  <input 
+                    required
+                    type="number" 
+                    value={amount}
+                    onChange={(e) => setAmount(e.target.value)}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition"
+                    placeholder="0"
+                  />
+                </div>
 
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Kategori / Standar SNP</label>
-                <select 
-                  value={category} 
-                  onChange={(e) => setCategory(e.target.value)}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition"
-                >
-                  {type === TransactionType.INCOME ? (
-                    <>
-                      <option value="Dana BOS">Dana BOS</option>
-                      <option value="BOP">BOP</option>
-                      <option value="Lainnya">Sumber Lain</option>
-                    </>
-                  ) : (
-                     Object.values(SNPStandard).map((std) => (
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    {type === TransactionType.INCOME ? 'Jenis Penerimaan' : 'Komponen BOSP'}
+                  </label>
+                  <select 
+                    value={bospComponent} 
+                    onChange={(e) => setBospComponent(e.target.value)}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition text-sm"
+                  >
+                    {type === TransactionType.INCOME ? (
+                      <>
+                        <option value="Penerimaan">Dana Transfer BOSP</option>
+                        <option value="Lainnya">Sumber Lain</option>
+                      </>
+                    ) : (
+                       Object.values(BOSPComponent).map((comp) => (
+                         <option key={comp} value={comp}>{comp}</option>
+                       ))
+                    )}
+                  </select>
+                </div>
+
+                <div className="md:col-span-2">
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Standar Nasional Pendidikan (SNP)</label>
+                  <select 
+                    value={category} 
+                    onChange={(e) => setCategory(e.target.value)}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition text-sm"
+                  >
+                     {Object.values(SNPStandard).map((std) => (
                        <option key={std} value={std}>{std}</option>
-                     ))
-                  )}
-                </select>
+                     ))}
+                  </select>
+                  <p className="text-xs text-gray-400 mt-1">Dipetakan otomatis dari Komponen BOSP jika menggunakan AI.</p>
+                </div>
               </div>
 
-              <div className="pt-4 flex justify-end gap-3">
+              <div className="pt-4 flex justify-end gap-3 border-t border-gray-100">
                 <button 
                   type="button" 
                   onClick={() => setIsModalOpen(false)}
@@ -215,7 +283,10 @@ const TransactionTable: React.FC<TransactionTableProps> = ({ type, data, onAdd, 
                 </button>
                 <button 
                   type="submit" 
-                  className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition shadow-sm"
+                  disabled={isEligible === false}
+                  className={`px-4 py-2 text-white rounded-lg transition shadow-sm ${
+                    isEligible === false ? 'bg-gray-400 cursor-not-allowed' : 'bg-blue-600 hover:bg-blue-700'
+                  }`}
                 >
                   Simpan Data
                 </button>
