@@ -29,6 +29,13 @@ const getEnv = (key: string) => {
 const supabaseUrl = getEnv('REACT_APP_SUPABASE_URL') || getEnv('VITE_SUPABASE_URL');
 const supabaseKey = getEnv('REACT_APP_SUPABASE_ANON_KEY') || getEnv('VITE_SUPABASE_ANON_KEY');
 
+if (!supabaseUrl || !supabaseKey) {
+    console.warn("⚠️ SUPABASE CONFIG MISSING ⚠️");
+    console.warn("Please set REACT_APP_SUPABASE_URL and REACT_APP_SUPABASE_ANON_KEY in your environment variables.");
+} else {
+    console.log("✅ Supabase Configuration Found");
+}
+
 export const supabase = (supabaseUrl && supabaseKey) 
   ? createClient(supabaseUrl, supabaseKey) 
   : null;

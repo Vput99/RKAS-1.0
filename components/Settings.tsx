@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { SchoolProfile } from '../types';
-import { Save, School, Users, Wallet, Calendar, AlertCircle, Database, Wifi, WifiOff, CheckCircle2, FileText } from 'lucide-react';
+import { Save, School, Users, Wallet, Calendar, AlertCircle, Database, Wifi, WifiOff, CheckCircle2, FileText, Activity } from 'lucide-react';
 import { getSchoolProfile, saveSchoolProfile, checkDatabaseConnection } from '../lib/db';
+import { supabase } from '../lib/supabase';
 
 interface SettingsProps {
   onProfileUpdate: (profile: SchoolProfile) => void;
@@ -24,11 +25,23 @@ const Settings: React.FC<SettingsProps> = ({ onProfileUpdate }) => {
   const [loading, setLoading] = useState(true);
   const [saved, setSaved] = useState(false);
   const [isConnected, setIsConnected] = useState<boolean | null>(null);
+  const [envStatus, setEnvStatus] = useState({ url: false, key: false });
 
   useEffect(() => {
     loadProfile();
     checkConnection();
+    checkEnvVars();
   }, []);
+
+  const checkEnvVars = () => {
+    // Check if variables are loaded (without exposing values)
+    const isUrlSet = !!supabase; 
+    // If supabase client exists, it means URL and Key were provided in lib/supabase.ts
+    setEnvStatus({
+      url: isUrlSet,
+      key: isUrlSet
+    });
+  };
 
   const loadProfile = async () => {
     const data = await getSchoolProfile();
@@ -65,7 +78,7 @@ const Settings: React.FC<SettingsProps> = ({ onProfileUpdate }) => {
   if (loading) return <div className="p-8 text-center text-gray-500">Memuat pengaturan...</div>;
 
   return (
-    <div className="space-y-6 max-w-4xl mx-auto">
+    <div className="space-y-6 max-w-4xl mx-auto pb-10">
       <div className="flex justify-between items-end">
         <div>
            <h2 className="text-xl font-bold text-gray-800">Pengaturan Sekolah</h2>
@@ -74,7 +87,7 @@ const Settings: React.FC<SettingsProps> = ({ onProfileUpdate }) => {
       </div>
 
       {/* Connection Status Card */}
-      <div className={`rounded-xl shadow-sm border p-4 flex items-center justify-between ${isConnected ? 'bg-green-50 border-green-200' : 'bg-orange-50 border-orange-200'}`}>
+      <div className={`rounded-xl shadow-sm border p-4 flex flex-col md:flex-row md:items-center justify-between gap-4 ${isConnected ? 'bg-green-50 border-green-200' : 'bg-orange-50 border-orange-200'}`}>
          <div className="flex items-center gap-4">
             <div className={`p-3 rounded-full ${isConnected ? 'bg-green-200 text-green-700' : 'bg-orange-200 text-orange-700'}`}>
                <Database size={24} />
@@ -85,8 +98,8 @@ const Settings: React.FC<SettingsProps> = ({ onProfileUpdate }) => {
                </h3>
                <p className={`text-sm ${isConnected ? 'text-green-600' : 'text-orange-700'}`}>
                   {isConnected 
-                     ? 'Data tersimpan aman di Supabase (Cloud). Data tidak akan hilang saat browser ditutup.' 
-                     : 'Data tersimpan di Browser (Local Storage). Hubungkan ke Supabase di Vercel agar data permanen.'}
+                     ? 'Data tersimpan aman di Supabase. Anda bisa mengaksesnya dari perangkat lain.' 
+                     : 'Data hanya tersimpan di browser ini. Data akan hilang jika cache dibersihkan.'}
                </p>
             </div>
          </div>
@@ -94,6 +107,40 @@ const Settings: React.FC<SettingsProps> = ({ onProfileUpdate }) => {
             {isConnected ? <Wifi className="text-green-500" size={24} /> : <WifiOff className="text-orange-400" size={24} />}
          </div>
       </div>
+
+      {/* Diagnostic Panel (Only visible if offline) */}
+      {!isConnected && (
+        <div className="bg-gray-800 text-gray-300 p-4 rounded-xl text-xs font-mono space-y-2 border border-gray-700">
+           <div className="flex items-center gap-2 text-white font-bold border-b border-gray-700 pb-2 mb-2">
+              <Activity size={14} /> DIAGNOSA KONEKSI
+           </div>
+           
+           <div className="grid grid-cols-2 gap-4">
+              <div>
+                 <span className="block text-gray-500">Supabase Config Status:</span>
+                 {envStatus.url ? (
+                    <span className="text-green-400">✅ URL & Key Terdeteksi di Kode</span>
+                 ) : (
+                    <span className="text-red-400">❌ URL/Key Kosong (Environment Variables Missing)</span>
+                 )}
+              </div>
+              <div>
+                 <span className="block text-gray-500">Test Ping:</span>
+                 <span className="text-red-400">❌ Gagal menghubungi server</span>
+              </div>
+           </div>
+
+           <div className="mt-2 pt-2 border-t border-gray-600">
+              <p className="text-gray-400 mb-1">Cara Memperbaiki (Deployment Vercel):</p>
+              <ol className="list-decimal pl-4 space-y-1 text-gray-400">
+                 <li>Buka Dashboard Vercel &gt; Settings &gt; Environment Variables.</li>
+                 <li>Pastikan Key: <span className="text-white">REACT_APP_SUPABASE_URL</span> sudah diisi.</li>
+                 <li>Pastikan Key: <span className="text-white">REACT_APP_SUPABASE_ANON_KEY</span> sudah diisi.</li>
+                 <li>Setelah mengisi, lakukan <b>Redeploy</b> di tab Deployments.</li>
+              </ol>
+           </div>
+        </div>
+      )}
 
       <form onSubmit={handleSubmit} className="space-y-6">
         
