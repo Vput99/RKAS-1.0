@@ -131,6 +131,37 @@ export const analyzeBudgetEntry = async (description: string): Promise<{
   }
 };
 
+export const suggestEvidenceList = async (description: string, accountCode: string = ''): Promise<string[]> => {
+  if (!ai) return [];
+
+  try {
+    const response = await ai.models.generateContent({
+      model: 'gemini-3-flash-preview',
+      contents: `Context: Juknis BOSP 2026 for Elementary Schools (SD) in Indonesia.
+      Task: List the required physical evidence documents (Bukti Fisik SPJ) for the following expense transaction.
+      The list should be specific and compliant with audit requirements.
+      
+      Expense Description: "${description}"
+      Account Code: "${accountCode}"
+      
+      Return ONLY a JSON array of strings. Example: ["Kuitansi", "Faktur", "Dokumentasi"].`,
+      config: {
+        responseMimeType: "application/json",
+        responseSchema: {
+          type: Type.ARRAY,
+          items: { type: Type.STRING }
+        }
+      }
+    });
+
+    const result = response.text ? JSON.parse(response.text) : null;
+    return Array.isArray(result) ? result : [];
+  } catch (error) {
+    console.error("Gemini Error:", error);
+    return [];
+  }
+};
+
 export const chatWithFinancialAdvisor = async (query: string, context: string) => {
   if (!ai) return "AI not configured.";
 

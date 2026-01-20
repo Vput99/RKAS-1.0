@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Budget, TransactionType, AccountCodes, RealizationDetail } from '../types';
-import { FileText, Save, X, Calendar, Search, CheckCircle2, FileCheck2, AlertCircle, CheckSquare, Square } from 'lucide-react';
+import { FileText, Save, X, Calendar, Search, CheckCircle2, FileCheck2, AlertCircle, CheckSquare, Square, Sparkles, Loader2 } from 'lucide-react';
+import { suggestEvidenceList } from '../lib/gemini';
 
 interface SPJRealizationProps {
   data: Budget[];
@@ -125,6 +126,7 @@ const SPJRealization: React.FC<SPJRealizationProps> = ({ data, onUpdate }) => {
   // Checklist State
   const [evidenceItems, setEvidenceItems] = useState<string[]>([]);
   const [checkedEvidence, setCheckedEvidence] = useState<string[]>([]);
+  const [isAiLoading, setIsAiLoading] = useState(false);
 
   const [searchTerm, setSearchTerm] = useState('');
 
@@ -145,11 +147,24 @@ const SPJRealization: React.FC<SPJRealizationProps> = ({ data, onUpdate }) => {
     
     selectMonthForEditing(item, initialMonth);
     
-    // Load evidence list based on Juknis 2026 logic
+    // Load evidence list based on Juknis 2026 logic (Default Static)
     const items = getEvidenceList(item.description, item.account_code);
     setEvidenceItems(items);
     
     setIsModalOpen(true);
+  };
+
+  const handleGetAIEvidence = async () => {
+    if (!selectedBudget) return;
+    setIsAiLoading(true);
+    const aiSuggestions = await suggestEvidenceList(selectedBudget.description, selectedBudget.account_code || '');
+    if (aiSuggestions && aiSuggestions.length > 0) {
+      setEvidenceItems(aiSuggestions);
+      // Keep previously checked items if they intersect with new list, otherwise reset would be safer but annoying
+      // Let's keep intersection
+      setCheckedEvidence(prev => prev.filter(p => aiSuggestions.includes(p)));
+    }
+    setIsAiLoading(false);
   };
 
   const selectMonthForEditing = (item: Budget, month: number) => {
@@ -390,9 +405,20 @@ const SPJRealization: React.FC<SPJRealizationProps> = ({ data, onUpdate }) => {
                             <AlertCircle className="text-yellow-600" size={18} />
                             <h5 className="text-sm font-bold text-yellow-800">Kelengkapan Bukti Fisik</h5>
                          </div>
-                         <span className="text-xs font-bold text-yellow-700 bg-yellow-100 px-2 py-1 rounded-full">
-                           {checkedEvidence.length}/{evidenceItems.length} Terpenuhi
-                         </span>
+                         <div className="flex gap-2">
+                            <button 
+                                type="button" 
+                                onClick={handleGetAIEvidence}
+                                disabled={isAiLoading}
+                                className="flex items-center gap-1 text-[10px] bg-blue-100 hover:bg-blue-200 text-blue-700 px-2 py-1 rounded transition"
+                            >
+                                {isAiLoading ? <Loader2 size={12} className="animate-spin" /> : <Sparkles size={12} />}
+                                Saran AI
+                            </button>
+                            <span className="text-xs font-bold text-yellow-700 bg-yellow-100 px-2 py-1 rounded-full">
+                              {checkedEvidence.length}/{evidenceItems.length} Terpenuhi
+                            </span>
+                         </div>
                        </div>
                        
                        <div className="space-y-2">
