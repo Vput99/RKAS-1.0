@@ -8,6 +8,7 @@ import Reports from './components/Reports';
 import Settings from './components/Settings';
 import ChatAssistant from './components/ChatAssistant';
 import { getBudgets, addBudget, updateBudget, deleteBudget, getSchoolProfile, checkDatabaseConnection } from './lib/db';
+import { supabase } from './lib/supabase'; // Import supabase client
 import { Budget, TransactionType, SchoolProfile } from './types';
 
 function App() {
@@ -18,10 +19,42 @@ function App() {
   const [loading, setLoading] = useState(true);
   const [isOnline, setIsOnline] = useState(false);
 
-  // Load Data
+  // Load Initial Data
   useEffect(() => {
     fetchData();
     checkConnection();
+  }, []);
+
+  // --- REALTIME LISTENER SETUP ---
+  useEffect(() => {
+    if (!supabase) return;
+
+    // Create a subscription to the 'budgets' and 'school_profiles' tables
+    const channel = supabase
+      .channel('public:db_changes')
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'budgets' },
+        (payload) => {
+          console.log('Realtime update received (Budgets):', payload);
+          // When change happens, re-fetch data to keep UI in sync
+          getBudgets().then(setData);
+        }
+      )
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'school_profiles' },
+        (payload) => {
+          console.log('Realtime update received (Profile):', payload);
+          getSchoolProfile().then(setSchoolProfile);
+        }
+      )
+      .subscribe();
+
+    // Cleanup subscription on unmount
+    return () => {
+      supabase.removeChannel(channel);
+    };
   }, []);
 
   const checkConnection = async () => {
@@ -42,21 +75,24 @@ function App() {
 
   const handleAdd = async (item: Omit<Budget, 'id' | 'created_at'>) => {
     const newItem = await addBudget(item);
-    if (newItem) {
+    if (newItem && !supabase) {
+      // If offline/local, update state manually. 
+      // If online, the Realtime subscription will handle the update, 
+      // but updating manually here makes UI feel snappier (Optimistic UI)
       setData(prev => [newItem, ...prev]);
     }
   };
 
   const handleUpdate = async (id: string, updates: Partial<Budget>) => {
     const updatedItem = await updateBudget(id, updates);
-    if (updatedItem) {
+    if (updatedItem && !supabase) {
       setData(prev => prev.map(item => item.id === id ? updatedItem : item));
     }
   };
 
   const handleDelete = async (id: string) => {
     const success = await deleteBudget(id);
-    if (success) {
+    if (success && !supabase) {
       setData(prev => prev.filter(item => item.id !== id));
     }
   };
