@@ -12,65 +12,103 @@ const MONTHS = [
   'Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember'
 ];
 
-// Helper to determine evidence needed as a list
+// Helper to determine evidence needed as a list based on Juknis BOSP 2026
 const getEvidenceList = (description: string, accountCode?: string): string[] => {
   const text = (description + ' ' + (accountCode || '')).toLowerCase();
   
-  if (text.includes('honor') || text.includes('gaji') || text.includes('jasa')) {
+  // Honorarium (Guru Honorer, Tendik, Ekstrakurikuler)
+  if (text.includes('honor') || text.includes('gaji') || text.includes('jasa narasumber') || text.includes('jasa instruktur')) {
     return [
-      "SK Tugas / SK Pembagian Tugas",
-      "Daftar Hadir Guru/Tendik",
-      "Tanda Terima / Kuitansi Honor",
-      "Bukti Transfer (Jika Non-Tunai)",
-      "Bukti Potong Pajak (PPh 21) jika ada"
-    ];
-  }
-  if (text.includes('listrik') || text.includes('air') || text.includes('internet') || text.includes('langganan')) {
-    return [
-      "Surat Tagihan / Invoice Provider",
-      "Bukti Pembayaran / Struk Bank / ATM",
-      "Kuitansi Asli"
-    ];
-  }
-  if (text.includes('makan') || text.includes('minum') || text.includes('konsumsi')) {
-    return [
-      "Nota / Faktur Pembelian (Detail Menu)",
-      "Daftar Hadir Peserta Rapat/Kegiatan",
-      "Undangan Kegiatan",
-      "Notulen / Laporan Singkat Kegiatan",
-      "Foto Dokumentasi Kegiatan"
-    ];
-  }
-  if (text.includes('perjalanan') || text.includes('dinas')) {
-    return [
-      "Surat Tugas Kepala Sekolah",
-      "SPPD (Surat Perintah Perjalanan Dinas)",
-      "Tiket / Bukti Transportasi",
-      "Nota BBM / Sewa Kendaraan",
-      "Laporan Hasil Perjalanan Dinas"
-    ];
-  }
-  if (text.includes('modal') || text.includes('buku') || text.includes('laptop') || text.includes('bangunan') || text.includes('meja') || text.includes('kursi')) {
-    return [
-      "Faktur / Nota Pembelian",
-      "Berita Acara Serah Terima (BAST)",
-      "Berita Acara Pemeriksaan Barang",
-      "Foto Dokumentasi Barang",
-      "Catatan Pencatatan Buku Aset/Inventaris"
-    ];
-  }
-  if (text.includes('atk') || text.includes('bahan') || text.includes('alat')) {
-    return [
-      "Nota / Faktur Pembelian",
-      "Struk Belanja Detail Barang",
-      "Foto Barang (Opsional)"
+      "SK Penetapan / Surat Tugas dari Kepala Sekolah",
+      "Surat Perjanjian Kerja (SPK) (Jika ada)",
+      "Daftar Hadir / Absensi Bulan Berjalan (Tanda Tangan Lengkap)",
+      "Daftar Tanda Terima Honorarium (Kuitansi Penerimaan)",
+      "Bukti Transfer Bank (Wajib Non-Tunai)",
+      "Bukti Setor Pajak PPh 21 (Kode Billing & Bukti Bayar)",
+      "Laporan Pelaksanaan Tugas / Jurnal Kegiatan"
     ];
   }
 
+  // Belanja Barang Pakai Habis (ATK, Bahan, Alat Kebersihan)
+  if (text.includes('atk') || text.includes('bahan') || text.includes('alat tulis') || text.includes('kertas') || text.includes('kebersihan')) {
+    return [
+      "Nota / Faktur Pembelian Asli (Cap Toko)",
+      "Kuitansi Pengeluaran Sekolah",
+      "Faktur Pajak / Bukti Pungut PPN & PPh 22 (Belanja > Rp 2 Juta)",
+      "Surat Pesanan (SP) (Untuk Pembelian > Rp 1 Juta)",
+      "Berita Acara Serah Terima (BAST) Barang",
+      "Berita Acara Pemeriksaan Barang",
+      "Foto Dokumentasi Barang"
+    ];
+  }
+
+  // Konsumsi (Makan Minum Rapat/Kegiatan)
+  if (text.includes('makan') || text.includes('minum') || text.includes('konsumsi') || text.includes('rapat')) {
+    return [
+      "Surat Undangan Kegiatan",
+      "Daftar Hadir Peserta Kegiatan",
+      "Notulen / Laporan Hasil Kegiatan",
+      "Nota / Bon Pembelian Konsumsi (Rincian Menu)",
+      "Kuitansi Pembayaran",
+      "Bukti Pajak PPh 23 (Jika Jasa Katering)",
+      "Foto Dokumentasi Kegiatan (Open Camera)"
+    ];
+  }
+
+  // Perjalanan Dinas
+  if (text.includes('perjalanan') || text.includes('dinas') || text.includes('transport')) {
+    return [
+      "Surat Tugas (Ditandatangani KS)",
+      "SPPD (Surat Perintah Perjalanan Dinas) - Cap Instansi Tujuan",
+      "Laporan Hasil Perjalanan Dinas",
+      "Tiket / Bukti Transportasi Riil / Nota BBM",
+      "Kuitansi / Bill Hotel (Jika Menginap)",
+      "Daftar Pengeluaran Riil (Jika tidak ada bukti tiket)"
+    ];
+  }
+
+  // Belanja Modal (Aset Tetap: Laptop, Printer, Meja, Kursi, Buku)
+  if (text.includes('modal') || text.includes('buku') || text.includes('laptop') || text.includes('komputer') || text.includes('bangunan') || text.includes('meja') || text.includes('kursi') || text.includes('aset')) {
+    return [
+      "Surat Pesanan (SP) / SPK (Kontrak)",
+      "Faktur / Nota Pembelian Asli",
+      "Berita Acara Serah Terima (BAST)",
+      "Berita Acara Pemeriksaan Hasil Pekerjaan",
+      "Bukti Setor Pajak (PPN & PPh 22)",
+      "Foto Dokumentasi Barang 0%, 50%, 100% (Fisik/Bangunan)",
+      "Fotokopi Pencatatan di Buku Inventaris / KIB",
+      "Kartu Garansi (Elektronik)"
+    ];
+  }
+
+  // Pemeliharaan (Servis, Cat, Tukang)
+  if (text.includes('pemeliharaan') || text.includes('servis') || text.includes('perbaikan') || text.includes('tukang')) {
+    return [
+      "Surat Perintah Kerja (SPK) / Surat Pesanan",
+      "Nota / Kuitansi Jasa & Bahan",
+      "Berita Acara Penyelesaian Pekerjaan",
+      "Berita Acara Serah Terima (BAST)",
+      "Bukti Setor Pajak (PPh 23 Jasa, PPh 22 Material)",
+      "Foto Dokumentasi (Sebelum, Proses, Sesudah)"
+    ];
+  }
+
+  // Langganan Daya & Jasa
+  if (text.includes('listrik') || text.includes('air') || text.includes('internet') || text.includes('langganan') || text.includes('telepon')) {
+    return [
+      "Surat Tagihan / Invoice dari Penyedia (PLN/Telkom)",
+      "Bukti Pembayaran / Struk Bank / Bukti Transfer Sah",
+      "Kuitansi Internal Sekolah"
+    ];
+  }
+
+  // Default fallback
   return [
-    "Kuitansi / Nota yang sah",
-    "Faktur Pajak (Jika ada)",
-    "Dokumentasi Pendukung Lainnya"
+    "Kuitansi / Bukti Pembayaran Sah",
+    "Nota / Faktur Rincian Barang/Jasa",
+    "Bukti Setor Pajak (Sesuai ketentuan perpajakan)",
+    "Dokumentasi Foto",
+    "Berita Acara Serah Terima (BAST)"
   ];
 };
 
@@ -107,7 +145,7 @@ const SPJRealization: React.FC<SPJRealizationProps> = ({ data, onUpdate }) => {
     
     selectMonthForEditing(item, initialMonth);
     
-    // Load evidence list
+    // Load evidence list based on Juknis 2026 logic
     const items = getEvidenceList(item.description, item.account_code);
     setEvidenceItems(items);
     
@@ -176,7 +214,7 @@ const SPJRealization: React.FC<SPJRealizationProps> = ({ data, onUpdate }) => {
       <div className="flex justify-between items-end">
         <div>
            <h2 className="text-xl font-bold text-gray-800">Peng-SPJ-an & Realisasi</h2>
-           <p className="text-sm text-gray-500">Input realisasi per bulan dan ceklist kelengkapan bukti.</p>
+           <p className="text-sm text-gray-500">Input realisasi per bulan dan ceklist kelengkapan bukti (Juknis BOSP 2026).</p>
         </div>
         <div className="relative">
           <Search className="absolute left-3 top-2.5 text-gray-400" size={16} />
