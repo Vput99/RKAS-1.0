@@ -1,8 +1,9 @@
-import React, { useMemo, useState } from 'react';
-import { Budget, TransactionType, AccountCodes } from '../types';
-import { FileDown, Printer, FileText, TrendingUp, Table2, List, Calendar, FilterX } from 'lucide-react';
+import React, { useMemo, useState, useEffect } from 'react';
+import { Budget, TransactionType, AccountCodes, BankStatement } from '../types';
+import { FileDown, Printer, FileText, TrendingUp, Table2, List, Calendar, FilterX, Upload, Plus, Trash2, CheckCircle2, AlertCircle, AlertTriangle } from 'lucide-react';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
+import { getBankStatements, saveBankStatement, deleteBankStatement } from '../lib/db';
 
 interface ReportsProps {
   data: Budget[];
@@ -14,8 +15,24 @@ const MONTHS = [
 ];
 
 const Reports: React.FC<ReportsProps> = ({ data }) => {
-  const [activeTab, setActiveTab] = useState<'realization' | 'recap'>('realization');
+  const [activeTab, setActiveTab] = useState<'realization' | 'recap' | 'statement'>('realization');
   const [reportMonth, setReportMonth] = useState<number>(new Date().getMonth() + 1);
+  
+  // Bank Statement State
+  const [bankStatements, setBankStatements] = useState<BankStatement[]>([]);
+  const [bsMonth, setBsMonth] = useState(new Date().getMonth() + 1);
+  const [bsBalance, setBsBalance] = useState('');
+  const [bsFile, setBsFile] = useState('');
+  const [isStatementLoading, setIsStatementLoading] = useState(false);
+
+  useEffect(() => {
+    loadBankStatements();
+  }, []);
+
+  const loadBankStatements = async () => {
+    const stmts = await getBankStatements();
+    setBankStatements(stmts);
+  };
 
   // --- 1. DATA LAPORAN RINCIAN (EXISTING) ---
   const realizationData = useMemo(() => {
@@ -109,6 +126,66 @@ const Reports: React.FC<ReportsProps> = ({ data }) => {
       balance: acc.balance + curr.balance
     }), { budget: 0, past: 0, current: 0, totalToDate: 0, balance: 0 });
   }, [monthlyRecapData]);
+
+  // --- 3. REKONSILIASI BANK (LOGIC) ---
+  const bankReconciliation = useMemo(() => {
+      // 1. Hitung Saldo Sistem s.d. Bulan Terpilih (bsMonth)
+      
+      // Pendapatan s.d. Bulan Ini
+      const totalIncome = data
+        .filter(d => d.type === TransactionType.INCOME && new Date(d.date).getMonth() + 1 <= bsMonth)
+        .reduce((sum, item) => sum + item.amount, 0);
+
+      // Belanja (SPJ) s.d. Bulan Ini
+      const totalExpense = data
+        .filter(d => d.type === TransactionType.EXPENSE)
+        .reduce((sum, item) => {
+            const realizedTillNow = item.realizations
+                ?.filter(r => r.month <= bsMonth)
+                .reduce((rSum, r) => rSum + r.amount, 0) || 0;
+            return sum + realizedTillNow;
+        }, 0);
+
+      const systemBalance = totalIncome - totalExpense;
+
+      // 2. Ambil Data Rekening Koran Bulan Ini
+      const statement = bankStatements.find(s => s.month === bsMonth);
+      const bankBalance = statement?.closing_balance || 0;
+      const hasStatement = !!statement;
+
+      // 3. Hitung Selisih
+      const difference = systemBalance - bankBalance;
+
+      return { systemBalance, bankBalance, difference, hasStatement };
+  }, [data, bankStatements, bsMonth]);
+
+  const handleSaveStatement = async (e: React.FormEvent) => {
+      e.preventDefault();
+      setIsStatementLoading(true);
+      
+      const newStatement: BankStatement = {
+          id: crypto.randomUUID(),
+          month: bsMonth,
+          year: 2026,
+          closing_balance: Number(bsBalance),
+          file_name: bsFile || 'rekening_koran_upload.pdf',
+          updated_at: new Date().toISOString()
+      };
+
+      await saveBankStatement(newStatement);
+      await loadBankStatements();
+      
+      setBsBalance('');
+      setBsFile('');
+      setIsStatementLoading(false);
+  };
+
+  const handleDeleteStatement = async (id: string) => {
+      if(confirm("Hapus data rekening koran ini?")) {
+          await deleteBankStatement(id);
+          await loadBankStatements();
+      }
+  };
 
 
   const formatRupiah = (num: number) => {
@@ -255,10 +332,10 @@ const Reports: React.FC<ReportsProps> = ({ data }) => {
         </div>
         
         {/* Toggle Buttons */}
-        <div className="bg-gray-100 p-1 rounded-lg flex">
+        <div className="bg-gray-100 p-1 rounded-lg flex overflow-x-auto">
             <button
                onClick={() => setActiveTab('realization')}
-               className={`flex items-center gap-2 px-4 py-2 rounded-md text-sm font-medium transition-all ${
+               className={`flex items-center gap-2 px-4 py-2 rounded-md text-sm font-medium transition-all whitespace-nowrap ${
                    activeTab === 'realization' 
                    ? 'bg-white text-blue-600 shadow-sm' 
                    : 'text-gray-600 hover:text-gray-800'
@@ -268,7 +345,7 @@ const Reports: React.FC<ReportsProps> = ({ data }) => {
             </button>
             <button
                onClick={() => setActiveTab('recap')}
-               className={`flex items-center gap-2 px-4 py-2 rounded-md text-sm font-medium transition-all ${
+               className={`flex items-center gap-2 px-4 py-2 rounded-md text-sm font-medium transition-all whitespace-nowrap ${
                    activeTab === 'recap' 
                    ? 'bg-white text-green-600 shadow-sm' 
                    : 'text-gray-600 hover:text-gray-800'
@@ -276,12 +353,22 @@ const Reports: React.FC<ReportsProps> = ({ data }) => {
             >
                <Table2 size={16} /> Rekapitulasi SPJ
             </button>
+            <button
+               onClick={() => setActiveTab('statement')}
+               className={`flex items-center gap-2 px-4 py-2 rounded-md text-sm font-medium transition-all whitespace-nowrap ${
+                   activeTab === 'statement' 
+                   ? 'bg-white text-indigo-600 shadow-sm' 
+                   : 'text-gray-600 hover:text-gray-800'
+               }`}
+            >
+               <Upload size={16} /> Rekening Koran
+            </button>
         </div>
       </div>
 
       {/* Summary Cards (Dynamic based on Tab) */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-        {activeTab === 'realization' ? (
+        {activeTab === 'realization' && (
             <>
                 <div className="bg-gradient-to-br from-blue-500 to-blue-600 rounded-xl p-5 text-white shadow-md">
                    <div className="flex items-center gap-3 mb-2 opacity-90">
@@ -308,7 +395,9 @@ const Reports: React.FC<ReportsProps> = ({ data }) => {
                    <p className="text-2xl font-bold text-gray-800">{formatRupiah(realizationTotals.totalBalance)}</p>
                 </div>
             </>
-        ) : (
+        )}
+        
+        {activeTab === 'recap' && (
             <>
                 <div className="bg-gradient-to-br from-green-600 to-emerald-600 rounded-xl p-5 text-white shadow-md">
                    <div className="flex items-center gap-3 mb-2 opacity-90">
@@ -332,6 +421,48 @@ const Reports: React.FC<ReportsProps> = ({ data }) => {
                     <p className="text-2xl font-bold text-blue-600">{formatRupiah(monthlyRecapTotals.totalToDate)}</p>
                 </div>
             </>
+        )}
+
+        {/* REKENING KORAN STATS */}
+        {activeTab === 'statement' && (
+             <>
+                <div className="bg-white border border-gray-200 rounded-xl p-5 shadow-sm">
+                   <div className="flex items-center gap-2 mb-1 text-gray-500 text-xs uppercase font-bold">
+                       Sisa Kas (Pembukuan)
+                    </div>
+                    <p className="text-2xl font-bold text-gray-800">{formatRupiah(bankReconciliation.systemBalance)}</p>
+                    <p className="text-[10px] text-gray-400 mt-1">Pendapatan - SPJ (s.d. {MONTHS[bsMonth-1]})</p>
+                </div>
+
+                <div className="bg-white border border-gray-200 rounded-xl p-5 shadow-sm">
+                   <div className="flex items-center gap-2 mb-1 text-gray-500 text-xs uppercase font-bold">
+                       Sisa Kas (Bank/Riil)
+                    </div>
+                    {bankReconciliation.hasStatement ? (
+                        <p className="text-2xl font-bold text-indigo-600">{formatRupiah(bankReconciliation.bankBalance)}</p>
+                    ) : (
+                        <p className="text-sm text-gray-400 italic mt-1">Belum upload Rekening Koran</p>
+                    )}
+                    <p className="text-[10px] text-gray-400 mt-1">Sesuai Rekening Koran {MONTHS[bsMonth-1]}</p>
+                </div>
+
+                <div className={`rounded-xl p-5 shadow-sm border ${
+                    Math.abs(bankReconciliation.difference) < 100 
+                        ? 'bg-green-50 border-green-200' 
+                        : 'bg-red-50 border-red-200'
+                }`}>
+                   <div className="flex items-center gap-2 mb-1 opacity-80 text-xs uppercase font-bold">
+                       {Math.abs(bankReconciliation.difference) < 100 ? <CheckCircle2 size={16}/> : <AlertTriangle size={16}/>}
+                       Status Rekonsiliasi
+                    </div>
+                    <p className={`text-2xl font-bold ${Math.abs(bankReconciliation.difference) < 100 ? 'text-green-700' : 'text-red-700'}`}>
+                        {Math.abs(bankReconciliation.difference) < 100 ? 'SEIMBANG' : formatRupiah(bankReconciliation.difference)}
+                    </p>
+                    <p className="text-[10px] opacity-70 mt-1">
+                        {Math.abs(bankReconciliation.difference) < 100 ? 'Data sudah valid.' : 'Terdapat selisih antara Buku dan Bank.'}
+                    </p>
+                </div>
+             </>
         )}
       </div>
 
@@ -483,6 +614,126 @@ const Reports: React.FC<ReportsProps> = ({ data }) => {
                 </tbody>
               </table>
             </div>
+        </div>
+      )}
+
+      {/* --- TAB CONTENT: BANK STATEMENTS (NEW) --- */}
+      {activeTab === 'statement' && (
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
+            
+            {/* Left Column: Form */}
+            <div className="lg:col-span-4 bg-white rounded-xl shadow-sm border border-gray-100 p-6">
+                <h3 className="text-md font-bold text-gray-800 mb-4 flex items-center gap-2">
+                    <Upload size={18} className="text-indigo-600" /> Upload Rekening Koran
+                </h3>
+                
+                <form onSubmit={handleSaveStatement} className="space-y-4">
+                    <div>
+                        <label className="block text-xs font-bold text-gray-600 mb-1">Pilih Bulan</label>
+                        <select 
+                            value={bsMonth}
+                            onChange={(e) => setBsMonth(Number(e.target.value))}
+                            className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-indigo-500 outline-none"
+                        >
+                            {MONTHS.map((m, i) => (
+                                <option key={i} value={i+1}>{m}</option>
+                            ))}
+                        </select>
+                    </div>
+                    
+                    <div>
+                        <label className="block text-xs font-bold text-gray-600 mb-1">Saldo Akhir (Sesuai Bank)</label>
+                        <div className="relative">
+                           <span className="absolute left-3 top-2 text-gray-500 text-sm">Rp</span>
+                           <input 
+                              required
+                              type="number"
+                              min="0"
+                              value={bsBalance}
+                              onChange={(e) => setBsBalance(e.target.value)}
+                              className="w-full pl-9 pr-3 py-2 border border-gray-300 rounded-lg text-sm font-bold font-mono focus:ring-2 focus:ring-indigo-500 outline-none"
+                              placeholder="0"
+                           />
+                        </div>
+                        <p className="text-[10px] text-gray-400 mt-1">Masukkan nominal saldo akhir yang tertera di rekening koran fisik.</p>
+                    </div>
+
+                    <div>
+                        <label className="block text-xs font-bold text-gray-600 mb-1">Upload File (PDF/Scan)</label>
+                        <div className="border-2 border-dashed border-gray-200 rounded-lg p-4 text-center hover:bg-gray-50 transition cursor-pointer">
+                           <Upload className="mx-auto text-gray-300 mb-2" size={24} />
+                           <p className="text-xs text-gray-500">
+                               {bsFile ? bsFile : "Klik untuk pilih file"}
+                           </p>
+                           <input 
+                              type="file" 
+                              className="hidden" 
+                              // Fake file upload for now, just storing name
+                              onChange={(e) => setBsFile(e.target.files?.[0]?.name || '')}
+                           />
+                        </div>
+                    </div>
+
+                    <button 
+                        type="submit"
+                        disabled={isStatementLoading || !bsBalance}
+                        className="w-full bg-indigo-600 hover:bg-indigo-700 text-white py-2 rounded-lg text-sm font-bold flex items-center justify-center gap-2 transition disabled:opacity-50"
+                    >
+                        {isStatementLoading ? 'Menyimpan...' : 'Simpan Data'}
+                    </button>
+                </form>
+            </div>
+
+            {/* Right Column: History List */}
+            <div className="lg:col-span-8 bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
+                <div className="px-6 py-4 border-b border-gray-100 bg-gray-50">
+                    <h3 className="text-sm font-bold text-gray-700">Riwayat Upload Rekening Koran</h3>
+                </div>
+                <div className="overflow-x-auto">
+                    <table className="w-full text-left text-sm text-gray-600">
+                        <thead className="bg-gray-50 border-b border-gray-100">
+                            <tr>
+                                <th className="px-4 py-3">Bulan</th>
+                                <th className="px-4 py-3 text-right">Saldo Akhir Bank</th>
+                                <th className="px-4 py-3 text-right">File</th>
+                                <th className="px-4 py-3 text-right">Aksi</th>
+                            </tr>
+                        </thead>
+                        <tbody className="divide-y divide-gray-100">
+                            {bankStatements.length === 0 ? (
+                                <tr>
+                                    <td colSpan={4} className="text-center py-8 text-gray-400">Belum ada data rekening koran.</td>
+                                </tr>
+                            ) : (
+                                bankStatements.map((stmt) => (
+                                    <tr key={stmt.id} className="hover:bg-gray-50">
+                                        <td className="px-4 py-3">
+                                            <span className="font-bold text-gray-800">{MONTHS[stmt.month - 1]}</span> {stmt.year}
+                                        </td>
+                                        <td className="px-4 py-3 text-right font-mono font-medium text-indigo-700">
+                                            {formatRupiah(stmt.closing_balance)}
+                                        </td>
+                                        <td className="px-4 py-3 text-right">
+                                            <span className="text-xs bg-gray-100 px-2 py-1 rounded text-gray-600 flex items-center gap-1 justify-end truncate max-w-[150px] ml-auto">
+                                                <FileText size={12} /> {stmt.file_name}
+                                            </span>
+                                        </td>
+                                        <td className="px-4 py-3 text-right">
+                                            <button 
+                                                onClick={() => handleDeleteStatement(stmt.id)}
+                                                className="text-gray-400 hover:text-red-500 transition"
+                                            >
+                                                <Trash2 size={16} />
+                                            </button>
+                                        </td>
+                                    </tr>
+                                ))
+                            )}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
         </div>
       )}
 

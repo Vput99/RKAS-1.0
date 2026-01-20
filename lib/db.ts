@@ -1,5 +1,5 @@
 import { supabase } from './supabase';
-import { Budget, TransactionType, SNPStandard, BOSPComponent, SchoolProfile } from '../types';
+import { Budget, TransactionType, SNPStandard, BOSPComponent, SchoolProfile, BankStatement } from '../types';
 
 // Mock data reflecting BOSP structure
 const MOCK_DATA: Budget[] = [
@@ -18,6 +18,7 @@ const MOCK_DATA: Budget[] = [
 
 const LOCAL_KEY = 'rkas_local_data_v7';
 const SCHOOL_PROFILE_KEY = 'rkas_school_profile_v1';
+const BANK_STATEMENT_KEY = 'rkas_bank_statements_v1';
 
 const DEFAULT_PROFILE: SchoolProfile = {
   name: 'SD Negeri 1 Contoh',
@@ -198,4 +199,56 @@ export const saveSchoolProfile = async (profile: SchoolProfile): Promise<SchoolP
   // Save to local storage as backup/cache
   localStorage.setItem(SCHOOL_PROFILE_KEY, JSON.stringify(profile));
   return profile;
+};
+
+// --- Bank Statement Functions ---
+
+export const getBankStatements = async (): Promise<BankStatement[]> => {
+  // Currently using LocalStorage to avoid SQL migration requirement for the user
+  // In a real scenario, this would check Supabase 'bank_statements' table first
+  
+  if (supabase) {
+    try {
+      const { data, error } = await supabase.from('bank_statements').select('*').order('month', { ascending: true });
+      if (!error && data) return data as BankStatement[];
+      // If error (e.g. table not exists), fall through to local
+    } catch (e) {
+      console.warn("Bank statement table fetch error, falling back to local.");
+    }
+  }
+
+  const local = localStorage.getItem(BANK_STATEMENT_KEY);
+  return local ? JSON.parse(local) : [];
+};
+
+export const saveBankStatement = async (statement: BankStatement): Promise<BankStatement> => {
+  const current = await getBankStatements();
+  
+  // Remove existing entry for same month/year if exists
+  const filtered = current.filter(s => !(s.month === statement.month && s.year === statement.year));
+  const updated = [...filtered, statement].sort((a,b) => a.month - b.month);
+  
+  if (supabase) {
+     try {
+       await supabase.from('bank_statements').upsert(statement);
+     } catch (e) {
+       console.warn("Could not save to Supabase bank_statements table (likely missing). Saved locally.");
+     }
+  }
+
+  localStorage.setItem(BANK_STATEMENT_KEY, JSON.stringify(updated));
+  return statement;
+};
+
+export const deleteBankStatement = async (id: string): Promise<void> => {
+    const current = await getBankStatements();
+    const updated = current.filter(s => s.id !== id);
+    
+    if (supabase) {
+        try {
+            await supabase.from('bank_statements').delete().eq('id', id);
+        } catch (e) {}
+    }
+
+    localStorage.setItem(BANK_STATEMENT_KEY, JSON.stringify(updated));
 };

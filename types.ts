@@ -25,7 +25,7 @@ export enum BOSPComponent {
   LANGGANAN = '7. Langganan Daya dan Jasa',
   SARPRAS = '8. Pemeliharaan Sarana & Prasarana',
   MULTIMEDIA = '9. Penyediaan Alat Multimedia Pembelajaran',
-  LAINNYA = 'Lainnya / Non-BOSP'
+  LAINNYA = 'Lainnya'
 }
 
 export const AccountCodes = {
@@ -144,6 +144,16 @@ export interface Budget {
   warning_message?: string; 
   notes?: string;
   created_at?: string;
+}
+
+export interface BankStatement {
+  id: string;
+  month: number;
+  year: number;
+  closing_balance: number; // Saldo Akhir di Rekening Koran
+  file_name?: string; // Nama file upload
+  notes?: string;
+  updated_at?: string;
 }
 
 export interface SchoolProfile {
