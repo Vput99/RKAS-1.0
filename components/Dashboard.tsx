@@ -29,11 +29,6 @@ const Dashboard: React.FC<DashboardProps> = ({ data }) => {
     const cashBalance = income - realizedExpense;
 
     // SILPA (Sisa dari kegiatan yang SUDAH direalisasikan sebagian atau seluruhnya)
-    // Logic: Sum of (Plan - Realized) only for items that have passed their plan date? 
-    // Or simplified: Total Plan - Total Realized (This is coarse)
-    // Better: For each budget item, Total Plan - Total Realized So Far. 
-    // Note: For ongoing routine expenses (e.g. Electricity Jan-Dec), having a "Sisa" in March is normal, not necessarily SILPA.
-    // Dashboard SILPA usually implies "Sisa Anggaran Tahun Berjalan".
     const totalSilpa = plannedExpense - realizedExpense;
 
     return { income, plannedExpense, realizedExpense, cashBalance, totalSilpa };
@@ -54,6 +49,23 @@ const Dashboard: React.FC<DashboardProps> = ({ data }) => {
     return Object.entries(grouped).map(([name, value]) => ({ name, value }));
   }, [data]);
 
+  const silpaByComponent = useMemo(() => {
+    const expenses = data.filter(d => d.type === TransactionType.EXPENSE);
+    const grouped: Record<string, number> = {};
+    
+    expenses.forEach(item => {
+      const itemRealized = item.realizations?.reduce((rAcc, r) => rAcc + r.amount, 0) || 0;
+      const itemBalance = item.amount - itemRealized;
+      
+      if (itemBalance > 0) {
+        const rawKey = item.bosp_component || item.category;
+        const key = rawKey.includes('.') ? rawKey.split('.').slice(1).join('.').trim() : rawKey;
+        grouped[key] = (grouped[key] || 0) + itemBalance;
+      }
+    });
+    return Object.entries(grouped).map(([name, value]) => ({ name, value }));
+  }, [data]);
+
   const monthlyTrend = useMemo(() => {
     const grouped: Record<string, { income: number, expense: number }> = {};
     
@@ -66,8 +78,6 @@ const Dashboard: React.FC<DashboardProps> = ({ data }) => {
         // Expense: Iterate realizations to place them in correct months
         if (item.realizations) {
           item.realizations.forEach(r => {
-             // If we stored just month index (1-12), convert to name
-             // Or if we stored full date string in realization
              const dateObj = new Date(r.date);
              const month = dateObj.toLocaleString('id-ID', { month: 'short' });
              if (!grouped[month]) grouped[month] = { income: 0, expense: 0 };
@@ -77,8 +87,6 @@ const Dashboard: React.FC<DashboardProps> = ({ data }) => {
       }
     });
     
-    // Sort logic needed if months are out of order, but Chart handles categories usually.
-    // Let's ensure standard month order
     const ORDER = ['Jan', 'Feb', 'Mar', 'Apr', 'Mei', 'Jun', 'Jul', 'Agu', 'Sep', 'Okt', 'Nov', 'Des'];
     return Object.entries(grouped)
       .map(([name, val]) => ({ name, ...val }))
@@ -155,7 +163,8 @@ const Dashboard: React.FC<DashboardProps> = ({ data }) => {
 
       {/* Charts */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {/* Expense Breakdown */}
+        
+        {/* Expense Breakdown (Realisasi) */}
         <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-100">
           <h4 className="text-lg font-bold text-gray-800 mb-4">Realisasi per Komponen BOSP</h4>
           {expenseByComponent.length > 0 ? (
@@ -187,8 +196,40 @@ const Dashboard: React.FC<DashboardProps> = ({ data }) => {
           )}
         </div>
 
-        {/* Monthly Trend */}
+        {/* SILPA Breakdown (Sisa Anggaran) */}
         <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-100">
+          <h4 className="text-lg font-bold text-gray-800 mb-4">Sisa Anggaran per Komponen</h4>
+          {silpaByComponent.length > 0 ? (
+            <div className="h-64">
+              <ResponsiveContainer width="100%" height="100%">
+                <PieChart>
+                  <Pie
+                    data={silpaByComponent}
+                    cx="50%"
+                    cy="50%"
+                    labelLine={false}
+                    outerRadius={80}
+                    fill="#FF8042"
+                    dataKey="value"
+                  >
+                    {silpaByComponent.map((entry, index) => (
+                      <Cell key={`cell-silpa-${index}`} fill={COLORS[index % COLORS.length]} />
+                    ))}
+                  </Pie>
+                  <RechartsTooltip formatter={(value: number) => formatRupiah(value)} />
+                  <Legend layout="horizontal" verticalAlign="bottom" align="center" wrapperStyle={{ fontSize: '10px', paddingTop: '10px' }} />
+                </PieChart>
+              </ResponsiveContainer>
+            </div>
+          ) : (
+             <div className="h-64 flex items-center justify-center text-gray-400 text-sm">
+               Tidak ada sisa anggaran (Semua terealisasi).
+             </div>
+          )}
+        </div>
+
+        {/* Monthly Trend */}
+        <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-100 lg:col-span-2">
           <h4 className="text-lg font-bold text-gray-800 mb-4">Arus Kas Realisasi (Income vs SPJ)</h4>
           <div className="h-64">
             <ResponsiveContainer width="100%" height="100%">
