@@ -566,46 +566,49 @@ const SPJRealization: React.FC<SPJRealizationProps> = ({ data, onUpdate }) => {
                           </div>
                         </>
                       ) : (
-                         <div className="bg-indigo-50 p-3 rounded-lg border border-indigo-100">
-                            <p className="text-sm text-indigo-800 font-bold mb-2">Item yang dipilih:</p>
-                            <ul className="text-xs text-gray-600 space-y-1 max-h-32 overflow-y-auto">
-                               {selectedBatchIds.map(id => {
-                                  const item = data.find(d => d.id === id);
-                                  return (
-                                     <li key={id} className="flex justify-between">
-                                        <span>• {item?.description}</span>
-                                        <span className="font-mono">{item?.account_code}</span>
-                                     </li>
-                                  )
-                               })}
-                            </ul>
+                         <div className="bg-indigo-50 p-3 rounded-lg border border-indigo-100 mb-4">
+                            <p className="text-sm text-indigo-800 font-bold">Mode Input Kolektif</p>
+                            <p className="text-xs text-indigo-600">Anda menginput SPJ untuk beberapa kegiatan sekaligus dalam satu nota/kuitansi.</p>
                          </div>
                       )}
                     </div>
 
                     {/* Amount Input */}
                     {isBatchMode ? (
-                       <div className="space-y-3">
-                          <label className="block text-sm font-medium text-gray-700">Rincian Nilai Realisasi per Item</label>
-                          {selectedBatchIds.map(id => {
-                              const item = data.find(d => d.id === id);
-                              if(!item) return null;
-                              return (
-                                <div key={id} className="flex items-center gap-2">
-                                   <span className="text-xs text-gray-600 flex-1 truncate">{item.description}</span>
-                                   <input 
-                                     type="number" 
-                                     className="w-32 px-2 py-1 border border-gray-300 rounded text-right text-sm font-mono focus:border-indigo-500 outline-none"
-                                     value={batchAmounts[id] || 0}
-                                     onChange={(e) => setBatchAmounts(prev => ({...prev, [id]: Number(e.target.value)}))}
-                                   />
-                                </div>
-                              )
-                          })}
-                          <div className="flex justify-end pt-2 border-t border-gray-100">
-                             <span className="text-sm font-bold text-gray-700 mr-2">Total Nota:</span>
-                             <span className="text-sm font-bold text-indigo-700">
-                                {formatRupiah(Object.values(batchAmounts).reduce((a: number, b: number) => a + b, 0))}
+                       <div className="space-y-3 bg-gray-50 p-4 rounded-lg border border-gray-200">
+                          <label className="block text-sm font-bold text-gray-700 mb-2">Rincian Nilai Realisasi per Item</label>
+                          <div className="space-y-3 max-h-60 overflow-y-auto pr-2">
+                            {selectedBatchIds.map(id => {
+                                const item = data.find(d => d.id === id);
+                                if(!item) return null;
+                                
+                                // Calculate planned amount context
+                                const numMonths = item.realization_months?.length || 1;
+                                const plannedMonthly = Math.floor(item.amount / numMonths);
+
+                                return (
+                                  <div key={id} className="flex items-center justify-between gap-3 bg-white p-2 rounded border border-gray-200">
+                                     <div className="flex-1 overflow-hidden">
+                                        <p className="text-xs font-bold text-gray-700 truncate">{item.description}</p>
+                                        <p className="text-[10px] text-gray-500">Pagu Bulan Ini: <span className="font-mono">{formatRupiah(plannedMonthly)}</span></p>
+                                     </div>
+                                     <div className="w-32">
+                                        <input 
+                                           type="number" 
+                                           className="w-full px-2 py-1 border border-gray-300 rounded text-right text-sm font-bold font-mono text-gray-800 focus:border-indigo-500 outline-none focus:ring-1 focus:ring-indigo-500"
+                                           value={batchAmounts[id] || 0}
+                                           onChange={(e) => setBatchAmounts(prev => ({...prev, [id]: Number(e.target.value)}))}
+                                           placeholder="0"
+                                        />
+                                     </div>
+                                  </div>
+                                )
+                            })}
+                          </div>
+                          <div className="flex justify-between items-center pt-3 border-t border-gray-300 mt-2">
+                             <span className="text-sm font-bold text-gray-700">Total Nominal Nota:</span>
+                             <span className="text-lg font-bold text-indigo-700 font-mono bg-white px-2 py-1 rounded border border-indigo-100">
+                                {formatRupiah((Object.values(batchAmounts) as number[]).reduce((a, b) => a + b, 0))}
                              </span>
                           </div>
                        </div>
