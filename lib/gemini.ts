@@ -180,7 +180,7 @@ export const suggestEvidenceList = async (description: string, accountCode: stri
       model: 'gemini-3-flash-preview',
       contents: `Context: Juknis BOSP 2026 for Elementary Schools (SD) in Indonesia.
       Task: List the required physical evidence documents (Bukti Fisik SPJ) for the following expense transaction.
-      The list should be specific and compliant with audit requirements.
+      The list should be specific and compliant with Indonesian audit requirements (tax invoices, transfer proof for non-cash, etc).
       
       Expense Description: "${description}"
       Account Code: "${accountCode}"

@@ -13,93 +13,111 @@ const MONTHS = [
   'Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember'
 ];
 
-// Helper to determine evidence needed as a list based on Juknis BOSP 2026
+// Helper to determine evidence needed based on Juknis BOSP 2026
 const getEvidenceList = (description: string, accountCode?: string): string[] => {
   const text = (description + ' ' + (accountCode || '')).toLowerCase();
   
-  // Honorarium (Guru Honorer, Tendik, Ekstrakurikuler)
-  if (text.includes('honor') || text.includes('gaji') || text.includes('jasa narasumber') || text.includes('jasa instruktur')) {
+  // 1. HONORARIUM (Guri Honorer / Tendik / Ekstra)
+  // Juknis 2026 menekankan pembayaran Non-Tunai dan SK yang valid.
+  if (text.includes('honor') || text.includes('gaji') || text.includes('jasa narasumber') || text.includes('instruktur') || text.includes('pembina')) {
     return [
-      "SK Penetapan / Surat Tugas dari Kepala Sekolah",
-      "Surat Perjanjian Kerja (SPK) (Jika ada)",
+      "SK Penetapan / Surat Tugas dari Kepala Sekolah (Tahun Berjalan)",
+      "Surat Perjanjian Kerja (SPK) untuk Guru/Tendik Non-ASN",
       "Daftar Hadir / Absensi Bulan Berjalan (Tanda Tangan Lengkap)",
-      "Daftar Tanda Terima Honorarium (Kuitansi Penerimaan)",
+      "Jurnal Kegiatan / Laporan Pelaksanaan Tugas",
+      "Daftar Tanda Terima Honorarium (Bruto, Potongan Pajak, Netto)",
       "Bukti Transfer Bank (Wajib Non-Tunai)",
-      "Bukti Setor Pajak PPh 21 (Kode Billing & Bukti Bayar)",
-      "Laporan Pelaksanaan Tugas / Jurnal Kegiatan"
+      "Bukti Setor Pajak PPh 21 (Kode Billing & NTPN)",
+      "Fotokopi KTP & NPWP Penerima (Jika baru)"
     ];
   }
 
-  // Belanja Barang Pakai Habis (ATK, Bahan, Alat Kebersihan)
-  if (text.includes('atk') || text.includes('bahan') || text.includes('alat tulis') || text.includes('kertas') || text.includes('kebersihan')) {
-    return [
-      "Nota / Faktur Pembelian Asli (Cap Toko)",
-      "Kuitansi Pengeluaran Sekolah",
-      "Faktur Pajak / Bukti Pungut PPN & PPh 22 (Belanja > Rp 2 Juta)",
-      "Surat Pesanan (SP) (Untuk Pembelian > Rp 1 Juta)",
+  // 2. BELANJA BARANG / ATK / BAHAN HABIS PAKAI
+  // Penekanan pada Faktur Pajak untuk transaksi > 2 Juta dan BAST.
+  if (text.includes('atk') || text.includes('bahan') || text.includes('alat tulis') || text.includes('kertas') || text.includes('kebersihan') || text.includes('spanduk')) {
+    const isBigTransaction = text.includes('cetak') || text.includes('penggandaan'); 
+    const baseList = [
+      "Nota / Invoice Pembelian (Cap Toko & Tanda Tangan)",
+      "Kuitansi Pengeluaran Sekolah (Bermaterai jika > Rp 5 Juta)",
       "Berita Acara Serah Terima (BAST) Barang",
       "Berita Acara Pemeriksaan Barang",
-      "Foto Dokumentasi Barang"
+      "Foto Dokumentasi Barang",
     ];
+
+    if (isBigTransaction) {
+       baseList.push("Bukti Setor Pajak PPh 23 (Untuk Jasa Cetak/Penggandaan)");
+    } else {
+       baseList.push("Bukti Pungut PPN & PPh 22 (Jika Transaksi > Rp 2 Juta)");
+    }
+    
+    return baseList;
   }
 
-  // Konsumsi (Makan Minum Rapat/Kegiatan)
-  if (text.includes('makan') || text.includes('minum') || text.includes('konsumsi') || text.includes('rapat')) {
+  // 3. MAKAN MINUM (KONSUMSI RAPAT/KEGIATAN)
+  // Wajib ada Undangan dan Notulen.
+  if (text.includes('makan') || text.includes('minum') || text.includes('konsumsi') || text.includes('rapat') || text.includes('snack')) {
     return [
       "Surat Undangan Kegiatan",
       "Daftar Hadir Peserta Kegiatan",
       "Notulen / Laporan Hasil Kegiatan",
-      "Nota / Bon Pembelian Konsumsi (Rincian Menu)",
+      "Nota / Bon Pembelian Konsumsi (Rincian Menu Jelas)",
       "Kuitansi Pembayaran",
-      "Bukti Pajak PPh 23 (Jika Jasa Katering)",
+      "Bukti Setor PPh 23 (Jika Jasa Katering/Prasmanan)",
+      "Bukti Setor Pajak Daerah (PB1) 10% (Jika makan di Restoran)",
       "Foto Dokumentasi Kegiatan (Open Camera)"
     ];
   }
 
-  // Perjalanan Dinas
-  if (text.includes('perjalanan') || text.includes('dinas') || text.includes('transport')) {
+  // 4. PERJALANAN DINAS
+  if (text.includes('perjalanan') || text.includes('dinas') || text.includes('transport') || text.includes('sppd')) {
     return [
-      "Surat Tugas (Ditandatangani KS)",
-      "SPPD (Surat Perintah Perjalanan Dinas) - Cap Instansi Tujuan",
+      "Surat Tugas (Ditandatangani KS, Tanggal sesuai pelaksanaan)",
+      "SPPD (Surat Perintah Perjalanan Dinas) - Cap & TTD Instansi Tujuan",
       "Laporan Hasil Perjalanan Dinas",
-      "Tiket / Bukti Transportasi Riil / Nota BBM",
+      "Tiket / Bukti Transportasi Riil (Bukan Tulisan Tangan)",
+      "Nota BBM (Jika menggunakan kendaraan sewa/pribadi sesuai SBM)",
       "Kuitansi / Bill Hotel (Jika Menginap)",
-      "Daftar Pengeluaran Riil (Jika tidak ada bukti tiket)"
+      "Daftar Pengeluaran Riil (Format Lampiran Juknis)"
     ];
   }
 
-  // Belanja Modal (Aset Tetap: Laptop, Printer, Meja, Kursi, Buku)
-  if (text.includes('modal') || text.includes('buku') || text.includes('laptop') || text.includes('komputer') || text.includes('bangunan') || text.includes('meja') || text.includes('kursi') || text.includes('aset')) {
+  // 5. BELANJA MODAL / ASET (Laptop, Meja, Kursi, AC, Buku)
+  // Wajib masuk Buku Inventaris (KIB).
+  if (text.includes('modal') || text.includes('buku') || text.includes('laptop') || text.includes('komputer') || text.includes('printer') || text.includes('meja') || text.includes('kursi') || text.includes('aset')) {
     return [
-      "Surat Pesanan (SP) / SPK (Kontrak)",
+      "Surat Pesanan (SP) / SPK (Kontrak Pengadaan)",
       "Faktur / Nota Pembelian Asli",
       "Berita Acara Serah Terima (BAST)",
       "Berita Acara Pemeriksaan Hasil Pekerjaan",
-      "Bukti Setor Pajak (PPN & PPh 22)",
-      "Foto Dokumentasi Barang 0%, 50%, 100% (Fisik/Bangunan)",
-      "Fotokopi Pencatatan di Buku Inventaris / KIB",
-      "Kartu Garansi (Elektronik)"
+      "Bukti Setor PPN (11%) & PPh 22 (1.5%)",
+      "Foto Dokumentasi Barang (Fisik di Sekolah)",
+      "Fotokopi Pencatatan di Buku Inventaris Aset / KIB",
+      "Kartu Garansi (Untuk Elektronik)",
+      "Labeling Barang (Kode Aset)"
     ];
   }
 
-  // Pemeliharaan (Servis, Cat, Tukang)
-  if (text.includes('pemeliharaan') || text.includes('servis') || text.includes('perbaikan') || text.includes('tukang')) {
+  // 6. PEMELIHARAAN / JASA TUKANG / SERVIS
+  if (text.includes('pemeliharaan') || text.includes('servis') || text.includes('perbaikan') || text.includes('tukang') || text.includes('rehab')) {
     return [
       "Surat Perintah Kerja (SPK) / Surat Pesanan",
-      "Nota / Kuitansi Jasa & Bahan",
+      "Rincian Rencana Anggaran Biaya (RAB) Pekerjaan",
+      "Nota / Kuitansi Pembelian Bahan Material",
+      "Kuitansi Upah Tukang",
+      "Daftar Hadir Tukang / Pekerja",
       "Berita Acara Penyelesaian Pekerjaan",
       "Berita Acara Serah Terima (BAST)",
-      "Bukti Setor Pajak (PPh 23 Jasa, PPh 22 Material)",
-      "Foto Dokumentasi (Sebelum, Proses, Sesudah)"
+      "Bukti Setor PPh 21 (Upah Tukang) atau PPh 23 (Jasa Badan Usaha)",
+      "Foto Dokumentasi (0%, 50%, 100%)"
     ];
   }
 
-  // Langganan Daya & Jasa
-  if (text.includes('listrik') || text.includes('air') || text.includes('internet') || text.includes('langganan') || text.includes('telepon')) {
+  // 7. LANGGANAN DAYA & JASA (Listrik, Internet)
+  if (text.includes('listrik') || text.includes('air') || text.includes('internet') || text.includes('langganan') || text.includes('telepon') || text.includes('wifi')) {
     return [
-      "Surat Tagihan / Invoice dari Penyedia (PLN/Telkom)",
-      "Bukti Pembayaran / Struk Bank / Bukti Transfer Sah",
-      "Kuitansi Internal Sekolah"
+      "Surat Tagihan / Invoice Resmi dari Penyedia (PLN/Telkom/ISP)",
+      "Bukti Pembayaran Valid (Struk Bank / Bukti Transfer / NTPN)",
+      "Kuitansi Internal Sekolah (Sebagai cover bukti bayar)"
     ];
   }
 
