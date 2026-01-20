@@ -110,34 +110,52 @@ const Settings: React.FC<SettingsProps> = ({ onProfileUpdate }) => {
 
       {/* Diagnostic Panel (Only visible if offline) */}
       {!isConnected && (
-        <div className="bg-gray-800 text-gray-300 p-4 rounded-xl text-xs font-mono space-y-2 border border-gray-700">
+        <div className="bg-gray-800 text-gray-300 p-5 rounded-xl text-sm font-mono space-y-3 border border-gray-700 shadow-xl">
            <div className="flex items-center gap-2 text-white font-bold border-b border-gray-700 pb-2 mb-2">
-              <Activity size={14} /> DIAGNOSA KONEKSI
+              <Activity size={16} className="text-red-400" /> DIAGNOSA MASALAH KONEKSI
            </div>
            
-           <div className="grid grid-cols-2 gap-4">
-              <div>
-                 <span className="block text-gray-500">Supabase Config Status:</span>
+           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="bg-gray-900/50 p-3 rounded">
+                 <span className="block text-gray-500 text-xs mb-1">Status Variabel Environment:</span>
                  {envStatus.url ? (
-                    <span className="text-green-400">✅ URL & Key Terdeteksi di Kode</span>
+                    <span className="text-green-400 font-bold">✅ Ditemukan</span>
                  ) : (
-                    <span className="text-red-400">❌ URL/Key Kosong (Environment Variables Missing)</span>
+                    <span className="text-red-400 font-bold">❌ Tidak Ditemukan (URL/Key Kosong)</span>
                  )}
               </div>
-              <div>
-                 <span className="block text-gray-500">Test Ping:</span>
-                 <span className="text-red-400">❌ Gagal menghubungi server</span>
+              <div className="bg-gray-900/50 p-3 rounded">
+                 <span className="block text-gray-500 text-xs mb-1">Tes Koneksi Server:</span>
+                 <span className="text-red-400 font-bold">❌ Gagal (Tidak ada respon)</span>
               </div>
            </div>
 
-           <div className="mt-2 pt-2 border-t border-gray-600">
-              <p className="text-gray-400 mb-1">Cara Memperbaiki (Deployment Vercel):</p>
-              <ol className="list-decimal pl-4 space-y-1 text-gray-400">
-                 <li>Buka Dashboard Vercel &gt; Settings &gt; Environment Variables.</li>
-                 <li>Pastikan Key: <span className="text-white">REACT_APP_SUPABASE_URL</span> sudah diisi.</li>
-                 <li>Pastikan Key: <span className="text-white">REACT_APP_SUPABASE_ANON_KEY</span> sudah diisi.</li>
-                 <li>Setelah mengisi, lakukan <b>Redeploy</b> di tab Deployments.</li>
-              </ol>
+           <div className="mt-4 pt-4 border-t border-gray-600">
+              <p className="text-yellow-400 font-bold mb-2 flex items-center gap-2">
+                <AlertCircle size={16} /> SOLUSI PERBAIKAN DI VERCEL:
+              </p>
+              <div className="bg-gray-900 p-4 rounded text-gray-300 space-y-3">
+                <p>Aplikasi Vite memerlukan prefix <code>VITE_</code> agar variabel bisa dibaca oleh browser.</p>
+                <ol className="list-decimal pl-5 space-y-2">
+                   <li>
+                     Buka Dashboard Vercel &gt; Settings &gt; Environment Variables.
+                   </li>
+                   <li>
+                     Ganti nama (Edit) variabel Anda menjadi:
+                     <ul className="list-disc pl-5 mt-1 text-white font-bold">
+                       <li>Key 1: <span className="text-green-400">VITE_SUPABASE_URL</span></li>
+                       <li>Key 2: <span className="text-green-400">VITE_SUPABASE_ANON_KEY</span></li>
+                     </ul>
+                     <span className="text-xs text-gray-500 block mt-1">(Jangan gunakan hanya SUPABASE_URL tanpa awalan VITE_)</span>
+                   </li>
+                   <li>
+                     <strong>PENTING:</strong> Setelah mengubah nama variabel, buka tab <strong>Deployments</strong>, klik titik tiga pada deployment paling atas, lalu pilih <strong>Redeploy</strong>.
+                   </li>
+                   <li>
+                     Tanpa Redeploy, perubahan nama variabel tidak akan diterapkan.
+                   </li>
+                </ol>
+              </div>
            </div>
         </div>
       )}
