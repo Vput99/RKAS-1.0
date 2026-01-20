@@ -1,6 +1,6 @@
 import React, { useMemo, useState } from 'react';
 import { Budget, TransactionType, AccountCodes } from '../types';
-import { FileDown, Printer, FileText, TrendingUp, Table2, List, Calendar } from 'lucide-react';
+import { FileDown, Printer, FileText, TrendingUp, Table2, List, Calendar, FilterX } from 'lucide-react';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 
@@ -44,7 +44,7 @@ const Reports: React.FC<ReportsProps> = ({ data }) => {
     return { totalBudget, totalRealized, totalBalance, totalPercent };
   }, [realizationData]);
 
-  // --- 2. DATA LAPORAN REKAPITULASI BULANAN (FORMAT K7) ---
+  // --- 2. DATA LAPORAN REKAPITULASI BULANAN (FILTERED BY REALIZATION > 0) ---
   const monthlyRecapData = useMemo(() => {
     // Structure: Code -> { budget, past, current }
     const grouped: Record<string, { description: string, budget: number, past: number, current: number }> = {};
@@ -60,7 +60,7 @@ const Reports: React.FC<ReportsProps> = ({ data }) => {
         grouped[code] = { description: name, budget: 0, past: 0, current: 0 };
       }
 
-      // 1. Sum Budget (Pagu)
+      // 1. Sum Budget (Pagu) - Tetap dihitung untuk konteks, meski nanti di filter
       grouped[code].budget += item.amount;
 
       // 2. Sum Realizations based on selected month
@@ -93,8 +93,11 @@ const Reports: React.FC<ReportsProps> = ({ data }) => {
       };
     });
 
-    // Sort by Account Code
-    return rows.sort((a, b) => a.code.localeCompare(b.code));
+    // FILTER: Hanya tampilkan yang "Bulan Ini" > 0 (Sudah ter-SPJ-kan bulan ini)
+    return rows
+        .filter(row => row.current > 0)
+        .sort((a, b) => a.code.localeCompare(b.code));
+
   }, [data, reportMonth]);
 
   const monthlyRecapTotals = useMemo(() => {
@@ -181,12 +184,11 @@ const Reports: React.FC<ReportsProps> = ({ data }) => {
   };
 
   const generateRecapPDF = () => {
-    // Portrait is usually fine for this, but Landscape gives more room
     const doc = new jsPDF({ orientation: 'landscape' });
 
     doc.setFontSize(14);
     doc.setFont('helvetica', 'bold');
-    doc.text(`LAPORAN REKAPITULASI REALISASI PER JENIS BELANJA`, 148, 15, { align: 'center' });
+    doc.text(`REKAPITULASI REALISASI SPJ (TEREALISASI)`, 148, 15, { align: 'center' });
     doc.setFontSize(12);
     doc.text(`BULAN: ${MONTHS[reportMonth-1].toUpperCase()} 2026`, 148, 22, { align: 'center' });
 
@@ -227,6 +229,7 @@ const Reports: React.FC<ReportsProps> = ({ data }) => {
         0: { halign: 'left', cellWidth: 30 }, 
         1: { halign: 'left', cellWidth: 'auto' }, 
         2: { fontStyle: 'bold' },
+        4: { fillColor: [240, 253, 244], fontStyle: 'bold' }, // Highlight 'Current' column
         6: { fontStyle: 'bold', textColor: [200, 0, 0] }
       },
       didParseCell: (data) => {
@@ -238,7 +241,7 @@ const Reports: React.FC<ReportsProps> = ({ data }) => {
       }
     });
 
-    doc.save(`Laporan_Rekap_Bulan_${MONTHS[reportMonth-1]}.pdf`);
+    doc.save(`Rekap_SPJ_${MONTHS[reportMonth-1]}.pdf`);
   };
 
   return (
@@ -271,7 +274,7 @@ const Reports: React.FC<ReportsProps> = ({ data }) => {
                    : 'text-gray-600 hover:text-gray-800'
                }`}
             >
-               <Table2 size={16} /> Rekapitulasi Akun
+               <Table2 size={16} /> Rekapitulasi SPJ
             </button>
         </div>
       </div>
@@ -310,26 +313,23 @@ const Reports: React.FC<ReportsProps> = ({ data }) => {
                 <div className="bg-gradient-to-br from-green-600 to-emerald-600 rounded-xl p-5 text-white shadow-md">
                    <div className="flex items-center gap-3 mb-2 opacity-90">
                      <TrendingUp size={20} />
-                     <span className="text-sm font-medium">Realisasi Bulan {MONTHS[reportMonth-1]}</span>
+                     <span className="text-sm font-medium">SPJ Bulan {MONTHS[reportMonth-1]}</span>
                    </div>
                    <p className="text-3xl font-bold">{formatRupiah(monthlyRecapTotals.current)}</p>
+                   <p className="text-xs text-green-100 mt-1">Total yang dibelanjakan bulan ini.</p>
                 </div>
-                <div className="bg-white border border-gray-200 rounded-xl p-5 shadow-sm">
+                <div className="bg-white border border-gray-200 rounded-xl p-5 shadow-sm flex flex-col justify-center">
                     <div className="flex items-center gap-2 mb-1 text-gray-500 text-xs uppercase font-bold">
-                       Total Realisasi s.d. Bulan Ini
+                       Jumlah Kode Rekening
                     </div>
-                    <p className="text-2xl font-bold text-gray-800">{formatRupiah(monthlyRecapTotals.totalToDate)}</p>
-                    <p className="text-xs text-green-600 mt-1">
-                        {monthlyRecapTotals.budget > 0 
-                           ? ((monthlyRecapTotals.totalToDate / monthlyRecapTotals.budget) * 100).toFixed(1)
-                           : 0}% dari Total Pagu
-                    </p>
+                    <p className="text-2xl font-bold text-gray-800">{monthlyRecapData.length}</p>
+                    <p className="text-xs text-gray-400 mt-1">Akun belanja aktif bulan ini.</p>
                 </div>
-                <div className="bg-white border border-gray-200 rounded-xl p-5 shadow-sm">
+                <div className="bg-white border border-gray-200 rounded-xl p-5 shadow-sm flex flex-col justify-center">
                     <div className="flex items-center gap-2 mb-1 text-gray-500 text-xs uppercase font-bold">
-                       Sisa Anggaran (Total)
+                       Akumulasi s.d. Bulan Ini
                     </div>
-                    <p className="text-2xl font-bold text-orange-600">{formatRupiah(monthlyRecapTotals.balance)}</p>
+                    <p className="text-2xl font-bold text-blue-600">{formatRupiah(monthlyRecapTotals.totalToDate)}</p>
                 </div>
             </>
         )}
@@ -395,13 +395,16 @@ const Reports: React.FC<ReportsProps> = ({ data }) => {
         </div>
       )}
 
-      {/* --- TAB CONTENT: RECAPITULATION (MONTHLY) --- */}
+      {/* --- TAB CONTENT: RECAPITULATION (MONTHLY FILTERED) --- */}
       {activeTab === 'recap' && (
         <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden animate-fade-in">
             <div className="px-6 py-4 border-b border-gray-100 bg-gray-50 flex flex-col md:flex-row md:justify-between md:items-center gap-4">
                <div className="flex items-center gap-2">
                  <Table2 size={18} className="text-green-600" />
-                 <h3 className="text-sm font-bold text-gray-700">Rekapitulasi Per Rekening (Bulanan)</h3>
+                 <div>
+                    <h3 className="text-sm font-bold text-gray-700">Rekapitulasi SPJ (Terealisasi)</h3>
+                    <p className="text-[10px] text-gray-400">Menampilkan akun belanja yang memiliki transaksi pada bulan terpilih.</p>
+                 </div>
                </div>
                
                <div className="flex items-center gap-2">
@@ -411,7 +414,7 @@ const Reports: React.FC<ReportsProps> = ({ data }) => {
                       <select
                         value={reportMonth}
                         onChange={(e) => setReportMonth(Number(e.target.value))}
-                        className="pl-9 pr-8 py-1.5 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-green-500 outline-none bg-white"
+                        className="pl-9 pr-8 py-1.5 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-green-500 outline-none bg-white font-medium"
                       >
                          {MONTHS.map((m, idx) => (
                             <option key={idx} value={idx + 1}>{m}</option>
@@ -444,7 +447,12 @@ const Reports: React.FC<ReportsProps> = ({ data }) => {
                 <tbody className="divide-y divide-gray-100">
                   {monthlyRecapData.length === 0 ? (
                     <tr>
-                       <td colSpan={7} className="text-center py-8 text-gray-400">Belum ada data belanja.</td>
+                       <td colSpan={7} className="text-center py-12 text-gray-400">
+                          <div className="flex flex-col items-center gap-2">
+                             <FilterX size={24} className="opacity-30" />
+                             <span>Tidak ada transaksi SPJ pada bulan {MONTHS[reportMonth-1]}.</span>
+                          </div>
+                       </td>
                     </tr>
                   ) : (
                     <>
@@ -463,7 +471,7 @@ const Reports: React.FC<ReportsProps> = ({ data }) => {
                       ))}
                       {/* Grand Total Row */}
                       <tr className="bg-green-50 font-bold border-t-2 border-green-200 text-green-900">
-                          <td className="px-4 py-3 text-center" colSpan={2}>TOTAL KESELURUHAN</td>
+                          <td className="px-4 py-3 text-center" colSpan={2}>TOTAL SPJ BULAN INI</td>
                           <td className="px-4 py-3 text-right">{formatCompact(monthlyRecapTotals.budget)}</td>
                           <td className="px-4 py-3 text-right">{formatCompact(monthlyRecapTotals.past)}</td>
                           <td className="px-4 py-3 text-right bg-yellow-100 border-l border-r border-yellow-200">{formatCompact(monthlyRecapTotals.current)}</td>
