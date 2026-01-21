@@ -203,6 +203,34 @@ export const saveSchoolProfile = async (profile: SchoolProfile): Promise<SchoolP
 
 // --- Bank Statement Functions ---
 
+export const uploadBankStatementFile = async (file: File): Promise<{ url: string | null, path: string | null }> => {
+    if (!supabase) return { url: null, path: null };
+
+    const fileExt = file.name.split('.').pop();
+    const fileName = `${Math.random().toString(36).substring(2, 15)}_${Date.now()}.${fileExt}`;
+    const filePath = `${fileName}`;
+
+    try {
+        const { error: uploadError } = await supabase.storage
+            .from('rkas_storage') // Nama bucket yang kita buat
+            .upload(filePath, file);
+
+        if (uploadError) {
+            console.error('Upload error:', uploadError);
+            throw uploadError;
+        }
+
+        const { data } = supabase.storage
+            .from('rkas_storage')
+            .getPublicUrl(filePath);
+
+        return { url: data.publicUrl, path: filePath };
+    } catch (error) {
+        console.error("Error uploading file:", error);
+        return { url: null, path: null };
+    }
+};
+
 export const getBankStatements = async (): Promise<BankStatement[]> => {
   // Currently using LocalStorage to avoid SQL migration requirement for the user
   // In a real scenario, this would check Supabase 'bank_statements' table first
@@ -230,7 +258,7 @@ export const saveBankStatement = async (statement: BankStatement): Promise<BankS
   
   if (supabase) {
      const { error } = await supabase.from('bank_statements').upsert(statement);
-     if (error) console.warn("Supabase bank_statements upsert error (table likely missing):", error);
+     if (error) console.warn("Supabase bank_statements upsert error (table likely missing or RLS issue):", error);
   }
 
   localStorage.setItem(BANK_STATEMENT_KEY, JSON.stringify(updated));
@@ -239,13 +267,19 @@ export const saveBankStatement = async (statement: BankStatement): Promise<BankS
 
 export const deleteBankStatement = async (id: string): Promise<void> => {
     const current = await getBankStatements();
-    const updated = current.filter(s => s.id !== id);
-    
-    if (supabase) {
+    // Get file path to delete from storage if needed
+    const itemToDelete = current.find(s => s.id === id);
+
+    if (supabase && itemToDelete && itemToDelete.file_path) {
         try {
+            await supabase.storage.from('rkas_storage').remove([itemToDelete.file_path]);
             await supabase.from('bank_statements').delete().eq('id', id);
-        } catch (e) {}
+        } catch (e) { console.error("Error deleting from storage/db", e)}
+    } else if (supabase) {
+        // Just delete record if no file or Supabase online
+        try { await supabase.from('bank_statements').delete().eq('id', id); } catch(e){}
     }
 
+    const updated = current.filter(s => s.id !== id);
     localStorage.setItem(BANK_STATEMENT_KEY, JSON.stringify(updated));
 };

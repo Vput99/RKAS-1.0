@@ -151,7 +151,9 @@ export interface BankStatement {
   month: number;
   year: number;
   closing_balance: number; // Saldo Akhir di Rekening Koran
-  file_name?: string; // Nama file upload
+  file_name?: string; // Nama file display
+  file_url?: string; // URL Publik dari Supabase Storage
+  file_path?: string; // Path di Storage (bucket/filename)
   notes?: string;
   updated_at?: string;
 }

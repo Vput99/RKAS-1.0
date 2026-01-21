@@ -1,9 +1,10 @@
 import React, { useMemo, useState, useEffect } from 'react';
 import { Budget, TransactionType, AccountCodes, BankStatement } from '../types';
-import { FileDown, Printer, FileText, TrendingUp, Table2, List, Calendar, FilterX, Upload, Plus, Trash2, CheckCircle2, AlertCircle, AlertTriangle, Download } from 'lucide-react';
+import { FileDown, Printer, FileText, TrendingUp, Table2, List, Calendar, FilterX, Upload, Plus, Trash2, CheckCircle2, AlertCircle, AlertTriangle, Download, Loader2 } from 'lucide-react';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
-import { getBankStatements, saveBankStatement, deleteBankStatement } from '../lib/db';
+import { getBankStatements, saveBankStatement, deleteBankStatement, uploadBankStatementFile } from '../lib/db';
+import { supabase } from '../lib/supabase';
 
 interface ReportsProps {
   data: Budget[];
@@ -22,7 +23,9 @@ const Reports: React.FC<ReportsProps> = ({ data }) => {
   const [bankStatements, setBankStatements] = useState<BankStatement[]>([]);
   const [bsMonth, setBsMonth] = useState(new Date().getMonth() + 1);
   const [bsBalance, setBsBalance] = useState('');
-  const [bsFile, setBsFile] = useState('');
+  
+  // File Upload State
+  const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [isStatementLoading, setIsStatementLoading] = useState(false);
 
   useEffect(() => {
@@ -163,12 +166,26 @@ const Reports: React.FC<ReportsProps> = ({ data }) => {
       e.preventDefault();
       setIsStatementLoading(true);
       
+      let fileUrl = '';
+      let filePath = '';
+
+      // Upload to Supabase Storage if file selected
+      if (selectedFile && supabase) {
+          const result = await uploadBankStatementFile(selectedFile);
+          if (result.url) {
+              fileUrl = result.url;
+              filePath = result.path || '';
+          }
+      }
+
       const newStatement: BankStatement = {
           id: crypto.randomUUID(),
           month: bsMonth,
           year: 2026,
           closing_balance: Number(bsBalance),
-          file_name: bsFile || 'rekening_koran_upload.pdf',
+          file_name: selectedFile ? selectedFile.name : 'rekening_koran.pdf',
+          file_url: fileUrl,
+          file_path: filePath,
           updated_at: new Date().toISOString()
       };
 
@@ -176,7 +193,7 @@ const Reports: React.FC<ReportsProps> = ({ data }) => {
       await loadBankStatements();
       
       setBsBalance('');
-      setBsFile('');
+      setSelectedFile(null);
       setIsStatementLoading(false);
   };
 
@@ -188,30 +205,61 @@ const Reports: React.FC<ReportsProps> = ({ data }) => {
   };
 
   const handleDownloadStatement = (stmt: BankStatement) => {
-    // Simulasi download karena penyimpanan file fisik (Storage Bucket) belum dikonfigurasi
-    const fileContent = `
-METADATA REKENING KORAN (SIMULASI)
-----------------------------------
-Bulan         : ${MONTHS[stmt.month - 1]}
-Tahun         : ${stmt.year}
-Saldo Akhir   : ${formatRupiah(stmt.closing_balance)}
-Nama File Asli: ${stmt.file_name}
-Tanggal Upload: ${stmt.updated_at ? new Date(stmt.updated_at).toLocaleString('id-ID') : '-'}
+    if (stmt.file_url) {
+        // Jika ada URL asli (dari Supabase), buka di tab baru
+        window.open(stmt.file_url, '_blank');
+    } else {
+        // Fallback: Generate PDF placeholder jika file fisik tidak ada (Mode Lokal/Simulasi)
+        const doc = new jsPDF();
 
-CATATAN PENTING:
-File fisik asli belum tersimpan di Cloud Storage. 
-Ini adalah file teks simulasi yang dihasilkan oleh sistem.
-    `;
-    
-    const blob = new Blob([fileContent], { type: 'text/plain' });
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement('a');
-    link.href = url;
-    link.download = `Rekening_Koran_${MONTHS[stmt.month-1]}_${stmt.year}.txt`;
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-    URL.revokeObjectURL(url);
+        // Header Line
+        doc.setLineWidth(1);
+        doc.setDrawColor(0);
+        doc.line(20, 25, 190, 25);
+
+        // Title
+        doc.setFontSize(16);
+        doc.setFont('helvetica', 'bold');
+        doc.text('ARSIP DIGITAL REKENING KORAN', 105, 20, { align: 'center' });
+
+        // Subtitle
+        doc.setFontSize(12);
+        doc.setFont('helvetica', 'normal');
+        doc.text('Aplikasi RKAS Pintar SD', 105, 32, { align: 'center' });
+
+        const startY = 50;
+        const lineHeight = 10;
+        const leftCol = 30;
+        const midCol = 80;
+
+        // Content Details
+        doc.text(`Bulan`, leftCol, startY);
+        doc.text(`: ${MONTHS[stmt.month - 1]}`, midCol, startY);
+
+        doc.text(`Tahun Anggaran`, leftCol, startY + lineHeight);
+        doc.text(`: ${stmt.year}`, midCol, startY + lineHeight);
+
+        doc.text(`Saldo Akhir Bank`, leftCol, startY + (lineHeight * 2));
+        doc.setFont('helvetica', 'bold');
+        doc.text(`: ${formatRupiah(stmt.closing_balance)}`, midCol, startY + (lineHeight * 2));
+
+        doc.setFont('helvetica', 'normal');
+        doc.text(`Nama File Fisik`, leftCol, startY + (lineHeight * 3));
+        doc.text(`: ${stmt.file_name}`, midCol, startY + (lineHeight * 3));
+
+        doc.text(`Tanggal Upload`, leftCol, startY + (lineHeight * 4));
+        doc.text(`: ${stmt.updated_at ? new Date(stmt.updated_at).toLocaleString('id-ID') : '-'}`, midCol, startY + (lineHeight * 4));
+
+        // Footer / Disclaimer
+        doc.setDrawColor(200);
+        doc.line(20, 110, 190, 110);
+        doc.setFontSize(9);
+        doc.setTextColor(100);
+        doc.text('Catatan Sistem:', 20, 118);
+        doc.text('File fisik tidak ditemukan di cloud storage atau Anda menggunakan mode lokal.', 20, 123);
+        
+        doc.save(`Rekening_Koran_${MONTHS[stmt.month-1]}_${stmt.year}.pdf`);
+    }
   };
 
 
@@ -224,7 +272,7 @@ Ini adalah file teks simulasi yang dihasilkan oleh sistem.
     return new Intl.NumberFormat('id-ID', { maximumFractionDigits: 0 }).format(num);
   };
 
-  // --- PDF GENERATORS ---
+  // --- PDF GENERATORS (Simulasi sama seperti sebelumnya) ---
 
   const generateRealizationPDF = () => {
     const doc = new jsPDF();
@@ -689,24 +737,28 @@ Ini adalah file teks simulasi yang dihasilkan oleh sistem.
                         <label className="block text-xs font-bold text-gray-600 mb-1">Upload File (PDF/Scan)</label>
                         <label className="block border-2 border-dashed border-gray-200 rounded-lg p-4 text-center hover:bg-gray-50 transition cursor-pointer relative">
                            <Upload className="mx-auto text-gray-300 mb-2" size={24} />
-                           <p className="text-xs text-gray-500">
-                               {bsFile ? bsFile : "Klik untuk pilih file"}
+                           <p className="text-xs text-gray-500 truncate max-w-full px-2">
+                               {selectedFile ? selectedFile.name : "Klik untuk pilih file"}
                            </p>
                            <input 
                               type="file" 
                               className="hidden" 
                               accept=".pdf,.jpg,.jpeg,.png"
-                              onChange={(e) => setBsFile(e.target.files?.[0]?.name || '')}
+                              onChange={(e) => setSelectedFile(e.target.files?.[0] || null)}
                            />
                         </label>
                     </div>
 
                     <button 
                         type="submit"
-                        disabled={isStatementLoading || !bsBalance}
+                        disabled={isStatementLoading || !bsBalance || !selectedFile}
                         className="w-full bg-indigo-600 hover:bg-indigo-700 text-white py-2 rounded-lg text-sm font-bold flex items-center justify-center gap-2 transition disabled:opacity-50"
                     >
-                        {isStatementLoading ? 'Menyimpan...' : 'Simpan Data'}
+                        {isStatementLoading ? (
+                           <>
+                              <Loader2 size={16} className="animate-spin" /> Uploading...
+                           </>
+                        ) : 'Simpan & Upload'}
                     </button>
                 </form>
             </div>
@@ -741,16 +793,21 @@ Ini adalah file teks simulasi yang dihasilkan oleh sistem.
                                             {formatRupiah(stmt.closing_balance)}
                                         </td>
                                         <td className="px-4 py-3 text-right">
-                                            <span className="text-xs bg-gray-100 px-2 py-1 rounded text-gray-600 flex items-center gap-1 justify-end truncate max-w-[150px] ml-auto">
+                                            <a 
+                                               href={stmt.file_url || '#'}
+                                               target="_blank"
+                                               rel="noreferrer"
+                                               className="text-xs bg-gray-100 hover:bg-gray-200 px-2 py-1 rounded text-gray-600 flex items-center gap-1 justify-end truncate max-w-[150px] ml-auto transition"
+                                            >
                                                 <FileText size={12} /> {stmt.file_name}
-                                            </span>
+                                            </a>
                                         </td>
                                         <td className="px-4 py-3 text-right">
                                             <div className="flex justify-end gap-2">
                                                 <button 
                                                     onClick={() => handleDownloadStatement(stmt)}
                                                     className="text-blue-500 hover:text-blue-700 transition"
-                                                    title="Download"
+                                                    title="Download/Buka"
                                                 >
                                                     <Download size={16} />
                                                 </button>
