@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { supabase } from '../lib/supabase';
-import { Lock, Mail, Loader2, ArrowRight, UserPlus, LogIn, ShieldCheck } from 'lucide-react';
+import { Lock, Mail, Loader2, ArrowRight, UserPlus, LogIn, School } from 'lucide-react';
 
 interface AuthProps {
   onLoginSuccess: () => void;
@@ -57,8 +57,8 @@ const Auth: React.FC<AuthProps> = ({ onLoginSuccess }) => {
         <div className="bg-blue-600 p-8 text-center text-white relative overflow-hidden">
           <div className="absolute top-0 left-0 w-full h-full opacity-10 bg-[url('https://www.transparenttextures.com/patterns/cubes.png')]"></div>
           <div className="relative z-10 flex flex-col items-center">
-             <div className="w-16 h-16 bg-white rounded-2xl flex items-center justify-center text-blue-600 mb-4 shadow-lg">
-                <ShieldCheck size={32} />
+             <div className="w-16 h-16 bg-white rounded-2xl flex items-center justify-center text-blue-600 mb-4 shadow-lg transform rotate-3 transition-transform hover:rotate-0">
+                <School size={32} />
              </div>
              <h1 className="text-2xl font-bold">RKAS Pintar SD</h1>
              <p className="text-blue-100 text-sm mt-1">Sistem Manajemen Anggaran Sekolah</p>
