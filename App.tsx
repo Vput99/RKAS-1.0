@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { LayoutDashboard, Wallet, FileCheck, Settings as SettingsIcon, Menu, User, BookOpen, FileBarChart, Wifi, LogOut, Download } from 'lucide-react';
+import { LayoutDashboard, Wallet, FileCheck, Settings as SettingsIcon, Menu, User, BookOpen, FileBarChart, Wifi, LogOut, Download, Share, PlusSquare, X } from 'lucide-react';
 import Dashboard from './components/Dashboard';
 import TransactionTable from './components/TransactionTable';
 import BudgetPlanning from './components/BudgetPlanning';
@@ -18,6 +18,9 @@ function App() {
   
   // PWA Install Prompt State
   const [deferredPrompt, setDeferredPrompt] = useState<any>(null);
+  const [isIOS, setIsIOS] = useState(false);
+  const [showIOSPrompt, setShowIOSPrompt] = useState(false);
+  const [isStandalone, setIsStandalone] = useState(false);
 
   // App State
   const [activeTab, setActiveTab] = useState<'dashboard' | 'income' | 'planning' | 'spj' | 'reports' | 'settings'>('dashboard');
@@ -29,11 +32,20 @@ function App() {
 
   // --- PWA INSTALL LISTENER ---
   useEffect(() => {
+    // 1. Check if running in standalone (already installed)
+    const isStandaloneMode = window.matchMedia('(display-mode: standalone)').matches || (window.navigator as any).standalone;
+    setIsStandalone(isStandaloneMode);
+
+    // 2. Check if device is iOS
+    const userAgent = window.navigator.userAgent.toLowerCase();
+    const isIosDevice = /iphone|ipad|ipod/.test(userAgent);
+    setIsIOS(isIosDevice);
+
+    // 3. Listen for Android/Desktop install prompt
     const handleBeforeInstallPrompt = (e: any) => {
-      // Prevent the mini-infobar from appearing on mobile
       e.preventDefault();
-      // Stash the event so it can be triggered later.
       setDeferredPrompt(e);
+      console.log("Install prompt captured");
     };
 
     window.addEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
@@ -44,14 +56,18 @@ function App() {
   }, []);
 
   const handleInstallClick = async () => {
-    if (!deferredPrompt) return;
-    // Show the install prompt
-    deferredPrompt.prompt();
-    // Wait for the user to respond to the prompt
-    const { outcome } = await deferredPrompt.userChoice;
-    console.log(`User response to the install prompt: ${outcome}`);
-    // We've used the prompt, and can't use it again, throw it away
-    setDeferredPrompt(null);
+    if (isIOS) {
+        // Show manual instruction for iOS
+        setShowIOSPrompt(true);
+    } else if (deferredPrompt) {
+        // Android/Desktop: Show native prompt
+        deferredPrompt.prompt();
+        const { outcome } = await deferredPrompt.userChoice;
+        console.log(`User response to the install prompt: ${outcome}`);
+        setDeferredPrompt(null);
+    } else {
+        alert("Aplikasi mungkin sudah terinstall atau browser tidak mendukung instalasi otomatis.");
+    }
   };
 
   // --- AUTH CHECK ---
@@ -231,14 +247,16 @@ function App() {
           </div>
           
           <div className="pt-4 border-t border-gray-100 space-y-2">
-             {/* Install Button (Only visible if browser supports it) */}
-             {deferredPrompt && (
+             {/* Install Button Logic */}
+             {!isStandalone && (deferredPrompt || isIOS) && (
                 <button
                   onClick={handleInstallClick}
                   className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg transition-all duration-200 text-green-600 hover:bg-green-50 animate-pulse`}
                 >
                   <Download size={20} />
-                  <span className={`${!isSidebarOpen && 'lg:hidden xl:block'} font-bold`}>Install Aplikasi</span>
+                  <span className={`${!isSidebarOpen && 'lg:hidden xl:block'} font-bold`}>
+                      {isIOS ? 'Cara Install (iOS)' : 'Install Aplikasi'}
+                  </span>
                 </button>
              )}
 
@@ -343,6 +361,53 @@ function App() {
 
       {/* AI Chat Bot */}
       <ChatAssistant budgets={data} />
+
+      {/* IOS Install Instructions Modal */}
+      {showIOSPrompt && (
+         <div className="fixed inset-0 bg-black/80 z-50 flex items-end sm:items-center justify-center p-4">
+            <div className="bg-white rounded-t-xl sm:rounded-xl w-full max-w-sm p-6 relative animate-fade-in-up">
+               <button 
+                 onClick={() => setShowIOSPrompt(false)}
+                 className="absolute top-4 right-4 text-gray-400 hover:text-gray-600"
+               >
+                 <X size={20} />
+               </button>
+               <h3 className="font-bold text-lg text-gray-800 mb-2">Install di iPhone/iPad</h3>
+               <p className="text-sm text-gray-600 mb-4">
+                 iOS tidak mendukung tombol install otomatis. Ikuti langkah manual berikut:
+               </p>
+               
+               <ol className="space-y-4 text-sm text-gray-700">
+                  <li className="flex items-center gap-3">
+                     <div className="w-8 h-8 bg-gray-100 rounded flex items-center justify-center text-blue-600">
+                        <Share size={18} />
+                     </div>
+                     <span>1. Tekan tombol <b>Share</b> di bawah layar Safari.</span>
+                  </li>
+                  <li className="flex items-center gap-3">
+                     <div className="w-8 h-8 bg-gray-100 rounded flex items-center justify-center text-gray-600">
+                        <PlusSquare size={18} />
+                     </div>
+                     <span>2. Geser ke bawah dan pilih <b>Add to Home Screen</b> (Tambah ke Layar Utama).</span>
+                  </li>
+                  <li className="flex items-center gap-3">
+                     <div className="w-8 h-8 bg-gray-100 rounded flex items-center justify-center text-gray-600">
+                        <span className="font-bold">Add</span>
+                     </div>
+                     <span>3. Tekan <b>Add</b> di pojok kanan atas.</span>
+                  </li>
+               </ol>
+
+               <button 
+                  onClick={() => setShowIOSPrompt(false)}
+                  className="w-full mt-6 bg-blue-600 text-white py-2 rounded-lg font-bold"
+               >
+                  Saya Mengerti
+               </button>
+            </div>
+         </div>
+      )}
+
     </div>
   );
 }
