@@ -183,7 +183,7 @@ const Reports: React.FC<ReportsProps> = ({ data }) => {
           month: bsMonth,
           year: 2026,
           closing_balance: Number(bsBalance),
-          file_name: selectedFile ? selectedFile.name : 'rekening_koran.pdf',
+          file_name: selectedFile ? selectedFile.name : 'rekening_koran_manual.pdf',
           file_url: fileUrl,
           file_path: filePath,
           updated_at: new Date().toISOString()
@@ -205,61 +205,71 @@ const Reports: React.FC<ReportsProps> = ({ data }) => {
   };
 
   const handleDownloadStatement = (stmt: BankStatement) => {
+    // 1. Cek apakah ada File URL (Supabase Storage)
     if (stmt.file_url) {
-        // Jika ada URL asli (dari Supabase), buka di tab baru
-        window.open(stmt.file_url, '_blank');
-    } else {
-        // Fallback: Generate PDF placeholder jika file fisik tidak ada (Mode Lokal/Simulasi)
-        const doc = new jsPDF();
+        // Buka file asli (PDF/JPG) di tab baru
+        const link = document.createElement('a');
+        link.href = stmt.file_url;
+        link.target = '_blank';
+        link.rel = 'noopener noreferrer';
+        link.download = stmt.file_name || `Rekening_Koran_${stmt.month}_${stmt.year}`;
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        return;
+    } 
+    
+    // 2. Jika File URL tidak ada (Mode Lokal/Simulasi), Generate PDF
+    const doc = new jsPDF();
 
-        // Header Line
-        doc.setLineWidth(1);
-        doc.setDrawColor(0);
-        doc.line(20, 25, 190, 25);
+    // Header Line
+    doc.setLineWidth(1);
+    doc.setDrawColor(0);
+    doc.line(20, 25, 190, 25);
 
-        // Title
-        doc.setFontSize(16);
-        doc.setFont('helvetica', 'bold');
-        doc.text('ARSIP DIGITAL REKENING KORAN', 105, 20, { align: 'center' });
+    // Title
+    doc.setFontSize(16);
+    doc.setFont('helvetica', 'bold');
+    doc.text('ARSIP DIGITAL REKENING KORAN', 105, 20, { align: 'center' });
 
-        // Subtitle
-        doc.setFontSize(12);
-        doc.setFont('helvetica', 'normal');
-        doc.text('Aplikasi RKAS Pintar SD', 105, 32, { align: 'center' });
+    // Subtitle
+    doc.setFontSize(12);
+    doc.setFont('helvetica', 'normal');
+    doc.text('Aplikasi RKAS Pintar SD', 105, 32, { align: 'center' });
 
-        const startY = 50;
-        const lineHeight = 10;
-        const leftCol = 30;
-        const midCol = 80;
+    const startY = 50;
+    const lineHeight = 10;
+    const leftCol = 30;
+    const midCol = 80;
 
-        // Content Details
-        doc.text(`Bulan`, leftCol, startY);
-        doc.text(`: ${MONTHS[stmt.month - 1]}`, midCol, startY);
+    // Content Details
+    doc.text(`Bulan`, leftCol, startY);
+    doc.text(`: ${MONTHS[stmt.month - 1]}`, midCol, startY);
 
-        doc.text(`Tahun Anggaran`, leftCol, startY + lineHeight);
-        doc.text(`: ${stmt.year}`, midCol, startY + lineHeight);
+    doc.text(`Tahun Anggaran`, leftCol, startY + lineHeight);
+    doc.text(`: ${stmt.year}`, midCol, startY + lineHeight);
 
-        doc.text(`Saldo Akhir Bank`, leftCol, startY + (lineHeight * 2));
-        doc.setFont('helvetica', 'bold');
-        doc.text(`: ${formatRupiah(stmt.closing_balance)}`, midCol, startY + (lineHeight * 2));
+    doc.text(`Saldo Akhir Bank`, leftCol, startY + (lineHeight * 2));
+    doc.setFont('helvetica', 'bold');
+    doc.text(`: ${formatRupiah(stmt.closing_balance)}`, midCol, startY + (lineHeight * 2));
 
-        doc.setFont('helvetica', 'normal');
-        doc.text(`Nama File Fisik`, leftCol, startY + (lineHeight * 3));
-        doc.text(`: ${stmt.file_name}`, midCol, startY + (lineHeight * 3));
+    doc.setFont('helvetica', 'normal');
+    doc.text(`Nama File Fisik`, leftCol, startY + (lineHeight * 3));
+    doc.text(`: ${stmt.file_name || 'Tidak ada file fisik'}`, midCol, startY + (lineHeight * 3));
 
-        doc.text(`Tanggal Upload`, leftCol, startY + (lineHeight * 4));
-        doc.text(`: ${stmt.updated_at ? new Date(stmt.updated_at).toLocaleString('id-ID') : '-'}`, midCol, startY + (lineHeight * 4));
+    doc.text(`Tanggal Upload`, leftCol, startY + (lineHeight * 4));
+    doc.text(`: ${stmt.updated_at ? new Date(stmt.updated_at).toLocaleString('id-ID') : '-'}`, midCol, startY + (lineHeight * 4));
 
-        // Footer / Disclaimer
-        doc.setDrawColor(200);
-        doc.line(20, 110, 190, 110);
-        doc.setFontSize(9);
-        doc.setTextColor(100);
-        doc.text('Catatan Sistem:', 20, 118);
-        doc.text('File fisik tidak ditemukan di cloud storage atau Anda menggunakan mode lokal.', 20, 123);
-        
-        doc.save(`Rekening_Koran_${MONTHS[stmt.month-1]}_${stmt.year}.pdf`);
-    }
+    // Footer / Disclaimer
+    doc.setDrawColor(200);
+    doc.line(20, 110, 190, 110);
+    doc.setFontSize(9);
+    doc.setTextColor(100);
+    doc.text('Catatan Sistem:', 20, 118);
+    doc.text('Ini adalah dokumen PDF pengganti (placeholder) karena file asli tidak ditemukan di cloud.', 20, 123);
+    
+    // Save as PDF
+    doc.save(`Rekening_Koran_Simulasi_${MONTHS[stmt.month-1]}_${stmt.year}.pdf`);
   };
 
 
