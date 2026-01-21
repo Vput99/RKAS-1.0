@@ -94,15 +94,40 @@ CREATE TABLE IF NOT EXISTS public.bank_statements (
     year INTEGER NOT NULL,
     closing_balance NUMERIC DEFAULT 0,
     file_name TEXT,
+    file_url TEXT,  -- URL Publik file
+    file_path TEXT, -- Path di storage bucket
     notes TEXT
 );
+
+-- UPDATE PENTING: Jika tabel sudah ada, tambahkan kolom yang kurang
+DO $$
+BEGIN
+    ALTER TABLE public.bank_statements ADD COLUMN IF NOT EXISTS file_url TEXT;
+    ALTER TABLE public.bank_statements ADD COLUMN IF NOT EXISTS file_path TEXT;
+EXCEPTION
+    WHEN duplicate_column THEN RAISE NOTICE 'Kolom sudah ada.';
+END $$;
+
 
 -- RLS for Bank Statements
 ALTER TABLE public.bank_statements ENABLE ROW LEVEL SECURITY;
 DROP POLICY IF EXISTS "Public Access Bank Statements" ON public.bank_statements;
 CREATE POLICY "Public Access Bank Statements" ON public.bank_statements FOR ALL USING (true) WITH CHECK (true);
 
--- 8. Aktifkan Realtime (Agar data langsung muncul tanpa refresh)
+-- 8. STORAGE BUCKET SETUP (PENTING UNTUK UPLOAD)
+INSERT INTO storage.buckets (id, name, public)
+VALUES ('rkas_storage', 'rkas_storage', true)
+ON CONFLICT (id) DO NOTHING;
+
+-- Policy Storage (Reset & Create)
+DROP POLICY IF EXISTS "Public Access RKAS Storage" ON storage.objects;
+CREATE POLICY "Public Access RKAS Storage"
+ON storage.objects FOR ALL
+USING ( bucket_id = 'rkas_storage' )
+WITH CHECK ( bucket_id = 'rkas_storage' );
+
+
+-- 9. Aktifkan Realtime (Agar data langsung muncul tanpa refresh)
 BEGIN;
   DROP PUBLICATION IF EXISTS supabase_realtime;
   CREATE PUBLICATION supabase_realtime FOR TABLE budgets, school_profiles, bank_statements;

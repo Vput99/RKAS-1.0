@@ -217,6 +217,7 @@ export const uploadBankStatementFile = async (file: File): Promise<{ url: string
 
         if (uploadError) {
             console.error('Upload error:', uploadError);
+            alert(`Gagal Upload File ke Storage: ${uploadError.message}\nPastikan Bucket 'rkas_storage' sudah dibuat dan Public.`);
             throw uploadError;
         }
 
@@ -232,14 +233,13 @@ export const uploadBankStatementFile = async (file: File): Promise<{ url: string
 };
 
 export const getBankStatements = async (): Promise<BankStatement[]> => {
-  // Currently using LocalStorage to avoid SQL migration requirement for the user
-  // In a real scenario, this would check Supabase 'bank_statements' table first
-  
   if (supabase) {
     try {
       const { data, error } = await supabase.from('bank_statements').select('*').order('month', { ascending: true });
+      if (error) {
+          console.error("Failed to fetch bank statements:", error);
+      }
       if (!error && data) return data as BankStatement[];
-      // If error (e.g. table not exists), fall through to local
     } catch (e) {
       console.warn("Bank statement table fetch error, falling back to local.");
     }
@@ -252,15 +252,20 @@ export const getBankStatements = async (): Promise<BankStatement[]> => {
 export const saveBankStatement = async (statement: BankStatement): Promise<BankStatement> => {
   const current = await getBankStatements();
   
-  // Remove existing entry for same month/year if exists
+  // Remove existing entry for same month/year if exists (Local update)
   const filtered = current.filter(s => !(s.month === statement.month && s.year === statement.year));
   const updated = [...filtered, statement].sort((a,b) => a.month - b.month);
   
   if (supabase) {
      const { error } = await supabase.from('bank_statements').upsert(statement);
-     if (error) console.warn("Supabase bank_statements upsert error (table likely missing or RLS issue):", error);
+     if (error) {
+         console.error("Supabase bank_statements upsert error:", error);
+         alert(`Gagal menyimpan Rekening Koran ke Database.\n\nPesan Error: ${error.message}\n\nKemungkinan kolom 'file_url' belum ada di tabel. Silakan jalankan Script SQL Update.`);
+         throw error; // Stop process so UI doesn't reset falsely
+     }
   }
 
+  // Backup to local
   localStorage.setItem(BANK_STATEMENT_KEY, JSON.stringify(updated));
   return statement;
 };
@@ -276,7 +281,6 @@ export const deleteBankStatement = async (id: string): Promise<void> => {
             await supabase.from('bank_statements').delete().eq('id', id);
         } catch (e) { console.error("Error deleting from storage/db", e)}
     } else if (supabase) {
-        // Just delete record if no file or Supabase online
         try { await supabase.from('bank_statements').delete().eq('id', id); } catch(e){}
     }
 

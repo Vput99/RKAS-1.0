@@ -166,35 +166,42 @@ const Reports: React.FC<ReportsProps> = ({ data }) => {
       e.preventDefault();
       setIsStatementLoading(true);
       
-      let fileUrl = '';
-      let filePath = '';
+      try {
+        let fileUrl = '';
+        let filePath = '';
 
-      // Upload to Supabase Storage if file selected
-      if (selectedFile && supabase) {
-          const result = await uploadBankStatementFile(selectedFile);
-          if (result.url) {
-              fileUrl = result.url;
-              filePath = result.path || '';
-          }
+        // Upload to Supabase Storage if file selected
+        if (selectedFile && supabase) {
+            const result = await uploadBankStatementFile(selectedFile);
+            if (result.url) {
+                fileUrl = result.url;
+                filePath = result.path || '';
+            }
+        }
+
+        const newStatement: BankStatement = {
+            id: crypto.randomUUID(),
+            month: bsMonth,
+            year: 2026,
+            closing_balance: Number(bsBalance),
+            file_name: selectedFile ? selectedFile.name : 'rekening_koran_manual.pdf',
+            file_url: fileUrl,
+            file_path: filePath,
+            updated_at: new Date().toISOString()
+        };
+
+        await saveBankStatement(newStatement);
+        await loadBankStatements();
+        
+        // Only clear form if successful
+        setBsBalance('');
+        setSelectedFile(null);
+      } catch (error) {
+        console.error("Failed to save statement:", error);
+        // Error alert is already handled in db.ts saveBankStatement
+      } finally {
+        setIsStatementLoading(false);
       }
-
-      const newStatement: BankStatement = {
-          id: crypto.randomUUID(),
-          month: bsMonth,
-          year: 2026,
-          closing_balance: Number(bsBalance),
-          file_name: selectedFile ? selectedFile.name : 'rekening_koran_manual.pdf',
-          file_url: fileUrl,
-          file_path: filePath,
-          updated_at: new Date().toISOString()
-      };
-
-      await saveBankStatement(newStatement);
-      await loadBankStatements();
-      
-      setBsBalance('');
-      setSelectedFile(null);
-      setIsStatementLoading(false);
   };
 
   const handleDeleteStatement = async (id: string) => {
