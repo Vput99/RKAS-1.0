@@ -159,7 +159,7 @@ const Auth: React.FC<AuthProps> = ({ onLoginSuccess }) => {
         {/* Footer */}
         <div className="bg-gray-50 p-4 text-center border-t border-gray-100">
            <p className="text-[10px] text-gray-400">
-              Aplikasi RKAS Pintar v1.0 &copy; 2026<br/>
+              Aplikasi RKAS Pintar v1.1 &copy; 2026<br/>
               Mendukung Install PWA & Offline Mode
            </p>
         </div>

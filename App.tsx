@@ -225,7 +225,7 @@ function App() {
       )}
 
       {/* Sidebar */}
-      <aside className={`fixed lg:relative z-30 w-64 h-full bg-white border-r border-gray-200 transition-transform duration-300 ease-in-out ${
+      <aside className={`fixed lg:relative z-30 w-64 h-full bg-white border-r border-gray-200 transition-transform duration-300 ease-in-out flex flex-col ${
         isSidebarOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0 lg:w-20 xl:w-64'
       }`}>
         <div className="p-6 border-b border-gray-100 flex items-center justify-between lg:justify-center xl:justify-start gap-3">
@@ -237,8 +237,8 @@ function App() {
           </span>
         </div>
 
-        <nav className="p-4 space-y-2 flex flex-col h-[calc(100%-80px)]">
-          <div className="flex-1 space-y-2">
+        <nav className="p-4 space-y-2 flex-1 overflow-y-auto">
+          <div className="space-y-2">
             <NavItem id="dashboard" label="Dashboard" icon={LayoutDashboard} />
             <NavItem id="income" label="Pendapatan" icon={Wallet} />
             <NavItem id="planning" label="Penganggaran" icon={BookOpen} />
@@ -246,7 +246,7 @@ function App() {
             <NavItem id="reports" label="Laporan" icon={FileBarChart} />
           </div>
           
-          <div className="pt-4 border-t border-gray-100 space-y-2">
+          <div className="pt-4 mt-auto border-t border-gray-100 space-y-2">
              {/* Install Button Logic */}
              {!isStandalone && (deferredPrompt || isIOS) && (
                 <button
@@ -281,6 +281,11 @@ function App() {
              </button>
           </div>
         </nav>
+
+        {/* Version Indicator */}
+        <div className={`p-4 text-center border-t border-gray-100 ${!isSidebarOpen && 'lg:hidden xl:block'}`}>
+            <p className="text-[10px] text-gray-400">Versi Aplikasi 1.1</p>
+        </div>
       </aside>
 
       {/* Main Content */}
