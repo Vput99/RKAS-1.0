@@ -73,17 +73,29 @@ INSERT INTO public.school_profiles (id, name, fiscal_year)
 VALUES (1, 'Sekolah Belum Diatur', '2026')
 ON CONFLICT (id) DO NOTHING;
 
--- 6. Setup Row Level Security (RLS) - Izin Akses Publik untuk Demo
+-- 6. Setup Row Level Security (RLS) - ACCESS CONTROL
 ALTER TABLE public.budgets ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.school_profiles ENABLE ROW LEVEL SECURITY;
 
--- Reset Policy lama agar bersih
+-- Reset Policy lama (yang Public)
 DROP POLICY IF EXISTS "Public Access Budgets" ON public.budgets;
 DROP POLICY IF EXISTS "Public Access Profiles" ON public.school_profiles;
+-- Reset Policy Authenticated (jika ada sebelumnya)
+DROP POLICY IF EXISTS "Authenticated Access Budgets" ON public.budgets;
+DROP POLICY IF EXISTS "Authenticated Access Profiles" ON public.school_profiles;
 
--- Buat Policy Baru (Boleh Baca/Tulis untuk semua orang yang punya URL)
-CREATE POLICY "Public Access Budgets" ON public.budgets FOR ALL USING (true) WITH CHECK (true);
-CREATE POLICY "Public Access Profiles" ON public.school_profiles FOR ALL USING (true) WITH CHECK (true);
+-- Buat Policy Baru: HANYA USER YANG SUDAH LOGIN (Authenticated) yang bisa akses
+CREATE POLICY "Authenticated Access Budgets" ON public.budgets 
+FOR ALL 
+TO authenticated 
+USING (true) 
+WITH CHECK (true);
+
+CREATE POLICY "Authenticated Access Profiles" ON public.school_profiles 
+FOR ALL 
+TO authenticated 
+USING (true) 
+WITH CHECK (true);
 
 -- 7. (Baru) Table Bank Statements (Rekening Koran)
 CREATE TABLE IF NOT EXISTS public.bank_statements (
@@ -94,8 +106,8 @@ CREATE TABLE IF NOT EXISTS public.bank_statements (
     year INTEGER NOT NULL,
     closing_balance NUMERIC DEFAULT 0,
     file_name TEXT,
-    file_url TEXT,  -- URL Publik file
-    file_path TEXT, -- Path di storage bucket
+    file_url TEXT,
+    file_path TEXT,
     notes TEXT
 );
 
@@ -108,24 +120,32 @@ EXCEPTION
     WHEN duplicate_column THEN RAISE NOTICE 'Kolom sudah ada.';
 END $$;
 
-
--- RLS for Bank Statements
+-- RLS for Bank Statements (Authenticated Only)
 ALTER TABLE public.bank_statements ENABLE ROW LEVEL SECURITY;
 DROP POLICY IF EXISTS "Public Access Bank Statements" ON public.bank_statements;
-CREATE POLICY "Public Access Bank Statements" ON public.bank_statements FOR ALL USING (true) WITH CHECK (true);
+DROP POLICY IF EXISTS "Authenticated Access Bank Statements" ON public.bank_statements;
+
+CREATE POLICY "Authenticated Access Bank Statements" ON public.bank_statements 
+FOR ALL 
+TO authenticated 
+USING (true) 
+WITH CHECK (true);
 
 -- 8. STORAGE BUCKET SETUP (PENTING UNTUK UPLOAD)
 INSERT INTO storage.buckets (id, name, public)
 VALUES ('rkas_storage', 'rkas_storage', true)
 ON CONFLICT (id) DO NOTHING;
 
--- Policy Storage (Reset & Create)
+-- Policy Storage (Authenticated Only for Upload/Delete, Public for Read is okay for PDF view)
 DROP POLICY IF EXISTS "Public Access RKAS Storage" ON storage.objects;
-CREATE POLICY "Public Access RKAS Storage"
+DROP POLICY IF EXISTS "Authenticated Access RKAS Storage" ON storage.objects;
+
+-- Izinkan user login melakukan apapun di storage
+CREATE POLICY "Authenticated Access RKAS Storage"
 ON storage.objects FOR ALL
+TO authenticated
 USING ( bucket_id = 'rkas_storage' )
 WITH CHECK ( bucket_id = 'rkas_storage' );
-
 
 -- 9. Aktifkan Realtime (Agar data langsung muncul tanpa refresh)
 BEGIN;

@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { LayoutDashboard, Wallet, FileCheck, Settings as SettingsIcon, Menu, User, BookOpen, FileBarChart, Wifi } from 'lucide-react';
+import { LayoutDashboard, Wallet, FileCheck, Settings as SettingsIcon, Menu, User, BookOpen, FileBarChart, Wifi, LogOut } from 'lucide-react';
 import Dashboard from './components/Dashboard';
 import TransactionTable from './components/TransactionTable';
 import BudgetPlanning from './components/BudgetPlanning';
@@ -7,11 +7,16 @@ import SPJRealization from './components/SPJRealization';
 import Reports from './components/Reports';
 import Settings from './components/Settings';
 import ChatAssistant from './components/ChatAssistant';
+import Auth from './components/Auth';
 import { getBudgets, addBudget, updateBudget, deleteBudget, getSchoolProfile, checkDatabaseConnection } from './lib/db';
 import { supabase } from './lib/supabase'; // Import supabase client
 import { Budget, TransactionType, SchoolProfile } from './types';
 
 function App() {
+  const [session, setSession] = useState<any>(null);
+  const [authChecked, setAuthChecked] = useState(false);
+
+  // App State
   const [activeTab, setActiveTab] = useState<'dashboard' | 'income' | 'planning' | 'spj' | 'reports' | 'settings'>('dashboard');
   const [isSidebarOpen, setSidebarOpen] = useState(true);
   const [data, setData] = useState<Budget[]>([]);
@@ -19,17 +24,44 @@ function App() {
   const [loading, setLoading] = useState(true);
   const [isOnline, setIsOnline] = useState(false);
 
-  // Load Initial Data
+  // --- AUTH CHECK ---
   useEffect(() => {
-    fetchData();
-    checkConnection();
+    if (!supabase) {
+        // Offline/Demo Mode: Auto login as Guest
+        console.warn("Supabase not configured. Using Guest Mode.");
+        setSession({ user: { email: 'guest@local' } });
+        setAuthChecked(true);
+        return;
+    }
+
+    // Check active session
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      setSession(session);
+      setAuthChecked(true);
+    });
+
+    // Listen for auth changes
+    const {
+      data: { subscription },
+    } = supabase.auth.onAuthStateChange((_event, session) => {
+      setSession(session);
+    });
+
+    return () => subscription.unsubscribe();
   }, []);
 
-  // --- REALTIME LISTENER SETUP ---
+  // --- DATA LOADING (Only if session exists) ---
   useEffect(() => {
+    if (session) {
+        fetchData();
+        checkConnection();
+        setupRealtimeSubscription();
+    }
+  }, [session]);
+
+  const setupRealtimeSubscription = () => {
     if (!supabase) return;
 
-    // Create a subscription to the 'budgets' and 'school_profiles' tables
     const channel = supabase
       .channel('public:db_changes')
       .on(
@@ -37,7 +69,6 @@ function App() {
         { event: '*', schema: 'public', table: 'budgets' },
         (payload) => {
           console.log('Realtime update received (Budgets):', payload);
-          // Refresh full data to ensure consistency
           getBudgets().then(setData);
         }
       )
@@ -45,17 +76,15 @@ function App() {
         'postgres_changes',
         { event: '*', schema: 'public', table: 'school_profiles' },
         (payload) => {
-          console.log('Realtime update received (Profile):', payload);
           getSchoolProfile().then(setSchoolProfile);
         }
       )
       .subscribe();
 
-    // Cleanup subscription on unmount
     return () => {
       supabase.removeChannel(channel);
     };
-  }, []);
+  };
 
   const checkConnection = async () => {
     const status = await checkDatabaseConnection();
@@ -74,13 +103,9 @@ function App() {
   };
 
   const handleAdd = async (item: Omit<Budget, 'id' | 'created_at'>) => {
-    // 1. Call DB
     const newItem = await addBudget(item);
-    
-    // 2. Optimistic Update (Immediate Feedback)
     if (newItem) {
       setData(prev => {
-        // Prevent duplicates if Realtime fires quickly
         if (prev.some(p => p.id === newItem.id)) return prev;
         return [newItem, ...prev];
       });
@@ -88,29 +113,26 @@ function App() {
   };
 
   const handleUpdate = async (id: string, updates: Partial<Budget>) => {
-    // Optimistic Update immediately
     setData(prev => prev.map(item => item.id === id ? { ...item, ...updates } : item));
-    
     const updatedItem = await updateBudget(id, updates);
-    if (!updatedItem) {
-        // Revert if failed (fetch data again)
-        fetchData();
-    }
+    if (!updatedItem) fetchData();
   };
 
   const handleDelete = async (id: string) => {
-    // Optimistic Delete
     const originalData = [...data];
     setData(prev => prev.filter(item => item.id !== id));
-
     const success = await deleteBudget(id);
-    if (!success) {
-        // Revert if failed
-        setData(originalData);
-    }
+    if (!success) setData(originalData);
   };
 
-  // Mobile responsiveness for sidebar
+  const handleLogout = async () => {
+      if (supabase) {
+          await supabase.auth.signOut();
+      }
+      setSession(null);
+  };
+
+  // Mobile responsiveness
   useEffect(() => {
     const handleResize = () => {
       if (window.innerWidth < 1024) setSidebarOpen(false);
@@ -134,6 +156,16 @@ function App() {
       <span className="font-medium">{label}</span>
     </button>
   );
+
+  // --- RENDER ---
+  
+  if (!authChecked) {
+      return <div className="min-h-screen flex items-center justify-center bg-gray-50 text-gray-400">Memuat...</div>;
+  }
+
+  if (!session) {
+      return <Auth onLoginSuccess={() => setSession({user: {email: 'guest'}})} />;
+  }
 
   return (
     <div className="flex h-screen bg-gray-50 overflow-hidden">
@@ -159,14 +191,16 @@ function App() {
           </span>
         </div>
 
-        <nav className="p-4 space-y-2">
-          <NavItem id="dashboard" label="Dashboard" icon={LayoutDashboard} />
-          <NavItem id="income" label="Pendapatan" icon={Wallet} />
-          <NavItem id="planning" label="Penganggaran" icon={BookOpen} />
-          <NavItem id="spj" label="Peng-SPJ-an" icon={FileCheck} />
-          <NavItem id="reports" label="Laporan" icon={FileBarChart} />
+        <nav className="p-4 space-y-2 flex flex-col h-[calc(100%-80px)]">
+          <div className="flex-1 space-y-2">
+            <NavItem id="dashboard" label="Dashboard" icon={LayoutDashboard} />
+            <NavItem id="income" label="Pendapatan" icon={Wallet} />
+            <NavItem id="planning" label="Penganggaran" icon={BookOpen} />
+            <NavItem id="spj" label="Peng-SPJ-an" icon={FileCheck} />
+            <NavItem id="reports" label="Laporan" icon={FileBarChart} />
+          </div>
           
-          <div className="pt-8 mt-8 border-t border-gray-100">
+          <div className="pt-4 border-t border-gray-100 space-y-2">
              <button 
                 onClick={() => { setActiveTab('settings'); if (window.innerWidth < 1024) setSidebarOpen(false); }}
                 className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg transition-all duration-200 ${
@@ -177,6 +211,14 @@ function App() {
              >
                 <SettingsIcon size={20} />
                 <span className={`${!isSidebarOpen && 'lg:hidden xl:block'} font-medium`}>Pengaturan</span>
+             </button>
+             
+             <button 
+                onClick={handleLogout}
+                className="w-full flex items-center gap-3 px-4 py-3 rounded-lg transition-all duration-200 text-red-500 hover:bg-red-50"
+             >
+                <LogOut size={20} />
+                <span className={`${!isSidebarOpen && 'lg:hidden xl:block'} font-medium`}>Keluar</span>
              </button>
           </div>
         </nav>
@@ -198,7 +240,7 @@ function App() {
                   {schoolProfile?.name || 'Nama Sekolah Belum Diatur'}
                </p>
                <div className="flex items-center justify-end gap-2 text-xs text-gray-500">
-                  <span>Tahun {schoolProfile?.fiscalYear || '2026'}</span>
+                  <span>{session?.user?.email || 'Guest'}</span>
                   <span className="text-gray-300">|</span>
                   <span className={`flex items-center gap-1 font-medium ${isOnline ? 'text-green-600' : 'text-orange-500'}`}>
                     <span className={`w-2 h-2 rounded-full ${isOnline ? 'bg-green-500' : 'bg-orange-500'}`}></span>
