@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { LayoutDashboard, Wallet, FileCheck, Settings as SettingsIcon, Menu, User, BookOpen, FileBarChart, Wifi, LogOut } from 'lucide-react';
+import { LayoutDashboard, Wallet, FileCheck, Settings as SettingsIcon, Menu, User, BookOpen, FileBarChart, Wifi, LogOut, Download } from 'lucide-react';
 import Dashboard from './components/Dashboard';
 import TransactionTable from './components/TransactionTable';
 import BudgetPlanning from './components/BudgetPlanning';
@@ -15,6 +15,9 @@ import { Budget, TransactionType, SchoolProfile } from './types';
 function App() {
   const [session, setSession] = useState<any>(null);
   const [authChecked, setAuthChecked] = useState(false);
+  
+  // PWA Install Prompt State
+  const [deferredPrompt, setDeferredPrompt] = useState<any>(null);
 
   // App State
   const [activeTab, setActiveTab] = useState<'dashboard' | 'income' | 'planning' | 'spj' | 'reports' | 'settings'>('dashboard');
@@ -23,6 +26,33 @@ function App() {
   const [schoolProfile, setSchoolProfile] = useState<SchoolProfile | null>(null);
   const [loading, setLoading] = useState(true);
   const [isOnline, setIsOnline] = useState(false);
+
+  // --- PWA INSTALL LISTENER ---
+  useEffect(() => {
+    const handleBeforeInstallPrompt = (e: any) => {
+      // Prevent the mini-infobar from appearing on mobile
+      e.preventDefault();
+      // Stash the event so it can be triggered later.
+      setDeferredPrompt(e);
+    };
+
+    window.addEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
+
+    return () => {
+      window.removeEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
+    };
+  }, []);
+
+  const handleInstallClick = async () => {
+    if (!deferredPrompt) return;
+    // Show the install prompt
+    deferredPrompt.prompt();
+    // Wait for the user to respond to the prompt
+    const { outcome } = await deferredPrompt.userChoice;
+    console.log(`User response to the install prompt: ${outcome}`);
+    // We've used the prompt, and can't use it again, throw it away
+    setDeferredPrompt(null);
+  };
 
   // --- AUTH CHECK ---
   useEffect(() => {
@@ -201,6 +231,17 @@ function App() {
           </div>
           
           <div className="pt-4 border-t border-gray-100 space-y-2">
+             {/* Install Button (Only visible if browser supports it) */}
+             {deferredPrompt && (
+                <button
+                  onClick={handleInstallClick}
+                  className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg transition-all duration-200 text-green-600 hover:bg-green-50 animate-pulse`}
+                >
+                  <Download size={20} />
+                  <span className={`${!isSidebarOpen && 'lg:hidden xl:block'} font-bold`}>Install Aplikasi</span>
+                </button>
+             )}
+
              <button 
                 onClick={() => { setActiveTab('settings'); if (window.innerWidth < 1024) setSidebarOpen(false); }}
                 className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg transition-all duration-200 ${
