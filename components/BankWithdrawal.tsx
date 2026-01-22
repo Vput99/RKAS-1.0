@@ -1,6 +1,6 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import { Budget, TransactionType, SchoolProfile, TransferDetail, WithdrawalHistory } from '../types';
-import { FileText, Printer, Landmark, CheckSquare, Square, DollarSign, Calendar, User, CreditCard, Edit3, Upload, Image as ImageIcon, Eye, ExternalLink, List, X, Coins, Users, Save, Loader2, Archive, History, RefreshCcw, Trash2, Download } from 'lucide-react';
+import { FileText, Printer, Landmark, CheckSquare, Square, DollarSign, Calendar, User, CreditCard, Edit3, Upload, Image as ImageIcon, Eye, ExternalLink, List, X, Coins, Users, Save, Loader2, Archive, History, RefreshCcw, Trash2, Download, Filter } from 'lucide-react';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import { getWithdrawalHistory, saveWithdrawalHistory, deleteWithdrawalHistory, uploadWithdrawalFile } from '../lib/db';
@@ -11,12 +11,20 @@ interface BankWithdrawalProps {
   onUpdate: (id: string, updates: Partial<Budget>) => void;
 }
 
+const MONTHS = [
+  'Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni', 
+  'Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember'
+];
+
 const BankWithdrawal: React.FC<BankWithdrawalProps> = ({ data, profile, onUpdate }) => {
   const [activeTab, setActiveTab] = useState<'rincian' | 'surat_kuasa' | 'pemindahbukuan' | 'riwayat'>('rincian');
   const [isSelectionModalOpen, setIsSelectionModalOpen] = useState(false);
   const [isBulkEditOpen, setIsBulkEditOpen] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   
+  // Withdrawal Month State
+  const [withdrawalMonth, setWithdrawalMonth] = useState<number>(new Date().getMonth() + 1);
+
   // History State
   const [historyList, setHistoryList] = useState<WithdrawalHistory[]>([]);
   const [isLoadingHistory, setIsLoadingHistory] = useState(false);
@@ -117,26 +125,55 @@ const BankWithdrawal: React.FC<BankWithdrawalProps> = ({ data, profile, onUpdate
       });
   }, [data]);
 
-  // Filter expenses: Show EVERYTHING except Rejected items.
-  const availableExpenses = useMemo(() => {
-    return data
-        .filter(d => d.type === TransactionType.EXPENSE && d.status !== 'rejected')
-        .sort((a, b) => {
-            const dateA = new Date(a.created_at || a.date).getTime();
-            const dateB = new Date(b.created_at || b.date).getTime();
-            return dateB - dateA;
-        });
-  }, [data]);
+  // CHANGED: Filter expenses based on REALIZATION (SPJ) in the selected Month
+  const monthlyRealizations = useMemo(() => {
+    // 1. Get Expenses
+    const expenses = data.filter(d => d.type === TransactionType.EXPENSE && d.status !== 'rejected');
+    
+    // 2. Map to a flattened structure containing the Realized Amount for the selected Month
+    const realizedItems: Array<{
+        id: string; // Keep original Budget ID for referencing transfer details
+        description: string;
+        account_code: string;
+        amount: number; // This is the REALIZED amount, not the budget amount
+        date: string; // SPJ Date
+        original: Budget;
+    }> = [];
+
+    expenses.forEach(item => {
+        // Find realization for selected month
+        const realization = item.realizations?.find(r => r.month === withdrawalMonth);
+        
+        // Only include if there is a realization amount > 0
+        if (realization && realization.amount > 0) {
+            realizedItems.push({
+                id: item.id,
+                description: item.description,
+                account_code: item.account_code || '',
+                amount: realization.amount,
+                date: realization.date,
+                original: item
+            });
+        }
+    });
+
+    return realizedItems.sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
+  }, [data, withdrawalMonth]);
 
   const totalSelectedAmount = useMemo(() => {
-    return availableExpenses
+    return monthlyRealizations
       .filter(d => selectedBudgetIds.includes(d.id))
       .reduce((acc, curr) => acc + curr.amount, 0);
-  }, [availableExpenses, selectedBudgetIds]);
+  }, [monthlyRealizations, selectedBudgetIds]);
+
+  // Clear selection when month changes to avoid ID conflicts or stale data
+  useEffect(() => {
+      setSelectedBudgetIds([]);
+  }, [withdrawalMonth]);
 
   // --- LOGIC PENGELOMPOKAN (GROUPING) ---
   const getGroupedData = () => {
-      const selectedItems = availableExpenses.filter(d => selectedBudgetIds.includes(d.id));
+      const selectedItems = monthlyRealizations.filter(d => selectedBudgetIds.includes(d.id));
       
       const groups: Record<string, { 
           name: string, 
@@ -183,13 +220,13 @@ const BankWithdrawal: React.FC<BankWithdrawalProps> = ({ data, profile, onUpdate
     );
   };
 
-  const isAllSelected = availableExpenses.length > 0 && selectedBudgetIds.length === availableExpenses.length;
+  const isAllSelected = monthlyRealizations.length > 0 && selectedBudgetIds.length === monthlyRealizations.length;
   
   const toggleSelectAll = () => {
       if (isAllSelected) {
           setSelectedBudgetIds([]);
       } else {
-          setSelectedBudgetIds(availableExpenses.map(d => d.id));
+          setSelectedBudgetIds(monthlyRealizations.map(d => d.id));
       }
   };
 
@@ -248,7 +285,8 @@ const BankWithdrawal: React.FC<BankWithdrawalProps> = ({ data, profile, onUpdate
           selectedIds: selectedBudgetIds,
           recipientDetails: recipientDetails,
           ksName, ksTitle, ksNip,
-          trName, trTitle, trNip
+          trName, trTitle, trNip,
+          month: withdrawalMonth // Save month context
       };
 
       await saveWithdrawalHistory({
@@ -259,7 +297,7 @@ const BankWithdrawal: React.FC<BankWithdrawalProps> = ({ data, profile, onUpdate
           total_amount: totalSelectedAmount,
           item_count: selectedBudgetIds.length,
           snapshot_data: snapshot,
-          notes: `Pencairan ${formatRupiah(totalSelectedAmount)}`,
+          notes: `Pencairan ${MONTHS[withdrawalMonth-1]} - ${formatRupiah(totalSelectedAmount)}`,
           file_url: uploadedUrl || undefined,
           file_path: uploadedPath || undefined
       });
@@ -300,7 +338,7 @@ const BankWithdrawal: React.FC<BankWithdrawalProps> = ({ data, profile, onUpdate
           // 1. Generate PDF Blob
           const doc = createRincianDoc();
           const pdfBlob = doc.output('blob');
-          const fileName = `Rincian_Transfer_${new Date().getTime()}.pdf`;
+          const fileName = `Rincian_Transfer_${MONTHS[withdrawalMonth-1]}_${new Date().getTime()}.pdf`;
 
           // 2. Archive (Upload + Save DB)
           await performArchiving(pdfBlob, fileName);
@@ -331,6 +369,11 @@ const BankWithdrawal: React.FC<BankWithdrawalProps> = ({ data, profile, onUpdate
           setBankBranch(item.bank_branch);
           
           if (snap) {
+              // Restore Month First (So table updates correctly)
+              if (snap.month) {
+                  setWithdrawalMonth(snap.month);
+              }
+
               // Restore Recipient Details Map
               if (snap.recipientDetails) {
                   setRecipientDetails(prev => ({ ...prev, ...snap.recipientDetails }));
@@ -585,7 +628,7 @@ const BankWithdrawal: React.FC<BankWithdrawalProps> = ({ data, profile, onUpdate
     const d = new Date(withdrawDate);
     doc.setFont('helvetica', 'italic');
     doc.setFontSize(10);
-    doc.text(`Bulan ${months[d.getMonth()]}`, 15, 35);
+    doc.text(`Bulan ${months[d.getMonth()]} (Realisasi)`, 15, 35);
 
     // UPDATE: Gunakan Grouped Data
     const groupedData = getGroupedData();
@@ -713,11 +756,6 @@ const BankWithdrawal: React.FC<BankWithdrawalProps> = ({ data, profile, onUpdate
     return doc;
   };
 
-  const generateRincian = () => {
-    const doc = createRincianDoc();
-    doc.save('Daftar_Rincian_Transfer.pdf');
-  };
-
   // CHANGED: Converted from Component inside Component to a Variable to prevent re-render focus loss
   const budgetTableContent = (
      <div className="border border-gray-200 rounded-lg overflow-hidden max-h-[500px] overflow-y-auto relative">
@@ -750,15 +788,15 @@ const BankWithdrawal: React.FC<BankWithdrawalProps> = ({ data, profile, onUpdate
                     <th className="px-2 py-3 w-20 text-center text-xs">PPh 22</th>
                     <th className="px-2 py-3 w-20 text-center text-xs">PPh 23</th>
                     <th className="px-2 py-3 w-20 text-center text-xs">Daerah</th>
-                    <th className="px-4 py-3 text-right">Nominal Bruto</th>
+                    <th className="px-4 py-3 text-right">Nominal Cair (SPJ)</th>
                     <th className="px-4 py-3 text-right bg-blue-50">Jml Bersih</th>
                 </tr>
             </thead>
             <tbody className="divide-y divide-gray-100 bg-white">
-                {availableExpenses.length === 0 ? (
-                    <tr><td colSpan={10} className="text-center py-4 text-gray-400">Tidak ada anggaran disetujui.</td></tr>
+                {monthlyRealizations.length === 0 ? (
+                    <tr><td colSpan={10} className="text-center py-8 text-gray-400">Tidak ada realisasi pada bulan {MONTHS[withdrawalMonth-1]}. Silakan input SPJ terlebih dahulu.</td></tr>
                 ) : (
-                    availableExpenses.map(item => {
+                    monthlyRealizations.map(item => {
                         const detail = recipientDetails[item.id] || { name: '', account: '', ppn: 0, pph21: 0, pph22: 0, pph23: 0, pajakDaerah: 0 };
                         const totalPotongan = (detail.ppn || 0) + (detail.pph21 || 0) + (detail.pph22 || 0) + (detail.pph23 || 0) + (detail.pajakDaerah || 0);
                         const jumlahBersih = item.amount - totalPotongan;
@@ -868,7 +906,7 @@ const BankWithdrawal: React.FC<BankWithdrawalProps> = ({ data, profile, onUpdate
         <h2 className="text-xl font-bold text-gray-800 flex items-center gap-2">
           <Landmark className="text-blue-600" /> Pengajuan Pencairan BOSP
         </h2>
-        <p className="text-sm text-gray-500">Cetak dokumen administrasi untuk penarikan dana di Bank.</p>
+        <p className="text-sm text-gray-500">Cetak dokumen administrasi untuk penarikan dana di Bank berdasarkan Realisasi (SPJ).</p>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
@@ -993,15 +1031,30 @@ const BankWithdrawal: React.FC<BankWithdrawalProps> = ({ data, profile, onUpdate
                <div className="p-6">
                   {activeTab === 'rincian' && (
                      <div className="space-y-4">
-                        <div className="flex justify-between items-center mb-2">
+                        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-2">
                            <div>
-                               <p className="text-sm font-bold text-gray-800">Daftar Item Transfer</p>
+                               <p className="text-sm font-bold text-gray-800">Daftar Item Transfer (Berdasarkan SPJ)</p>
                                <p className="text-xs text-gray-500">
-                                   Pilih item dan lengkapi data penerima. 
-                                   <span className="text-blue-600 font-bold"> Item dengan Nama & Rekening SAMA otomatis digabung saat cetak.</span>
+                                   Pilih item realisasi untuk bulan ini.
                                </p>
                            </div>
-                           <div className="flex gap-2">
+                           
+                           {/* Month Filter */}
+                           <div className="flex items-center bg-gray-100 p-1 rounded-lg">
+                               <Filter size={14} className="text-gray-500 ml-2" />
+                               <select 
+                                  value={withdrawalMonth}
+                                  onChange={(e) => setWithdrawalMonth(Number(e.target.value))}
+                                  className="bg-transparent text-sm font-bold text-gray-700 py-1 px-2 outline-none cursor-pointer"
+                               >
+                                  {MONTHS.map((m, idx) => (
+                                     <option key={idx} value={idx + 1}>{m}</option>
+                                  ))}
+                               </select>
+                           </div>
+                        </div>
+                        
+                        <div className="flex gap-2 justify-end mb-2">
                                <button 
                                     onClick={handleArchiveData} 
                                     disabled={isSaving}
@@ -1015,8 +1068,8 @@ const BankWithdrawal: React.FC<BankWithdrawalProps> = ({ data, profile, onUpdate
                                   {isSaving ? <Loader2 size={14} className="animate-spin" /> : <Printer size={14} />} 
                                   Cetak & Simpan PDF
                                </button>
-                           </div>
                         </div>
+
                         {budgetTableContent}
                      </div>
                   )}
