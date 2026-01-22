@@ -18,7 +18,7 @@ CREATE TABLE IF NOT EXISTS public.budgets (
     amount NUMERIC NOT NULL, -- Total Pagu Anggaran (Volume x Harga Satuan)
     status TEXT DEFAULT 'draft', -- 'draft', 'approved', 'rejected'
     
-    -- Detail Rincian Biaya (Penting untuk Inputan Anggaran)
+    -- Detail Rincian Biaya (RAB - Penting untuk Breakdown PBD)
     quantity NUMERIC DEFAULT 0, -- Volume (Jumlah Barang/Jasa)
     unit TEXT, -- Satuan (Paket, Orang, Bulan, Rim, dll)
     unit_price NUMERIC DEFAULT 0, -- Harga Satuan
@@ -80,22 +80,15 @@ ALTER TABLE public.school_profiles ENABLE ROW LEVEL SECURITY;
 -- Reset Policy lama (yang Public)
 DROP POLICY IF EXISTS "Public Access Budgets" ON public.budgets;
 DROP POLICY IF EXISTS "Public Access Profiles" ON public.school_profiles;
--- Reset Policy Authenticated (jika ada sebelumnya)
 DROP POLICY IF EXISTS "Authenticated Access Budgets" ON public.budgets;
 DROP POLICY IF EXISTS "Authenticated Access Profiles" ON public.school_profiles;
 
 -- Buat Policy Baru: HANYA USER YANG SUDAH LOGIN (Authenticated) yang bisa akses
 CREATE POLICY "Authenticated Access Budgets" ON public.budgets 
-FOR ALL 
-TO authenticated 
-USING (true) 
-WITH CHECK (true);
+FOR ALL TO authenticated USING (true) WITH CHECK (true);
 
 CREATE POLICY "Authenticated Access Profiles" ON public.school_profiles 
-FOR ALL 
-TO authenticated 
-USING (true) 
-WITH CHECK (true);
+FOR ALL TO authenticated USING (true) WITH CHECK (true);
 
 -- 7. (Baru) Table Bank Statements (Rekening Koran)
 CREATE TABLE IF NOT EXISTS public.bank_statements (
@@ -120,37 +113,53 @@ EXCEPTION
     WHEN duplicate_column THEN RAISE NOTICE 'Kolom sudah ada.';
 END $$;
 
--- RLS for Bank Statements (Authenticated Only)
 ALTER TABLE public.bank_statements ENABLE ROW LEVEL SECURITY;
-DROP POLICY IF EXISTS "Public Access Bank Statements" ON public.bank_statements;
 DROP POLICY IF EXISTS "Authenticated Access Bank Statements" ON public.bank_statements;
 
 CREATE POLICY "Authenticated Access Bank Statements" ON public.bank_statements 
-FOR ALL 
-TO authenticated 
-USING (true) 
-WITH CHECK (true);
+FOR ALL TO authenticated USING (true) WITH CHECK (true);
 
 -- 8. STORAGE BUCKET SETUP (PENTING UNTUK UPLOAD)
 INSERT INTO storage.buckets (id, name, public)
 VALUES ('rkas_storage', 'rkas_storage', true)
 ON CONFLICT (id) DO NOTHING;
 
--- Policy Storage (Authenticated Only for Upload/Delete, Public for Read is okay for PDF view)
+-- Policy Storage
 DROP POLICY IF EXISTS "Public Access RKAS Storage" ON storage.objects;
 DROP POLICY IF EXISTS "Authenticated Access RKAS Storage" ON storage.objects;
 
--- Izinkan user login melakukan apapun di storage
 CREATE POLICY "Authenticated Access RKAS Storage"
 ON storage.objects FOR ALL
 TO authenticated
 USING ( bucket_id = 'rkas_storage' )
 WITH CHECK ( bucket_id = 'rkas_storage' );
 
--- 9. Aktifkan Realtime (Agar data langsung muncul tanpa refresh)
+-- 9. TABEL RAPOR PENDIDIKAN (BARU - UNTUK PBD)
+-- Menyimpan nilai rapor pendidikan agar tidak hilang saat refresh
+CREATE TABLE IF NOT EXISTS public.rapor_pendidikan (
+    id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL,
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()),
+    year TEXT NOT NULL, -- Tahun Data Rapor (Misal: 2025)
+    indicator_id TEXT NOT NULL, -- Kode Indikator (Misal: A.1, D.4)
+    label TEXT NOT NULL, -- Nama Indikator (Misal: Kemampuan Literasi)
+    score NUMERIC DEFAULT 0, -- Nilai Capaian (0-100)
+    category TEXT, -- Kategori (Baik, Sedang, Kurang)
+    
+    -- Constraint: Satu indikator hanya boleh muncul sekali per tahun
+    UNIQUE(year, indicator_id)
+);
+
+ALTER TABLE public.rapor_pendidikan ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS "Authenticated Access Rapor" ON public.rapor_pendidikan;
+
+CREATE POLICY "Authenticated Access Rapor" ON public.rapor_pendidikan 
+FOR ALL TO authenticated USING (true) WITH CHECK (true);
+
+-- 10. Aktifkan Realtime (Agar data langsung muncul tanpa refresh)
 BEGIN;
   DROP PUBLICATION IF EXISTS supabase_realtime;
-  CREATE PUBLICATION supabase_realtime FOR TABLE budgets, school_profiles, bank_statements;
+  CREATE PUBLICATION supabase_realtime FOR TABLE budgets, school_profiles, bank_statements, rapor_pendidikan;
 COMMIT;
 
 -- Selesai.
