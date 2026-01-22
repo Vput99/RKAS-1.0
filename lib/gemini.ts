@@ -1,5 +1,5 @@
 import { GoogleGenAI, Type } from "@google/genai";
-import { SNPStandard, BOSPComponent, AccountCodes } from "../types";
+import { SNPStandard, BOSPComponent, AccountCodes, RaporIndicator, PBDRecommendation } from "../types";
 
 // Helper to safely get environment variables
 const getEnv = (key: string) => {
@@ -227,4 +227,60 @@ export const chatWithFinancialAdvisor = async (query: string, context: string) =
     console.error("Chat Error:", e);
     return "Maaf, saya tidak dapat memproses permintaan saat ini karena gangguan koneksi.";
   }
+}
+
+export const analyzeRaporQuality = async (indicators: RaporIndicator[], targetYear: string): Promise<PBDRecommendation[]> => {
+    if (!ai) return [];
+    
+    // Filter only indicators that need improvement (Kurang/Sedang)
+    const weakIndicators = indicators.filter(i => i.category === 'Kurang' || i.category === 'Sedang');
+    
+    if (weakIndicators.length === 0) return [];
+
+    try {
+        const response = await ai.models.generateContent({
+            model: 'gemini-3-flash-preview',
+            contents: `Context: Perencanaan Berbasis Data (PBD) sekolah di Indonesia. 
+            Goal: Menyusun RKAS untuk Tahun Anggaran ${targetYear} berdasarkan Rapor Pendidikan saat ini.
+            
+            Task: Berikan rekomendasi kegiatan RKAS (Benahi) untuk memperbaiki indikator Rapor Pendidikan yang lemah.
+            
+            Weak Indicators: ${JSON.stringify(weakIndicators)}
+            Available Account Codes: ${JSON.stringify(AccountCodes)}
+            Available BOSP Components: ${Object.values(BOSPComponent).join(', ')}
+
+            Rules:
+            1. Suggest specific, actionable activities valid for Fiscal Year ${targetYear}.
+            2. Match with valid Account Codes (Kode Rekening) provided.
+            3. Estimate logical costs for an average SD (adjusted for year ${targetYear}).
+            4. If score is very low (<50), Priority is 'Tinggi'.
+            
+            Return JSON Array.`,
+            config: {
+                responseMimeType: "application/json",
+                responseSchema: {
+                    type: Type.ARRAY,
+                    items: {
+                        type: Type.OBJECT,
+                        properties: {
+                            indicatorId: { type: Type.STRING },
+                            activityName: { type: Type.STRING },
+                            description: { type: Type.STRING },
+                            accountCode: { type: Type.STRING },
+                            bospComponent: { type: Type.STRING },
+                            snpStandard: { type: Type.STRING },
+                            estimatedCost: { type: Type.NUMBER },
+                            priority: { type: Type.STRING, enum: ['Tinggi', 'Sedang', 'Rendah'] }
+                        }
+                    }
+                }
+            }
+        });
+
+        const result = parseAIResponse(response.text);
+        return Array.isArray(result) ? result : [];
+    } catch (error) {
+        console.error("Gemini PBD Error:", error);
+        return [];
+    }
 }

@@ -177,3 +177,21 @@ export interface SummaryStats {
   balance: number;
   itemCount: number;
 }
+
+export interface RaporIndicator {
+    id: string;
+    label: string;
+    score: number;
+    category: 'Baik' | 'Sedang' | 'Kurang';
+}
+
+export interface PBDRecommendation {
+    indicatorId: string;
+    activityName: string;
+    description: string;
+    accountCode: string;
+    bospComponent: string;
+    snpStandard: string;
+    estimatedCost: number;
+    priority: 'Tinggi' | 'Sedang' | 'Rendah';
+}

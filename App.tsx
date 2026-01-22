@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { LayoutDashboard, Wallet, FileCheck, Settings as SettingsIcon, Menu, User, BookOpen, FileBarChart, Wifi, LogOut, Download, Share, PlusSquare, X, School } from 'lucide-react';
+import { LayoutDashboard, Wallet, FileCheck, Settings as SettingsIcon, Menu, User, BookOpen, FileBarChart, Wifi, LogOut, Download, Share, PlusSquare, X, School, TrendingUp } from 'lucide-react';
 import Dashboard from './components/Dashboard';
 import TransactionTable from './components/TransactionTable';
 import BudgetPlanning from './components/BudgetPlanning';
@@ -7,6 +7,7 @@ import SPJRealization from './components/SPJRealization';
 import Reports from './components/Reports';
 import Settings from './components/Settings';
 import ChatAssistant from './components/ChatAssistant';
+import RaporPendidikan from './components/RaporPendidikan';
 import Auth from './components/Auth';
 import { getBudgets, addBudget, updateBudget, deleteBudget, getSchoolProfile, checkDatabaseConnection } from './lib/db';
 import { supabase } from './lib/supabase'; // Import supabase client
@@ -23,7 +24,7 @@ function App() {
   const [isStandalone, setIsStandalone] = useState(false);
 
   // App State
-  const [activeTab, setActiveTab] = useState<'dashboard' | 'income' | 'planning' | 'spj' | 'reports' | 'settings'>('dashboard');
+  const [activeTab, setActiveTab] = useState<'dashboard' | 'income' | 'planning' | 'spj' | 'reports' | 'rapor' | 'settings'>('dashboard');
   const [isSidebarOpen, setSidebarOpen] = useState(true);
   const [data, setData] = useState<Budget[]>([]);
   const [schoolProfile, setSchoolProfile] = useState<SchoolProfile | null>(null);
@@ -240,6 +241,7 @@ function App() {
         <nav className="p-4 space-y-2 flex-1 overflow-y-auto">
           <div className="space-y-2">
             <NavItem id="dashboard" label="Dashboard" icon={LayoutDashboard} />
+            <NavItem id="rapor" label="Rapor Pendidikan" icon={TrendingUp} />
             <NavItem id="income" label="Pendapatan" icon={Wallet} />
             <NavItem id="planning" label="Penganggaran" icon={BookOpen} />
             <NavItem id="spj" label="Peng-SPJ-an" icon={FileCheck} />
@@ -328,6 +330,9 @@ function App() {
             ) : (
               <>
                 {activeTab === 'dashboard' && <Dashboard data={data} />}
+                {activeTab === 'rapor' && (
+                  <RaporPendidikan onAddBudget={handleAdd} />
+                )}
                 {activeTab === 'income' && (
                   <TransactionTable 
                     type={TransactionType.INCOME} 
