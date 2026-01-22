@@ -377,6 +377,17 @@ const BankWithdrawal: React.FC<BankWithdrawalProps> = ({ data, profile, onUpdate
   }
 
   // --- PDF GENERATORS LOGIC ---
+  
+  // Helper for City formatting
+  const getCityName = () => {
+      let c = profile?.city || '';
+      // Remove KOTA/KABUPATEN prefix case insensitive
+      c = c.replace(/^(KOTA|KABUPATEN)\.?\s*/i, '');
+      // Title Case
+      c = c.toLowerCase().replace(/(?:^|\s)\w/g, m => m.toUpperCase());
+      return c || 'Tempat';
+  };
+
   const generateHeader = (doc: jsPDF) => {
     if (profile?.headerImage) {
         doc.addImage(profile.headerImage, 'PNG', 15, 10, 25, 25);
@@ -416,15 +427,10 @@ const BankWithdrawal: React.FC<BankWithdrawalProps> = ({ data, profile, onUpdate
     doc.setFontSize(12);
     doc.text(`NOMOR : ${suratNo}`, 105, topMargin + 7, { align: 'center' });
     
-    // ... Content Logic ...
-    // Using profile?.bankName directly
     const bankName = profile?.bankName || 'BANK';
     const bankBranch = profile?.bankBranch || 'CABANG';
     const bankAddress = profile?.bankAddress || 'ALAMAT BANK';
     const accountNo = profile?.accountNo || '...';
-
-    // (Simplified rest of PDF generation using these variables similar to before but with profile props)
-    // ... [Content Generation Code same as previous but replacing state variables with profile props] ...
     
     const startY = topMargin + 15;
     doc.text("Yang bertanda tangan dibawah ini :", 20, startY);
@@ -478,10 +484,11 @@ const BankWithdrawal: React.FC<BankWithdrawalProps> = ({ data, profile, onUpdate
     const ttdY = closingY + (splitClosing.length * 6) + 10;
     const d = new Date(withdrawDate);
     const dateStr = `${d.getDate()} ${MONTHS[d.getMonth()]} ${d.getFullYear()}`;
-    const cityTitle = (profile?.city || 'KOTA').replace('KOTA ', '').replace('KABUPATEN ', '');
+    const cityTitle = getCityName();
     const dateLine = `${cityTitle}, ${dateStr}`;
     const col1X = 20; const col2X = 85; const col3X = 150;
     doc.text(dateLine, col3X, ttdY, { align: 'center' });
+    
     const titleY = ttdY + 6;
     doc.text("Yang diberi Kuasa", col1X + 15, titleY, { align: 'center' });
     doc.text(ksTitle, col2X, titleY, { align: 'center' });
@@ -541,16 +548,27 @@ const BankWithdrawal: React.FC<BankWithdrawalProps> = ({ data, profile, onUpdate
     doc.text(splitBody2, leftMargin, body2Y);
     const closingY = body2Y + (splitBody2.length * 5) + 5;
     doc.text('Demikian atas kerja sama yang baik sampaikan terima kasih.', leftMargin, closingY);
-    const signY = closingY + 20;
-    doc.setFont('times', 'bold');
-    doc.text(profile?.name || 'SEKOLAH', 105, signY, { align: 'center' });
+    
+    // Signature Block with Date
+    const signY = closingY + 10;
+    const d = new Date(withdrawDate);
+    const dateStr = `${d.getDate()} ${MONTHS[d.getMonth()]} ${d.getFullYear()}`;
+    const cityTitle = getCityName();
+    doc.text(`${cityTitle}, ${dateStr}`, 140, signY); // Add date line here
+    
     const titleY = signY + 6;
-    doc.setFont('times', 'normal');
     const leftColX = 60;
     const rightColX = 150;
-    doc.text(ksTitle, leftColX, titleY, { align: 'center' });
-    doc.text('Bendahara', rightColX, titleY, { align: 'center' });
-    const nameY = titleY + 30;
+    
+    doc.setFont('times', 'bold');
+    doc.text(profile?.name || 'SEKOLAH', 105, titleY, { align: 'center' });
+    
+    const jabatanY = titleY + 6;
+    doc.setFont('times', 'normal');
+    doc.text(ksTitle, leftColX, jabatanY, { align: 'center' });
+    doc.text('Bendahara', rightColX, jabatanY, { align: 'center' });
+    
+    const nameY = jabatanY + 30;
     doc.setFont('times', 'bold');
     doc.text(ksName, leftColX, nameY, { align: 'center' });
     const ksNameWidth = doc.getTextWidth(ksName);
@@ -558,9 +576,11 @@ const BankWithdrawal: React.FC<BankWithdrawalProps> = ({ data, profile, onUpdate
     doc.text(trName, rightColX, nameY, { align: 'center' });
     const trNameWidth = doc.getTextWidth(trName);
     doc.line(rightColX - (trNameWidth/2), nameY + 1, rightColX + (trNameWidth/2), nameY + 1);
+    
     doc.setFont('times', 'normal');
     doc.text(`NIP. ${ksNip}`, leftColX, nameY + 5, { align: 'center' });
     doc.text(`NIP. ${trNip}`, rightColX, nameY + 5, { align: 'center' });
+    
     return doc;
   };
 
@@ -657,6 +677,63 @@ const BankWithdrawal: React.FC<BankWithdrawalProps> = ({ data, profile, onUpdate
     doc.text(`NIP. ${trNip}`, col3, nameY + 5, { align: 'center' });
     return doc;
   };
+
+  // --- PREVIEW GENERATOR ---
+  useEffect(() => {
+    const generatePreview = () => {
+      // Clean up previous URL
+      if (pdfPreviewUrl) {
+        URL.revokeObjectURL(pdfPreviewUrl);
+      }
+
+      if (activeTab !== 'surat_kuasa' && activeTab !== 'pemindahbukuan') {
+        setPdfPreviewUrl(null);
+        return;
+      }
+
+      setIsPreviewLoading(true);
+      
+      // Debounce slightly to allow state to settle
+      const timeoutId = setTimeout(() => {
+        try {
+          let doc: jsPDF;
+          if (activeTab === 'surat_kuasa') {
+            doc = createSuratKuasaDoc();
+          } else {
+            doc = createPemindahbukuanDoc();
+          }
+          
+          const blob = doc.output('blob');
+          const url = URL.createObjectURL(blob);
+          setPdfPreviewUrl(url);
+        } catch (error) {
+          console.error("Preview generation failed", error);
+        } finally {
+          setIsPreviewLoading(false);
+        }
+      }, 500);
+
+      return () => clearTimeout(timeoutId);
+    };
+
+    // Run preview generation when relevant data changes
+    const cleanup = generatePreview();
+    
+    return () => {
+      if (typeof cleanup === 'function') cleanup();
+    };
+    
+  }, [
+    activeTab, 
+    suratNo, 
+    withdrawDate, 
+    ksName, ksTitle, ksNip, ksAddress, 
+    trName, trTitle, trNip, trAddress, 
+    selectedBudgetIds, 
+    monthlyRealizations, 
+    profile,
+    recipientDetails // Important: Re-generate if recipient details (names) change
+  ]);
 
   // CHANGED: Converted from Component inside Component to a Variable to prevent re-render focus loss
   const budgetTableContent = (
