@@ -27,12 +27,11 @@ export const isAiConfigured = () => !!apiKey;
 
 const ai = apiKey ? new GoogleGenAI({ apiKey }) : null;
 
-// Helper to robustly parse JSON from AI response (handles markdown code blocks)
+// Helper to robustly parse JSON from AI response
 const parseAIResponse = (text: string | undefined) => {
   if (!text) return null;
   try {
     let clean = text.trim();
-    // Remove markdown formatting if present (```json ... ```)
     if (clean.startsWith('```json')) {
       clean = clean.replace(/^```json\s*/, '').replace(/\s*```$/, '');
     } else if (clean.startsWith('```')) {
@@ -43,6 +42,49 @@ const parseAIResponse = (text: string | undefined) => {
     console.error("Failed to parse JSON from AI:", text);
     return null;
   }
+};
+
+// --- OPTIMIZATION: SMART FILTERING ---
+// Reduces payload size by only sending relevant account codes to AI
+const filterRelevantAccounts = (query: string, accounts: Record<string, string>): string => {
+  const queryLower = query.toLowerCase();
+  const queryWords = queryLower.split(/\s+/).filter(w => w.length > 2); // Ignore short words
+
+  // Score each account based on match relevance
+  const scored = Object.entries(accounts).map(([code, name]) => {
+      const nameLower = name.toLowerCase();
+      let score = 0;
+      
+      // Exact match bonus
+      if (nameLower.includes(queryLower)) score += 50;
+      
+      // Word match bonus
+      queryWords.forEach(word => {
+          if (nameLower.includes(word)) score += 10;
+      });
+
+      // Prefer standard codes slightly if scores match
+      // @ts-ignore
+      if (AccountCodes[code]) score += 1;
+
+      return { code, name, score };
+  });
+
+  // Filter items with score > 0, sort descending, take top 40 matches
+  let candidates = scored
+    .filter(s => s.score > 0)
+    .sort((a,b) => b.score - a.score)
+    .slice(0, 40);
+
+  // Fallback: If no matches found (e.g. typos), include a mix of common accounts
+  if (candidates.length === 0) {
+      candidates = Object.entries(AccountCodes)
+        .slice(0, 20)
+        .map(([code, name]) => ({ code, name, score: 0 }));
+  }
+
+  // Format as simple text list to save tokens
+  return candidates.map(c => `- ${c.code}: ${c.name}`).join('\n');
 };
 
 export const analyzeBudgetEntry = async (description: string, availableAccounts: Record<string, string> = AccountCodes): Promise<{ 
@@ -66,51 +108,33 @@ export const analyzeBudgetEntry = async (description: string, availableAccounts:
       unit_estimate: 'Paket',
       price_estimate: 0,
       realization_months_estimate: [1],
-      suggestion: "Fitur AI belum aktif. Masukkan API_KEY di pengaturan environment.",
+      suggestion: "Fitur AI belum aktif. Masukkan API_KEY.",
       is_eligible: true,
       warning: "AI Offline"
     };
   }
 
   try {
+    // Optimization: Filter accounts to avoid "Payload Too Large"
+    const relevantAccountsList = filterRelevantAccounts(description, availableAccounts);
+
     const response = await ai.models.generateContent({
       model: 'gemini-3-flash-preview',
       contents: `
-      Role: You are an expert Auditor for BOSP (Bantuan Operasional Satuan Pendidikan) in Indonesia.
+      Role: BOSP Auditor & Budget Planner (Indonesia).
+      Task: Validate input & Auto-fill budget details.
       
-      Context:
-      - Validating a budget plan entry for an Elementary School (SD) for Fiscal Year 2026.
-      - User Input: "${description}"
-      - Available Account Codes: ${JSON.stringify(availableAccounts)}
+      Input: "${description}"
       
-      JUKNIS BOSP RULES (Strictly Enforce):
-      1. PROHIBITED: Buying land, building new classrooms (only rehab/maintenance allowed), buying personal vehicles, investing shares, paying PNS/PPPK Salary (Honor only for Non-ASN registered in Dapodik), borrowing money, personal use items.
-      2. If the input violates any rule, set is_eligible = false and provide a strict warning.
-      3. If allowed, find the BEST matching Account Code.
+      Relevant Account Codes (Choose ONE best match):
+      ${relevantAccountsList}
       
-      Task:
-      1. Analyze the input description.
-      2. Determine Eligibility (is_eligible).
-      3. Auto-fill estimates based on standard Indonesian market prices (2026):
-         - quantity_estimate (Volume)
-         - unit_estimate (Satuan: e.g., Orang/Bulan, Paket, Rim, Unit, Kotak)
-         - price_estimate (Harga Satuan in IDR, e.g. Laptop ~7000000, ATK ~50000)
-         - realization_months_estimate (Array [1..12]. If recurring like Internet/Honor, use [1,2,3,4,5,6,7,8,9,10,11,12]. If purchase, pick likely month e.g. [2]).
-      4. Suggest a formal "Uraian Kegiatan" (suggestion).
+      Rules:
+      1. JUKNIS 2026: No land purchase, no personal vehicle, no PNS salary.
+      2. If forbidden, is_eligible=false.
+      3. Auto-fill estimates (Price IDR, Vol, Unit).
       
-      Output JSON Schema:
-      {
-        bosp_component: string (enum from BOSPComponent),
-        snp_standard: string (enum from SNPStandard),
-        account_code: string (key from Available Account Codes),
-        quantity_estimate: number,
-        unit_estimate: string,
-        price_estimate: number,
-        realization_months_estimate: number[],
-        suggestion: string,
-        is_eligible: boolean,
-        warning: string (Explanation if ineligible, or "Sesuai Juknis" if ok)
-      }`,
+      Return JSON only.`,
       config: {
         responseMimeType: "application/json",
         responseSchema: {
@@ -154,9 +178,9 @@ export const analyzeBudgetEntry = async (description: string, availableAccounts:
       unit_estimate: 'Paket',
       price_estimate: 0,
       realization_months_estimate: [1],
-      suggestion: "Terjadi kesalahan koneksi ke AI.",
+      suggestion: "Koneksi AI Gagal (Timeout/Limit).",
       is_eligible: true,
-      warning: "Connection Error"
+      warning: "Silakan isi manual."
     };
   }
 };
@@ -167,19 +191,10 @@ export const suggestEvidenceList = async (description: string, accountCode: stri
   try {
     const response = await ai.models.generateContent({
       model: 'gemini-3-flash-preview',
-      contents: `Context: Juknis BOSP 2026 for Elementary Schools (SD) in Indonesia.
-      Task: List the required physical evidence documents (Bukti Fisik SPJ) for the following expense transaction.
-      
-      CRITICAL RULE 1 (Goods/Assets):
-      If the expense is related to purchasing Goods, Equipment, Lights (Lampu), Electronics, or Maintenance Materials (Bahan), you MUST prioritize documents from **SIPLah** (Invoice, BAST). Even if the budget category is "Pemeliharaan/Maintenance", if the item is a physical good (like a bulb), it counts as a Goods Purchase.
-      
-      CRITICAL RULE 2 (Services):
-      Only recommend "SPK/Surat Perintah Kerja" or "Upah Tukang" if the description specifically mentions "Jasa", "Tukang", "Upah", or "Service".
-      
-      Expense Description: "${description}"
-      Account Code: "${accountCode}"
-      
-      Return ONLY a JSON array of strings. Example: ["Invoice SIPLah", "BAST Digital SIPLah", "Dokumentasi"].`,
+      contents: `Task: List physical evidence (Bukti Fisik SPJ) for BOSP 2026.
+      Expense: "${description}"
+      Code: "${accountCode}"
+      Return JSON Array of strings.`,
       config: {
         responseMimeType: "application/json",
         responseSchema: {
@@ -198,58 +213,35 @@ export const suggestEvidenceList = async (description: string, accountCode: stri
 };
 
 export const chatWithFinancialAdvisor = async (query: string, context: string) => {
-  if (!ai) return "Fitur AI belum aktif. Harap masukkan API Key (VITE_API_KEY) di pengaturan environment.";
+  if (!ai) return "Fitur AI belum aktif.";
 
   try {
     const response = await ai.models.generateContent({
       model: 'gemini-3-flash-preview',
-      contents: `You are an expert RKAS Consultant specializing in Juknis BOSP 2026 for Elementary Schools (SD).
-      
-      Context of current budget: ${context}
-      
-      User Question: ${query}
-      
-      Answer in formal but helpful Indonesian.`,
+      contents: `Role: Konsultan RKAS BOSP SD.
+      Context: ${context}
+      User: ${query}
+      Reply in Indonesian.`,
     });
     return response.text;
   } catch (e) {
     console.error("Chat Error:", e);
-    return "Maaf, saya tidak dapat memproses permintaan saat ini karena gangguan koneksi.";
+    return "Maaf, gangguan koneksi.";
   }
 }
 
 export const analyzeRaporQuality = async (indicators: RaporIndicator[], targetYear: string): Promise<PBDRecommendation[]> => {
     if (!ai) return [];
     
-    // Filter only indicators that need improvement (Kurang/Sedang)
     const weakIndicators = indicators.filter(i => i.category === 'Kurang' || i.category === 'Sedang');
-    
     if (weakIndicators.length === 0) return [];
 
     try {
         const response = await ai.models.generateContent({
             model: 'gemini-3-flash-preview',
-            contents: `Context: Perencanaan Berbasis Data (PBD) sekolah di Indonesia. 
-            Goal: Menyusun RKAS untuk Tahun Anggaran ${targetYear} berdasarkan Rapor Pendidikan saat ini.
-            
-            Task: Berikan rekomendasi kegiatan RKAS (Benahi) untuk memperbaiki indikator Rapor Pendidikan yang lemah.
-            
+            contents: `Task: Recommend RKAS activities (PBD) for weak indicators.
             Weak Indicators: ${JSON.stringify(weakIndicators)}
-            Available Account Codes: ${JSON.stringify(AccountCodes)}
-            Available BOSP Components: ${Object.values(BOSPComponent).join(', ')}
-
-            IMPORTANT: 
-            For each recommended activity, breakdown the budget into specific items (Rincian Anggaran).
-            Example: If activity is "Workshop", items might include "Honor Narasumber", "Snack", "ATK".
-            Assign the correct Account Code for EACH item.
-
-            Rules:
-            1. Suggest specific, actionable activities valid for Fiscal Year ${targetYear}.
-            2. Match with valid Account Codes (Kode Rekening) provided.
-            3. Estimate logical costs for an average SD (adjusted for year ${targetYear}).
-            4. If score is very low (<50), Priority is 'Tinggi'.
-            
-            Return JSON Array.`,
+            Return JSON Array with detailed budget items.`,
             config: {
                 responseMimeType: "application/json",
                 responseSchema: {
@@ -269,11 +261,11 @@ export const analyzeRaporQuality = async (indicators: RaporIndicator[], targetYe
                                 items: {
                                     type: Type.OBJECT,
                                     properties: {
-                                        name: { type: Type.STRING, description: "Item description, e.g. Honor Narasumber" },
+                                        name: { type: Type.STRING },
                                         quantity: { type: Type.NUMBER },
                                         unit: { type: Type.STRING },
                                         price: { type: Type.NUMBER },
-                                        accountCode: { type: Type.STRING, description: "Specific account code for this item" }
+                                        accountCode: { type: Type.STRING }
                                     }
                                 }
                             }
