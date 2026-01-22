@@ -249,6 +249,11 @@ export const analyzeRaporQuality = async (indicators: RaporIndicator[], targetYe
             Available Account Codes: ${JSON.stringify(AccountCodes)}
             Available BOSP Components: ${Object.values(BOSPComponent).join(', ')}
 
+            IMPORTANT: 
+            For each recommended activity, breakdown the budget into specific items (Rincian Anggaran).
+            Example: If activity is "Workshop", items might include "Honor Narasumber", "Snack", "ATK".
+            Assign the correct Account Code for EACH item.
+
             Rules:
             1. Suggest specific, actionable activities valid for Fiscal Year ${targetYear}.
             2. Match with valid Account Codes (Kode Rekening) provided.
@@ -266,11 +271,23 @@ export const analyzeRaporQuality = async (indicators: RaporIndicator[], targetYe
                             indicatorId: { type: Type.STRING },
                             activityName: { type: Type.STRING },
                             description: { type: Type.STRING },
-                            accountCode: { type: Type.STRING },
                             bospComponent: { type: Type.STRING },
                             snpStandard: { type: Type.STRING },
                             estimatedCost: { type: Type.NUMBER },
-                            priority: { type: Type.STRING, enum: ['Tinggi', 'Sedang', 'Rendah'] }
+                            priority: { type: Type.STRING, enum: ['Tinggi', 'Sedang', 'Rendah'] },
+                            items: {
+                                type: Type.ARRAY,
+                                items: {
+                                    type: Type.OBJECT,
+                                    properties: {
+                                        name: { type: Type.STRING, description: "Item description, e.g. Honor Narasumber" },
+                                        quantity: { type: Type.NUMBER },
+                                        unit: { type: Type.STRING },
+                                        price: { type: Type.NUMBER },
+                                        accountCode: { type: Type.STRING, description: "Specific account code for this item" }
+                                    }
+                                }
+                            }
                         }
                     }
                 }

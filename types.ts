@@ -185,13 +185,27 @@ export interface RaporIndicator {
     category: 'Baik' | 'Sedang' | 'Kurang';
 }
 
+export interface PBDBudgetItem {
+    name: string;
+    quantity: number;
+    unit: string;
+    price: number;
+    accountCode: string; // Specific code for this item
+}
+
 export interface PBDRecommendation {
     indicatorId: string;
     activityName: string;
     description: string;
-    accountCode: string;
+    
+    // Parent classification
     bospComponent: string;
     snpStandard: string;
+    
+    // Aggregated Data
     estimatedCost: number;
     priority: 'Tinggi' | 'Sedang' | 'Rendah';
+
+    // Detailed Breakdown
+    items: PBDBudgetItem[];
 }

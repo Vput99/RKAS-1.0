@@ -1,5 +1,5 @@
 import { supabase } from './supabase';
-import { Budget, TransactionType, SNPStandard, BOSPComponent, SchoolProfile, BankStatement } from '../types';
+import { Budget, TransactionType, SNPStandard, BOSPComponent, SchoolProfile, BankStatement, RaporIndicator } from '../types';
 
 // Mock data reflecting BOSP structure
 const MOCK_DATA: Budget[] = [
@@ -200,6 +200,58 @@ export const saveSchoolProfile = async (profile: SchoolProfile): Promise<SchoolP
   localStorage.setItem(SCHOOL_PROFILE_KEY, JSON.stringify(profile));
   return profile;
 };
+
+// --- Rapor Pendidikan Functions ---
+
+export const getRaporData = async (year: string): Promise<RaporIndicator[] | null> => {
+  if (supabase) {
+      const { data, error } = await supabase
+          .from('rapor_pendidikan')
+          .select('*')
+          .eq('year', year);
+      
+      if (error) {
+          console.error("Error fetching rapor:", error);
+          return null;
+      }
+      
+      if (data && data.length > 0) {
+          return data.map(item => ({
+              id: item.indicator_id,
+              label: item.label,
+              score: Number(item.score),
+              category: item.category
+          }));
+      }
+  }
+  return null;
+};
+
+export const saveRaporData = async (indicators: RaporIndicator[], year: string): Promise<boolean> => {
+    if (!supabase) return false;
+
+    const upsertData = indicators.map(ind => ({
+        year: year,
+        indicator_id: ind.id,
+        label: ind.label,
+        score: ind.score,
+        category: ind.category,
+        updated_at: new Date().toISOString() // Optional if column exists
+    }));
+
+    // Perform upsert based on (year, indicator_id) constraint
+    const { error } = await supabase
+        .from('rapor_pendidikan')
+        .upsert(upsertData, { onConflict: 'year, indicator_id' });
+
+    if (error) {
+        console.error("Error saving rapor:", error);
+        alert("Gagal menyimpan data rapor ke database: " + error.message);
+        return false;
+    }
+    return true;
+};
+
 
 // --- Bank Statement Functions ---
 
