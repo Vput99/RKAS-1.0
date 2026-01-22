@@ -1,7 +1,7 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import { Budget, TransactionType, SchoolProfile, TransferDetail, WithdrawalHistory } from '../types';
 import { FileText, Printer, Landmark, CheckSquare, Square, DollarSign, Calendar, User, CreditCard, Edit3, Eye, ExternalLink, List, X, Coins, Users, Save, Loader2, Archive, History, RefreshCcw, Trash2, Download, Filter, Settings, Info } from 'lucide-react';
-import jsPDF from 'jspdf';
+import { jsPDF } from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import { getWithdrawalHistory, saveWithdrawalHistory, deleteWithdrawalHistory, uploadWithdrawalFile } from '../lib/db';
 
@@ -381,6 +381,8 @@ const BankWithdrawal: React.FC<BankWithdrawalProps> = ({ data, profile, onUpdate
   // Helper for City formatting
   const getCityName = () => {
       let c = profile?.city || '';
+      if (!c) return 'Tempat';
+      
       // Remove KOTA/KABUPATEN prefix case insensitive
       c = c.replace(/^(KOTA|KABUPATEN)\.?\s*/i, '');
       // Title Case
@@ -390,7 +392,11 @@ const BankWithdrawal: React.FC<BankWithdrawalProps> = ({ data, profile, onUpdate
 
   const generateHeader = (doc: jsPDF) => {
     if (profile?.headerImage) {
-        doc.addImage(profile.headerImage, 'PNG', 15, 10, 25, 25);
+        try {
+            doc.addImage(profile.headerImage, 'PNG', 15, 10, 25, 25);
+        } catch (e) {
+            console.warn("Failed to add header image", e);
+        }
     }
     doc.setFont('times', 'normal');
     doc.setFontSize(12);
