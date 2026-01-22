@@ -1,6 +1,6 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import { Budget, TransactionType, SchoolProfile, TransferDetail, WithdrawalHistory } from '../types';
-import { FileText, Printer, Landmark, CheckSquare, Square, DollarSign, Calendar, User, CreditCard, Edit3, Upload, Image as ImageIcon, Eye, RefreshCw, ExternalLink, List, X, Coins, Users, Save, Loader2, Archive, History, RefreshCcw, Trash2 } from 'lucide-react';
+import { FileText, Printer, Landmark, CheckSquare, Square, DollarSign, Calendar, User, CreditCard, Edit3, Upload, Image as ImageIcon, Eye, ExternalLink, List, X, Coins, Users, Save, Loader2, Archive, History, RefreshCcw, Trash2 } from 'lucide-react';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import { getWithdrawalHistory, saveWithdrawalHistory, deleteWithdrawalHistory } from '../lib/db';
@@ -225,48 +225,79 @@ const BankWithdrawal: React.FC<BankWithdrawalProps> = ({ data, profile, onUpdate
       setBulkAccount('');
   };
 
-  // --- ARCHIVE / SAVE FUNCTION ---
+  // --- CORE ARCHIVE LOGIC (Reusable) ---
+  const performArchiving = async () => {
+      // 1. Update Recipient Details in Budget Items (Persistence)
+      const idsToUpdate = Object.keys(recipientDetails).filter(id => selectedBudgetIds.includes(id));
+      const updatePromises = idsToUpdate.map(id => {
+          return onUpdate(id, { transfer_details: recipientDetails[id] });
+      });
+      await Promise.all(updatePromises);
+
+      // 2. Create History Record (Snapshot)
+      const snapshot = {
+          selectedIds: selectedBudgetIds,
+          recipientDetails: recipientDetails,
+          ksName, ksTitle, ksNip,
+          trName, trTitle, trNip
+      };
+
+      await saveWithdrawalHistory({
+          letter_number: suratNo,
+          letter_date: withdrawDate,
+          bank_name: bankName,
+          bank_branch: bankBranch,
+          total_amount: totalSelectedAmount,
+          item_count: selectedBudgetIds.length,
+          snapshot_data: snapshot,
+          notes: `Pencairan ${formatRupiah(totalSelectedAmount)}`
+      });
+  };
+
+  // --- HANDLERS ---
   const handleArchiveData = async () => {
       if (selectedBudgetIds.length === 0) {
           alert("Pilih minimal satu item anggaran untuk diarsipkan.");
           return;
       }
       
-      if (!confirm("Simpan data ini ke Riwayat Pencairan?\nPastikan data penerima sudah benar.")) return;
+      if (!confirm("Simpan data ini ke Riwayat Pencairan?")) return;
 
       setIsSaving(true);
       try {
-          // 1. Update Recipient Details in Budget Items (Persistence)
-          const idsToUpdate = Object.keys(recipientDetails).filter(id => selectedBudgetIds.includes(id));
-          const updatePromises = idsToUpdate.map(id => {
-              return onUpdate(id, { transfer_details: recipientDetails[id] });
-          });
-          await Promise.all(updatePromises);
-
-          // 2. Create History Record (Snapshot)
-          const snapshot = {
-              selectedIds: selectedBudgetIds,
-              recipientDetails: recipientDetails,
-              ksName, ksTitle, ksNip,
-              trName, trTitle, trNip
-          };
-
-          await saveWithdrawalHistory({
-              letter_number: suratNo,
-              letter_date: withdrawDate,
-              bank_name: bankName,
-              bank_branch: bankBranch,
-              total_amount: totalSelectedAmount,
-              item_count: selectedBudgetIds.length,
-              snapshot_data: snapshot,
-              notes: `Pencairan ${formatRupiah(totalSelectedAmount)}`
-          });
-
+          await performArchiving();
           alert("Berhasil diarsipkan! Cek tab Riwayat.");
           setActiveTab('riwayat');
       } catch (error) {
           console.error("Archive failed", error);
           alert("Gagal mengarsipkan data.");
+      } finally {
+          setIsSaving(false);
+      }
+  };
+
+  const handlePrintAndArchive = async () => {
+      if (selectedBudgetIds.length === 0) {
+          alert("Pilih item yang akan dicetak dan dicairkan.");
+          return;
+      }
+
+      if (!confirm("Cetak dokumen dan Simpan ke Riwayat?\n\nData yang dicetak akan otomatis diarsipkan agar bisa dibuka kembali nanti.")) return;
+
+      setIsSaving(true);
+      try {
+          // 1. Archive First
+          await performArchiving();
+          
+          // 2. Generate PDF
+          generateRincian(); 
+
+          // 3. Switch Tab
+          setActiveTab('riwayat');
+      } catch (error) {
+          console.error("Print/Archive failed", error);
+          alert("Gagal menyimpan riwayat, namun proses cetak akan dilanjutkan.");
+          generateRincian(); // Fallback print even if archive fails
       } finally {
           setIsSaving(false);
       }
@@ -370,7 +401,7 @@ const BankWithdrawal: React.FC<BankWithdrawalProps> = ({ data, profile, onUpdate
   const createSuratKuasaDoc = () => {
     const doc = new jsPDF();
     generateHeader(doc);
-    
+    // ... same as before ...
     // Gunakan Data yang sudah dikelompokkan
     const groupedData = getGroupedData();
     const uniqueRecipientCount = groupedData.length;
@@ -429,7 +460,6 @@ const BankWithdrawal: React.FC<BankWithdrawalProps> = ({ data, profile, onUpdate
     const contentY = khususY + 8;
     doc.setFont('times', 'normal');
     
-    // UPDATE: Gunakan uniqueRecipientCount untuk jumlah rekening
     const itemCountText = getTerbilang(uniqueRecipientCount);
     const nominalFormatted = formatRupiah(totalSelectedAmount).replace(',00', '').replace('Rp', 'Rp ');
     const nominalTerbilang = getTerbilang(totalSelectedAmount);
@@ -954,13 +984,14 @@ const BankWithdrawal: React.FC<BankWithdrawalProps> = ({ data, profile, onUpdate
                                <button 
                                     onClick={handleArchiveData} 
                                     disabled={isSaving}
-                                    className="bg-indigo-600 hover:bg-indigo-700 text-white px-3 py-1.5 rounded text-xs font-bold flex items-center gap-2 transition disabled:opacity-50"
+                                    className="bg-gray-100 hover:bg-gray-200 text-gray-600 px-3 py-1.5 rounded text-xs font-bold flex items-center gap-2 transition disabled:opacity-50"
+                                    title="Simpan tanpa mencetak"
                                 >
                                     {isSaving ? <Loader2 size={14} className="animate-spin" /> : <Archive size={14} />} 
-                                    Arsipkan Pencairan
+                                    Simpan Draft Arsip
                                 </button>
-                               <button onClick={generateRincian} disabled={totalSelectedAmount === 0} className="bg-white border border-blue-600 text-blue-600 hover:bg-blue-50 px-3 py-1.5 rounded text-xs font-bold flex items-center gap-2 transition disabled:opacity-50">
-                                  <Printer size={14} /> Cetak Lampiran Transfer
+                               <button onClick={handlePrintAndArchive} disabled={totalSelectedAmount === 0} className="bg-white border border-blue-600 text-blue-600 hover:bg-blue-50 px-3 py-1.5 rounded text-xs font-bold flex items-center gap-2 transition disabled:opacity-50">
+                                  <Printer size={14} /> Cetak Lampiran & Simpan
                                </button>
                            </div>
                         </div>
@@ -1101,10 +1132,10 @@ const BankWithdrawal: React.FC<BankWithdrawalProps> = ({ data, profile, onUpdate
                                 </button>
 
                                 <button 
-                                    onClick={generateRincian} 
+                                    onClick={handlePrintAndArchive} 
                                     className="w-full bg-white border border-blue-600 text-blue-600 hover:bg-blue-50 px-6 py-2 rounded-lg font-bold flex items-center justify-center gap-2 transition"
                                 >
-                                    <List size={18} /> Cetak Lampiran Transfer
+                                    <List size={18} /> Cetak Lampiran Transfer & Simpan
                                 </button>
                             </div>
                         </div>
