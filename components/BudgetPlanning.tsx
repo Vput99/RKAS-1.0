@@ -1,6 +1,7 @@
 import React, { useState, useMemo } from 'react';
 import { Budget, TransactionType, BOSPComponent, SNPStandard, AccountCodes } from '../types';
-import { Plus, Search, Edit2, Trash2, X, Save, Calculator, Calendar } from 'lucide-react';
+import { Plus, Search, Edit2, Trash2, X, Save, Calculator, Calendar, Sparkles, Loader2, AlertTriangle, CheckCircle, Filter } from 'lucide-react';
+import { analyzeBudgetEntry } from '../lib/gemini';
 
 interface BudgetPlanningProps {
   data: Budget[];
@@ -16,8 +17,12 @@ const MONTHS = [
 
 const BudgetPlanning: React.FC<BudgetPlanningProps> = ({ data, onAdd, onUpdate, onDelete }) => {
   const [isModalOpen, setIsModalOpen] = useState(false);
-  const [searchTerm, setSearchTerm] = useState('');
   const [editingId, setEditingId] = useState<string | null>(null);
+
+  // Filter State
+  const [searchTerm, setSearchTerm] = useState('');
+  const [filterMonth, setFilterMonth] = useState<number | ''>('');
+  const [filterAccount, setFilterAccount] = useState<string>('');
 
   // Form State
   const [description, setDescription] = useState('');
@@ -29,12 +34,23 @@ const BudgetPlanning: React.FC<BudgetPlanningProps> = ({ data, onAdd, onUpdate, 
   const [unitPrice, setUnitPrice] = useState<number>(0);
   const [selectedMonths, setSelectedMonths] = useState<number[]>([]);
 
-  // Derived State
+  // AI State
+  const [isAnalyzing, setIsAnalyzing] = useState(false);
+  const [aiWarning, setAiWarning] = useState<string>('');
+  const [isEligible, setIsEligible] = useState<boolean | null>(null);
+
+  // Derived State (Filtering Logic)
   const expenses = useMemo(() => {
     return data
       .filter(d => d.type === TransactionType.EXPENSE)
-      .filter(d => d.description.toLowerCase().includes(searchTerm.toLowerCase()));
-  }, [data, searchTerm]);
+      .filter(d => {
+         const matchSearch = d.description.toLowerCase().includes(searchTerm.toLowerCase());
+         const matchMonth = filterMonth !== '' ? d.realization_months?.includes(Number(filterMonth)) : true;
+         const matchAccount = filterAccount !== '' ? d.account_code === filterAccount : true;
+         
+         return matchSearch && matchMonth && matchAccount;
+      });
+  }, [data, searchTerm, filterMonth, filterAccount]);
 
   const totalBudget = useMemo(() => {
     return expenses.reduce((acc, curr) => acc + curr.amount, 0);
@@ -50,6 +66,8 @@ const BudgetPlanning: React.FC<BudgetPlanningProps> = ({ data, onAdd, onUpdate, 
     setUnit('');
     setUnitPrice(0);
     setSelectedMonths([]);
+    setAiWarning('');
+    setIsEligible(null);
   };
 
   const handleOpenAdd = () => {
@@ -67,7 +85,43 @@ const BudgetPlanning: React.FC<BudgetPlanningProps> = ({ data, onAdd, onUpdate, 
     setUnit(item.unit || 'Paket');
     setUnitPrice(item.unit_price || item.amount);
     setSelectedMonths(item.realization_months || []);
+    setAiWarning(item.warning_message || '');
+    setIsEligible(item.is_bosp_eligible !== undefined ? item.is_bosp_eligible : null);
     setIsModalOpen(true);
+  };
+
+  // AI Helper Function
+  const handleAIAnalysis = async () => {
+    if (!description || description.length < 3) return;
+    setIsAnalyzing(true);
+    setAiWarning('');
+    setIsEligible(null);
+
+    const result = await analyzeBudgetEntry(description);
+    
+    if (result) {
+      setBospComponent(result.bosp_component);
+      setSnpStandard(result.snp_standard);
+      setAccountCode(result.account_code);
+      setIsEligible(result.is_eligible);
+      setAiWarning(result.warning);
+      
+      // Auto-fill estimates
+      if (quantity === 0) setQuantity(result.quantity_estimate);
+      if (!unit) setUnit(result.unit_estimate);
+      if (unitPrice === 0) setUnitPrice(result.price_estimate);
+      
+      // Suggest months if not selected
+      if (selectedMonths.length === 0 && result.realization_months_estimate) {
+         setSelectedMonths(result.realization_months_estimate);
+      }
+
+      if (result.suggestion && result.suggestion !== description) {
+         // Optional: update description to be more formal? 
+         // For now, let's keep user input but maybe show suggestion in tooltip
+      }
+    }
+    setIsAnalyzing(false);
   };
 
   const handleSubmit = (e: React.FormEvent) => {
@@ -86,6 +140,8 @@ const BudgetPlanning: React.FC<BudgetPlanningProps> = ({ data, onAdd, onUpdate, 
       amount: totalAmount,
       realization_months: selectedMonths,
       status: 'draft' as const,
+      is_bosp_eligible: isEligible === null ? true : isEligible,
+      warning_message: aiWarning,
       date: new Date().toISOString() // Or keep original date on edit? usually updated_at
     };
 
@@ -108,13 +164,42 @@ const BudgetPlanning: React.FC<BudgetPlanningProps> = ({ data, onAdd, onUpdate, 
   };
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 animate-fade-in">
       <div className="flex flex-col md:flex-row justify-between items-end gap-4">
         <div>
           <h2 className="text-xl font-bold text-gray-800">Perencanaan Anggaran (RKAS)</h2>
           <p className="text-sm text-gray-500">Susun rencana belanja sekolah selama satu tahun anggaran.</p>
         </div>
-        <div className="flex gap-2 w-full md:w-auto">
+        <div className="flex flex-col sm:flex-row gap-2 w-full md:w-auto">
+           {/* Filters */}
+           <div className="flex gap-2">
+              <div className="relative">
+                 <select
+                    value={filterMonth}
+                    onChange={(e) => setFilterMonth(e.target.value ? Number(e.target.value) : '')}
+                    className="pl-3 pr-8 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 appearance-none bg-white cursor-pointer"
+                 >
+                    <option value="">Semua Bulan</option>
+                    {MONTHS.map((m, i) => <option key={i} value={i+1}>{m}</option>)}
+                 </select>
+                 <Filter size={14} className="absolute right-2 top-3 text-gray-400 pointer-events-none" />
+              </div>
+
+              <div className="relative max-w-[150px] sm:max-w-[200px]">
+                 <select
+                    value={filterAccount}
+                    onChange={(e) => setFilterAccount(e.target.value)}
+                    className="w-full pl-3 pr-8 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 appearance-none bg-white cursor-pointer truncate"
+                 >
+                    <option value="">Semua Rekening</option>
+                    {Object.entries(AccountCodes).map(([code, name]) => (
+                        <option key={code} value={code}>{code} - {name}</option>
+                    ))}
+                 </select>
+                 <Filter size={14} className="absolute right-2 top-3 text-gray-400 pointer-events-none" />
+              </div>
+           </div>
+
            <div className="relative flex-1 md:flex-none">
               <Search className="absolute left-3 top-2.5 text-gray-400" size={18} />
               <input 
@@ -125,9 +210,10 @@ const BudgetPlanning: React.FC<BudgetPlanningProps> = ({ data, onAdd, onUpdate, 
                 className="pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 w-full"
               />
            </div>
+           
            <button 
              onClick={handleOpenAdd}
-             className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg flex items-center gap-2 font-medium transition"
+             className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg flex items-center gap-2 font-medium transition shadow-sm whitespace-nowrap"
            >
              <Plus size={18} /> Tambah
            </button>
@@ -136,7 +222,7 @@ const BudgetPlanning: React.FC<BudgetPlanningProps> = ({ data, onAdd, onUpdate, 
 
       <div className="bg-blue-50 border border-blue-100 p-4 rounded-xl flex justify-between items-center">
          <div>
-            <p className="text-xs text-blue-600 font-bold uppercase">Total Rencana Belanja</p>
+            <p className="text-xs text-blue-600 font-bold uppercase">Total Rencana Belanja (Filtered)</p>
             <p className="text-2xl font-bold text-blue-900">{formatRupiah(totalBudget)}</p>
          </div>
          <Calculator className="text-blue-300" size={40} />
@@ -158,7 +244,7 @@ const BudgetPlanning: React.FC<BudgetPlanningProps> = ({ data, onAdd, onUpdate, 
                </thead>
                <tbody className="divide-y divide-gray-100">
                   {expenses.length === 0 ? (
-                     <tr><td colSpan={7} className="text-center py-8 text-gray-400">Belum ada data perencanaan.</td></tr>
+                     <tr><td colSpan={7} className="text-center py-8 text-gray-400">Tidak ada data perencanaan yang cocok dengan filter.</td></tr>
                   ) : (
                      expenses.map(item => (
                         <tr key={item.id} className="hover:bg-gray-50">
@@ -166,13 +252,18 @@ const BudgetPlanning: React.FC<BudgetPlanningProps> = ({ data, onAdd, onUpdate, 
                            <td className="px-4 py-3">
                               <div className="font-medium text-gray-800">{item.description}</div>
                               <div className="text-xs text-gray-400">{item.category}</div>
+                              {item.warning_message && (
+                                <div className="text-[10px] text-red-500 flex items-center gap-1 mt-1">
+                                   <AlertTriangle size={10} /> {item.warning_message}
+                                </div>
+                              )}
                            </td>
                            <td className="px-4 py-3 text-right">{item.quantity} {item.unit}</td>
                            <td className="px-4 py-3 text-right">{formatRupiah(item.unit_price || 0)}</td>
                            <td className="px-4 py-3 text-right font-bold text-gray-800">{formatRupiah(item.amount)}</td>
                            <td className="px-4 py-3 text-center">
                               <div className="flex flex-wrap gap-1 justify-center max-w-[150px] mx-auto">
-                                 {item.realization_months?.map(m => (
+                                 {item.realization_months?.sort((a,b)=>a-b).map(m => (
                                     <span key={m} className="text-[10px] bg-blue-100 text-blue-700 px-1 rounded">
                                        {MONTHS[m-1]}
                                     </span>
@@ -202,16 +293,52 @@ const BudgetPlanning: React.FC<BudgetPlanningProps> = ({ data, onAdd, onUpdate, 
                </div>
                
                <form onSubmit={handleSubmit} className="p-6 space-y-4">
-                  <div>
-                     <label className="block text-sm font-medium text-gray-700 mb-1">Uraian Kegiatan</label>
-                     <textarea 
-                        required
-                        className="w-full border border-gray-300 rounded-lg p-2 focus:ring-2 focus:ring-blue-500 outline-none"
-                        rows={2}
-                        value={description}
-                        onChange={e => setDescription(e.target.value)}
-                        placeholder="Contoh: Belanja Alat Tulis Kantor untuk KBM"
-                     />
+                  
+                  {/* AI Assistant Section */}
+                  <div className="bg-gradient-to-r from-blue-50 to-indigo-50 p-4 rounded-lg border border-blue-100">
+                     <div className="flex items-start gap-3">
+                        <Sparkles className="text-blue-600 mt-1 flex-shrink-0" size={20} />
+                        <div className="w-full">
+                           <p className="text-sm text-blue-900 mb-1 font-bold">Asisten AI RKAS</p>
+                           <p className="text-xs text-blue-700 mb-3">
+                              Ketik rencana kegiatan, AI akan mengisi kode rekening dan komponen yang sesuai otomatis.
+                           </p>
+                           <div className="flex gap-2">
+                              <textarea 
+                                 required
+                                 className="flex-1 text-sm border border-blue-200 rounded-lg p-2 focus:ring-2 focus:ring-blue-400 outline-none resize-none"
+                                 rows={2}
+                                 value={description}
+                                 onChange={e => setDescription(e.target.value)}
+                                 placeholder="Contoh: Belanja Alat Tulis Kantor untuk KBM selama 1 tahun"
+                              />
+                           </div>
+                           <div className="flex justify-end mt-2">
+                              <button 
+                                 type="button" 
+                                 onClick={handleAIAnalysis}
+                                 disabled={isAnalyzing || !description}
+                                 className="text-xs bg-blue-600 text-white px-3 py-1.5 rounded hover:bg-blue-700 transition flex items-center gap-2 disabled:opacity-50"
+                              >
+                                 {isAnalyzing ? <Loader2 size={14} className="animate-spin" /> : <Sparkles size={14} />}
+                                 Isi Otomatis / Cek Juknis
+                              </button>
+                           </div>
+                           
+                           {/* Validation Result */}
+                           {isEligible === true && (
+                              <div className="mt-3 text-xs text-green-700 flex items-center gap-1 bg-green-50 p-2 rounded border border-green-100">
+                                 <CheckCircle size={14} /> Kegiatan sesuai Juknis BOSP.
+                              </div>
+                           )}
+                           {isEligible === false && (
+                              <div className="mt-3 text-xs text-red-700 flex items-start gap-1 bg-red-50 p-2 rounded border border-red-100">
+                                 <AlertTriangle size={14} className="mt-0.5 flex-shrink-0" /> 
+                                 <span><b>Peringatan:</b> {aiWarning}</span>
+                              </div>
+                           )}
+                        </div>
+                     </div>
                   </div>
 
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -311,7 +438,11 @@ const BudgetPlanning: React.FC<BudgetPlanningProps> = ({ data, onAdd, onUpdate, 
 
                   <div className="pt-4 flex gap-3">
                      <button type="button" onClick={() => setIsModalOpen(false)} className="flex-1 py-2 text-gray-600 border border-gray-300 rounded-lg hover:bg-gray-50">Batal</button>
-                     <button type="submit" className="flex-1 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 font-bold flex items-center justify-center gap-2">
+                     <button 
+                        type="submit" 
+                        disabled={isEligible === false}
+                        className={`flex-1 py-2 text-white rounded-lg font-bold flex items-center justify-center gap-2 ${isEligible === false ? 'bg-gray-400 cursor-not-allowed' : 'bg-blue-600 hover:bg-blue-700'}`}
+                     >
                         <Save size={18} /> Simpan
                      </button>
                   </div>
