@@ -361,6 +361,35 @@ export const getWithdrawalHistory = async (): Promise<WithdrawalHistory[]> => {
     return local ? JSON.parse(local) : [];
 };
 
+export const uploadWithdrawalFile = async (fileBlob: Blob, fileName: string): Promise<{ url: string | null, path: string | null }> => {
+    if (!supabase) return { url: null, path: null };
+
+    const filePath = `withdrawal_docs/${Date.now()}_${fileName}`;
+
+    try {
+        const { error: uploadError } = await supabase.storage
+            .from('rkas_storage')
+            .upload(filePath, fileBlob, {
+                contentType: 'application/pdf',
+                upsert: true
+            });
+
+        if (uploadError) {
+            console.error('Upload withdrawal file error:', uploadError);
+            return { url: null, path: null };
+        }
+
+        const { data } = supabase.storage
+            .from('rkas_storage')
+            .getPublicUrl(filePath);
+
+        return { url: data.publicUrl, path: filePath };
+    } catch (error) {
+        console.error("Error uploading withdrawal file:", error);
+        return { url: null, path: null };
+    }
+};
+
 export const saveWithdrawalHistory = async (history: Omit<WithdrawalHistory, 'id' | 'created_at'>): Promise<WithdrawalHistory | null> => {
     const newItem = { ...history, id: crypto.randomUUID(), created_at: new Date().toISOString() };
     
@@ -382,12 +411,22 @@ export const saveWithdrawalHistory = async (history: Omit<WithdrawalHistory, 'id
 };
 
 export const deleteWithdrawalHistory = async (id: string): Promise<boolean> => {
+    const current = await getWithdrawalHistory();
+    const itemToDelete = current.find(h => h.id === id);
+
     if (supabase) {
+        // Delete file first if exists
+        if (itemToDelete && itemToDelete.file_path) {
+            try {
+                await supabase.storage.from('rkas_storage').remove([itemToDelete.file_path]);
+            } catch(e) { console.error("Error deleting withdrawal file", e); }
+        }
+
         const { error } = await supabase.from('withdrawal_history').delete().eq('id', id);
         if (error) return false;
         return true;
     }
-    const current = await getWithdrawalHistory();
+
     const updated = current.filter(h => h.id !== id);
     localStorage.setItem(HISTORY_KEY, JSON.stringify(updated));
     return true;

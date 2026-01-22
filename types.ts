@@ -235,4 +235,6 @@ export interface WithdrawalHistory {
     item_count: number;
     snapshot_data: any; // Contains recipients, ids, personnel names
     notes?: string;
+    file_url?: string;
+    file_path?: string;
 }

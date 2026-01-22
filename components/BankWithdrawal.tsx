@@ -1,9 +1,9 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import { Budget, TransactionType, SchoolProfile, TransferDetail, WithdrawalHistory } from '../types';
-import { FileText, Printer, Landmark, CheckSquare, Square, DollarSign, Calendar, User, CreditCard, Edit3, Upload, Image as ImageIcon, Eye, ExternalLink, List, X, Coins, Users, Save, Loader2, Archive, History, RefreshCcw, Trash2 } from 'lucide-react';
+import { FileText, Printer, Landmark, CheckSquare, Square, DollarSign, Calendar, User, CreditCard, Edit3, Upload, Image as ImageIcon, Eye, ExternalLink, List, X, Coins, Users, Save, Loader2, Archive, History, RefreshCcw, Trash2, Download } from 'lucide-react';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
-import { getWithdrawalHistory, saveWithdrawalHistory, deleteWithdrawalHistory } from '../lib/db';
+import { getWithdrawalHistory, saveWithdrawalHistory, deleteWithdrawalHistory, uploadWithdrawalFile } from '../lib/db';
 
 interface BankWithdrawalProps {
   data: Budget[];
@@ -226,7 +226,7 @@ const BankWithdrawal: React.FC<BankWithdrawalProps> = ({ data, profile, onUpdate
   };
 
   // --- CORE ARCHIVE LOGIC (Reusable) ---
-  const performArchiving = async () => {
+  const performArchiving = async (fileBlob?: Blob, fileName?: string) => {
       // 1. Update Recipient Details in Budget Items (Persistence)
       const idsToUpdate = Object.keys(recipientDetails).filter(id => selectedBudgetIds.includes(id));
       const updatePromises = idsToUpdate.map(id => {
@@ -234,7 +234,16 @@ const BankWithdrawal: React.FC<BankWithdrawalProps> = ({ data, profile, onUpdate
       });
       await Promise.all(updatePromises);
 
-      // 2. Create History Record (Snapshot)
+      // 2. Upload File (If exists)
+      let uploadedUrl = null;
+      let uploadedPath = null;
+      if (fileBlob && fileName) {
+          const uploadResult = await uploadWithdrawalFile(fileBlob, fileName);
+          uploadedUrl = uploadResult.url;
+          uploadedPath = uploadResult.path;
+      }
+
+      // 3. Create History Record (Snapshot)
       const snapshot = {
           selectedIds: selectedBudgetIds,
           recipientDetails: recipientDetails,
@@ -250,7 +259,9 @@ const BankWithdrawal: React.FC<BankWithdrawalProps> = ({ data, profile, onUpdate
           total_amount: totalSelectedAmount,
           item_count: selectedBudgetIds.length,
           snapshot_data: snapshot,
-          notes: `Pencairan ${formatRupiah(totalSelectedAmount)}`
+          notes: `Pencairan ${formatRupiah(totalSelectedAmount)}`,
+          file_url: uploadedUrl || undefined,
+          file_path: uploadedPath || undefined
       });
   };
 
@@ -282,22 +293,27 @@ const BankWithdrawal: React.FC<BankWithdrawalProps> = ({ data, profile, onUpdate
           return;
       }
 
-      if (!confirm("Cetak dokumen dan Simpan ke Riwayat?\n\nData yang dicetak akan otomatis diarsipkan agar bisa dibuka kembali nanti.")) return;
+      if (!confirm("Cetak dokumen dan Simpan ke Riwayat?\n\nData yang dicetak akan otomatis diarsipkan (beserta file PDF) agar bisa dibuka kembali nanti.")) return;
 
       setIsSaving(true);
       try {
-          // 1. Archive First
-          await performArchiving();
-          
-          // 2. Generate PDF
-          generateRincian(); 
+          // 1. Generate PDF Blob
+          const doc = createRincianDoc();
+          const pdfBlob = doc.output('blob');
+          const fileName = `Rincian_Transfer_${new Date().getTime()}.pdf`;
 
-          // 3. Switch Tab
+          // 2. Archive (Upload + Save DB)
+          await performArchiving(pdfBlob, fileName);
+          
+          // 3. Download Locally
+          doc.save('Daftar_Rincian_Transfer.pdf');
+
+          // 4. Switch Tab
           setActiveTab('riwayat');
       } catch (error) {
           console.error("Print/Archive failed", error);
-          alert("Gagal menyimpan riwayat, namun proses cetak akan dilanjutkan.");
-          generateRincian(); // Fallback print even if archive fails
+          alert("Gagal menyimpan riwayat/upload file, namun proses download akan dilanjutkan.");
+          createRincianDoc().save('Daftar_Rincian_Transfer.pdf'); // Fallback download
       } finally {
           setIsSaving(false);
       }
@@ -328,7 +344,7 @@ const BankWithdrawal: React.FC<BankWithdrawalProps> = ({ data, profile, onUpdate
               if (snap.trName) setTrName(snap.trName);
           }
 
-          setActiveTab('surat_kuasa');
+          setActiveTab('rincian'); // Switch to Rincian first to see data
       } catch (e) {
           console.error("Restore failed", e);
           alert("Gagal memulihkan data. Format history mungkin usang.");
@@ -336,7 +352,7 @@ const BankWithdrawal: React.FC<BankWithdrawalProps> = ({ data, profile, onUpdate
   };
 
   const handleDeleteHistory = async (id: string) => {
-      if(!confirm("Hapus riwayat ini? Data tidak bisa dikembalikan.")) return;
+      if(!confirm("Hapus riwayat ini? Data (dan file PDF tersimpan) tidak bisa dikembalikan.")) return;
       await deleteWithdrawalHistory(id);
       loadHistory();
   };
@@ -405,7 +421,7 @@ const BankWithdrawal: React.FC<BankWithdrawalProps> = ({ data, profile, onUpdate
     // Gunakan Data yang sudah dikelompokkan
     const groupedData = getGroupedData();
     const uniqueRecipientCount = groupedData.length;
-
+    // ... rest of logic ...
     const topMargin = 55;
     doc.setFont('times', 'bold');
     doc.setFontSize(12);
@@ -558,7 +574,7 @@ const BankWithdrawal: React.FC<BankWithdrawalProps> = ({ data, profile, onUpdate
     return doc;
   };
 
-  const generateRincian = () => {
+  const createRincianDoc = () => {
     const doc = new jsPDF({ orientation: 'landscape' });
     doc.setFontSize(12);
     doc.setFont('helvetica', 'bold');
@@ -694,6 +710,11 @@ const BankWithdrawal: React.FC<BankWithdrawalProps> = ({ data, profile, onUpdate
     doc.setFont('helvetica', 'normal');
     doc.text(`NIP. ${ksNip}`, col1, nameY + 5, { align: 'center' });
     doc.text(`NIP. ${trNip}`, col3, nameY + 5, { align: 'center' });
+    return doc;
+  };
+
+  const generateRincian = () => {
+    const doc = createRincianDoc();
     doc.save('Daftar_Rincian_Transfer.pdf');
   };
 
@@ -991,7 +1012,8 @@ const BankWithdrawal: React.FC<BankWithdrawalProps> = ({ data, profile, onUpdate
                                     Simpan Draft Arsip
                                 </button>
                                <button onClick={handlePrintAndArchive} disabled={totalSelectedAmount === 0} className="bg-white border border-blue-600 text-blue-600 hover:bg-blue-50 px-3 py-1.5 rounded text-xs font-bold flex items-center gap-2 transition disabled:opacity-50">
-                                  <Printer size={14} /> Cetak Lampiran & Simpan
+                                  {isSaving ? <Loader2 size={14} className="animate-spin" /> : <Printer size={14} />} 
+                                  Cetak & Simpan PDF
                                </button>
                            </div>
                         </div>
@@ -1019,7 +1041,7 @@ const BankWithdrawal: React.FC<BankWithdrawalProps> = ({ data, profile, onUpdate
                                           <th className="px-4 py-3">Tanggal Surat</th>
                                           <th className="px-4 py-3">Nomor Surat</th>
                                           <th className="px-4 py-3 text-right">Total Cair</th>
-                                          <th className="px-4 py-3 text-center">Jml Item</th>
+                                          <th className="px-4 py-3 text-center">File</th>
                                           <th className="px-4 py-3 text-right">Aksi</th>
                                       </tr>
                                   </thead>
@@ -1038,8 +1060,19 @@ const BankWithdrawal: React.FC<BankWithdrawalProps> = ({ data, profile, onUpdate
                                                   <td className="px-4 py-3 text-right font-bold text-gray-700">
                                                       {formatRupiah(hist.total_amount)}
                                                   </td>
-                                                  <td className="px-4 py-3 text-center text-xs bg-gray-100 rounded-full w-fit mx-auto px-2">
-                                                      {hist.item_count} Item
+                                                  <td className="px-4 py-3 text-center">
+                                                      {hist.file_url ? (
+                                                          <a 
+                                                            href={hist.file_url} 
+                                                            target="_blank" 
+                                                            rel="noopener noreferrer"
+                                                            className="inline-flex items-center gap-1 text-xs bg-red-50 text-red-600 px-2 py-1 rounded hover:bg-red-100 border border-red-100"
+                                                          >
+                                                              <FileText size={12} /> PDF
+                                                          </a>
+                                                      ) : (
+                                                          <span className="text-xs text-gray-400">-</span>
+                                                      )}
                                                   </td>
                                                   <td className="px-4 py-3 text-right">
                                                       <div className="flex justify-end gap-2">
