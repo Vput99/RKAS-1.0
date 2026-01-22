@@ -45,7 +45,7 @@ const parseAIResponse = (text: string | undefined) => {
   }
 };
 
-export const analyzeBudgetEntry = async (description: string): Promise<{ 
+export const analyzeBudgetEntry = async (description: string, availableAccounts: Record<string, string> = AccountCodes): Promise<{ 
   bosp_component: string, 
   snp_standard: string, 
   account_code: string,
@@ -72,12 +72,16 @@ export const analyzeBudgetEntry = async (description: string): Promise<{
     };
   }
 
+  // To prevent token overflow, we might need to limit the available accounts context if it's huge.
+  // But for now, let's assume it fits or send a summarized version if possible.
+  // Ideally, RAG (Retrieval Augmented Generation) would be used here, but for simple app, we pass context.
+
   try {
     const response = await ai.models.generateContent({
       model: 'gemini-3-flash-preview',
       contents: `User input: "${description}". 
       Context: Rencana Kegiatan dan Anggaran Sekolah (RKAS) SD Tahun 2026.
-      Available Account Codes (Kode Rekening): ${JSON.stringify(AccountCodes)}.
+      Available Account Codes (Kode Rekening): ${JSON.stringify(availableAccounts)}.
       
       Task:
       1. Map input to 'Komponen BOSP' and 'SNP'.

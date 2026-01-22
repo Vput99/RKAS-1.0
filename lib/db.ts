@@ -21,6 +21,7 @@ const LOCAL_KEY = 'rkas_local_data_v7';
 const SCHOOL_PROFILE_KEY = 'rkas_school_profile_v1';
 const BANK_STATEMENT_KEY = 'rkas_bank_statements_v1';
 const HISTORY_KEY = 'rkas_withdrawal_history_v1';
+const CUSTOM_ACCOUNTS_KEY = 'rkas_custom_accounts_v1';
 
 const DEFAULT_PROFILE: SchoolProfile = {
   name: 'SD Negeri 1 Contoh',
@@ -449,3 +450,32 @@ export const deleteWithdrawalHistory = async (id: string): Promise<boolean> => {
     localStorage.setItem(HISTORY_KEY, JSON.stringify(updated));
     return true;
 };
+
+// --- Custom Account Codes Functions ---
+
+export const getCustomAccounts = (): Record<string, string> => {
+    const local = localStorage.getItem(CUSTOM_ACCOUNTS_KEY);
+    return local ? JSON.parse(local) : {};
+};
+
+export const saveCustomAccount = (code: string, name: string): Record<string, string> => {
+    const current = getCustomAccounts();
+    const updated = { ...current, [code]: name };
+    localStorage.setItem(CUSTOM_ACCOUNTS_KEY, JSON.stringify(updated));
+    return updated;
+};
+
+export const deleteCustomAccount = (code: string): Record<string, string> => {
+    const current = getCustomAccounts();
+    const newAccounts = { ...current };
+    delete newAccounts[code];
+    localStorage.setItem(CUSTOM_ACCOUNTS_KEY, JSON.stringify(newAccounts));
+    return newAccounts;
+};
+
+export const bulkSaveCustomAccounts = (accounts: Record<string, string>): Record<string, string> => {
+    const current = getCustomAccounts();
+    const updated = { ...current, ...accounts };
+    localStorage.setItem(CUSTOM_ACCOUNTS_KEY, JSON.stringify(updated));
+    return updated;
+}

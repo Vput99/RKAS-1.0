@@ -1,7 +1,8 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { Budget, TransactionType, BOSPComponent, SNPStandard, AccountCodes } from '../types';
 import { Plus, Search, Edit2, Trash2, X, Save, Calculator, Calendar, Sparkles, Loader2, AlertTriangle, CheckCircle, Filter } from 'lucide-react';
 import { analyzeBudgetEntry } from '../lib/gemini';
+import { getCustomAccounts } from '../lib/db';
 
 interface BudgetPlanningProps {
   data: Budget[];
@@ -38,6 +39,14 @@ const BudgetPlanning: React.FC<BudgetPlanningProps> = ({ data, onAdd, onUpdate, 
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [aiWarning, setAiWarning] = useState<string>('');
   const [isEligible, setIsEligible] = useState<boolean | null>(null);
+  
+  // Custom Accounts State
+  const [allAccounts, setAllAccounts] = useState<Record<string, string>>(AccountCodes);
+
+  useEffect(() => {
+     const custom = getCustomAccounts();
+     setAllAccounts({ ...AccountCodes, ...custom });
+  }, [isModalOpen]); // Refresh when modal opens (in case user added in settings)
 
   // Derived State (Filtering Logic)
   const expenses = useMemo(() => {
@@ -97,7 +106,8 @@ const BudgetPlanning: React.FC<BudgetPlanningProps> = ({ data, onAdd, onUpdate, 
     setAiWarning('');
     setIsEligible(null);
 
-    const result = await analyzeBudgetEntry(description);
+    // Pass all accounts (default + custom) to AI for context
+    const result = await analyzeBudgetEntry(description, allAccounts);
     
     if (result) {
       setBospComponent(result.bosp_component);
@@ -114,11 +124,6 @@ const BudgetPlanning: React.FC<BudgetPlanningProps> = ({ data, onAdd, onUpdate, 
       // Suggest months if not selected
       if (selectedMonths.length === 0 && result.realization_months_estimate) {
          setSelectedMonths(result.realization_months_estimate);
-      }
-
-      if (result.suggestion && result.suggestion !== description) {
-         // Optional: update description to be more formal? 
-         // For now, let's keep user input but maybe show suggestion in tooltip
       }
     }
     setIsAnalyzing(false);
@@ -192,7 +197,7 @@ const BudgetPlanning: React.FC<BudgetPlanningProps> = ({ data, onAdd, onUpdate, 
                     className="w-full pl-3 pr-8 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 appearance-none bg-white cursor-pointer truncate"
                  >
                     <option value="">Semua Rekening</option>
-                    {Object.entries(AccountCodes).map(([code, name]) => (
+                    {Object.entries(allAccounts).map(([code, name]) => (
                         <option key={code} value={code}>{code} - {name}</option>
                     ))}
                  </select>
@@ -372,7 +377,7 @@ const BudgetPlanning: React.FC<BudgetPlanningProps> = ({ data, onAdd, onUpdate, 
                         onChange={e => setAccountCode(e.target.value)}
                      >
                         <option value="">-- Pilih Kode Rekening --</option>
-                        {Object.entries(AccountCodes).map(([code, name]) => (
+                        {Object.entries(allAccounts).map(([code, name]) => (
                            <option key={code} value={code}>{code} - {name}</option>
                         ))}
                      </select>
