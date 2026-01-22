@@ -68,6 +68,17 @@ const filterRelevantAccounts = (query: string, accounts: Record<string, string>)
     queryLower.includes('narasumber') ||
     queryLower.includes('tukang');
 
+  // Keywords specific for Extracurricular/Experts
+  const isEskulQuery = 
+    queryLower.includes('pramuka') || 
+    queryLower.includes('ekskul') || 
+    queryLower.includes('ekstrakurikuler') || 
+    queryLower.includes('tari') || 
+    queryLower.includes('drumband') || 
+    queryLower.includes('basket') || 
+    queryLower.includes('ahli') ||
+    queryLower.includes('instruktur');
+
   const queryWords = queryLower.split(/\s+/).filter(w => w.length > 1);
 
   // Score each account based on match relevance
@@ -92,8 +103,18 @@ const filterRelevantAccounts = (query: string, accounts: Record<string, string>)
           if (nameLower.includes('tenaga')) score += 20;
       }
 
+      // If user asks for Extracurricular/Scouts, Heavily Boost "Narasumber/Instruktur" or "Tenaga Ahli"
+      if (isEskulQuery) {
+          if (code === '5.1.02.02.01.0003' || nameLower.includes('narasumber') || nameLower.includes('instruktur') || nameLower.includes('ahli')) {
+              score += 300; // Massive boost to ensure visibility
+          }
+          if (nameLower.includes('pendidikan') && code.startsWith('5.1.02.02')) {
+              score += 100;
+          }
+      }
+
       // If user asks for Goods (Barang), boost 5.1.02.01 (Belanja Barang)
-      if (!isServiceQuery && code.startsWith('5.1.02.01')) {
+      if (!isServiceQuery && !isEskulQuery && code.startsWith('5.1.02.01')) {
           score += 5;
       }
 
@@ -162,13 +183,14 @@ export const analyzeBudgetEntry = async (description: string, availableAccounts:
       
       User Input: "${description}"
       
-      Specific Mapping Rules:
-      - "Honor Ekstrakurikuler" (Pramuka/Tari/etc) -> MUST map to "Belanja Jasa Narasumber/Instruktur" or "Jasa Tenaga Pendidikan". NEVER "Belanja Barang".
+      Strict Mapping Rules (MUST FOLLOW):
+      - "Honor Ekstrakurikuler" (Pramuka/Tari/Drumband/Silat) -> MAP TO "Belanja Jasa Narasumber/Instruktur" (Code 5.1.02.02.01.0003) or "Tenaga Ahli". NEVER map to Belanja Barang.
+      - "Honor Pembina/Pelatih" -> MAP TO "Belanja Jasa Narasumber/Instruktur".
       - "Honor Tukang" -> "Belanja Jasa Tenaga Kerja".
       - "Makan Minum" -> "Belanja Makan dan Minum".
       - "Laptop/Komputer/Printer" -> "Belanja Modal Peralatan".
       
-      Available Account Codes (Select one):
+      Available Account Codes (Select ONLY from this list):
       ${relevantAccountsList}
       
       Output JSON Format Only.`,
