@@ -1,7 +1,7 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import { Budget, TransactionType, SchoolProfile, TransferDetail, WithdrawalHistory } from '../types';
 import { FileText, Printer, Landmark, CheckSquare, Square, DollarSign, Calendar, User, CreditCard, Edit3, Eye, ExternalLink, List, X, Coins, Users, Save, Loader2, Archive, History, RefreshCcw, Trash2, Download, Filter, Settings, Info } from 'lucide-react';
-import { jsPDF } from 'jspdf';
+import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import { getWithdrawalHistory, saveWithdrawalHistory, deleteWithdrawalHistory, uploadWithdrawalFile } from '../lib/db';
 
@@ -384,7 +384,8 @@ const BankWithdrawal: React.FC<BankWithdrawalProps> = ({ data, profile, onUpdate
       if (!c) return 'Tempat';
       
       // Remove KOTA/KABUPATEN prefix case insensitive
-      c = c.replace(/^(KOTA|KABUPATEN)\.?\s*/i, '');
+      c = c.replace(/^(KOTA|KABUPATEN|KAB\.?)\s*/i, '');
+      
       // Title Case
       c = c.toLowerCase().replace(/(?:^|\s)\w/g, m => m.toUpperCase());
       return c || 'Tempat';
