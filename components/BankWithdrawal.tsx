@@ -1,19 +1,26 @@
 import React, { useState, useMemo, useEffect } from 'react';
-import { Budget, TransactionType, SchoolProfile } from '../types';
-import { FileText, Printer, Landmark, CheckSquare, Square, DollarSign, Calendar, User, CreditCard, Edit3, Upload, Image as ImageIcon, Eye, RefreshCw, ExternalLink, List, X, Coins, Users } from 'lucide-react';
+import { Budget, TransactionType, SchoolProfile, TransferDetail, WithdrawalHistory } from '../types';
+import { FileText, Printer, Landmark, CheckSquare, Square, DollarSign, Calendar, User, CreditCard, Edit3, Upload, Image as ImageIcon, Eye, RefreshCw, ExternalLink, List, X, Coins, Users, Save, Loader2, Archive, History, RefreshCcw, Trash2 } from 'lucide-react';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
+import { getWithdrawalHistory, saveWithdrawalHistory, deleteWithdrawalHistory } from '../lib/db';
 
 interface BankWithdrawalProps {
   data: Budget[];
   profile: SchoolProfile | null;
+  onUpdate: (id: string, updates: Partial<Budget>) => void;
 }
 
-const BankWithdrawal: React.FC<BankWithdrawalProps> = ({ data, profile }) => {
-  const [activeTab, setActiveTab] = useState<'rincian' | 'surat_kuasa' | 'pemindahbukuan'>('rincian');
+const BankWithdrawal: React.FC<BankWithdrawalProps> = ({ data, profile, onUpdate }) => {
+  const [activeTab, setActiveTab] = useState<'rincian' | 'surat_kuasa' | 'pemindahbukuan' | 'riwayat'>('rincian');
   const [isSelectionModalOpen, setIsSelectionModalOpen] = useState(false);
   const [isBulkEditOpen, setIsBulkEditOpen] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
   
+  // History State
+  const [historyList, setHistoryList] = useState<WithdrawalHistory[]>([]);
+  const [isLoadingHistory, setIsLoadingHistory] = useState(false);
+
   // Form States - General
   const [selectedBudgetIds, setSelectedBudgetIds] = useState<string[]>([]);
   const [bankName, setBankName] = useState('PT. BANK PEMBANGUNAN DAERAH JAWA TIMUR');
@@ -44,15 +51,7 @@ const BankWithdrawal: React.FC<BankWithdrawalProps> = ({ data, profile }) => {
   const [schoolPostal, setSchoolPostal] = useState('');
 
   // Recipient Details State (Nama, No Rekening, & Pajak per Item)
-  const [recipientDetails, setRecipientDetails] = useState<Record<string, { 
-      name: string, 
-      account: string,
-      ppn: number,
-      pph21: number,
-      pph22: number,
-      pph23: number,
-      pajakDaerah: number
-  }>>({});
+  const [recipientDetails, setRecipientDetails] = useState<Record<string, TransferDetail>>({});
   
   // Bulk Edit State
   const [bulkName, setBulkName] = useState('');
@@ -81,6 +80,43 @@ const BankWithdrawal: React.FC<BankWithdrawalProps> = ({ data, profile }) => {
     }
   }, [profile]);
 
+  // Load History when tab changes
+  useEffect(() => {
+      if (activeTab === 'riwayat') {
+          loadHistory();
+      }
+  }, [activeTab]);
+
+  const loadHistory = async () => {
+      setIsLoadingHistory(true);
+      const data = await getWithdrawalHistory();
+      setHistoryList(data);
+      setIsLoadingHistory(false);
+  };
+
+  // LOAD SAVED TRANSFER DETAILS FROM BUDGET DATA
+  useEffect(() => {
+      const savedDetails: Record<string, TransferDetail> = {};
+      data.forEach(item => {
+          if (item.transfer_details) {
+              savedDetails[item.id] = item.transfer_details;
+          }
+      });
+      // Merge with existing local state (prioritize local edits if user hasn't refreshed)
+      setRecipientDetails(prev => {
+          // If previous state is empty, fill it. If not, only fill missing ones to avoid overwriting ongoing edits
+          if (Object.keys(prev).length === 0) return savedDetails;
+          
+          const merged = { ...prev };
+          Object.keys(savedDetails).forEach(key => {
+              if (!merged[key]) {
+                  merged[key] = savedDetails[key];
+              }
+          });
+          return merged;
+      });
+  }, [data]);
+
   // Filter expenses: Show EVERYTHING except Rejected items.
   const availableExpenses = useMemo(() => {
     return data
@@ -99,7 +135,6 @@ const BankWithdrawal: React.FC<BankWithdrawalProps> = ({ data, profile }) => {
   }, [availableExpenses, selectedBudgetIds]);
 
   // --- LOGIC PENGELOMPOKAN (GROUPING) ---
-  // Menggabungkan item jika Nama & Rekening SAMA PERSIS
   const getGroupedData = () => {
       const selectedItems = availableExpenses.filter(d => selectedBudgetIds.includes(d.id));
       
@@ -113,10 +148,9 @@ const BankWithdrawal: React.FC<BankWithdrawalProps> = ({ data, profile }) => {
 
       selectedItems.forEach(item => {
           const detail = recipientDetails[item.id] || { name: '', account: '', ppn: 0, pph21: 0, pph22: 0, pph23: 0, pajakDaerah: 0 };
-          const cleanName = detail.name.trim();
-          const cleanAccount = detail.account.trim();
+          const cleanName = detail.name?.trim() || '';
+          const cleanAccount = detail.account?.trim() || '';
 
-          // Kunci Pengelompokan: Nama + Akun. Jika kosong, gunakan ID item (tidak digabung)
           const key = (cleanName && cleanAccount) 
               ? `${cleanName.toLowerCase()}_${cleanAccount}` 
               : `individual_${item.id}`;
@@ -174,7 +208,7 @@ const BankWithdrawal: React.FC<BankWithdrawalProps> = ({ data, profile }) => {
           const newState = { ...prev };
           selectedBudgetIds.forEach(id => {
               newState[id] = { 
-                  ...newState[id], // Preserve existing tax if any
+                  ...newState[id], 
                   name: bulkName, 
                   account: bulkAccount,
                   ppn: newState[id]?.ppn || 0,
@@ -189,6 +223,91 @@ const BankWithdrawal: React.FC<BankWithdrawalProps> = ({ data, profile }) => {
       setIsBulkEditOpen(false);
       setBulkName('');
       setBulkAccount('');
+  };
+
+  // --- ARCHIVE / SAVE FUNCTION ---
+  const handleArchiveData = async () => {
+      if (selectedBudgetIds.length === 0) {
+          alert("Pilih minimal satu item anggaran untuk diarsipkan.");
+          return;
+      }
+      
+      if (!confirm("Simpan data ini ke Riwayat Pencairan?\nPastikan data penerima sudah benar.")) return;
+
+      setIsSaving(true);
+      try {
+          // 1. Update Recipient Details in Budget Items (Persistence)
+          const idsToUpdate = Object.keys(recipientDetails).filter(id => selectedBudgetIds.includes(id));
+          const updatePromises = idsToUpdate.map(id => {
+              return onUpdate(id, { transfer_details: recipientDetails[id] });
+          });
+          await Promise.all(updatePromises);
+
+          // 2. Create History Record (Snapshot)
+          const snapshot = {
+              selectedIds: selectedBudgetIds,
+              recipientDetails: recipientDetails,
+              ksName, ksTitle, ksNip,
+              trName, trTitle, trNip
+          };
+
+          await saveWithdrawalHistory({
+              letter_number: suratNo,
+              letter_date: withdrawDate,
+              bank_name: bankName,
+              bank_branch: bankBranch,
+              total_amount: totalSelectedAmount,
+              item_count: selectedBudgetIds.length,
+              snapshot_data: snapshot,
+              notes: `Pencairan ${formatRupiah(totalSelectedAmount)}`
+          });
+
+          alert("Berhasil diarsipkan! Cek tab Riwayat.");
+          setActiveTab('riwayat');
+      } catch (error) {
+          console.error("Archive failed", error);
+          alert("Gagal mengarsipkan data.");
+      } finally {
+          setIsSaving(false);
+      }
+  };
+
+  const handleRestoreFromHistory = (item: WithdrawalHistory) => {
+      if(!confirm("Kembalikan data ini ke formulir pencairan? Data yang sedang diedit akan tertimpa.")) return;
+
+      try {
+          // Restore Form States
+          const snap = item.snapshot_data;
+          setSuratNo(item.letter_number);
+          setWithdrawDate(item.letter_date);
+          setBankName(item.bank_name);
+          setBankBranch(item.bank_branch);
+          
+          if (snap) {
+              // Restore Recipient Details Map
+              if (snap.recipientDetails) {
+                  setRecipientDetails(prev => ({ ...prev, ...snap.recipientDetails }));
+              }
+              // Restore Selection
+              if (snap.selectedIds && Array.isArray(snap.selectedIds)) {
+                  setSelectedBudgetIds(snap.selectedIds);
+              }
+              // Restore Personnel
+              if (snap.ksName) setKsName(snap.ksName);
+              if (snap.trName) setTrName(snap.trName);
+          }
+
+          setActiveTab('surat_kuasa');
+      } catch (e) {
+          console.error("Restore failed", e);
+          alert("Gagal memulihkan data. Format history mungkin usang.");
+      }
+  };
+
+  const handleDeleteHistory = async (id: string) => {
+      if(!confirm("Hapus riwayat ini? Data tidak bisa dikembalikan.")) return;
+      await deleteWithdrawalHistory(id);
+      loadHistory();
   };
 
   const formatRupiah = (num: number) => {
@@ -309,16 +428,6 @@ const BankWithdrawal: React.FC<BankWithdrawalProps> = ({ data, profile }) => {
     doc.line(90, khususY + 1, 120, khususY + 1);
     const contentY = khususY + 8;
     doc.setFont('times', 'normal');
-    
-    // Calculate total net amount (Amount - Total Taxes) for the letter body?
-    // Usually Surat Kuasa uses the Gross amount to be transferred from Main Account, 
-    // or Net Amount to be received by recipients?
-    // Standard practice: Total nominal to be transferred out of payer's account. 
-    // Since taxes are usually deducted *before* transfer or paid separately, 
-    // for this purpose we usually state the Gross Amount or the total sum of "Jumlah Bersih".
-    // Let's stick to the Gross Amount (Total Selected Amount) as per common practice in BOSP, 
-    // because the Bank splits it or the school pays net + tax billing. 
-    // But usually for "Pemindahbukuan", it's the total sum of transactions.
     
     // UPDATE: Gunakan uniqueRecipientCount untuk jumlah rekening
     const itemCountText = getTerbilang(uniqueRecipientCount);
@@ -557,45 +666,6 @@ const BankWithdrawal: React.FC<BankWithdrawalProps> = ({ data, profile }) => {
     doc.text(`NIP. ${trNip}`, col3, nameY + 5, { align: 'center' });
     doc.save('Daftar_Rincian_Transfer.pdf');
   };
-
-  // --- PREVIEW HANDLER ---
-  useEffect(() => {
-    let timeoutId: ReturnType<typeof setTimeout>;
-    const generatePreview = () => {
-        setIsPreviewLoading(true);
-        try {
-            let doc: jsPDF | null = null;
-            if (activeTab === 'surat_kuasa') {
-                doc = createSuratKuasaDoc();
-            } else if (activeTab === 'pemindahbukuan') {
-                doc = createPemindahbukuanDoc();
-            }
-            if (doc) {
-                const blob = doc.output('blob');
-                const url = URL.createObjectURL(blob);
-                setPdfPreviewUrl(prev => {
-                    if (prev) URL.revokeObjectURL(prev);
-                    return url;
-                });
-            }
-        } catch (e) {
-            console.error("Preview generation failed", e);
-        } finally {
-            setIsPreviewLoading(false);
-        }
-    };
-    if (activeTab === 'surat_kuasa' || activeTab === 'pemindahbukuan') {
-        timeoutId = setTimeout(generatePreview, 800);
-    }
-    return () => clearTimeout(timeoutId);
-  }, [
-      activeTab, 
-      suratNo, ksName, ksNip, ksTitle, ksAddress, 
-      trName, trNip, trTitle, trAddress, 
-      bankName, bankBranch, bankAddress, accountNo, chequeNo, withdrawDate, 
-      totalSelectedAmount, headerImage, profile, schoolAddress, schoolCity, schoolKecamatan, schoolPostal,
-      selectedBudgetIds, recipientDetails
-  ]);
 
   // CHANGED: Converted from Component inside Component to a Variable to prevent re-render focus loss
   const budgetTableContent = (
@@ -861,6 +931,12 @@ const BankWithdrawal: React.FC<BankWithdrawalProps> = ({ data, profile }) => {
                   >
                      <DollarSign size={16} /> 3. Pemindahbukuan
                   </button>
+                  <button 
+                    onClick={() => setActiveTab('riwayat')}
+                    className={`flex-1 min-w-[120px] py-3 text-sm font-bold flex items-center justify-center gap-2 transition ${activeTab === 'riwayat' ? 'bg-white text-blue-600 border-t-2 border-blue-600' : 'text-gray-500 hover:bg-gray-100'}`}
+                  >
+                     <History size={16} /> 4. Riwayat
+                  </button>
                </div>
 
                <div className="p-6">
@@ -874,12 +950,91 @@ const BankWithdrawal: React.FC<BankWithdrawalProps> = ({ data, profile }) => {
                                    <span className="text-blue-600 font-bold"> Item dengan Nama & Rekening SAMA otomatis digabung saat cetak.</span>
                                </p>
                            </div>
-                           <button onClick={generateRincian} disabled={totalSelectedAmount === 0} className="bg-blue-600 hover:bg-blue-700 text-white px-3 py-1.5 rounded text-xs font-bold flex items-center gap-2 transition disabled:opacity-50">
-                              <Printer size={14} /> Cetak Lampiran Transfer
-                           </button>
+                           <div className="flex gap-2">
+                               <button 
+                                    onClick={handleArchiveData} 
+                                    disabled={isSaving}
+                                    className="bg-indigo-600 hover:bg-indigo-700 text-white px-3 py-1.5 rounded text-xs font-bold flex items-center gap-2 transition disabled:opacity-50"
+                                >
+                                    {isSaving ? <Loader2 size={14} className="animate-spin" /> : <Archive size={14} />} 
+                                    Arsipkan Pencairan
+                                </button>
+                               <button onClick={generateRincian} disabled={totalSelectedAmount === 0} className="bg-white border border-blue-600 text-blue-600 hover:bg-blue-50 px-3 py-1.5 rounded text-xs font-bold flex items-center gap-2 transition disabled:opacity-50">
+                                  <Printer size={14} /> Cetak Lampiran Transfer
+                               </button>
+                           </div>
                         </div>
                         {budgetTableContent}
                      </div>
+                  )}
+
+                  {/* HISTORY TAB */}
+                  {activeTab === 'riwayat' && (
+                      <div className="space-y-4">
+                          <div className="bg-blue-50 p-4 rounded-lg flex items-start gap-3 border border-blue-100">
+                              <History className="text-blue-600 mt-1" size={20} />
+                              <div>
+                                  <h4 className="text-sm font-bold text-blue-800">Arsip Pencairan</h4>
+                                  <p className="text-xs text-blue-600">
+                                      Data yang sudah diarsipkan bisa dikembalikan (restore) ke form untuk dicetak ulang.
+                                  </p>
+                              </div>
+                          </div>
+
+                          <div className="border border-gray-200 rounded-xl overflow-hidden">
+                              <table className="w-full text-sm text-left">
+                                  <thead className="bg-gray-50 font-bold text-gray-700 border-b border-gray-200">
+                                      <tr>
+                                          <th className="px-4 py-3">Tanggal Surat</th>
+                                          <th className="px-4 py-3">Nomor Surat</th>
+                                          <th className="px-4 py-3 text-right">Total Cair</th>
+                                          <th className="px-4 py-3 text-center">Jml Item</th>
+                                          <th className="px-4 py-3 text-right">Aksi</th>
+                                      </tr>
+                                  </thead>
+                                  <tbody className="divide-y divide-gray-100">
+                                      {isLoadingHistory ? (
+                                          <tr><td colSpan={5} className="text-center py-8 text-gray-400">Memuat riwayat...</td></tr>
+                                      ) : historyList.length === 0 ? (
+                                          <tr><td colSpan={5} className="text-center py-8 text-gray-400">Belum ada riwayat pencairan.</td></tr>
+                                      ) : (
+                                          historyList.map((hist) => (
+                                              <tr key={hist.id} className="hover:bg-gray-50">
+                                                  <td className="px-4 py-3">
+                                                      {new Date(hist.letter_date).toLocaleDateString('id-ID')}
+                                                  </td>
+                                                  <td className="px-4 py-3 font-mono text-xs">{hist.letter_number}</td>
+                                                  <td className="px-4 py-3 text-right font-bold text-gray-700">
+                                                      {formatRupiah(hist.total_amount)}
+                                                  </td>
+                                                  <td className="px-4 py-3 text-center text-xs bg-gray-100 rounded-full w-fit mx-auto px-2">
+                                                      {hist.item_count} Item
+                                                  </td>
+                                                  <td className="px-4 py-3 text-right">
+                                                      <div className="flex justify-end gap-2">
+                                                          <button 
+                                                              onClick={() => handleRestoreFromHistory(hist)}
+                                                              className="text-blue-600 hover:text-blue-800 p-1 rounded hover:bg-blue-50"
+                                                              title="Buka / Pulihkan Data"
+                                                          >
+                                                              <RefreshCcw size={16} />
+                                                          </button>
+                                                          <button 
+                                                              onClick={() => handleDeleteHistory(hist.id)}
+                                                              className="text-red-400 hover:text-red-600 p-1 rounded hover:bg-red-50"
+                                                              title="Hapus Riwayat"
+                                                          >
+                                                              <Trash2 size={16} />
+                                                          </button>
+                                                      </div>
+                                                  </td>
+                                              </tr>
+                                          ))
+                                      )}
+                                  </tbody>
+                              </table>
+                          </div>
+                      </div>
                   )}
 
                   {(activeTab === 'surat_kuasa' || activeTab === 'pemindahbukuan') && (

@@ -1,3 +1,4 @@
+
 export enum TransactionType {
   INCOME = 'pendapatan',
   EXPENSE = 'belanja',
@@ -120,6 +121,16 @@ export interface RealizationDetail {
   evidence_file?: string; // Nama file bukti fisik
 }
 
+export interface TransferDetail {
+  name: string;
+  account: string;
+  ppn: number;
+  pph21: number;
+  pph22: number;
+  pph23: number;
+  pajakDaerah: number;
+}
+
 export interface Budget {
   id: string;
   type: TransactionType;
@@ -134,6 +145,9 @@ export interface Budget {
   // Rincian Realisasi (SPJ) - Updated to Array
   realizations?: RealizationDetail[];
   
+  // Transfer & Pajak Info
+  transfer_details?: TransferDetail;
+
   date: string;
   bosp_component: BOSPComponent | string; 
   category: SNPStandard | string;
@@ -208,4 +222,17 @@ export interface PBDRecommendation {
 
     // Detailed Breakdown
     items: PBDBudgetItem[];
+}
+
+export interface WithdrawalHistory {
+    id: string;
+    created_at: string;
+    letter_number: string;
+    letter_date: string;
+    bank_name: string;
+    bank_branch: string;
+    total_amount: number;
+    item_count: number;
+    snapshot_data: any; // Contains recipients, ids, personnel names
+    notes?: string;
 }

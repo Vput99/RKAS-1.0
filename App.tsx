@@ -355,6 +355,7 @@ function App() {
                   <BankWithdrawal 
                     data={data}
                     profile={schoolProfile}
+                    onUpdate={handleUpdate}
                   />
                 )}
                 {activeTab === 'spj' && (

@@ -1,5 +1,6 @@
+
 import { supabase } from './supabase';
-import { Budget, TransactionType, SNPStandard, BOSPComponent, SchoolProfile, BankStatement, RaporIndicator } from '../types';
+import { Budget, TransactionType, SNPStandard, BOSPComponent, SchoolProfile, BankStatement, RaporIndicator, WithdrawalHistory } from '../types';
 
 // Mock data reflecting BOSP structure
 const MOCK_DATA: Budget[] = [
@@ -19,6 +20,7 @@ const MOCK_DATA: Budget[] = [
 const LOCAL_KEY = 'rkas_local_data_v7';
 const SCHOOL_PROFILE_KEY = 'rkas_school_profile_v1';
 const BANK_STATEMENT_KEY = 'rkas_bank_statements_v1';
+const HISTORY_KEY = 'rkas_withdrawal_history_v1';
 
 const DEFAULT_PROFILE: SchoolProfile = {
   name: 'SD Negeri 1 Contoh',
@@ -338,4 +340,49 @@ export const deleteBankStatement = async (id: string): Promise<void> => {
 
     const updated = current.filter(s => s.id !== id);
     localStorage.setItem(BANK_STATEMENT_KEY, JSON.stringify(updated));
+};
+
+// --- Withdrawal History Functions ---
+
+export const getWithdrawalHistory = async (): Promise<WithdrawalHistory[]> => {
+    if (supabase) {
+        try {
+            const { data, error } = await supabase.from('withdrawal_history').select('*').order('created_at', { ascending: false });
+            if (!error && data) return data as WithdrawalHistory[];
+        } catch (e) { console.error(e); }
+    }
+    const local = localStorage.getItem(HISTORY_KEY);
+    return local ? JSON.parse(local) : [];
+};
+
+export const saveWithdrawalHistory = async (history: Omit<WithdrawalHistory, 'id' | 'created_at'>): Promise<WithdrawalHistory | null> => {
+    const newItem = { ...history, id: crypto.randomUUID(), created_at: new Date().toISOString() };
+    
+    if (supabase) {
+        const { data, error } = await supabase.from('withdrawal_history').insert([newItem]).select();
+        if (error) {
+            console.error("History save error:", error);
+            alert("Gagal menyimpan riwayat: " + error.message);
+            return null;
+        }
+        return data ? data[0] as WithdrawalHistory : null;
+    }
+
+    // Local fallback
+    const current = await getWithdrawalHistory();
+    const updated = [newItem, ...current];
+    localStorage.setItem(HISTORY_KEY, JSON.stringify(updated));
+    return newItem as WithdrawalHistory;
+};
+
+export const deleteWithdrawalHistory = async (id: string): Promise<boolean> => {
+    if (supabase) {
+        const { error } = await supabase.from('withdrawal_history').delete().eq('id', id);
+        if (error) return false;
+        return true;
+    }
+    const current = await getWithdrawalHistory();
+    const updated = current.filter(h => h.id !== id);
+    localStorage.setItem(HISTORY_KEY, JSON.stringify(updated));
+    return true;
 };
