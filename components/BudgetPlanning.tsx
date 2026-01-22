@@ -1,6 +1,6 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import { Budget, TransactionType, BOSPComponent, SNPStandard, AccountCodes } from '../types';
-import { Plus, Search, Edit2, Trash2, X, Save, Calculator, Calendar, Sparkles, Loader2, AlertTriangle, CheckCircle, Filter } from 'lucide-react';
+import { Plus, Search, Edit2, Trash2, X, Save, Calculator, Calendar, Sparkles, Loader2, AlertTriangle, CheckCircle, Filter, Info } from 'lucide-react';
 import { analyzeBudgetEntry } from '../lib/gemini';
 import { getCustomAccounts } from '../lib/db';
 
@@ -46,7 +46,7 @@ const BudgetPlanning: React.FC<BudgetPlanningProps> = ({ data, onAdd, onUpdate, 
   useEffect(() => {
      const custom = getCustomAccounts();
      setAllAccounts({ ...AccountCodes, ...custom });
-  }, [isModalOpen]); // Refresh when modal opens (in case user added in settings)
+  }, [isModalOpen]); 
 
   // Derived State (Filtering Logic)
   const expenses = useMemo(() => {
@@ -116,10 +116,12 @@ const BudgetPlanning: React.FC<BudgetPlanningProps> = ({ data, onAdd, onUpdate, 
       setIsEligible(result.is_eligible);
       setAiWarning(result.warning);
       
+      if (result.suggestion) setDescription(result.suggestion);
+
       // Auto-fill estimates
-      if (quantity === 0) setQuantity(result.quantity_estimate);
-      if (!unit) setUnit(result.unit_estimate);
-      if (unitPrice === 0) setUnitPrice(result.price_estimate);
+      if (result.quantity_estimate > 0) setQuantity(result.quantity_estimate);
+      if (result.unit_estimate) setUnit(result.unit_estimate);
+      if (result.price_estimate > 0) setUnitPrice(result.price_estimate);
       
       // Suggest months if not selected
       if (selectedMonths.length === 0 && result.realization_months_estimate) {
@@ -147,7 +149,7 @@ const BudgetPlanning: React.FC<BudgetPlanningProps> = ({ data, onAdd, onUpdate, 
       status: 'draft' as const,
       is_bosp_eligible: isEligible === null ? true : isEligible,
       warning_message: aiWarning,
-      date: new Date().toISOString() // Or keep original date on edit? usually updated_at
+      date: new Date().toISOString() 
     };
 
     if (editingId) {
@@ -300,22 +302,29 @@ const BudgetPlanning: React.FC<BudgetPlanningProps> = ({ data, onAdd, onUpdate, 
                <form onSubmit={handleSubmit} className="p-6 space-y-4">
                   
                   {/* AI Assistant Section */}
-                  <div className="bg-gradient-to-r from-blue-50 to-indigo-50 p-4 rounded-lg border border-blue-100">
+                  <div className="bg-gradient-to-r from-blue-50 to-indigo-50 p-4 rounded-lg border border-blue-100 shadow-inner">
                      <div className="flex items-start gap-3">
-                        <Sparkles className="text-blue-600 mt-1 flex-shrink-0" size={20} />
+                        <Sparkles className="text-blue-600 mt-1 flex-shrink-0" size={24} />
                         <div className="w-full">
-                           <p className="text-sm text-blue-900 mb-1 font-bold">Asisten AI RKAS</p>
-                           <p className="text-xs text-blue-700 mb-3">
-                              Ketik rencana kegiatan, AI akan mengisi kode rekening dan komponen yang sesuai otomatis.
+                           <p className="text-sm text-blue-900 mb-1 font-bold flex items-center gap-2">
+                              Asisten AI & Auditor Juknis
+                              {isEligible !== null && (
+                                <span className={`text-[10px] px-2 py-0.5 rounded-full border ${isEligible ? 'bg-green-100 text-green-700 border-green-200' : 'bg-red-100 text-red-700 border-red-200'}`}>
+                                    {isEligible ? 'Sesuai Juknis' : 'Dilarang Juknis'}
+                                </span>
+                              )}
+                           </p>
+                           <p className="text-xs text-blue-700 mb-3 leading-relaxed">
+                              Ketik rencana kegiatan, AI akan mengisi otomatis (Volume, Harga, Akun) dan mengecek aturan Juknis BOSP 2026.
                            </p>
                            <div className="flex gap-2">
                               <textarea 
                                  required
-                                 className="flex-1 text-sm border border-blue-200 rounded-lg p-2 focus:ring-2 focus:ring-blue-400 outline-none resize-none"
+                                 className="flex-1 text-sm border border-blue-200 rounded-lg p-2 focus:ring-2 focus:ring-blue-400 outline-none resize-none shadow-sm"
                                  rows={2}
                                  value={description}
                                  onChange={e => setDescription(e.target.value)}
-                                 placeholder="Contoh: Belanja Alat Tulis Kantor untuk KBM selama 1 tahun"
+                                 placeholder="Contoh: Beli 2 unit Laptop untuk ANBK"
                               />
                            </div>
                            <div className="flex justify-end mt-2">
@@ -323,23 +332,30 @@ const BudgetPlanning: React.FC<BudgetPlanningProps> = ({ data, onAdd, onUpdate, 
                                  type="button" 
                                  onClick={handleAIAnalysis}
                                  disabled={isAnalyzing || !description}
-                                 className="text-xs bg-blue-600 text-white px-3 py-1.5 rounded hover:bg-blue-700 transition flex items-center gap-2 disabled:opacity-50"
+                                 className="text-xs bg-indigo-600 text-white px-4 py-2 rounded-lg hover:bg-indigo-700 transition flex items-center gap-2 disabled:opacity-50 font-bold shadow-md"
                               >
-                                 {isAnalyzing ? <Loader2 size={14} className="animate-spin" /> : <Sparkles size={14} />}
-                                 Isi Otomatis / Cek Juknis
+                                 {isAnalyzing ? <Loader2 size={16} className="animate-spin" /> : <Sparkles size={16} />}
+                                 {isAnalyzing ? 'Menganalisis...' : 'Isi Otomatis & Cek Juknis'}
                               </button>
                            </div>
                            
-                           {/* Validation Result */}
+                           {/* Validation Result Box */}
                            {isEligible === true && (
-                              <div className="mt-3 text-xs text-green-700 flex items-center gap-1 bg-green-50 p-2 rounded border border-green-100">
-                                 <CheckCircle size={14} /> Kegiatan sesuai Juknis BOSP.
+                              <div className="mt-3 text-xs bg-green-50 p-3 rounded-lg border border-green-200 flex items-start gap-2">
+                                 <CheckCircle size={16} className="text-green-600 mt-0.5" />
+                                 <div>
+                                    <p className="font-bold text-green-800">Kegiatan Diperbolehkan</p>
+                                    <p className="text-green-700">Data anggaran telah diisi otomatis. Silakan cek kembali harga dan volume.</p>
+                                 </div>
                               </div>
                            )}
                            {isEligible === false && (
-                              <div className="mt-3 text-xs text-red-700 flex items-start gap-1 bg-red-50 p-2 rounded border border-red-100">
-                                 <AlertTriangle size={14} className="mt-0.5 flex-shrink-0" /> 
-                                 <span><b>Peringatan:</b> {aiWarning}</span>
+                              <div className="mt-3 text-xs bg-red-50 p-3 rounded-lg border border-red-200 flex items-start gap-2">
+                                 <AlertTriangle size={16} className="text-red-600 mt-0.5" />
+                                 <div>
+                                    <p className="font-bold text-red-800">Kegiatan Berisiko / Dilarang</p>
+                                    <p className="text-red-700 mt-1">{aiWarning}</p>
+                                 </div>
                               </div>
                            )}
                         </div>
@@ -348,7 +364,7 @@ const BudgetPlanning: React.FC<BudgetPlanningProps> = ({ data, onAdd, onUpdate, 
 
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                      <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-1">Komponen BOSP</label>
+                        <label className="block text-xs font-bold text-gray-600 mb-1 uppercase">Komponen BOSP</label>
                         <select 
                            className="w-full border border-gray-300 rounded-lg p-2 text-sm focus:ring-2 focus:ring-blue-500 outline-none"
                            value={bospComponent}
@@ -358,7 +374,7 @@ const BudgetPlanning: React.FC<BudgetPlanningProps> = ({ data, onAdd, onUpdate, 
                         </select>
                      </div>
                      <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-1">SNP</label>
+                        <label className="block text-xs font-bold text-gray-600 mb-1 uppercase">Standar SNP</label>
                         <select 
                            className="w-full border border-gray-300 rounded-lg p-2 text-sm focus:ring-2 focus:ring-blue-500 outline-none"
                            value={snpStandard}
@@ -370,7 +386,7 @@ const BudgetPlanning: React.FC<BudgetPlanningProps> = ({ data, onAdd, onUpdate, 
                   </div>
 
                   <div>
-                     <label className="block text-sm font-medium text-gray-700 mb-1">Kode Rekening (Akun Belanja)</label>
+                     <label className="block text-xs font-bold text-gray-600 mb-1 uppercase">Kode Rekening (Akun Belanja)</label>
                      <select 
                         className="w-full border border-gray-300 rounded-lg p-2 text-sm focus:ring-2 focus:ring-blue-500 outline-none font-mono"
                         value={accountCode}
@@ -385,7 +401,7 @@ const BudgetPlanning: React.FC<BudgetPlanningProps> = ({ data, onAdd, onUpdate, 
 
                   <div className="grid grid-cols-3 gap-4">
                      <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-1">Volume</label>
+                        <label className="block text-xs font-bold text-gray-600 mb-1 uppercase">Volume</label>
                         <input 
                            type="number"
                            min="0"
@@ -395,7 +411,7 @@ const BudgetPlanning: React.FC<BudgetPlanningProps> = ({ data, onAdd, onUpdate, 
                         />
                      </div>
                      <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-1">Satuan</label>
+                        <label className="block text-xs font-bold text-gray-600 mb-1 uppercase">Satuan</label>
                         <input 
                            type="text"
                            className="w-full border border-gray-300 rounded-lg p-2 focus:ring-2 focus:ring-blue-500 outline-none"
@@ -405,7 +421,7 @@ const BudgetPlanning: React.FC<BudgetPlanningProps> = ({ data, onAdd, onUpdate, 
                         />
                      </div>
                      <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-1">Harga Satuan</label>
+                        <label className="block text-xs font-bold text-gray-600 mb-1 uppercase">Harga Satuan (Rp)</label>
                         <input 
                            type="number"
                            min="0"
@@ -416,13 +432,13 @@ const BudgetPlanning: React.FC<BudgetPlanningProps> = ({ data, onAdd, onUpdate, 
                      </div>
                   </div>
 
-                  <div className="bg-gray-100 p-3 rounded-lg text-right">
-                     <span className="text-xs text-gray-500">Total Anggaran:</span>
-                     <p className="text-xl font-bold text-gray-800">{formatRupiah(quantity * unitPrice)}</p>
+                  <div className="bg-gray-100 p-3 rounded-lg text-right border border-gray-200">
+                     <span className="text-xs text-gray-500 font-bold uppercase">Total Anggaran (1 Tahun):</span>
+                     <p className="text-2xl font-bold text-gray-800">{formatRupiah(quantity * unitPrice)}</p>
                   </div>
 
                   <div>
-                     <label className="block text-sm font-medium text-gray-700 mb-2">Rencana Realisasi (Bulan)</label>
+                     <label className="block text-xs font-bold text-gray-600 mb-2 uppercase">Rencana Realisasi (Bulan)</label>
                      <div className="grid grid-cols-6 gap-2">
                         {MONTHS.map((m, idx) => {
                            const monthNum = idx + 1;
@@ -441,12 +457,12 @@ const BudgetPlanning: React.FC<BudgetPlanningProps> = ({ data, onAdd, onUpdate, 
                      </div>
                   </div>
 
-                  <div className="pt-4 flex gap-3">
-                     <button type="button" onClick={() => setIsModalOpen(false)} className="flex-1 py-2 text-gray-600 border border-gray-300 rounded-lg hover:bg-gray-50">Batal</button>
+                  <div className="pt-4 flex gap-3 border-t border-gray-100">
+                     <button type="button" onClick={() => setIsModalOpen(false)} className="flex-1 py-2.5 text-gray-600 border border-gray-300 rounded-lg hover:bg-gray-50 font-medium">Batal</button>
                      <button 
                         type="submit" 
                         disabled={isEligible === false}
-                        className={`flex-1 py-2 text-white rounded-lg font-bold flex items-center justify-center gap-2 ${isEligible === false ? 'bg-gray-400 cursor-not-allowed' : 'bg-blue-600 hover:bg-blue-700'}`}
+                        className={`flex-1 py-2.5 text-white rounded-lg font-bold flex items-center justify-center gap-2 shadow-lg transition-all ${isEligible === false ? 'bg-gray-400 cursor-not-allowed' : 'bg-blue-600 hover:bg-blue-700 hover:shadow-xl'}`}
                      >
                         <Save size={18} /> Simpan
                      </button>

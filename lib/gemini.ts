@@ -72,75 +72,60 @@ export const analyzeBudgetEntry = async (description: string, availableAccounts:
     };
   }
 
-  // To prevent token overflow, we might need to limit the available accounts context if it's huge.
-  // But for now, let's assume it fits or send a summarized version if possible.
-  // Ideally, RAG (Retrieval Augmented Generation) would be used here, but for simple app, we pass context.
-
   try {
     const response = await ai.models.generateContent({
       model: 'gemini-3-flash-preview',
-      contents: `User input: "${description}". 
-      Context: Rencana Kegiatan dan Anggaran Sekolah (RKAS) SD Tahun 2026.
-      Available Account Codes (Kode Rekening): ${JSON.stringify(availableAccounts)}.
+      contents: `
+      Role: You are an expert Auditor for BOSP (Bantuan Operasional Satuan Pendidikan) in Indonesia.
+      
+      Context:
+      - Validating a budget plan entry for an Elementary School (SD) for Fiscal Year 2026.
+      - User Input: "${description}"
+      - Available Account Codes: ${JSON.stringify(availableAccounts)}
+      
+      JUKNIS BOSP RULES (Strictly Enforce):
+      1. PROHIBITED: Buying land, building new classrooms (only rehab/maintenance allowed), buying personal vehicles, investing shares, paying PNS/PPPK Salary (Honor only for Non-ASN registered in Dapodik), borrowing money, personal use items.
+      2. If the input violates any rule, set is_eligible = false and provide a strict warning.
+      3. If allowed, find the BEST matching Account Code.
       
       Task:
-      1. Map input to 'Komponen BOSP' and 'SNP'.
-      2. Select the most appropriate 'Kode Rekening' key (e.g., 5.1.02.01.01.0024).
-      3. Check prohibitions.
-      4. Estimate the details:
-         - Quantity (Volume).
-         - Unit (Satuan).
-         - Unit Price (Harga Satuan).
-         - Realization Months: If the expense is recurring monthly (e.g., Listrik, Internet, Honor, Langganan), return [1, 2, ..., 12]. If it's a one-time event (e.g., buying a Laptop), return the most likely single month (e.g., [2]).
-      5. Refine description.`,
+      1. Analyze the input description.
+      2. Determine Eligibility (is_eligible).
+      3. Auto-fill estimates based on standard Indonesian market prices (2026):
+         - quantity_estimate (Volume)
+         - unit_estimate (Satuan: e.g., Orang/Bulan, Paket, Rim, Unit, Kotak)
+         - price_estimate (Harga Satuan in IDR, e.g. Laptop ~7000000, ATK ~50000)
+         - realization_months_estimate (Array [1..12]. If recurring like Internet/Honor, use [1,2,3,4,5,6,7,8,9,10,11,12]. If purchase, pick likely month e.g. [2]).
+      4. Suggest a formal "Uraian Kegiatan" (suggestion).
+      
+      Output JSON Schema:
+      {
+        bosp_component: string (enum from BOSPComponent),
+        snp_standard: string (enum from SNPStandard),
+        account_code: string (key from Available Account Codes),
+        quantity_estimate: number,
+        unit_estimate: string,
+        price_estimate: number,
+        realization_months_estimate: number[],
+        suggestion: string,
+        is_eligible: boolean,
+        warning: string (Explanation if ineligible, or "Sesuai Juknis" if ok)
+      }`,
       config: {
         responseMimeType: "application/json",
         responseSchema: {
           type: Type.OBJECT,
           properties: {
-            bosp_component: {
-              type: Type.STRING,
-              enum: Object.values(BOSPComponent),
-              description: "The BOSP Component"
-            },
-            snp_standard: {
-              type: Type.STRING,
-              enum: Object.values(SNPStandard),
-              description: "The SNP category"
-            },
-            account_code: {
-               type: Type.STRING,
-               description: "The exact key for Kode Rekening"
-            },
-            quantity_estimate: {
-              type: Type.NUMBER,
-              description: "Estimated volume/quantity"
-            },
-            unit_estimate: {
-              type: Type.STRING,
-              description: "Estimated unit (Satuan)"
-            },
-            price_estimate: {
-              type: Type.NUMBER,
-              description: "Estimated unit price in IDR"
-            },
-            realization_months_estimate: {
-              type: Type.ARRAY,
-              items: { type: Type.NUMBER },
-              description: "Array of months (1-12)"
-            },
-            suggestion: {
-              type: Type.STRING,
-              description: "Formal description"
-            },
-            is_eligible: {
-              type: Type.BOOLEAN,
-              description: "Allowed by Juknis?"
-            },
-            warning: {
-              type: Type.STRING,
-              description: "Warning message if any"
-            }
+            bosp_component: { type: Type.STRING, enum: Object.values(BOSPComponent) },
+            snp_standard: { type: Type.STRING, enum: Object.values(SNPStandard) },
+            account_code: { type: Type.STRING },
+            quantity_estimate: { type: Type.NUMBER },
+            unit_estimate: { type: Type.STRING },
+            price_estimate: { type: Type.NUMBER },
+            realization_months_estimate: { type: Type.ARRAY, items: { type: Type.NUMBER } },
+            suggestion: { type: Type.STRING },
+            is_eligible: { type: Type.BOOLEAN },
+            warning: { type: Type.STRING }
           }
         }
       }
