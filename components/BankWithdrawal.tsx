@@ -1,6 +1,6 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import { Budget, TransactionType, SchoolProfile, TransferDetail, WithdrawalHistory } from '../types';
-import { FileText, Printer, Landmark, CheckSquare, Square, DollarSign, Calendar, User, CreditCard, Edit3, Eye, ExternalLink, List, X, Coins, Users, Save, Loader2, Archive, History, RefreshCcw, Trash2, Download, Filter, Settings, Info } from 'lucide-react';
+import { FileText, Printer, Landmark, CheckSquare, Square, DollarSign, Calendar, User, CreditCard, Edit3, List, X, Coins, Users, Save, Loader2, Archive, History, RefreshCcw, Trash2, Download, Filter, Settings, Info } from 'lucide-react';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import { getWithdrawalHistory, saveWithdrawalHistory, deleteWithdrawalHistory, uploadWithdrawalFile } from '../lib/db';
@@ -54,10 +54,6 @@ const BankWithdrawal: React.FC<BankWithdrawalProps> = ({ data, profile, onUpdate
   // Bulk Edit State
   const [bulkName, setBulkName] = useState('');
   const [bulkAccount, setBulkAccount] = useState('');
-
-  // PDF Preview State
-  const [pdfPreviewUrl, setPdfPreviewUrl] = useState<string | null>(null);
-  const [isPreviewLoading, setIsPreviewLoading] = useState(false);
 
   // Sync profile data when loaded
   useEffect(() => {
@@ -712,68 +708,6 @@ const BankWithdrawal: React.FC<BankWithdrawalProps> = ({ data, profile, onUpdate
     return doc;
   };
 
-  // --- PREVIEW GENERATOR ---
-  useEffect(() => {
-    const generatePreview = () => {
-      // Clean up previous URL
-      if (pdfPreviewUrl) {
-        URL.revokeObjectURL(pdfPreviewUrl);
-      }
-
-      if (activeTab !== 'surat_kuasa' && activeTab !== 'pemindahbukuan') {
-        setPdfPreviewUrl(null);
-        return;
-      }
-
-      setIsPreviewLoading(true);
-      
-      // Debounce slightly to allow state to settle
-      const timeoutId = setTimeout(() => {
-        try {
-          let doc: jsPDF | null = null;
-          if (activeTab === 'surat_kuasa') {
-            doc = createSuratKuasaDoc();
-          } else {
-            doc = createPemindahbukuanDoc();
-          }
-          
-          if (doc) {
-            const blob = doc.output('blob');
-            const url = URL.createObjectURL(blob);
-            setPdfPreviewUrl(url);
-          } else {
-            setPdfPreviewUrl(null);
-          }
-        } catch (error) {
-          console.error("Preview generation failed", error);
-          setPdfPreviewUrl(null);
-        } finally {
-          setIsPreviewLoading(false);
-        }
-      }, 500);
-
-      return () => clearTimeout(timeoutId);
-    };
-
-    // Run preview generation when relevant data changes
-    const cleanup = generatePreview();
-    
-    return () => {
-      if (typeof cleanup === 'function') cleanup();
-    };
-    
-  }, [
-    activeTab, 
-    suratNo, 
-    withdrawDate, 
-    ksName, ksTitle, ksNip, ksAddress, 
-    trName, trTitle, trNip, trAddress, 
-    selectedBudgetIds, 
-    monthlyRealizations, 
-    profile,
-    recipientDetails // Important: Re-generate if recipient details (names) change
-  ]);
-
   // CHANGED: Converted from Component inside Component to a Variable to prevent re-render focus loss
   const budgetTableContent = (
      <div className="border border-gray-200 rounded-lg overflow-hidden max-h-[500px] overflow-y-auto relative">
@@ -1139,12 +1073,11 @@ const BankWithdrawal: React.FC<BankWithdrawalProps> = ({ data, profile, onUpdate
                   )}
 
                   {(activeTab === 'surat_kuasa' || activeTab === 'pemindahbukuan') && (
-                     <div className="flex flex-col xl:flex-row gap-6 h-full">
-                        {/* LEFT COLUMN: EDIT DATA */}
-                        <div className="flex-1 space-y-6 overflow-y-auto pr-2 custom-scrollbar">
+                     <div className="space-y-6">
+                        <div className="space-y-6">
                             <div className="flex items-center gap-2 bg-blue-50 p-3 rounded-lg border border-blue-100 text-sm text-blue-800">
                                <Edit3 size={16} />
-                               <span>Edit data untuk ditampilkan di preview.</span>
+                               <span>Lengkapi data di bawah ini untuk mencetak dokumen.</span>
                             </div>
                             
                             {/* NEW: Selection Summary in Edit Panel */}
@@ -1207,47 +1140,6 @@ const BankWithdrawal: React.FC<BankWithdrawalProps> = ({ data, profile, onUpdate
                                 >
                                     <List size={18} /> Cetak Lampiran Transfer & Simpan
                                 </button>
-                            </div>
-                        </div>
-
-                        {/* RIGHT COLUMN: PREVIEW */}
-                        <div className="flex-1 xl:flex-[1.5] bg-gray-100 rounded-xl border border-gray-300 overflow-hidden flex flex-col h-[600px]">
-                            <div className="bg-gray-200 px-4 py-2 border-b border-gray-300 flex justify-between items-center">
-                                <span className="text-xs font-bold text-gray-600 flex items-center gap-2">
-                                    <Eye size={14} /> Preview Dokumen
-                                </span>
-                                <div className="flex items-center gap-2">
-                                    {pdfPreviewUrl && (
-                                        <a href={pdfPreviewUrl} target="_blank" rel="noreferrer" className="flex items-center gap-1 text-xs text-blue-600 hover:underline bg-white px-2 py-1 rounded border border-gray-300">
-                                            <ExternalLink size={12} /> Buka Tab Baru
-                                        </a>
-                                    )}
-                                </div>
-                            </div>
-                            <div className="flex-1 bg-gray-500 overflow-hidden flex items-center justify-center relative">
-                                {isPreviewLoading ? (
-                                    <div className="text-white text-sm">Memuat preview...</div>
-                                ) : pdfPreviewUrl ? (
-                                    <>
-                                        <iframe 
-                                            key={pdfPreviewUrl} // Force re-render on URL change
-                                            src={`${pdfPreviewUrl}#toolbar=0&navpanes=0&scrollbar=0`}
-                                            className="w-full h-full"
-                                            title="PDF Preview"
-                                        />
-                                        {/* Mobile Fallback */}
-                                        <div className="absolute inset-0 flex items-center justify-center bg-gray-800 bg-opacity-90 lg:hidden text-center p-4">
-                                            <div>
-                                                <p className="text-white text-sm mb-4">Preview PDF mungkin tidak muncul di perangkat mobile.</p>
-                                                <a href={pdfPreviewUrl} target="_blank" rel="noreferrer" className="bg-blue-600 text-white px-4 py-2 rounded-lg font-bold flex items-center gap-2 mx-auto w-fit">
-                                                    <ExternalLink size={16} /> Buka PDF Fullscreen
-                                                </a>
-                                            </div>
-                                        </div>
-                                    </>
-                                ) : (
-                                    <div className="text-white text-sm">Menyiapkan preview...</div>
-                                )}
                             </div>
                         </div>
                      </div>
