@@ -43,8 +43,16 @@ const BankWithdrawal: React.FC<BankWithdrawalProps> = ({ data, profile }) => {
   const [schoolKecamatan, setSchoolKecamatan] = useState('');
   const [schoolPostal, setSchoolPostal] = useState('');
 
-  // Recipient Details State (Nama & No Rekening per Item)
-  const [recipientDetails, setRecipientDetails] = useState<Record<string, { name: string, account: string }>>({});
+  // Recipient Details State (Nama, No Rekening, & Pajak per Item)
+  const [recipientDetails, setRecipientDetails] = useState<Record<string, { 
+      name: string, 
+      account: string,
+      ppn: number,
+      pph21: number,
+      pph22: number,
+      pph23: number,
+      pajakDaerah: number
+  }>>({});
   
   // Bulk Edit State
   const [bulkName, setBulkName] = useState('');
@@ -99,11 +107,12 @@ const BankWithdrawal: React.FC<BankWithdrawalProps> = ({ data, profile }) => {
           name: string, 
           account: string, 
           amount: number, 
-          descriptions: string[] 
+          descriptions: string[],
+          taxes: { ppn: number, pph21: number, pph22: number, pph23: number, pajakDaerah: number }
       }> = {};
 
       selectedItems.forEach(item => {
-          const detail = recipientDetails[item.id] || { name: '', account: '' };
+          const detail = recipientDetails[item.id] || { name: '', account: '', ppn: 0, pph21: 0, pph22: 0, pph23: 0, pajakDaerah: 0 };
           const cleanName = detail.name.trim();
           const cleanAccount = detail.account.trim();
 
@@ -117,12 +126,18 @@ const BankWithdrawal: React.FC<BankWithdrawalProps> = ({ data, profile }) => {
                   name: cleanName,
                   account: cleanAccount,
                   amount: 0,
-                  descriptions: []
+                  descriptions: [],
+                  taxes: { ppn: 0, pph21: 0, pph22: 0, pph23: 0, pajakDaerah: 0 }
               };
           }
 
           groups[key].amount += item.amount;
           groups[key].descriptions.push(item.description);
+          groups[key].taxes.ppn += (detail.ppn || 0);
+          groups[key].taxes.pph21 += (detail.pph21 || 0);
+          groups[key].taxes.pph22 += (detail.pph22 || 0);
+          groups[key].taxes.pph23 += (detail.pph23 || 0);
+          groups[key].taxes.pajakDaerah += (detail.pajakDaerah || 0);
       });
 
       return Object.values(groups);
@@ -144,11 +159,11 @@ const BankWithdrawal: React.FC<BankWithdrawalProps> = ({ data, profile }) => {
       }
   };
 
-  const handleRecipientChange = (id: string, field: 'name' | 'account', value: string) => {
+  const handleRecipientChange = (id: string, field: string, value: string | number) => {
       setRecipientDetails(prev => ({
           ...prev,
           [id]: {
-              ...prev[id],
+              ...prev[id] || { name: '', account: '', ppn: 0, pph21: 0, pph22: 0, pph23: 0, pajakDaerah: 0 },
               [field]: value
           }
       }));
@@ -158,7 +173,16 @@ const BankWithdrawal: React.FC<BankWithdrawalProps> = ({ data, profile }) => {
       setRecipientDetails(prev => {
           const newState = { ...prev };
           selectedBudgetIds.forEach(id => {
-              newState[id] = { name: bulkName, account: bulkAccount };
+              newState[id] = { 
+                  ...newState[id], // Preserve existing tax if any
+                  name: bulkName, 
+                  account: bulkAccount,
+                  ppn: newState[id]?.ppn || 0,
+                  pph21: newState[id]?.pph21 || 0,
+                  pph22: newState[id]?.pph22 || 0,
+                  pph23: newState[id]?.pph23 || 0,
+                  pajakDaerah: newState[id]?.pajakDaerah || 0
+              };
           });
           return newState;
       });
@@ -286,6 +310,16 @@ const BankWithdrawal: React.FC<BankWithdrawalProps> = ({ data, profile }) => {
     const contentY = khususY + 8;
     doc.setFont('times', 'normal');
     
+    // Calculate total net amount (Amount - Total Taxes) for the letter body?
+    // Usually Surat Kuasa uses the Gross amount to be transferred from Main Account, 
+    // or Net Amount to be received by recipients?
+    // Standard practice: Total nominal to be transferred out of payer's account. 
+    // Since taxes are usually deducted *before* transfer or paid separately, 
+    // for this purpose we usually state the Gross Amount or the total sum of "Jumlah Bersih".
+    // Let's stick to the Gross Amount (Total Selected Amount) as per common practice in BOSP, 
+    // because the Bank splits it or the school pays net + tax billing. 
+    // But usually for "Pemindahbukuan", it's the total sum of transactions.
+    
     // UPDATE: Gunakan uniqueRecipientCount untuk jumlah rekening
     const itemCountText = getTerbilang(uniqueRecipientCount);
     const nominalFormatted = formatRupiah(totalSelectedAmount).replace(',00', '').replace('Rp', 'Rp ');
@@ -401,6 +435,14 @@ const BankWithdrawal: React.FC<BankWithdrawalProps> = ({ data, profile }) => {
     // UPDATE: Gunakan Grouped Data
     const groupedData = getGroupedData();
 
+    // Calculate Grand Totals for Taxes
+    let totalPph21 = 0;
+    let totalPph22 = 0;
+    let totalPph23 = 0;
+    let totalPajakDaerah = 0;
+    let totalPotonganAll = 0;
+    let totalBersihAll = 0;
+
     const tableBody = groupedData.map((item, idx) => {
         // Gabungkan deskripsi jika banyak
         let mergedDesc = item.descriptions.join(', ');
@@ -408,21 +450,46 @@ const BankWithdrawal: React.FC<BankWithdrawalProps> = ({ data, profile }) => {
             mergedDesc = `${item.descriptions[0]} dan ${item.descriptions.length - 1} item lainnya`;
         }
 
+        const totalTaxes = item.taxes.ppn + item.taxes.pph21 + item.taxes.pph22 + item.taxes.pph23 + item.taxes.pajakDaerah;
+        const netAmount = item.amount - totalTaxes;
+
+        // Accumulate Totals
+        totalPph21 += item.taxes.pph21;
+        totalPph22 += item.taxes.pph22;
+        totalPph23 += item.taxes.pph23;
+        totalPajakDaerah += item.taxes.pajakDaerah;
+        totalPotonganAll += totalTaxes;
+        totalBersihAll += netAmount;
+
         return [
             idx + 1,
             item.name || '(Isi Nama)',
             item.account || '(Isi No Rek)',
             formatRupiah(item.amount),
-            '', '', '', '', '', // Tax Columns (Empty)
-            '-', // Jml Potongan
-            formatRupiah(item.amount), // Bersih
+            formatRupiah(item.taxes.ppn), // PPN (If used, but hidden in UI for now, defaulting 0)
+            formatRupiah(item.taxes.pph21),
+            formatRupiah(item.taxes.pph22),
+            formatRupiah(item.taxes.pph23),
+            formatRupiah(item.taxes.pajakDaerah),
+            formatRupiah(totalTaxes), // Total Potongan
+            formatRupiah(netAmount), // Bersih
             mergedDesc // Keterangan (Gabungan)
         ]
     });
 
     tableBody.push([
-        '', 'JUMLAH', '', formatRupiah(totalSelectedAmount), '', '', '', '', '', '-', formatRupiah(totalSelectedAmount), ''
+        '', 'JUMLAH', '', 
+        formatRupiah(totalSelectedAmount), 
+        '', // Total PPN skipped
+        formatRupiah(totalPph21),
+        formatRupiah(totalPph22),
+        formatRupiah(totalPph23),
+        formatRupiah(totalPajakDaerah),
+        formatRupiah(totalPotonganAll),
+        formatRupiah(totalBersihAll), 
+        ''
     ]);
+
     autoTable(doc, {
       startY: 40,
       head: [
@@ -431,8 +498,8 @@ const BankWithdrawal: React.FC<BankWithdrawalProps> = ({ data, profile }) => {
               { content: 'Nama', rowSpan: 2, styles: { valign: 'middle', halign: 'center' } },
               { content: 'Nomor Rekening', rowSpan: 2, styles: { valign: 'middle', halign: 'center' } },
               { content: 'Nominal', rowSpan: 2, styles: { valign: 'middle', halign: 'center' } },
-              { content: 'Potongan KPPN', colSpan: 5, styles: { halign: 'center', fillColor: [255, 255, 0], textColor: [0,0,0] } },
-              { content: 'Jumlah Potongan', rowSpan: 2, styles: { valign: 'middle', halign: 'center', fillColor: [255, 255, 0], textColor: [0,0,0] } },
+              { content: 'Potongan Pajak', colSpan: 5, styles: { halign: 'center', fillColor: [255, 255, 0], textColor: [0,0,0] } },
+              { content: 'Jml Potongan', rowSpan: 2, styles: { valign: 'middle', halign: 'center', fillColor: [255, 255, 0], textColor: [0,0,0] } },
               { content: 'Jumlah Bersih', rowSpan: 2, styles: { valign: 'middle', halign: 'center', fillColor: [200, 200, 255] } },
               { content: 'Keterangan', rowSpan: 2, styles: { valign: 'middle', halign: 'center' } },
           ],
@@ -441,18 +508,28 @@ const BankWithdrawal: React.FC<BankWithdrawalProps> = ({ data, profile }) => {
               { content: 'PPh 21', styles: { fillColor: [255, 255, 0], textColor: [0,0,0] } },
               { content: 'PPh 22', styles: { fillColor: [255, 255, 0], textColor: [0,0,0] } },
               { content: 'PPh 23', styles: { fillColor: [255, 255, 0], textColor: [0,0,0] } },
-              { content: 'Daerah/Pajak Lain', styles: { fillColor: [255, 255, 0], textColor: [0,0,0] } },
+              { content: 'Daerah', styles: { fillColor: [255, 255, 0], textColor: [0,0,0] } },
           ]
       ],
       body: tableBody,
       theme: 'grid',
-      styles: { fontSize: 8, cellPadding: 2, lineColor: [0, 0, 0], lineWidth: 0.1 },
+      styles: { fontSize: 7, cellPadding: 2, lineColor: [0, 0, 0], lineWidth: 0.1 },
       headStyles: { fillColor: [255, 255, 255], textColor: [0, 0, 0], lineWidth: 0.1, lineColor: [0, 0, 0] },
       columnStyles: {
-        0: { cellWidth: 10, halign: 'center' },
-        1: { cellWidth: 35 }, 2: { cellWidth: 25 }, 3: { cellWidth: 25, halign: 'right' },
-        4: { cellWidth: 15, halign: 'right' }, 5: { cellWidth: 15, halign: 'right' }, 6: { cellWidth: 15, halign: 'right' }, 7: { cellWidth: 15, halign: 'right' }, 8: { cellWidth: 15, halign: 'right' },
-        9: { cellWidth: 20, halign: 'right' }, 10: { cellWidth: 25, halign: 'right', fillColor: [200, 200, 255] }, 11: { cellWidth: 'auto' }
+        0: { cellWidth: 8, halign: 'center' },
+        1: { cellWidth: 35 }, 
+        2: { cellWidth: 20 }, 
+        3: { cellWidth: 22, halign: 'right' },
+        // Tax Columns
+        4: { cellWidth: 15, halign: 'right' }, 
+        5: { cellWidth: 15, halign: 'right' }, 
+        6: { cellWidth: 15, halign: 'right' }, 
+        7: { cellWidth: 15, halign: 'right' }, 
+        8: { cellWidth: 15, halign: 'right' },
+        // Totals
+        9: { cellWidth: 20, halign: 'right' }, 
+        10: { cellWidth: 22, halign: 'right', fillColor: [200, 200, 255] }, 
+        11: { cellWidth: 'auto' }
       },
       didParseCell: (data) => {
         if (data.row.index === tableBody.length - 1) {
@@ -531,8 +608,8 @@ const BankWithdrawal: React.FC<BankWithdrawalProps> = ({ data, profile }) => {
                             {isAllSelected ? <CheckSquare size={18} /> : <Square size={18} />}
                         </button>
                     </th>
-                    <th className="px-4 py-3 w-1/4">Uraian Kegiatan (Keterangan)</th>
-                    <th className="px-4 py-3 w-1/4">
+                    <th className="px-4 py-3 min-w-[200px]">Uraian Kegiatan (Keterangan)</th>
+                    <th className="px-4 py-3 min-w-[150px]">
                        <div className="flex items-center justify-between">
                           <span>Nama Penerima</span>
                           {selectedBudgetIds.length > 1 && (
@@ -546,54 +623,116 @@ const BankWithdrawal: React.FC<BankWithdrawalProps> = ({ data, profile }) => {
                           )}
                        </div>
                     </th>
-                    <th className="px-4 py-3 w-1/5">No. Rekening</th>
-                    <th className="px-4 py-3 text-right">Nominal</th>
+                    <th className="px-4 py-3 min-w-[120px]">No. Rekening</th>
+                    {/* New Tax Columns */}
+                    <th className="px-2 py-3 w-20 text-center text-xs">PPh 21</th>
+                    <th className="px-2 py-3 w-20 text-center text-xs">PPh 22</th>
+                    <th className="px-2 py-3 w-20 text-center text-xs">PPh 23</th>
+                    <th className="px-2 py-3 w-20 text-center text-xs">Daerah</th>
+                    <th className="px-4 py-3 text-right">Nominal Bruto</th>
+                    <th className="px-4 py-3 text-right bg-blue-50">Jml Bersih</th>
                 </tr>
             </thead>
             <tbody className="divide-y divide-gray-100 bg-white">
                 {availableExpenses.length === 0 ? (
-                    <tr><td colSpan={5} className="text-center py-4 text-gray-400">Tidak ada anggaran disetujui.</td></tr>
+                    <tr><td colSpan={10} className="text-center py-4 text-gray-400">Tidak ada anggaran disetujui.</td></tr>
                 ) : (
-                    availableExpenses.map(item => (
-                    <tr key={item.id} className={`hover:bg-gray-50 ${selectedBudgetIds.includes(item.id) ? 'bg-blue-50' : ''}`}>
-                        <td className="px-4 py-3 text-center text-blue-600 cursor-pointer" onClick={() => toggleSelection(item.id)}>
-                            {selectedBudgetIds.includes(item.id) ? <CheckSquare size={18} /> : <Square size={18} />}
-                        </td>
-                        <td className="px-4 py-3 cursor-pointer" onClick={() => toggleSelection(item.id)}>
-                            <div className="font-medium text-gray-800 text-xs">{item.description}</div>
-                            <div className="text-[10px] text-gray-400">{item.account_code || '-'}</div>
-                        </td>
-                        <td className="px-2 py-2">
-                            {selectedBudgetIds.includes(item.id) ? (
-                                <input 
-                                type="text" 
-                                className="w-full border border-blue-300 rounded px-2 py-1 text-xs focus:ring-1 focus:ring-blue-500 outline-none"
-                                placeholder="Ketik Nama..."
-                                value={recipientDetails[item.id]?.name || ''}
-                                onChange={(e) => handleRecipientChange(item.id, 'name', e.target.value)}
-                                />
-                            ) : (
-                                <span className="text-xs text-gray-400">-</span>
-                            )}
-                        </td>
-                        <td className="px-2 py-2">
-                            {selectedBudgetIds.includes(item.id) ? (
-                                <input 
-                                type="text" 
-                                className="w-full border border-blue-300 rounded px-2 py-1 text-xs focus:ring-1 focus:ring-blue-500 outline-none"
-                                placeholder="Ketik No Rek..."
-                                value={recipientDetails[item.id]?.account || ''}
-                                onChange={(e) => handleRecipientChange(item.id, 'account', e.target.value)}
-                                />
-                            ) : (
-                                <span className="text-xs text-gray-400">-</span>
-                            )}
-                        </td>
-                        <td className="px-4 py-3 text-right font-mono text-xs font-bold text-gray-700">
-                            {formatRupiah(item.amount)}
-                        </td>
-                    </tr>
-                    ))
+                    availableExpenses.map(item => {
+                        const detail = recipientDetails[item.id] || { name: '', account: '', ppn: 0, pph21: 0, pph22: 0, pph23: 0, pajakDaerah: 0 };
+                        const totalPotongan = (detail.ppn || 0) + (detail.pph21 || 0) + (detail.pph22 || 0) + (detail.pph23 || 0) + (detail.pajakDaerah || 0);
+                        const jumlahBersih = item.amount - totalPotongan;
+
+                        return (
+                        <tr key={item.id} className={`hover:bg-gray-50 ${selectedBudgetIds.includes(item.id) ? 'bg-blue-50' : ''}`}>
+                            <td className="px-4 py-3 text-center text-blue-600 cursor-pointer" onClick={() => toggleSelection(item.id)}>
+                                {selectedBudgetIds.includes(item.id) ? <CheckSquare size={18} /> : <Square size={18} />}
+                            </td>
+                            <td className="px-4 py-3 cursor-pointer" onClick={() => toggleSelection(item.id)}>
+                                <div className="font-medium text-gray-800 text-xs">{item.description}</div>
+                                <div className="text-[10px] text-gray-400">{item.account_code || '-'}</div>
+                            </td>
+                            <td className="px-2 py-2">
+                                {selectedBudgetIds.includes(item.id) ? (
+                                    <input 
+                                    type="text" 
+                                    className="w-full border border-blue-300 rounded px-2 py-1 text-xs focus:ring-1 focus:ring-blue-500 outline-none"
+                                    placeholder="Nama..."
+                                    value={detail.name}
+                                    onChange={(e) => handleRecipientChange(item.id, 'name', e.target.value)}
+                                    />
+                                ) : (
+                                    <span className="text-xs text-gray-400">-</span>
+                                )}
+                            </td>
+                            <td className="px-2 py-2">
+                                {selectedBudgetIds.includes(item.id) ? (
+                                    <input 
+                                    type="text" 
+                                    className="w-full border border-blue-300 rounded px-2 py-1 text-xs focus:ring-1 focus:ring-blue-500 outline-none"
+                                    placeholder="No Rek..."
+                                    value={detail.account}
+                                    onChange={(e) => handleRecipientChange(item.id, 'account', e.target.value)}
+                                    />
+                                ) : (
+                                    <span className="text-xs text-gray-400">-</span>
+                                )}
+                            </td>
+                            
+                            {/* TAX INPUTS */}
+                            <td className="px-1 py-2">
+                                {selectedBudgetIds.includes(item.id) && (
+                                    <input 
+                                    type="number" min="0"
+                                    className="w-full border border-gray-300 rounded px-1 py-1 text-[10px] text-right focus:ring-1 focus:ring-blue-500 outline-none"
+                                    placeholder="0"
+                                    value={detail.pph21 || ''}
+                                    onChange={(e) => handleRecipientChange(item.id, 'pph21', Number(e.target.value))}
+                                    />
+                                )}
+                            </td>
+                            <td className="px-1 py-2">
+                                {selectedBudgetIds.includes(item.id) && (
+                                    <input 
+                                    type="number" min="0"
+                                    className="w-full border border-gray-300 rounded px-1 py-1 text-[10px] text-right focus:ring-1 focus:ring-blue-500 outline-none"
+                                    placeholder="0"
+                                    value={detail.pph22 || ''}
+                                    onChange={(e) => handleRecipientChange(item.id, 'pph22', Number(e.target.value))}
+                                    />
+                                )}
+                            </td>
+                            <td className="px-1 py-2">
+                                {selectedBudgetIds.includes(item.id) && (
+                                    <input 
+                                    type="number" min="0"
+                                    className="w-full border border-gray-300 rounded px-1 py-1 text-[10px] text-right focus:ring-1 focus:ring-blue-500 outline-none"
+                                    placeholder="0"
+                                    value={detail.pph23 || ''}
+                                    onChange={(e) => handleRecipientChange(item.id, 'pph23', Number(e.target.value))}
+                                    />
+                                )}
+                            </td>
+                            <td className="px-1 py-2">
+                                {selectedBudgetIds.includes(item.id) && (
+                                    <input 
+                                    type="number" min="0"
+                                    className="w-full border border-gray-300 rounded px-1 py-1 text-[10px] text-right focus:ring-1 focus:ring-blue-500 outline-none"
+                                    placeholder="0"
+                                    value={detail.pajakDaerah || ''}
+                                    onChange={(e) => handleRecipientChange(item.id, 'pajakDaerah', Number(e.target.value))}
+                                    />
+                                )}
+                            </td>
+
+                            <td className="px-4 py-3 text-right font-mono text-xs text-gray-500">
+                                {formatRupiah(item.amount)}
+                            </td>
+                            <td className="px-4 py-3 text-right font-mono text-xs font-bold text-gray-800 bg-blue-50">
+                                {formatRupiah(jumlahBersih)}
+                            </td>
+                        </tr>
+                        );
+                    })
                 )}
             </tbody>
         </table>
