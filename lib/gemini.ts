@@ -32,13 +32,12 @@ const parseAIResponse = (text: string | undefined) => {
   if (!text) return null;
   try {
     // 1. Try to extract JSON from markdown code blocks (e.g. ```json ... ```)
-    // Regex explanation: Matches ``` optionally followed by json, capturing content, ending with ```
     const match = text.match(/```(?:json)?\s*([\s\S]*?)\s*```/);
     if (match) {
       return JSON.parse(match[1]);
     }
     
-    // 2. Try parsing the raw text directly (cleaning potential whitespace)
+    // 2. Try parsing the raw text directly
     return JSON.parse(text.trim());
   } catch (e) {
     console.error("Failed to parse JSON from AI:", text, e);
@@ -47,20 +46,29 @@ const parseAIResponse = (text: string | undefined) => {
 };
 
 // --- OPTIMIZATION: SMART FILTERING ---
-// Reduces payload size by only sending relevant account codes to AI
 const filterRelevantAccounts = (query: string, accounts: Record<string, string>): string => {
   const entries = Object.entries(accounts);
   
   // STRATEGY 1: Small Dataset (< 150 items)
-  // If the list is small enough, send EVERYTHING. This ensures 100% accuracy for finding matches.
   if (entries.length < 150) {
       return entries.map(([c, n]) => `- ${c}: ${n}`).join('\n');
   }
 
   // STRATEGY 2: Large Dataset (Imported Excel)
-  // Use keyword matching to find relevant codes.
   const queryLower = query.toLowerCase();
-  const queryWords = queryLower.split(/\s+/).filter(w => w.length > 1); // Allow 2 chars like 'HP', 'PC'
+  
+  // Keywords triggering "Service/Labor" accounts
+  const isServiceQuery = 
+    queryLower.includes('honor') || 
+    queryLower.includes('gaji') || 
+    queryLower.includes('upah') || 
+    queryLower.includes('jasa') || 
+    queryLower.includes('pelatih') || 
+    queryLower.includes('pembina') ||
+    queryLower.includes('narasumber') ||
+    queryLower.includes('tukang');
+
+  const queryWords = queryLower.split(/\s+/).filter(w => w.length > 1);
 
   // Score each account based on match relevance
   const scored = entries.map(([code, name]) => {
@@ -70,10 +78,24 @@ const filterRelevantAccounts = (query: string, accounts: Record<string, string>)
       // Exact phrase match bonus
       if (nameLower.includes(queryLower)) score += 100;
       
-      // Word match bonus
+      // Keyword matching
       queryWords.forEach(word => {
           if (nameLower.includes(word)) score += 10;
       });
+
+      // CONTEXT AWARENESS:
+      // If user asks for Honor/Service, boost accounts starting with 5.1.02.02 (Belanja Jasa)
+      if (isServiceQuery && code.startsWith('5.1.02.02')) {
+          score += 50; 
+          // Boost specific types of services
+          if (nameLower.includes('narasumber') || nameLower.includes('instruktur')) score += 20;
+          if (nameLower.includes('tenaga')) score += 20;
+      }
+
+      // If user asks for Goods (Barang), boost 5.1.02.01 (Belanja Barang)
+      if (!isServiceQuery && code.startsWith('5.1.02.01')) {
+          score += 5;
+      }
 
       // Prefer standard codes slightly if scores match
       // @ts-ignore
@@ -88,14 +110,13 @@ const filterRelevantAccounts = (query: string, accounts: Record<string, string>)
     .sort((a,b) => b.score - a.score)
     .slice(0, 50);
 
-  // Fallback: If no matches found (e.g. typos), include a mix of common accounts + top custom ones
+  // Fallback
   if (candidates.length === 0) {
       candidates = entries
-        .slice(0, 30) // Take first 30 (usually standard accounts)
+        .slice(0, 30)
         .map(([code, name]) => ({ code, name, score: 0 }));
   }
 
-  // Format as simple text list to save tokens
   return candidates.map(c => `- ${c.code}: ${c.name}`).join('\n');
 };
 
@@ -127,7 +148,6 @@ export const analyzeBudgetEntry = async (description: string, availableAccounts:
   }
 
   try {
-    // Optimization: Filter accounts to avoid "Payload Too Large"
     const relevantAccountsList = filterRelevantAccounts(description, availableAccounts);
 
     const response = await ai.models.generateContent({
@@ -138,18 +158,18 @@ export const analyzeBudgetEntry = async (description: string, availableAccounts:
       Task: 
       1. Validate the user's budget plan input against Juknis BOSP 2026.
       2. Select the BEST matching Account Code from the provided list.
-      3. ESTIMATE the Quantity, Unit, and Unit Price (IDR) based on standard market rates in Indonesia (2026).
+      3. ESTIMATE the Quantity, Unit, and Unit Price (IDR).
       
       User Input: "${description}"
       
+      Specific Mapping Rules:
+      - "Honor Ekstrakurikuler" (Pramuka/Tari/etc) -> MUST map to "Belanja Jasa Narasumber/Instruktur" or "Jasa Tenaga Pendidikan". NEVER "Belanja Barang".
+      - "Honor Tukang" -> "Belanja Jasa Tenaga Kerja".
+      - "Makan Minum" -> "Belanja Makan dan Minum".
+      - "Laptop/Komputer/Printer" -> "Belanja Modal Peralatan".
+      
       Available Account Codes (Select one):
       ${relevantAccountsList}
-      
-      Rules:
-      1. JUKNIS 2026: No land purchase, no personal vehicle, no PNS salary.
-      2. If forbidden, set is_eligible=false and provide a warning.
-      3. YOU MUST ESTIMATE THE PRICE. Do not return 0 unless absolutely unknown. Example: Laptop ~7.000.000, ATK ~50.000.
-      4. Suggest a formal "Uraian Kegiatan" text if the input is informal.
       
       Output JSON Format Only.`,
       config: {

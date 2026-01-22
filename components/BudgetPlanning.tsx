@@ -1,6 +1,6 @@
-import React, { useState, useMemo, useEffect } from 'react';
+import React, { useState, useMemo, useEffect, useRef } from 'react';
 import { Budget, TransactionType, BOSPComponent, SNPStandard, AccountCodes } from '../types';
-import { Plus, Search, Edit2, Trash2, X, Save, Calculator, Calendar, Sparkles, Loader2, AlertTriangle, CheckCircle, Filter, Info } from 'lucide-react';
+import { Plus, Search, Edit2, Trash2, X, Save, Calculator, Calendar, Sparkles, Loader2, AlertTriangle, CheckCircle, Filter, Info, ChevronDown, Check } from 'lucide-react';
 import { analyzeBudgetEntry } from '../lib/gemini';
 import { getCustomAccounts } from '../lib/db';
 
@@ -29,7 +29,12 @@ const BudgetPlanning: React.FC<BudgetPlanningProps> = ({ data, onAdd, onUpdate, 
   const [description, setDescription] = useState('');
   const [bospComponent, setBospComponent] = useState<string>(Object.values(BOSPComponent)[0]);
   const [snpStandard, setSnpStandard] = useState<string>(Object.values(SNPStandard)[0]);
+  
+  // Account Selection State (Searchable)
   const [accountCode, setAccountCode] = useState<string>('');
+  const [accountSearchTerm, setAccountSearchTerm] = useState('');
+  const [isAccountDropdownOpen, setIsAccountDropdownOpen] = useState(false);
+  
   const [quantity, setQuantity] = useState<number>(0);
   const [unit, setUnit] = useState('');
   const [unitPrice, setUnitPrice] = useState<number>(0);
@@ -42,13 +47,48 @@ const BudgetPlanning: React.FC<BudgetPlanningProps> = ({ data, onAdd, onUpdate, 
   
   // Custom Accounts State
   const [allAccounts, setAllAccounts] = useState<Record<string, string>>(AccountCodes);
+  const dropdownRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
      const custom = getCustomAccounts();
      setAllAccounts({ ...AccountCodes, ...custom });
   }, [isModalOpen]); 
 
-  // Derived State (Filtering Logic)
+  // Close dropdown when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
+        setIsAccountDropdownOpen(false);
+      }
+    };
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
+
+  // Update Display Text when accountCode changes programmatically (e.g. Edit or AI)
+  useEffect(() => {
+      if (accountCode && allAccounts[accountCode]) {
+          // Only update text if it doesn't match current code (prevents typing overwrite issues)
+          // But for "Edit" or "AI", we want to force update.
+          // Simple check: if search term is empty or doesn't contain the code, update it.
+          if (!accountSearchTerm.includes(accountCode)) {
+              setAccountSearchTerm(`${accountCode} - ${allAccounts[accountCode]}`);
+          }
+      } else if (!accountCode) {
+          setAccountSearchTerm('');
+      }
+  }, [accountCode, allAccounts]); // Depend on accountCode
+
+  // Filtered Accounts List
+  const filteredAccounts = useMemo(() => {
+      const term = accountSearchTerm.toLowerCase();
+      return Object.entries(allAccounts).filter(([code, name]) => 
+          code.toLowerCase().includes(term) || 
+          (name as string).toLowerCase().includes(term)
+      );
+  }, [allAccounts, accountSearchTerm]);
+
+  // Derived State (Table Filtering Logic)
   const expenses = useMemo(() => {
     return data
       .filter(d => d.type === TransactionType.EXPENSE)
@@ -71,6 +111,7 @@ const BudgetPlanning: React.FC<BudgetPlanningProps> = ({ data, onAdd, onUpdate, 
     setBospComponent(Object.values(BOSPComponent)[0]);
     setSnpStandard(Object.values(SNPStandard)[0]);
     setAccountCode('');
+    setAccountSearchTerm('');
     setQuantity(0);
     setUnit('');
     setUnitPrice(0);
@@ -89,7 +130,12 @@ const BudgetPlanning: React.FC<BudgetPlanningProps> = ({ data, onAdd, onUpdate, 
     setDescription(item.description);
     setBospComponent(item.bosp_component);
     setSnpStandard(item.category);
-    setAccountCode(item.account_code || '');
+    
+    // Set account code & display text
+    const code = item.account_code || '';
+    setAccountCode(code);
+    setAccountSearchTerm(code && allAccounts[code] ? `${code} - ${allAccounts[code]}` : code);
+
     setQuantity(item.quantity || 1);
     setUnit(item.unit || 'Paket');
     setUnitPrice(item.unit_price || item.amount);
@@ -112,7 +158,14 @@ const BudgetPlanning: React.FC<BudgetPlanningProps> = ({ data, onAdd, onUpdate, 
     if (result) {
       setBospComponent(result.bosp_component);
       setSnpStandard(result.snp_standard);
-      setAccountCode(result.account_code);
+      
+      // Update Account & Search Term for Display
+      if (result.account_code) {
+          setAccountCode(result.account_code);
+          const name = allAccounts[result.account_code] || '';
+          setAccountSearchTerm(`${result.account_code} - ${name}`);
+      }
+
       setIsEligible(result.is_eligible);
       setAiWarning(result.warning);
       
@@ -164,6 +217,12 @@ const BudgetPlanning: React.FC<BudgetPlanningProps> = ({ data, onAdd, onUpdate, 
     setSelectedMonths(prev => 
        prev.includes(idx) ? prev.filter(m => m !== idx) : [...prev, idx].sort((a,b)=>a-b)
     );
+  };
+
+  const selectAccount = (code: string, name: string) => {
+      setAccountCode(code);
+      setAccountSearchTerm(`${code} - ${name}`);
+      setIsAccountDropdownOpen(false);
   };
 
   const formatRupiah = (num: number) => {
@@ -385,18 +444,47 @@ const BudgetPlanning: React.FC<BudgetPlanningProps> = ({ data, onAdd, onUpdate, 
                      </div>
                   </div>
 
-                  <div>
-                     <label className="block text-xs font-bold text-gray-600 mb-1 uppercase">Kode Rekening (Akun Belanja)</label>
-                     <select 
-                        className="w-full border border-gray-300 rounded-lg p-2 text-sm focus:ring-2 focus:ring-blue-500 outline-none font-mono"
-                        value={accountCode}
-                        onChange={e => setAccountCode(e.target.value)}
-                     >
-                        <option value="">-- Pilih Kode Rekening --</option>
-                        {Object.entries(allAccounts).map(([code, name]) => (
-                           <option key={code} value={code}>{code} - {name}</option>
-                        ))}
-                     </select>
+                  {/* SEARCHABLE ACCOUNT DROPDOWN */}
+                  <div className="relative" ref={dropdownRef}>
+                     <label className="block text-xs font-bold text-gray-600 mb-1 uppercase">
+                         Kode Rekening (Cari Kode / Uraian)
+                     </label>
+                     <div className="relative">
+                        <input
+                           type="text"
+                           className="w-full border border-gray-300 rounded-lg p-2 pr-8 text-sm focus:ring-2 focus:ring-blue-500 outline-none font-mono"
+                           placeholder="Ketik Kode atau Nama Rekening..."
+                           value={accountSearchTerm}
+                           onChange={(e) => {
+                               setAccountSearchTerm(e.target.value);
+                               setIsAccountDropdownOpen(true);
+                           }}
+                           onFocus={() => setIsAccountDropdownOpen(true)}
+                        />
+                        <ChevronDown className="absolute right-2 top-2.5 text-gray-400 cursor-pointer" size={16} onClick={() => setIsAccountDropdownOpen(!isAccountDropdownOpen)} />
+                     </div>
+                     
+                     {isAccountDropdownOpen && (
+                        <div className="absolute z-50 w-full bg-white border border-gray-200 rounded-lg shadow-xl mt-1 max-h-60 overflow-y-auto">
+                            {filteredAccounts.length === 0 ? (
+                                <div className="p-3 text-xs text-gray-500 text-center">Rekening tidak ditemukan.</div>
+                            ) : (
+                                filteredAccounts.map(([code, name]) => (
+                                    <div 
+                                        key={code} 
+                                        onClick={() => selectAccount(code, name)}
+                                        className={`px-3 py-2 text-sm cursor-pointer hover:bg-blue-50 flex flex-col border-b border-gray-50 last:border-0 ${accountCode === code ? 'bg-blue-50' : ''}`}
+                                    >
+                                        <div className="flex justify-between items-center">
+                                            <span className="font-bold text-blue-800 font-mono text-xs">{code}</span>
+                                            {accountCode === code && <Check size={14} className="text-blue-600" />}
+                                        </div>
+                                        <span className="text-gray-700 text-xs">{name}</span>
+                                    </div>
+                                ))
+                            )}
+                        </div>
+                     )}
                   </div>
 
                   <div className="grid grid-cols-3 gap-4">
