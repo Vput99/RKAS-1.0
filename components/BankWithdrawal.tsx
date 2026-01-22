@@ -1,6 +1,6 @@
-import React, { useState, useMemo, useEffect, useCallback } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { Budget, TransactionType, SchoolProfile } from '../types';
-import { FileText, Printer, Landmark, CheckSquare, Square, DollarSign, Calendar, User, CreditCard, Edit3, Upload, Image as ImageIcon, Eye, RefreshCw } from 'lucide-react';
+import { FileText, Printer, Landmark, CheckSquare, Square, DollarSign, Calendar, User, CreditCard, Edit3, Upload, Image as ImageIcon, Eye, RefreshCw, ExternalLink } from 'lucide-react';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 
@@ -15,40 +15,54 @@ const BankWithdrawal: React.FC<BankWithdrawalProps> = ({ data, profile }) => {
   // Form States - General
   const [selectedBudgetIds, setSelectedBudgetIds] = useState<string[]>([]);
   const [bankName, setBankName] = useState('PT. BANK PEMBANGUNAN DAERAH JAWA TIMUR');
-  const [bankBranch, setBankBranch] = useState('CABANG KEDIRI');
+  const [bankBranch, setBankBranch] = useState('KEDIRI');
+  const [bankAddress, setBankAddress] = useState('Jl. Pahlawan Kusuma Bangsa Kota Kediri');
   const [accountNo, setAccountNo] = useState('');
   const [chequeNo, setChequeNo] = useState('');
   const [withdrawDate, setWithdrawDate] = useState(new Date().toISOString().split('T')[0]);
 
   // Form States - Surat Kuasa Specific (Editable)
   const [suratNo, setSuratNo] = useState('');
+  
+  // Pihak 1 (KS)
   const [ksName, setKsName] = useState('');
+  const [ksTitle, setKsTitle] = useState('Kepala Sekolah');
   const [ksNip, setKsNip] = useState('');
+  // const [ksNik, setKsNik] = useState(''); // Removed based on image request, using Alamat instead
   const [ksAddress, setKsAddress] = useState('');
+  
+  // Pihak 2 (Bendahara)
   const [trName, setTrName] = useState('');
+  const [trTitle, setTrTitle] = useState('Bendahara BOS');
   const [trNip, setTrNip] = useState('');
+  // const [trNik, setTrNik] = useState(''); // Removed based on image request
   const [trAddress, setTrAddress] = useState('');
+  
   const [schoolAddress, setSchoolAddress] = useState('');
+  const [schoolCity, setSchoolCity] = useState('KOTA KEDIRI');
+  const [schoolKecamatan, setSchoolKecamatan] = useState('');
+  const [schoolPostal, setSchoolPostal] = useState('');
 
   // Kop Surat Image State (Base64)
   const [headerImage, setHeaderImage] = useState<string | null>(null);
 
   // PDF Preview State
   const [pdfPreviewUrl, setPdfPreviewUrl] = useState<string | null>(null);
+  const [isPreviewLoading, setIsPreviewLoading] = useState(false);
 
   // Sync profile data when loaded
   useEffect(() => {
     if (profile) {
         setKsName(profile.headmaster || '');
         setKsNip(profile.headmasterNip || '');
-        setKsAddress(profile.address || ''); // Default alamat sekolah
+        setKsAddress(profile.address || ''); 
         setTrName(profile.treasurer || '');
         setTrNip(profile.treasurerNip || '');
-        setTrAddress(profile.address || ''); // Default alamat sekolah
+        setTrAddress(profile.address || ''); 
         setSchoolAddress(profile.address || '');
         
         const year = new Date().getFullYear();
-        setSuratNo(`422 / 001 / 419.109.3.135 / ${year}`);
+        setSuratNo(`422 / 024 / 419.109.3.135 / ${year}`);
     }
   }, [profile]);
 
@@ -80,11 +94,11 @@ const BankWithdrawal: React.FC<BankWithdrawalProps> = ({ data, profile }) => {
 
     if (angka < 12) terbilang = " " + baca[angka];
     else if (angka < 20) terbilang = getTerbilang(angka - 10) + " Belas";
-    else if (angka < 100) terbilang = getTerbilang(Math.floor(angka / 10)) + " Puluh" + getTerbilang(angka % 10);
-    else if (angka < 200) terbilang = " Seratus" + getTerbilang(angka - 100);
-    else if (angka < 1000) terbilang = getTerbilang(Math.floor(angka / 100)) + " Ratus" + getTerbilang(angka % 100);
-    else if (angka < 2000) terbilang = " Seribu" + getTerbilang(angka - 1000);
-    else if (angka < 1000000) terbilang = getTerbilang(Math.floor(angka / 1000)) + " Ribu" + getTerbilang(angka % 1000);
+    else if (angka < 100) terbilang = getTerbilang(Math.floor(angka / 10)) + " Puluh " + getTerbilang(angka % 10);
+    else if (angka < 200) terbilang = " Seratus " + getTerbilang(angka - 100);
+    else if (angka < 1000) terbilang = getTerbilang(Math.floor(angka / 100)) + " Ratus " + getTerbilang(angka % 100);
+    else if (angka < 2000) terbilang = " Seribu " + getTerbilang(angka - 1000);
+    else if (angka < 1000000) terbilang = getTerbilang(Math.floor(angka / 1000)) + " Ribu " + getTerbilang(angka % 1000);
     else if (angka < 1000000000) terbilang = getTerbilang(Math.floor(angka / 1000000)) + " Juta" + getTerbilang(angka % 1000000);
     
     return terbilang.trim();
@@ -106,32 +120,35 @@ const BankWithdrawal: React.FC<BankWithdrawalProps> = ({ data, profile }) => {
 
   const generateHeader = (doc: jsPDF) => {
     if (headerImage) {
-        // Use uploaded image as header
-        // Aspect ratio check is ideal, but assuming standard header approx 190x30mm
-        doc.addImage(headerImage, 'PNG', 10, 10, 190, 35);
-        // Add line below image just in case image doesn't have one
-        // doc.setLineWidth(0.5);
-        // doc.line(20, 46, 190, 46);
-    } else {
-        // Fallback text header
-        doc.setFontSize(11);
-        doc.setFont('helvetica', 'normal');
-        doc.text('PEMERINTAH KABUPATEN/KOTA ...', 105, 15, { align: 'center' }); 
-        doc.text('DINAS PENDIDIKAN', 105, 20, { align: 'center' });
-        
-        doc.setFontSize(14);
-        doc.setFont('helvetica', 'bold');
-        doc.text((profile?.name || 'NAMA SEKOLAH').toUpperCase(), 105, 26, { align: 'center' });
-        
-        doc.setFontSize(9);
-        doc.setFont('helvetica', 'normal');
-        doc.text(schoolAddress, 105, 32, { align: 'center' });
-        
-        doc.setLineWidth(0.5);
-        doc.line(20, 36, 190, 36);
-        doc.setLineWidth(0.2);
-        doc.line(20, 37, 190, 37);
+        doc.addImage(headerImage, 'PNG', 15, 10, 25, 25);
     }
+    
+    // Official Header Layout based on image
+    doc.setFont('times', 'normal');
+    doc.setFontSize(12);
+    doc.text(`PEMERINTAH ${schoolCity}`, 105, 15, { align: 'center' }); 
+    doc.text('DINAS PENDIDIKAN', 105, 20, { align: 'center' });
+    
+    doc.setFont('times', 'bold');
+    doc.setFontSize(14);
+    doc.text((profile?.name || 'NAMA SEKOLAH').toUpperCase(), 105, 26, { align: 'center' });
+    
+    doc.setFont('times', 'normal');
+    doc.setFontSize(10);
+    // Construct address line like: Jl Raya Tempurejo no 12 Kelurahan Tempurejo
+    doc.text(schoolAddress, 105, 32, { align: 'center' });
+    // Construct detail line: Kecamatan ... Kota ... Telp ... Kode Pos ...
+    const detailLine = `${schoolKecamatan ? 'Kecamatan ' + schoolKecamatan : ''} ${schoolCity} ${schoolPostal ? 'Kode Pos : ' + schoolPostal : ''}`.trim();
+    doc.text(detailLine, 105, 36, { align: 'center' });
+    
+    // NPSN
+    doc.text(`NPSN : ${profile?.npsn || '-'}`, 105, 40, { align: 'center' });
+    
+    // Double Line
+    doc.setLineWidth(0.5);
+    doc.line(15, 43, 195, 43);
+    doc.setLineWidth(0.2);
+    doc.line(15, 44, 195, 44);
   };
 
   const createSuratKuasaDoc = () => {
@@ -139,129 +156,157 @@ const BankWithdrawal: React.FC<BankWithdrawalProps> = ({ data, profile }) => {
     
     // 1. KOP SURAT
     generateHeader(doc);
-    const topMargin = headerImage ? 55 : 48;
+    const topMargin = 55;
 
     // 2. JUDUL SURAT
+    doc.setFont('times', 'bold');
     doc.setFontSize(12);
-    doc.setFont('helvetica', 'bold');
     doc.text('SURAT KUASA', 105, topMargin, { align: 'center' });
-    doc.setLineWidth(0.3);
+    doc.setLineWidth(0.5);
     doc.line(85, topMargin + 1, 125, topMargin + 1); 
     
-    doc.setFontSize(11);
-    doc.setFont('helvetica', 'normal');
+    doc.setFont('times', 'normal');
+    doc.setFontSize(12);
     doc.text(`NOMOR : ${suratNo}`, 105, topMargin + 7, { align: 'center' });
 
     // 3. BODY - PEMBUKA
-    const startY = topMargin + 17;
-    doc.text("Yang bertanda tangan di bawah ini :", 20, startY);
+    const startY = topMargin + 15;
+    doc.text("Yang bertanda tangan dibawah ini :", 20, startY);
 
     // PIHAK 1 (Kepala Sekolah)
     const p1Y = startY + 8;
     const labelX = 20;
-    const colonX = 50;
-    const valueX = 53;
+    const colonX = 45;
+    const valueX = 48;
     const lineHeight = 6;
 
-    doc.text("1.  Nama", labelX, p1Y);
+    // 1. Nama
+    doc.text("1. Nama", labelX, p1Y);
     doc.text(":", colonX, p1Y);
-    doc.setFont('helvetica', 'bold');
     doc.text(ksName, valueX, p1Y);
     
-    doc.setFont('helvetica', 'normal');
-    doc.text("Jabatan", labelX + 8, p1Y + lineHeight);
+    // Jabatan
+    doc.text("    Jabatan", labelX, p1Y + lineHeight);
     doc.text(":", colonX, p1Y + lineHeight);
-    doc.text("Kepala Sekolah", valueX, p1Y + lineHeight);
+    doc.text(`${ksTitle} ${profile?.name || ''}`, valueX, p1Y + lineHeight);
 
-    doc.text("Alamat", labelX + 8, p1Y + (lineHeight * 2));
+    // Alamat
+    doc.text("    Alamat", labelX, p1Y + (lineHeight * 2));
     doc.text(":", colonX, p1Y + (lineHeight * 2));
     const ksAddrLines = doc.splitTextToSize(ksAddress, 130);
     doc.text(ksAddrLines, valueX, p1Y + (lineHeight * 2));
 
-    const afterP1Y = p1Y + (lineHeight * 2) + (ksAddrLines.length * 5) + 4;
+    const afterP1Y = p1Y + (lineHeight * 2) + (ksAddrLines.length * 5) + 3;
 
     // PIHAK 2 (Bendahara)
-    doc.text("2.  Nama", labelX, afterP1Y);
+    // 2. Nama
+    doc.text("2. Nama", labelX, afterP1Y);
     doc.text(":", colonX, afterP1Y);
-    doc.setFont('helvetica', 'bold');
     doc.text(trName, valueX, afterP1Y);
 
-    doc.setFont('helvetica', 'normal');
-    doc.text("Jabatan", labelX + 8, afterP1Y + lineHeight);
+    // Jabatan
+    doc.text("    Jabatan", labelX, afterP1Y + lineHeight);
     doc.text(":", colonX, afterP1Y + lineHeight);
-    doc.text("Bendahara BOS", valueX, afterP1Y + lineHeight);
+    doc.text(trTitle, valueX, afterP1Y + lineHeight);
 
-    doc.text("Alamat", labelX + 8, afterP1Y + (lineHeight * 2));
+    // Alamat
+    doc.text("    Alamat", labelX, afterP1Y + (lineHeight * 2));
     doc.text(":", colonX, afterP1Y + (lineHeight * 2));
     const trAddrLines = doc.splitTextToSize(trAddress, 130);
     doc.text(trAddrLines, valueX, afterP1Y + (lineHeight * 2));
 
-    const afterP2Y = afterP1Y + (lineHeight * 2) + (trAddrLines.length * 5) + 8;
+    const afterP2Y = afterP1Y + (lineHeight * 2) + (trAddrLines.length * 5) + 6;
 
     // 4. ISI KUASA
-    const textKuasa = `Bertindak untuk dan atas nama ${profile?.name || 'Sekolah'} Kota Kediri. Dengan ini memberikan kuasa penuh yang tidak dapat dicabut kembali dengan substitusi kepada :`;
+    const textKuasa = `Bertindak untuk dan atas nama ${profile?.name || 'Sekolah'} ${schoolCity}. Dengan ini memberikan kuasa penuh yang tidak dapat di cabut kembali dengan substitusi kepada :`;
     const splitKuasa = doc.splitTextToSize(textKuasa, 170);
     doc.text(splitKuasa, 20, afterP2Y);
 
-    const bankY = afterP2Y + (splitKuasa.length * 6) + 5;
-    doc.setFont('helvetica', 'bold');
-    doc.text(bankName, 105, bankY, { align: 'center' });
-    doc.setFontSize(10);
-    doc.setFont('helvetica', 'normal');
-    doc.text(`Berkedudukan di ${bankBranch}`, 105, bankY + 5, { align: 'center' });
+    const bankY = afterP2Y + (splitKuasa.length * 6) + 4;
+    doc.setFont('times', 'bold');
+    doc.text(`${bankName} CABANG ${bankBranch}`, 105, bankY, { align: 'center' });
+    doc.setFont('times', 'normal');
+    doc.text(`Berkedudukan di ${bankAddress}`, 105, bankY + 5, { align: 'center' });
 
     // KHUSUS
     const khususY = bankY + 15;
-    doc.setFontSize(11);
-    doc.setFont('helvetica', 'bold');
+    doc.setFont('times', 'bold');
     doc.text("KHUSUS", 105, khususY, { align: 'center' });
-    doc.setLineWidth(0.3);
+    doc.setLineWidth(0.5);
     doc.line(90, khususY + 1, 120, khususY + 1);
 
-    const contentY = khususY + 10;
-    doc.setFont('helvetica', 'normal');
+    const contentY = khususY + 8;
+    doc.setFont('times', 'normal');
     
-    const nominalText = `${formatRupiah(totalSelectedAmount)} (${getTerbilang(totalSelectedAmount)} Rupiah)`;
+    // Logic for item count and wording
+    const itemCount = selectedBudgetIds.length;
+    const itemCountText = getTerbilang(itemCount);
     
-    const mainContent = `Untuk memindahbukuan dari rekening Giro/Tabungan kami yang ada di ${bankName} ${bankBranch} dengan nomor rekening ${accountNo} atas nama ${profile?.name} untuk dilimpahkan kepada rekening terlampir yang tidak terpisahkan dari surat kuasa ini dengan total nominal ${nominalText}, Dengan data sesuai Lampiran.`;
+    const nominalFormatted = formatRupiah(totalSelectedAmount).replace(',00', '').replace('Rp', 'Rp ');
+    const nominalTerbilang = getTerbilang(totalSelectedAmount);
+    
+    const mainContent = `Untuk memindahbukuan dari rekening Giro/ Tabungan kami yang ada di ${bankName} Cabang ${bankBranch} dengan nomor rekening ${accountNo} atas nama ${profile?.name} untuk dilimpahkan kepada rekening terlampir yang tidak terpisahkan dari surat kuasa ini sebanyak ${itemCount} ( ${itemCountText} ) rekening dengan total nominal ${nominalFormatted}- ( ${nominalTerbilang} Rupiah), Dengan data sesuai Lampiran.`;
     
     const splitMain = doc.splitTextToSize(mainContent, 170);
     doc.text(splitMain, 20, contentY);
 
     // 5. PENUTUP
-    const closingY = contentY + (splitMain.length * 6) + 5;
-    const closingText = "Demikian surat kuasa ini dibuat untuk dipergunakan sebagaimana mestinya. Segala akibat yang timbul atas pemberian kuasa ini menjadi tanggung jawab pemberi kuasa sepenuhnya.";
+    const closingY = contentY + (splitMain.length * 6) + 6;
+    const closingText = `Demikian surat kuasa ini dibuat untuk dipergunakan sebagaimana mestinya. Segala akibat yang timbul atas pemberian kuasa ini menajdi tanggung jawab pemberi kuasa sepenuhnya dengan membebaskan ${bankName} Cabang ${bankBranch} dari segala akibat tuntutan atau gugatan yang timbul dari transaksi rekening tersebut diatas.`;
     const splitClosing = doc.splitTextToSize(closingText, 170);
     doc.text(splitClosing, 20, closingY);
 
-    // 6. TANDA TANGAN
-    const ttdY = closingY + (splitClosing.length * 6) + 15;
-    const dateStr = new Date(withdrawDate).toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' });
+    // 6. TANDA TANGAN (3 COLUMNS LAYOUT)
+    const ttdY = closingY + (splitClosing.length * 6) + 10;
     
-    doc.text(`Kediri, ${dateStr}`, 130, ttdY);
+    // Calculate Date
+    const months = ["Januari", "Februari", "Maret", "April", "Mei", "Juni", "Juli", "Agustus", "September", "Oktober", "November", "Desember"];
+    const d = new Date(withdrawDate);
+    const dateStr = `${d.getDate()} ${months[d.getMonth()]} ${d.getFullYear()}`;
+    // Image shows just "Kediri, April 2025" or full date. Let's use city.
+    const cityTitle = schoolCity.replace('KOTA ', '').replace('KABUPATEN ', '');
+    const dateLine = `${cityTitle}, ${dateStr}`;
 
-    const signLabelY = ttdY + 8;
-    doc.setFont('helvetica', 'bold');
-    doc.text("Yang Diberi Kuasa", 40, signLabelY, { align: 'center' });
-    doc.text("Pemberi Kuasa", 150, signLabelY, { align: 'center' });
+    // Column X Positions
+    const col1X = 20;  // Bank (Left)
+    const col2X = 85;  // KS (Center)
+    const col3X = 150; // Bendahara (Right)
+
+    // Row 1: Date (Above Bendahara)
+    doc.text(dateLine, col3X, ttdY, { align: 'center' });
+
+    // Row 2: Titles
+    const titleY = ttdY + 6;
+    doc.text("Yang diberi Kuasa", col1X + 15, titleY, { align: 'center' }); // +15 to center in col
+    doc.text(ksTitle, col2X, titleY, { align: 'center' });
+    doc.text(trTitle, col3X, titleY, { align: 'center' });
+
+    // Row 3: Subtitles / Bank Name
+    const subTitleY = titleY + 5;
+    doc.text("PT BPD JATIM", col1X + 15, subTitleY, { align: 'center' });
+    doc.text(profile?.name || 'Sekolah', col2X, subTitleY, { align: 'center' });
     
-    doc.setFontSize(10);
-    doc.text("Bendahara BOS", 40, signLabelY + 5, { align: 'center' });
-    doc.text("Kepala Sekolah", 150, signLabelY + 5, { align: 'center' });
+    // Row 4: Branch
+    const branchY = subTitleY + 5;
+    doc.text(`CABANG ${bankBranch}`, col1X + 15, branchY, { align: 'center' });
+
+    // Space for signature
+    const nameY = branchY + 30;
+
+    // Names
+    doc.setFont('times', 'bold');
+    doc.text(ksName, col2X, nameY, { align: 'center' });
+    doc.text(trName, col3X, nameY, { align: 'center' });
     
-    const nameY = signLabelY + 35;
-    doc.setFontSize(11);
-    doc.text(trName, 40, nameY, { align: 'center' });
-    doc.text(ksName, 150, nameY, { align: 'center' });
-    
+    // Underlines
     doc.setLineWidth(0.2);
-    doc.line(20, nameY + 1, 60, nameY + 1); 
-    doc.line(130, nameY + 1, 170, nameY + 1);
+    doc.line(col2X - 20, nameY + 1, col2X + 20, nameY + 1);
+    doc.line(col3X - 20, nameY + 1, col3X + 20, nameY + 1);
 
-    doc.setFont('helvetica', 'normal');
-    doc.setFontSize(10);
-    doc.text(`NIP. ${trNip}`, 40, nameY + 6, { align: 'center' });
-    doc.text(`NIP. ${ksNip}`, 150, nameY + 6, { align: 'center' });
+    // NIPs
+    doc.setFont('times', 'normal');
+    doc.text(`NIP. ${ksNip}`, col2X, nameY + 5, { align: 'center' });
+    doc.text(`NIP. ${trNip}`, col3X, nameY + 5, { align: 'center' });
 
     return doc;
   };
@@ -269,36 +314,41 @@ const BankWithdrawal: React.FC<BankWithdrawalProps> = ({ data, profile }) => {
   const createPemindahbukuanDoc = () => {
     const doc = new jsPDF();
     generateHeader(doc);
-    const topMargin = headerImage ? 55 : 45;
+    const topMargin = 55;
 
+    doc.setFont('times', 'bold');
     doc.setFontSize(12);
-    doc.setFont('helvetica', 'bold');
     doc.text('SURAT PERINTAH PEMINDAHBUKUAN', 105, topMargin, { align: 'center' });
     
-    const dateStr = new Date(withdrawDate).toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' });
+    const months = ["Januari", "Februari", "Maret", "April", "Mei", "Juni", "Juli", "Agustus", "September", "Oktober", "November", "Desember"];
+    const d = new Date(withdrawDate);
+    const dateStr = `${d.getDate()} ${months[d.getMonth()]} ${d.getFullYear()}`;
 
-    doc.setFont('helvetica', 'normal');
-    doc.setFontSize(11);
+    doc.setFont('times', 'normal');
+    doc.setFontSize(12);
     doc.text(`Kepada Yth.`, 20, topMargin + 15);
     doc.text(`Pimpinan ${bankName}`, 20, topMargin + 20);
-    doc.text(bankBranch ? `Cabang ${bankBranch}` : 'di Tempat', 20, topMargin + 25);
+    doc.text(`Cabang ${bankBranch}`, 20, topMargin + 25);
+    doc.text(`di Tempat`, 20, topMargin + 30);
 
-    doc.text("Dengan hormat,", 20, topMargin + 40);
+    doc.text("Dengan hormat,", 20, topMargin + 45);
     const content = `Mohon dipindahbukukan dana dari Rekening Giro kami Nomor: ${accountNo} atas nama ${profile?.name} sebesar ${formatRupiah(totalSelectedAmount)} (${getTerbilang(totalSelectedAmount)} Rupiah).`;
     const splitContent = doc.splitTextToSize(content, 170);
-    doc.text(splitContent, 20, topMargin + 50);
+    doc.text(splitContent, 20, topMargin + 55);
 
-    doc.text(`Cek / Bilyet Giro Nomor: ${chequeNo || '..................'}`, 20, topMargin + 70);
+    doc.text(`Cek / Bilyet Giro Nomor: ${chequeNo || '..................'}`, 20, topMargin + 75);
 
     // Signatures
-    const dateY = topMargin + 95;
-    doc.text(`.................., ${dateStr}`, 140, dateY);
-    doc.text("Kepala Sekolah", 140, dateY + 10);
+    const dateY = topMargin + 100;
+    const cityTitle = schoolCity.replace('KOTA ', '').replace('KABUPATEN ', '');
+    doc.text(`${cityTitle}, ${dateStr}`, 140, dateY);
+    doc.text(ksTitle, 140, dateY + 6);
+    doc.text(profile?.name || '', 140, dateY + 11);
     
-    doc.setFont('helvetica', 'bold');
-    doc.text(`(${profile?.headmaster || 'Kepala Sekolah'})`, 140, dateY + 40);
-    doc.setFont('helvetica', 'normal');
-    doc.text(`NIP. ${profile?.headmasterNip || '...'}`, 140, dateY + 45);
+    doc.setFont('times', 'bold');
+    doc.text(`(${ksName})`, 140, dateY + 40);
+    doc.setFont('times', 'normal');
+    doc.text(`NIP. ${ksNip}`, 140, dateY + 45);
     
     return doc;
   };
@@ -306,7 +356,7 @@ const BankWithdrawal: React.FC<BankWithdrawalProps> = ({ data, profile }) => {
   const generateRincian = () => {
     const doc = new jsPDF();
     generateHeader(doc);
-    const topMargin = headerImage ? 55 : 45;
+    const topMargin = 55;
 
     doc.setFontSize(12);
     doc.setFont('helvetica', 'bold');
@@ -351,40 +401,57 @@ const BankWithdrawal: React.FC<BankWithdrawalProps> = ({ data, profile }) => {
     doc.text(`.................., ${dateStr}`, 140, finalY);
     doc.text("Bendahara Sekolah", 140, finalY + 5);
     doc.setFont('helvetica', 'bold');
-    doc.text(`(${profile?.treasurer || '...'})`, 140, finalY + 25);
+    doc.text(`(${trName})`, 140, finalY + 25);
     doc.setFont('helvetica', 'normal');
-    doc.text(`NIP. ${profile?.treasurerNip || '...'}`, 140, finalY + 30);
+    doc.text(`NIP. ${trNip}`, 140, finalY + 30);
 
     doc.save('Daftar_Rincian_Pencairan.pdf');
   };
 
   // --- PREVIEW HANDLER ---
   
-  const updatePreview = useCallback(() => {
-    let doc: jsPDF | null = null;
-    if (activeTab === 'surat_kuasa') {
-        doc = createSuratKuasaDoc();
-    } else if (activeTab === 'pemindahbukuan') {
-        doc = createPemindahbukuanDoc();
-    }
-
-    if (doc) {
-        const blob = doc.output('blob');
-        const url = URL.createObjectURL(blob);
-        setPdfPreviewUrl(url);
-    }
-  }, [activeTab, suratNo, ksName, ksNip, ksAddress, trName, trNip, trAddress, bankName, bankBranch, accountNo, chequeNo, withdrawDate, totalSelectedAmount, headerImage, profile, schoolAddress]);
-
-  // Update preview when relevant state changes
   useEffect(() => {
+    let timeoutId: ReturnType<typeof setTimeout>;
+
+    const generatePreview = () => {
+        setIsPreviewLoading(true);
+        try {
+            let doc: jsPDF | null = null;
+            if (activeTab === 'surat_kuasa') {
+                doc = createSuratKuasaDoc();
+            } else if (activeTab === 'pemindahbukuan') {
+                doc = createPemindahbukuanDoc();
+            }
+
+            if (doc) {
+                const blob = doc.output('blob');
+                const url = URL.createObjectURL(blob);
+                setPdfPreviewUrl(prev => {
+                    if (prev) URL.revokeObjectURL(prev); // Clean up old
+                    return url;
+                });
+            }
+        } catch (e) {
+            console.error("Preview generation failed", e);
+        } finally {
+            setIsPreviewLoading(false);
+        }
+    };
+
+    // Debounce generation to improve performance
     if (activeTab === 'surat_kuasa' || activeTab === 'pemindahbukuan') {
-        // Debounce slightly to prevent flicker on every keystroke
-        const timer = setTimeout(() => {
-            updatePreview();
-        }, 500);
-        return () => clearTimeout(timer);
+        timeoutId = setTimeout(generatePreview, 800);
     }
-  }, [updatePreview]);
+
+    return () => clearTimeout(timeoutId);
+  }, [
+      activeTab, 
+      suratNo, ksName, ksNip, ksTitle, ksAddress, 
+      trName, trNip, trTitle, trAddress, 
+      bankName, bankBranch, bankAddress, accountNo, chequeNo, withdrawDate, 
+      totalSelectedAmount, headerImage, profile, schoolAddress, schoolCity, schoolKecamatan, schoolPostal,
+      selectedBudgetIds // Need this for item count
+  ]);
 
 
   return (
@@ -406,7 +473,7 @@ const BankWithdrawal: React.FC<BankWithdrawalProps> = ({ data, profile }) => {
             {/* KOP SURAT CONFIG */}
             <div className="bg-white p-5 rounded-xl border border-gray-200 shadow-sm">
                 <h3 className="font-bold text-gray-700 mb-4 flex items-center gap-2 border-b border-gray-100 pb-2">
-                  <ImageIcon size={18} /> Kop Surat
+                  <ImageIcon size={18} /> Kop Surat (Logo Kiri)
                 </h3>
                 <div className="space-y-3">
                    {headerImage ? (
@@ -423,30 +490,42 @@ const BankWithdrawal: React.FC<BankWithdrawalProps> = ({ data, profile }) => {
                       <label className="flex flex-col items-center justify-center w-full h-24 border-2 border-gray-300 border-dashed rounded-lg cursor-pointer bg-gray-50 hover:bg-gray-100 transition">
                          <div className="flex flex-col items-center justify-center pt-5 pb-6">
                              <Upload className="w-6 h-6 text-gray-400 mb-1" />
-                             <p className="text-xs text-gray-500"><span className="font-semibold">Upload Gambar Kop</span></p>
-                             <p className="text-[10px] text-gray-400">JPG/PNG (Disarankan 800px lebar)</p>
+                             <p className="text-xs text-gray-500"><span className="font-semibold">Upload Logo Sekolah/Pemda</span></p>
+                             <p className="text-[10px] text-gray-400">JPG/PNG (Disarankan Transparan)</p>
                          </div>
                          <input type="file" className="hidden" accept="image/*" onChange={handleImageUpload} />
                       </label>
                    )}
+                   
+                   {/* Header Text Inputs */}
+                   <div className="grid grid-cols-2 gap-2 mt-2">
+                      <input type="text" value={schoolCity} onChange={e => setSchoolCity(e.target.value)} className="border rounded px-2 py-1 text-xs" placeholder="KOTA KEDIRI" />
+                      <input type="text" value={schoolKecamatan} onChange={e => setSchoolKecamatan(e.target.value)} className="border rounded px-2 py-1 text-xs" placeholder="Kecamatan..." />
+                      <input type="text" value={schoolPostal} onChange={e => setSchoolPostal(e.target.value)} className="border rounded px-2 py-1 text-xs" placeholder="Kode Pos" />
+                      <input type="text" value={schoolAddress} onChange={e => setSchoolAddress(e.target.value)} className="border rounded px-2 py-1 text-xs" placeholder="Jl. Raya..." />
+                   </div>
                 </div>
             </div>
 
             <div className="bg-white p-5 rounded-xl border border-gray-200 shadow-sm">
                <h3 className="font-bold text-gray-700 mb-4 flex items-center gap-2">
-                  <CreditCard size={18} /> Data Rekening
+                  <CreditCard size={18} /> Data Bank (Tujuan Kuasa)
                </h3>
                <div className="space-y-3">
                   <div>
                     <label className="block text-xs font-bold text-gray-500 mb-1">Nama Bank</label>
-                    <input type="text" value={bankName} onChange={e => setBankName(e.target.value)} className="w-full border rounded px-3 py-2 text-sm" placeholder="Contoh: Bank Jatim" />
+                    <input type="text" value={bankName} onChange={e => setBankName(e.target.value)} className="w-full border rounded px-3 py-2 text-sm" placeholder="Contoh: PT. BANK PEMBANGUNAN DAERAH JAWA TIMUR" />
                   </div>
                   <div>
-                    <label className="block text-xs font-bold text-gray-500 mb-1">Cabang/Unit</label>
-                    <input type="text" value={bankBranch} onChange={e => setBankBranch(e.target.value)} className="w-full border rounded px-3 py-2 text-sm" placeholder="Contoh: Cabang Utama" />
+                    <label className="block text-xs font-bold text-gray-500 mb-1">Cabang</label>
+                    <input type="text" value={bankBranch} onChange={e => setBankBranch(e.target.value)} className="w-full border rounded px-3 py-2 text-sm" placeholder="Contoh: KEDIRI" />
+                  </div>
+                   <div>
+                    <label className="block text-xs font-bold text-gray-500 mb-1">Alamat Bank</label>
+                    <input type="text" value={bankAddress} onChange={e => setBankAddress(e.target.value)} className="w-full border rounded px-3 py-2 text-sm" placeholder="Contoh: Jl. Pahlawan..." />
                   </div>
                   <div>
-                    <label className="block text-xs font-bold text-gray-500 mb-1">Nomor Rekening</label>
+                    <label className="block text-xs font-bold text-gray-500 mb-1">Nomor Rekening Sekolah</label>
                     <input type="text" value={accountNo} onChange={e => setAccountNo(e.target.value)} className="w-full border rounded px-3 py-2 text-sm font-mono" />
                   </div>
                   <div>
@@ -467,6 +546,9 @@ const BankWithdrawal: React.FC<BankWithdrawalProps> = ({ data, profile }) => {
                 <p className="text-xs font-bold text-blue-800 uppercase mb-1">Total Pencairan</p>
                 <p className="text-2xl font-bold text-blue-900">{formatRupiah(totalSelectedAmount)}</p>
                 <p className="text-[10px] text-blue-700 mt-2 italic capitalize leading-tight">"{getTerbilang(totalSelectedAmount)} Rupiah"</p>
+                <div className="mt-2 text-[10px] text-blue-600 border-t border-blue-200 pt-1">
+                    Item Terpilih: <b>{selectedBudgetIds.length}</b> rekening
+                </div>
             </div>
          </div>
 
@@ -555,14 +637,16 @@ const BankWithdrawal: React.FC<BankWithdrawalProps> = ({ data, profile }) => {
                                         <input type="text" value={suratNo} onChange={e => setSuratNo(e.target.value)} className="w-full border rounded px-3 py-2 text-sm font-mono" placeholder="422 / ... / ..." />
                                     </div>
                                     <div className="bg-gray-50 p-3 rounded-lg border border-gray-100 space-y-2">
-                                        <p className="text-xs font-bold text-gray-400 uppercase">Pihak I (Kepala Sekolah)</p>
+                                        <p className="text-xs font-bold text-gray-400 uppercase">Pihak I (Pemberi Kuasa - KS)</p>
                                         <input type="text" value={ksName} onChange={e => setKsName(e.target.value)} className="w-full border rounded px-2 py-1 text-sm" placeholder="Nama" />
+                                        <input type="text" value={ksTitle} onChange={e => setKsTitle(e.target.value)} className="w-full border rounded px-2 py-1 text-sm" placeholder="Jabatan (ex: Plt. Kepala Sekolah)" />
                                         <input type="text" value={ksNip} onChange={e => setKsNip(e.target.value)} className="w-full border rounded px-2 py-1 text-sm" placeholder="NIP" />
                                         <input type="text" value={ksAddress} onChange={e => setKsAddress(e.target.value)} className="w-full border rounded px-2 py-1 text-sm" placeholder="Alamat" />
                                     </div>
                                     <div className="bg-gray-50 p-3 rounded-lg border border-gray-100 space-y-2">
-                                        <p className="text-xs font-bold text-gray-400 uppercase">Pihak II (Bendahara)</p>
+                                        <p className="text-xs font-bold text-gray-400 uppercase">Pihak II (Penerima Kuasa - Bendahara)</p>
                                         <input type="text" value={trName} onChange={e => setTrName(e.target.value)} className="w-full border rounded px-2 py-1 text-sm" placeholder="Nama" />
+                                        <input type="text" value={trTitle} onChange={e => setTrTitle(e.target.value)} className="w-full border rounded px-2 py-1 text-sm" placeholder="Jabatan (ex: Bendahara BOS)" />
                                         <input type="text" value={trNip} onChange={e => setTrNip(e.target.value)} className="w-full border rounded px-2 py-1 text-sm" placeholder="NIP" />
                                         <input type="text" value={trAddress} onChange={e => setTrAddress(e.target.value)} className="w-full border rounded px-2 py-1 text-sm" placeholder="Alamat" />
                                     </div>
@@ -592,17 +676,35 @@ const BankWithdrawal: React.FC<BankWithdrawalProps> = ({ data, profile }) => {
                                 <span className="text-xs font-bold text-gray-600 flex items-center gap-2">
                                     <Eye size={14} /> Preview Dokumen
                                 </span>
-                                <button onClick={updatePreview} className="text-gray-500 hover:text-blue-600 transition" title="Refresh Preview">
-                                    <RefreshCw size={14} />
-                                </button>
+                                <div className="flex items-center gap-2">
+                                    {pdfPreviewUrl && (
+                                        <a href={pdfPreviewUrl} target="_blank" rel="noreferrer" className="flex items-center gap-1 text-xs text-blue-600 hover:underline bg-white px-2 py-1 rounded border border-gray-300">
+                                            <ExternalLink size={12} /> Buka Tab Baru
+                                        </a>
+                                    )}
+                                </div>
                             </div>
                             <div className="flex-1 bg-gray-500 overflow-hidden flex items-center justify-center relative">
-                                {pdfPreviewUrl ? (
-                                    <iframe 
-                                        src={`${pdfPreviewUrl}#toolbar=0&navpanes=0&scrollbar=0`}
-                                        className="w-full h-full"
-                                        title="PDF Preview"
-                                    />
+                                {isPreviewLoading ? (
+                                    <div className="text-white text-sm">Memuat preview...</div>
+                                ) : pdfPreviewUrl ? (
+                                    <>
+                                        <iframe 
+                                            key={pdfPreviewUrl} // Force re-render on URL change
+                                            src={`${pdfPreviewUrl}#toolbar=0&navpanes=0&scrollbar=0`}
+                                            className="w-full h-full"
+                                            title="PDF Preview"
+                                        />
+                                        {/* Mobile Fallback */}
+                                        <div className="absolute inset-0 flex items-center justify-center bg-gray-800 bg-opacity-90 lg:hidden text-center p-4">
+                                            <div>
+                                                <p className="text-white text-sm mb-4">Preview PDF mungkin tidak muncul di perangkat mobile.</p>
+                                                <a href={pdfPreviewUrl} target="_blank" rel="noreferrer" className="bg-blue-600 text-white px-4 py-2 rounded-lg font-bold flex items-center gap-2 mx-auto w-fit">
+                                                    <ExternalLink size={16} /> Buka PDF Fullscreen
+                                                </a>
+                                            </div>
+                                        </div>
+                                    </>
                                 ) : (
                                     <div className="text-white text-sm">Menyiapkan preview...</div>
                                 )}
