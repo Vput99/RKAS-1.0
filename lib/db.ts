@@ -165,7 +165,16 @@ export const getSchoolProfile = async (): Promise<SchoolProfile> => {
           treasurerNip: data.treasurer_nip,
           fiscalYear: data.fiscal_year,
           studentCount: data.student_count,
-          budgetCeiling: data.budget_ceiling
+          budgetCeiling: data.budget_ceiling,
+          // New Fields
+          city: data.city,
+          district: data.district,
+          postalCode: data.postal_code,
+          bankName: data.bank_name,
+          bankBranch: data.bank_branch,
+          bankAddress: data.bank_address,
+          accountNo: data.account_no,
+          headerImage: data.header_image
         };
       }
     } catch (error) {
@@ -194,7 +203,16 @@ export const saveSchoolProfile = async (profile: SchoolProfile): Promise<SchoolP
       fiscal_year: profile.fiscalYear,
       student_count: profile.studentCount,
       budget_ceiling: profile.budgetCeiling,
-      updated_at: new Date().toISOString()
+      updated_at: new Date().toISOString(),
+      // New Fields
+      city: profile.city,
+      district: profile.district,
+      postal_code: profile.postalCode,
+      bank_name: profile.bankName,
+      bank_branch: profile.bankBranch,
+      bank_address: profile.bankAddress,
+      account_no: profile.accountNo,
+      header_image: profile.headerImage
     };
     
     const { error } = await supabase.from('school_profiles').upsert(dbPayload);

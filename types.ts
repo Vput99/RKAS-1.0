@@ -183,6 +183,20 @@ export interface SchoolProfile {
   fiscalYear: string;
   studentCount: number;
   budgetCeiling: number; // Pagu Anggaran Total
+  
+  // Address Details
+  city?: string;
+  district?: string;
+  postalCode?: string;
+
+  // Bank Info
+  bankName?: string;
+  bankBranch?: string;
+  bankAddress?: string;
+  accountNo?: string;
+
+  // Header Image
+  headerImage?: string; // Base64
 }
 
 export interface SummaryStats {

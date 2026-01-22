@@ -1,6 +1,6 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import { Budget, TransactionType, SchoolProfile, TransferDetail, WithdrawalHistory } from '../types';
-import { FileText, Printer, Landmark, CheckSquare, Square, DollarSign, Calendar, User, CreditCard, Edit3, Upload, Image as ImageIcon, Eye, ExternalLink, List, X, Coins, Users, Save, Loader2, Archive, History, RefreshCcw, Trash2, Download, Filter } from 'lucide-react';
+import { FileText, Printer, Landmark, CheckSquare, Square, DollarSign, Calendar, User, CreditCard, Edit3, Eye, ExternalLink, List, X, Coins, Users, Save, Loader2, Archive, History, RefreshCcw, Trash2, Download, Filter, Settings, Info } from 'lucide-react';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import { getWithdrawalHistory, saveWithdrawalHistory, deleteWithdrawalHistory, uploadWithdrawalFile } from '../lib/db';
@@ -29,34 +29,24 @@ const BankWithdrawal: React.FC<BankWithdrawalProps> = ({ data, profile, onUpdate
   const [historyList, setHistoryList] = useState<WithdrawalHistory[]>([]);
   const [isLoadingHistory, setIsLoadingHistory] = useState(false);
 
-  // Form States - General
+  // Form States - Transaction Specific
   const [selectedBudgetIds, setSelectedBudgetIds] = useState<string[]>([]);
-  const [bankName, setBankName] = useState('PT. BANK PEMBANGUNAN DAERAH JAWA TIMUR');
-  const [bankBranch, setBankBranch] = useState('KEDIRI');
-  const [bankAddress, setBankAddress] = useState('Jl. Pahlawan Kusuma Bangsa Kota Kediri');
-  const [accountNo, setAccountNo] = useState('');
   const [chequeNo, setChequeNo] = useState('');
   const [withdrawDate, setWithdrawDate] = useState(new Date().toISOString().split('T')[0]);
 
   // Form States - Surat Kuasa Specific (Editable)
   const [suratNo, setSuratNo] = useState('');
   
-  // Pihak 1 (KS)
+  // Pihak 1 (KS) & Pihak 2 (Bendahara) - Read from profile initially
   const [ksName, setKsName] = useState('');
   const [ksTitle, setKsTitle] = useState('Kepala Sekolah');
   const [ksNip, setKsNip] = useState('');
   const [ksAddress, setKsAddress] = useState('');
   
-  // Pihak 2 (Bendahara)
   const [trName, setTrName] = useState('');
   const [trTitle, setTrTitle] = useState('Bendahara BOS');
   const [trNip, setTrNip] = useState('');
   const [trAddress, setTrAddress] = useState('');
-  
-  const [schoolAddress, setSchoolAddress] = useState('');
-  const [schoolCity, setSchoolCity] = useState('KOTA KEDIRI');
-  const [schoolKecamatan, setSchoolKecamatan] = useState('');
-  const [schoolPostal, setSchoolPostal] = useState('');
 
   // Recipient Details State (Nama, No Rekening, & Pajak per Item)
   const [recipientDetails, setRecipientDetails] = useState<Record<string, TransferDetail>>({});
@@ -64,9 +54,6 @@ const BankWithdrawal: React.FC<BankWithdrawalProps> = ({ data, profile, onUpdate
   // Bulk Edit State
   const [bulkName, setBulkName] = useState('');
   const [bulkAccount, setBulkAccount] = useState('');
-
-  // Kop Surat Image State (Base64)
-  const [headerImage, setHeaderImage] = useState<string | null>(null);
 
   // PDF Preview State
   const [pdfPreviewUrl, setPdfPreviewUrl] = useState<string | null>(null);
@@ -81,10 +68,9 @@ const BankWithdrawal: React.FC<BankWithdrawalProps> = ({ data, profile, onUpdate
         setTrName(profile.treasurer || '');
         setTrNip(profile.treasurerNip || '');
         setTrAddress(profile.address || ''); 
-        setSchoolAddress(profile.address || '');
         
         const year = new Date().getFullYear();
-        setSuratNo(`422 / 024 / 419.109.3.135 / ${year}`);
+        setSuratNo(`422 / 024 / ${profile.npsn} / ${year}`);
     }
   }, [profile]);
 
@@ -110,16 +96,11 @@ const BankWithdrawal: React.FC<BankWithdrawalProps> = ({ data, profile, onUpdate
               savedDetails[item.id] = item.transfer_details;
           }
       });
-      // Merge with existing local state (prioritize local edits if user hasn't refreshed)
       setRecipientDetails(prev => {
-          // If previous state is empty, fill it. If not, only fill missing ones to avoid overwriting ongoing edits
           if (Object.keys(prev).length === 0) return savedDetails;
-          
           const merged = { ...prev };
           Object.keys(savedDetails).forEach(key => {
-              if (!merged[key]) {
-                  merged[key] = savedDetails[key];
-              }
+              if (!merged[key]) merged[key] = savedDetails[key];
           });
           return merged;
       });
@@ -127,24 +108,18 @@ const BankWithdrawal: React.FC<BankWithdrawalProps> = ({ data, profile, onUpdate
 
   // CHANGED: Filter expenses based on REALIZATION (SPJ) in the selected Month
   const monthlyRealizations = useMemo(() => {
-    // 1. Get Expenses
     const expenses = data.filter(d => d.type === TransactionType.EXPENSE && d.status !== 'rejected');
-    
-    // 2. Map to a flattened structure containing the Realized Amount for the selected Month
     const realizedItems: Array<{
-        id: string; // Keep original Budget ID for referencing transfer details
+        id: string; 
         description: string;
         account_code: string;
-        amount: number; // This is the REALIZED amount, not the budget amount
-        date: string; // SPJ Date
+        amount: number;
+        date: string;
         original: Budget;
     }> = [];
 
     expenses.forEach(item => {
-        // Find realization for selected month
         const realization = item.realizations?.find(r => r.month === withdrawalMonth);
-        
-        // Only include if there is a realization amount > 0
         if (realization && realization.amount > 0) {
             realizedItems.push({
                 id: item.id,
@@ -166,7 +141,7 @@ const BankWithdrawal: React.FC<BankWithdrawalProps> = ({ data, profile, onUpdate
       .reduce((acc, curr) => acc + curr.amount, 0);
   }, [monthlyRealizations, selectedBudgetIds]);
 
-  // Clear selection when month changes to avoid ID conflicts or stale data
+  // Clear selection when month changes
   useEffect(() => {
       setSelectedBudgetIds([]);
   }, [withdrawalMonth]);
@@ -262,9 +237,9 @@ const BankWithdrawal: React.FC<BankWithdrawalProps> = ({ data, profile, onUpdate
       setBulkAccount('');
   };
 
-  // --- CORE ARCHIVE LOGIC (Reusable) ---
+  // --- CORE ARCHIVE LOGIC ---
   const performArchiving = async (fileBlob?: Blob, fileName?: string) => {
-      // 1. Update Recipient Details in Budget Items (Persistence)
+      // 1. Update Recipient Details in Budget Items
       const idsToUpdate = Object.keys(recipientDetails).filter(id => selectedBudgetIds.includes(id));
       const updatePromises = idsToUpdate.map(id => {
           return onUpdate(id, { transfer_details: recipientDetails[id] });
@@ -280,20 +255,20 @@ const BankWithdrawal: React.FC<BankWithdrawalProps> = ({ data, profile, onUpdate
           uploadedPath = uploadResult.path;
       }
 
-      // 3. Create History Record (Snapshot)
+      // 3. Create History Record
       const snapshot = {
           selectedIds: selectedBudgetIds,
           recipientDetails: recipientDetails,
           ksName, ksTitle, ksNip,
           trName, trTitle, trNip,
-          month: withdrawalMonth // Save month context
+          month: withdrawalMonth
       };
 
       await saveWithdrawalHistory({
           letter_number: suratNo,
           letter_date: withdrawDate,
-          bank_name: bankName,
-          bank_branch: bankBranch,
+          bank_name: profile?.bankName || '',
+          bank_branch: profile?.bankBranch || '',
           total_amount: totalSelectedAmount,
           item_count: selectedBudgetIds.length,
           snapshot_data: snapshot,
@@ -303,7 +278,6 @@ const BankWithdrawal: React.FC<BankWithdrawalProps> = ({ data, profile, onUpdate
       });
   };
 
-  // --- HANDLERS ---
   const handleArchiveData = async () => {
       if (selectedBudgetIds.length === 0) {
           alert("Pilih minimal satu item anggaran untuk diarsipkan.");
@@ -335,23 +309,18 @@ const BankWithdrawal: React.FC<BankWithdrawalProps> = ({ data, profile, onUpdate
 
       setIsSaving(true);
       try {
-          // 1. Generate PDF Blob
           const doc = createRincianDoc();
           const pdfBlob = doc.output('blob');
           const fileName = `Rincian_Transfer_${MONTHS[withdrawalMonth-1]}_${new Date().getTime()}.pdf`;
 
-          // 2. Archive (Upload + Save DB)
           await performArchiving(pdfBlob, fileName);
           
-          // 3. Download Locally
           doc.save('Daftar_Rincian_Transfer.pdf');
-
-          // 4. Switch Tab
           setActiveTab('riwayat');
       } catch (error) {
           console.error("Print/Archive failed", error);
           alert("Gagal menyimpan riwayat/upload file, namun proses download akan dilanjutkan.");
-          createRincianDoc().save('Daftar_Rincian_Transfer.pdf'); // Fallback download
+          createRincianDoc().save('Daftar_Rincian_Transfer.pdf');
       } finally {
           setIsSaving(false);
       }
@@ -361,36 +330,22 @@ const BankWithdrawal: React.FC<BankWithdrawalProps> = ({ data, profile, onUpdate
       if(!confirm("Kembalikan data ini ke formulir pencairan? Data yang sedang diedit akan tertimpa.")) return;
 
       try {
-          // Restore Form States
           const snap = item.snapshot_data;
           setSuratNo(item.letter_number);
           setWithdrawDate(item.letter_date);
-          setBankName(item.bank_name);
-          setBankBranch(item.bank_branch);
           
           if (snap) {
-              // Restore Month First (So table updates correctly)
-              if (snap.month) {
-                  setWithdrawalMonth(snap.month);
-              }
-
-              // Restore Recipient Details Map
-              if (snap.recipientDetails) {
-                  setRecipientDetails(prev => ({ ...prev, ...snap.recipientDetails }));
-              }
-              // Restore Selection
-              if (snap.selectedIds && Array.isArray(snap.selectedIds)) {
-                  setSelectedBudgetIds(snap.selectedIds);
-              }
-              // Restore Personnel
+              if (snap.month) setWithdrawalMonth(snap.month);
+              if (snap.recipientDetails) setRecipientDetails(prev => ({ ...prev, ...snap.recipientDetails }));
+              if (snap.selectedIds && Array.isArray(snap.selectedIds)) setSelectedBudgetIds(snap.selectedIds);
               if (snap.ksName) setKsName(snap.ksName);
               if (snap.trName) setTrName(snap.trName);
           }
 
-          setActiveTab('rincian'); // Switch to Rincian first to see data
+          setActiveTab('rincian');
       } catch (e) {
           console.error("Restore failed", e);
-          alert("Gagal memulihkan data. Format history mungkin usang.");
+          alert("Gagal memulihkan data.");
       }
   };
 
@@ -421,34 +376,22 @@ const BankWithdrawal: React.FC<BankWithdrawalProps> = ({ data, profile, onUpdate
     return terbilang.trim();
   }
 
-  // --- IMAGE UPLOAD HANDLER ---
-  const handleImageUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
-    const file = event.target.files?.[0];
-    if (file) {
-      const reader = new FileReader();
-      reader.onloadend = () => {
-        setHeaderImage(reader.result as string);
-      };
-      reader.readAsDataURL(file);
-    }
-  };
-
   // --- PDF GENERATORS LOGIC ---
   const generateHeader = (doc: jsPDF) => {
-    if (headerImage) {
-        doc.addImage(headerImage, 'PNG', 15, 10, 25, 25);
+    if (profile?.headerImage) {
+        doc.addImage(profile.headerImage, 'PNG', 15, 10, 25, 25);
     }
     doc.setFont('times', 'normal');
     doc.setFontSize(12);
-    doc.text(`PEMERINTAH ${schoolCity}`, 105, 15, { align: 'center' }); 
+    doc.text(`PEMERINTAH ${profile?.city || 'KAB/KOTA'}`, 105, 15, { align: 'center' }); 
     doc.text('DINAS PENDIDIKAN', 105, 20, { align: 'center' });
     doc.setFont('times', 'bold');
     doc.setFontSize(14);
     doc.text((profile?.name || 'NAMA SEKOLAH').toUpperCase(), 105, 26, { align: 'center' });
     doc.setFont('times', 'normal');
     doc.setFontSize(10);
-    doc.text(schoolAddress, 105, 32, { align: 'center' });
-    const detailLine = `${schoolKecamatan ? 'Kecamatan ' + schoolKecamatan : ''} ${schoolCity} ${schoolPostal ? 'Kode Pos : ' + schoolPostal : ''}`.trim();
+    doc.text(profile?.address || '', 105, 32, { align: 'center' });
+    const detailLine = `${profile?.district ? 'Kecamatan ' + profile.district : ''} ${profile?.city || ''} ${profile?.postalCode ? 'Kode Pos : ' + profile.postalCode : ''}`.trim();
     doc.text(detailLine, 105, 36, { align: 'center' });
     doc.text(`NPSN : ${profile?.npsn || '-'}`, 105, 40, { align: 'center' });
     doc.setLineWidth(0.5);
@@ -460,12 +403,10 @@ const BankWithdrawal: React.FC<BankWithdrawalProps> = ({ data, profile, onUpdate
   const createSuratKuasaDoc = () => {
     const doc = new jsPDF();
     generateHeader(doc);
-    // ... same as before ...
-    // Gunakan Data yang sudah dikelompokkan
-    const groupedData = getGroupedData();
-    const uniqueRecipientCount = groupedData.length;
-    // ... rest of logic ...
+    
+    const uniqueRecipientCount = getGroupedData().length;
     const topMargin = 55;
+    
     doc.setFont('times', 'bold');
     doc.setFontSize(12);
     doc.text('SURAT KUASA', 105, topMargin, { align: 'center' });
@@ -474,51 +415,53 @@ const BankWithdrawal: React.FC<BankWithdrawalProps> = ({ data, profile, onUpdate
     doc.setFont('times', 'normal');
     doc.setFontSize(12);
     doc.text(`NOMOR : ${suratNo}`, 105, topMargin + 7, { align: 'center' });
+    
+    // ... Content Logic ...
+    // Using profile?.bankName directly
+    const bankName = profile?.bankName || 'BANK';
+    const bankBranch = profile?.bankBranch || 'CABANG';
+    const bankAddress = profile?.bankAddress || 'ALAMAT BANK';
+    const accountNo = profile?.accountNo || '...';
+
+    // (Simplified rest of PDF generation using these variables similar to before but with profile props)
+    // ... [Content Generation Code same as previous but replacing state variables with profile props] ...
+    
     const startY = topMargin + 15;
     doc.text("Yang bertanda tangan dibawah ini :", 20, startY);
     const p1Y = startY + 8;
-    const labelX = 20;
-    const colonX = 45;
-    const valueX = 48;
-    const lineHeight = 6;
-    doc.text("1. Nama", labelX, p1Y);
-    doc.text(":", colonX, p1Y);
-    doc.text(ksName, valueX, p1Y);
-    doc.text("    Jabatan", labelX, p1Y + lineHeight);
-    doc.text(":", colonX, p1Y + lineHeight);
-    doc.text(`${ksTitle} ${profile?.name || ''}`, valueX, p1Y + lineHeight);
-    doc.text("    Alamat", labelX, p1Y + (lineHeight * 2));
-    doc.text(":", colonX, p1Y + (lineHeight * 2));
+    const labelX = 20; const colonX = 45; const valueX = 48; const lineHeight = 6;
+    doc.text("1. Nama", labelX, p1Y); doc.text(":", colonX, p1Y); doc.text(ksName, valueX, p1Y);
+    doc.text("    Jabatan", labelX, p1Y + lineHeight); doc.text(":", colonX, p1Y + lineHeight); doc.text(`${ksTitle} ${profile?.name || ''}`, valueX, p1Y + lineHeight);
+    doc.text("    Alamat", labelX, p1Y + (lineHeight * 2)); doc.text(":", colonX, p1Y + (lineHeight * 2));
     const ksAddrLines = doc.splitTextToSize(ksAddress, 130);
     doc.text(ksAddrLines, valueX, p1Y + (lineHeight * 2));
+    
     const afterP1Y = p1Y + (lineHeight * 2) + (ksAddrLines.length * 5) + 3;
-    doc.text("2. Nama", labelX, afterP1Y);
-    doc.text(":", colonX, afterP1Y);
-    doc.text(trName, valueX, afterP1Y);
-    doc.text("    Jabatan", labelX, afterP1Y + lineHeight);
-    doc.text(":", colonX, afterP1Y + lineHeight);
-    doc.text(trTitle, valueX, afterP1Y + lineHeight);
-    doc.text("    Alamat", labelX, afterP1Y + (lineHeight * 2));
-    doc.text(":", colonX, afterP1Y + (lineHeight * 2));
+    doc.text("2. Nama", labelX, afterP1Y); doc.text(":", colonX, afterP1Y); doc.text(trName, valueX, afterP1Y);
+    doc.text("    Jabatan", labelX, afterP1Y + lineHeight); doc.text(":", colonX, afterP1Y + lineHeight); doc.text(trTitle, valueX, afterP1Y + lineHeight);
+    doc.text("    Alamat", labelX, afterP1Y + (lineHeight * 2)); doc.text(":", colonX, afterP1Y + (lineHeight * 2));
     const trAddrLines = doc.splitTextToSize(trAddress, 130);
     doc.text(trAddrLines, valueX, afterP1Y + (lineHeight * 2));
+
     const afterP2Y = afterP1Y + (lineHeight * 2) + (trAddrLines.length * 5) + 6;
-    const textKuasa = `Bertindak untuk dan atas nama ${profile?.name || 'Sekolah'} ${schoolCity}. Dengan ini memberikan kuasa penuh yang tidak dapat di cabut kembali dengan substitusi kepada :`;
+    const textKuasa = `Bertindak untuk dan atas nama ${profile?.name || 'Sekolah'} ${profile?.city || ''}. Dengan ini memberikan kuasa penuh yang tidak dapat di cabut kembali dengan substitusi kepada :`;
     const splitKuasa = doc.splitTextToSize(textKuasa, 170);
     doc.text(splitKuasa, 20, afterP2Y);
+    
     const bankY = afterP2Y + (splitKuasa.length * 6) + 4;
     doc.setFont('times', 'bold');
     doc.text(`${bankName} CABANG ${bankBranch}`, 105, bankY, { align: 'center' });
     doc.setFont('times', 'normal');
     doc.text(`Berkedudukan di ${bankAddress}`, 105, bankY + 5, { align: 'center' });
+    
     const khususY = bankY + 15;
     doc.setFont('times', 'bold');
     doc.text("KHUSUS", 105, khususY, { align: 'center' });
     doc.setLineWidth(0.5);
     doc.line(90, khususY + 1, 120, khususY + 1);
+    
     const contentY = khususY + 8;
     doc.setFont('times', 'normal');
-    
     const itemCountText = getTerbilang(uniqueRecipientCount);
     const nominalFormatted = formatRupiah(totalSelectedAmount).replace(',00', '').replace('Rp', 'Rp ');
     const nominalTerbilang = getTerbilang(totalSelectedAmount);
@@ -526,19 +469,18 @@ const BankWithdrawal: React.FC<BankWithdrawalProps> = ({ data, profile, onUpdate
     const mainContent = `Untuk memindahbukuan dari rekening Giro/ Tabungan kami yang ada di ${bankName} Cabang ${bankBranch} dengan nomor rekening ${accountNo} atas nama ${profile?.name} untuk dilimpahkan kepada rekening terlampir yang tidak terpisahkan dari surat kuasa ini sebanyak ${uniqueRecipientCount} ( ${itemCountText} ) rekening dengan total nominal ${nominalFormatted}- ( ${nominalTerbilang} Rupiah), Dengan data sesuai Lampiran.`;
     const splitMain = doc.splitTextToSize(mainContent, 170);
     doc.text(splitMain, 20, contentY);
+    
     const closingY = contentY + (splitMain.length * 6) + 6;
     const closingText = `Demikian surat kuasa ini dibuat untuk dipergunakan sebagaimana mestinya. Segala akibat yang timbul atas pemberian kuasa ini menajdi tanggung jawab pemberi kuasa sepenuhnya dengan membebaskan ${bankName} Cabang ${bankBranch} dari segala akibat tuntutan atau gugatan yang timbul dari transaksi rekening tersebut diatas.`;
     const splitClosing = doc.splitTextToSize(closingText, 170);
     doc.text(splitClosing, 20, closingY);
+    
     const ttdY = closingY + (splitClosing.length * 6) + 10;
-    const months = ["Januari", "Februari", "Maret", "April", "Mei", "Juni", "Juli", "Agustus", "September", "Oktober", "November", "Desember"];
     const d = new Date(withdrawDate);
-    const dateStr = `${d.getDate()} ${months[d.getMonth()]} ${d.getFullYear()}`;
-    const cityTitle = schoolCity.replace('KOTA ', '').replace('KABUPATEN ', '');
+    const dateStr = `${d.getDate()} ${MONTHS[d.getMonth()]} ${d.getFullYear()}`;
+    const cityTitle = (profile?.city || 'KOTA').replace('KOTA ', '').replace('KABUPATEN ', '');
     const dateLine = `${cityTitle}, ${dateStr}`;
-    const col1X = 20; 
-    const col2X = 85; 
-    const col3X = 150;
+    const col1X = 20; const col2X = 85; const col3X = 150;
     doc.text(dateLine, col3X, ttdY, { align: 'center' });
     const titleY = ttdY + 6;
     doc.text("Yang diberi Kuasa", col1X + 15, titleY, { align: 'center' });
@@ -559,6 +501,7 @@ const BankWithdrawal: React.FC<BankWithdrawalProps> = ({ data, profile, onUpdate
     doc.setFont('times', 'normal');
     doc.text(`NIP. ${ksNip}`, col2X, nameY + 5, { align: 'center' });
     doc.text(`NIP. ${trNip}`, col3X, nameY + 5, { align: 'center' });
+
     return doc;
   };
 
@@ -566,6 +509,10 @@ const BankWithdrawal: React.FC<BankWithdrawalProps> = ({ data, profile, onUpdate
     const doc = new jsPDF();
     generateHeader(doc);
     const topMargin = 55;
+    const bankName = profile?.bankName || 'BANK';
+    const bankBranch = profile?.bankBranch || 'CABANG';
+    const accountNo = profile?.accountNo || '...';
+
     doc.setFont('times', 'normal');
     doc.setFontSize(12);
     doc.text(`NOMOR : ${suratNo}`, 105, topMargin, { align: 'center' });
@@ -575,7 +522,7 @@ const BankWithdrawal: React.FC<BankWithdrawalProps> = ({ data, profile, onUpdate
     const bankShort = bankName.replace('PT. ', '').replace('BANK PEMBANGUNAN DAERAH JAWA TIMUR', 'BANK JATIM');
     doc.text(`${bankShort} CABANG ${bankBranch}`, leftMargin, recipientY + 5); 
     doc.text('DI', leftMargin, recipientY + 10);
-    const cityClean = schoolCity.replace('KOTA ', '').replace('KABUPATEN ', '');
+    const cityClean = (profile?.city || '').replace('KOTA ', '').replace('KABUPATEN ', '');
     doc.text(cityClean, leftMargin, recipientY + 15);
     const perihalY = recipientY + 25;
     doc.text('Perihal : ', leftMargin, perihalY);
@@ -623,69 +570,35 @@ const BankWithdrawal: React.FC<BankWithdrawalProps> = ({ data, profile, onUpdate
     doc.setFont('helvetica', 'bold');
     doc.text('DAFTAR RINCIAN TRANSFER', 148, 15, { align: 'center' });
     doc.text(`${(profile?.name || 'SEKOLAH').toUpperCase()}`, 148, 20, { align: 'center' });
-    doc.text(schoolCity.toUpperCase(), 148, 25, { align: 'center' });
-    const months = ["Januari", "Februari", "Maret", "April", "Mei", "Juni", "Juli", "Agustus", "September", "Oktober", "November", "Desember"];
+    doc.text((profile?.city || 'KOTA').toUpperCase(), 148, 25, { align: 'center' });
     const d = new Date(withdrawDate);
     doc.setFont('helvetica', 'italic');
     doc.setFontSize(10);
-    doc.text(`Bulan ${months[d.getMonth()]} (Realisasi)`, 15, 35);
+    doc.text(`Bulan ${MONTHS[d.getMonth()]} (Realisasi)`, 15, 35);
 
-    // UPDATE: Gunakan Grouped Data
     const groupedData = getGroupedData();
-
-    // Calculate Grand Totals for Taxes
-    let totalPph21 = 0;
-    let totalPph22 = 0;
-    let totalPph23 = 0;
-    let totalPajakDaerah = 0;
-    let totalPotonganAll = 0;
-    let totalBersihAll = 0;
+    let totalPph21 = 0; let totalPph22 = 0; let totalPph23 = 0; let totalPajakDaerah = 0; let totalPotonganAll = 0; let totalBersihAll = 0;
 
     const tableBody = groupedData.map((item, idx) => {
-        // Gabungkan deskripsi jika banyak
         let mergedDesc = item.descriptions.join(', ');
         if (mergedDesc.length > 50 && item.descriptions.length > 1) {
             mergedDesc = `${item.descriptions[0]} dan ${item.descriptions.length - 1} item lainnya`;
         }
-
         const totalTaxes = item.taxes.ppn + item.taxes.pph21 + item.taxes.pph22 + item.taxes.pph23 + item.taxes.pajakDaerah;
         const netAmount = item.amount - totalTaxes;
-
-        // Accumulate Totals
-        totalPph21 += item.taxes.pph21;
-        totalPph22 += item.taxes.pph22;
-        totalPph23 += item.taxes.pph23;
-        totalPajakDaerah += item.taxes.pajakDaerah;
-        totalPotonganAll += totalTaxes;
-        totalBersihAll += netAmount;
+        totalPph21 += item.taxes.pph21; totalPph22 += item.taxes.pph22; totalPph23 += item.taxes.pph23; totalPajakDaerah += item.taxes.pajakDaerah; totalPotonganAll += totalTaxes; totalBersihAll += netAmount;
 
         return [
-            idx + 1,
-            item.name || '(Isi Nama)',
-            item.account || '(Isi No Rek)',
-            formatRupiah(item.amount),
-            formatRupiah(item.taxes.ppn), // PPN (If used, but hidden in UI for now, defaulting 0)
-            formatRupiah(item.taxes.pph21),
-            formatRupiah(item.taxes.pph22),
-            formatRupiah(item.taxes.pph23),
-            formatRupiah(item.taxes.pajakDaerah),
-            formatRupiah(totalTaxes), // Total Potongan
-            formatRupiah(netAmount), // Bersih
-            mergedDesc // Keterangan (Gabungan)
+            idx + 1, item.name || '(Isi Nama)', item.account || '(Isi No Rek)', formatRupiah(item.amount),
+            formatRupiah(item.taxes.ppn), formatRupiah(item.taxes.pph21), formatRupiah(item.taxes.pph22), formatRupiah(item.taxes.pph23), formatRupiah(item.taxes.pajakDaerah),
+            formatRupiah(totalTaxes), formatRupiah(netAmount), mergedDesc
         ]
     });
 
     tableBody.push([
-        '', 'JUMLAH', '', 
-        formatRupiah(totalSelectedAmount), 
-        '', // Total PPN skipped
-        formatRupiah(totalPph21),
-        formatRupiah(totalPph22),
-        formatRupiah(totalPph23),
-        formatRupiah(totalPajakDaerah),
-        formatRupiah(totalPotonganAll),
-        formatRupiah(totalBersihAll), 
-        ''
+        '', 'JUMLAH', '', formatRupiah(totalSelectedAmount), '', 
+        formatRupiah(totalPph21), formatRupiah(totalPph22), formatRupiah(totalPph23), formatRupiah(totalPajakDaerah),
+        formatRupiah(totalPotonganAll), formatRupiah(totalBersihAll), ''
     ]);
 
     autoTable(doc, {
@@ -714,20 +627,9 @@ const BankWithdrawal: React.FC<BankWithdrawalProps> = ({ data, profile, onUpdate
       styles: { fontSize: 7, cellPadding: 2, lineColor: [0, 0, 0], lineWidth: 0.1 },
       headStyles: { fillColor: [255, 255, 255], textColor: [0, 0, 0], lineWidth: 0.1, lineColor: [0, 0, 0] },
       columnStyles: {
-        0: { cellWidth: 8, halign: 'center' },
-        1: { cellWidth: 35 }, 
-        2: { cellWidth: 20 }, 
-        3: { cellWidth: 22, halign: 'right' },
-        // Tax Columns
-        4: { cellWidth: 15, halign: 'right' }, 
-        5: { cellWidth: 15, halign: 'right' }, 
-        6: { cellWidth: 15, halign: 'right' }, 
-        7: { cellWidth: 15, halign: 'right' }, 
-        8: { cellWidth: 15, halign: 'right' },
-        // Totals
-        9: { cellWidth: 20, halign: 'right' }, 
-        10: { cellWidth: 22, halign: 'right', fillColor: [200, 200, 255] }, 
-        11: { cellWidth: 'auto' }
+        0: { cellWidth: 8, halign: 'center' }, 1: { cellWidth: 35 }, 2: { cellWidth: 20 }, 3: { cellWidth: 22, halign: 'right' },
+        4: { cellWidth: 15, halign: 'right' }, 5: { cellWidth: 15, halign: 'right' }, 6: { cellWidth: 15, halign: 'right' }, 7: { cellWidth: 15, halign: 'right' }, 8: { cellWidth: 15, halign: 'right' },
+        9: { cellWidth: 20, halign: 'right' }, 10: { cellWidth: 22, halign: 'right', fillColor: [200, 200, 255] }, 11: { cellWidth: 'auto' }
       },
       didParseCell: (data) => {
         if (data.row.index === tableBody.length - 1) {
@@ -911,67 +813,15 @@ const BankWithdrawal: React.FC<BankWithdrawalProps> = ({ data, profile, onUpdate
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
          
-         {/* Left Column: Input Details (General) */}
+         {/* Left Column: Transaction Specifics & Summary */}
          <div className="lg:col-span-1 space-y-6">
             
-            {/* KOP SURAT CONFIG */}
-            <div className="bg-white p-5 rounded-xl border border-gray-200 shadow-sm">
-                <h3 className="font-bold text-gray-700 mb-4 flex items-center gap-2 border-b border-gray-100 pb-2">
-                  <ImageIcon size={18} /> Kop Surat (Logo Kiri)
-                </h3>
-                <div className="space-y-3">
-                   {headerImage ? (
-                      <div className="relative border border-gray-200 rounded-lg overflow-hidden h-24 flex items-center justify-center bg-gray-50">
-                          <img src={headerImage} alt="Kop Surat" className="max-w-full max-h-full object-contain" />
-                          <button 
-                            onClick={() => setHeaderImage(null)}
-                            className="absolute top-1 right-1 bg-red-500 text-white rounded-full p-1 shadow hover:bg-red-600"
-                          >
-                             <Edit3 size={12} />
-                          </button>
-                      </div>
-                   ) : (
-                      <label className="flex flex-col items-center justify-center w-full h-24 border-2 border-gray-300 border-dashed rounded-lg cursor-pointer bg-gray-50 hover:bg-gray-100 transition">
-                         <div className="flex flex-col items-center justify-center pt-5 pb-6">
-                             <Upload className="w-6 h-6 text-gray-400 mb-1" />
-                             <p className="text-xs text-gray-500"><span className="font-semibold">Upload Logo Sekolah/Pemda</span></p>
-                             <p className="text-[10px] text-gray-400">JPG/PNG (Disarankan Transparan)</p>
-                         </div>
-                         <input type="file" className="hidden" accept="image/*" onChange={handleImageUpload} />
-                      </label>
-                   )}
-                   
-                   {/* Header Text Inputs */}
-                   <div className="grid grid-cols-2 gap-2 mt-2">
-                      <input type="text" value={schoolCity} onChange={e => setSchoolCity(e.target.value)} className="border rounded px-2 py-1 text-xs" placeholder="KOTA KEDIRI" />
-                      <input type="text" value={schoolKecamatan} onChange={e => setSchoolKecamatan(e.target.value)} className="border rounded px-2 py-1 text-xs" placeholder="Kecamatan..." />
-                      <input type="text" value={schoolPostal} onChange={e => setSchoolPostal(e.target.value)} className="border rounded px-2 py-1 text-xs" placeholder="Kode Pos" />
-                      <input type="text" value={schoolAddress} onChange={e => setSchoolAddress(e.target.value)} className="border rounded px-2 py-1 text-xs" placeholder="Jl. Raya..." />
-                   </div>
-                </div>
-            </div>
-
+            {/* Informasi Pencairan */}
             <div className="bg-white p-5 rounded-xl border border-gray-200 shadow-sm">
                <h3 className="font-bold text-gray-700 mb-4 flex items-center gap-2">
-                  <CreditCard size={18} /> Data Bank (Tujuan Kuasa)
+                  <Calendar size={18} /> Detail Pencairan
                </h3>
                <div className="space-y-3">
-                  <div>
-                    <label className="block text-xs font-bold text-gray-500 mb-1">Nama Bank</label>
-                    <input type="text" value={bankName} onChange={e => setBankName(e.target.value)} className="w-full border rounded px-3 py-2 text-sm" placeholder="Contoh: PT. BANK PEMBANGUNAN DAERAH JAWA TIMUR" />
-                  </div>
-                  <div>
-                    <label className="block text-xs font-bold text-gray-500 mb-1">Cabang</label>
-                    <input type="text" value={bankBranch} onChange={e => setBankBranch(e.target.value)} className="w-full border rounded px-3 py-2 text-sm" placeholder="Contoh: KEDIRI" />
-                  </div>
-                   <div>
-                    <label className="block text-xs font-bold text-gray-500 mb-1">Alamat Bank</label>
-                    <input type="text" value={bankAddress} onChange={e => setBankAddress(e.target.value)} className="w-full border rounded px-3 py-2 text-sm" placeholder="Contoh: Jl. Pahlawan..." />
-                  </div>
-                  <div>
-                    <label className="block text-xs font-bold text-gray-500 mb-1">Nomor Rekening Sekolah</label>
-                    <input type="text" value={accountNo} onChange={e => setAccountNo(e.target.value)} className="w-full border rounded px-3 py-2 text-sm font-mono" />
-                  </div>
                   <div>
                     <label className="block text-xs font-bold text-gray-500 mb-1">Nomor Cek/Giro</label>
                     <input type="text" value={chequeNo} onChange={e => setChequeNo(e.target.value)} className="w-full border rounded px-3 py-2 text-sm font-mono" placeholder="Kosongkan jika tunai" />
@@ -984,6 +834,24 @@ const BankWithdrawal: React.FC<BankWithdrawalProps> = ({ data, profile, onUpdate
                     </div>
                   </div>
                </div>
+            </div>
+
+            {/* Read-only Bank Summary */}
+            <div className="bg-gray-50 p-4 rounded-xl border border-gray-200 text-sm">
+                <h4 className="font-bold text-gray-600 mb-2 flex items-center gap-2">
+                    <CreditCard size={14} /> Sumber Dana (Dari Profil)
+                </h4>
+                <div className="space-y-1 text-gray-500">
+                    <p className="font-bold text-gray-700">{profile?.bankName || 'Nama Bank Belum Diatur'}</p>
+                    <p>Cabang: {profile?.bankBranch || '-'}</p>
+                    <p className="font-mono">{profile?.accountNo || '-'}</p>
+                </div>
+                {!profile?.bankName && (
+                    <div className="mt-3 text-xs bg-yellow-100 text-yellow-800 p-2 rounded flex gap-1 items-start">
+                        <Info size={14} className="flex-shrink-0 mt-0.5" />
+                        <span>Data bank belum lengkap. Harap lengkapi di menu Pengaturan.</span>
+                    </div>
+                )}
             </div>
 
             <div className="bg-blue-50 p-4 rounded-xl border border-blue-200">

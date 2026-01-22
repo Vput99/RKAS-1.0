@@ -69,8 +69,38 @@ CREATE TABLE IF NOT EXISTS public.school_profiles (
     fiscal_year TEXT DEFAULT '2026',
     student_count NUMERIC DEFAULT 0, -- Jumlah Siswa
     budget_ceiling NUMERIC DEFAULT 0, -- Pagu Anggaran Total
+    
+    -- Data Lokasi Detail
+    city TEXT,
+    district TEXT,
+    postal_code TEXT,
+
+    -- Data Bank Sekolah
+    bank_name TEXT,
+    bank_branch TEXT,
+    bank_address TEXT,
+    account_no TEXT,
+
+    -- Kop Surat (Base64 Image)
+    header_image TEXT,
+
     CONSTRAINT single_row_check CHECK (id = 1) -- Menjaga hanya ada 1 baris data profil
 );
+
+-- UPDATE: Tambahkan kolom baru untuk profil jika belum ada
+DO $$
+BEGIN
+    ALTER TABLE public.school_profiles ADD COLUMN IF NOT EXISTS city TEXT;
+    ALTER TABLE public.school_profiles ADD COLUMN IF NOT EXISTS district TEXT;
+    ALTER TABLE public.school_profiles ADD COLUMN IF NOT EXISTS postal_code TEXT;
+    ALTER TABLE public.school_profiles ADD COLUMN IF NOT EXISTS bank_name TEXT;
+    ALTER TABLE public.school_profiles ADD COLUMN IF NOT EXISTS bank_branch TEXT;
+    ALTER TABLE public.school_profiles ADD COLUMN IF NOT EXISTS bank_address TEXT;
+    ALTER TABLE public.school_profiles ADD COLUMN IF NOT EXISTS account_no TEXT;
+    ALTER TABLE public.school_profiles ADD COLUMN IF NOT EXISTS header_image TEXT;
+EXCEPTION
+    WHEN duplicate_column THEN RAISE NOTICE 'Kolom profil sudah ada.';
+END $$;
 
 -- 5. Data Awal Profil (Agar tidak error saat aplikasi pertama dibuka)
 INSERT INTO public.school_profiles (id, name, fiscal_year)
@@ -174,7 +204,9 @@ CREATE TABLE IF NOT EXISTS public.withdrawal_history (
     item_count INTEGER DEFAULT 0,
     
     snapshot_data JSONB DEFAULT '{}'::jsonb, -- JSON Lengkap Data Penerima
-    notes TEXT
+    notes TEXT,
+    file_url TEXT,
+    file_path TEXT
 );
 
 ALTER TABLE public.withdrawal_history ENABLE ROW LEVEL SECURITY;

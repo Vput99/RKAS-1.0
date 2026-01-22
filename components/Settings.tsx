@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { SchoolProfile } from '../types';
-import { Save, School, Users, Wallet, Calendar, AlertCircle, Database, Wifi, WifiOff, CheckCircle2, FileText, Activity } from 'lucide-react';
+import { Save, School, Users, Wallet, Calendar, AlertCircle, Database, Wifi, WifiOff, CheckCircle2, FileText, Activity, CreditCard, Image as ImageIcon, Upload, Edit3 } from 'lucide-react';
 import { getSchoolProfile, saveSchoolProfile, checkDatabaseConnection } from '../lib/db';
 import { supabase } from '../lib/supabase';
 import { isAiConfigured } from '../lib/gemini';
@@ -20,7 +20,16 @@ const Settings: React.FC<SettingsProps> = ({ onProfileUpdate }) => {
     treasurerNip: '',
     fiscalYear: '2026',
     studentCount: 0,
-    budgetCeiling: 0
+    budgetCeiling: 0,
+    // Defaults for new fields
+    city: '',
+    district: '',
+    postalCode: '',
+    bankName: '',
+    bankBranch: '',
+    bankAddress: '',
+    accountNo: '',
+    headerImage: ''
   });
   
   const [loading, setLoading] = useState(true);
@@ -48,7 +57,8 @@ const Settings: React.FC<SettingsProps> = ({ onProfileUpdate }) => {
 
   const loadProfile = async () => {
     const data = await getSchoolProfile();
-    setProfile(data);
+    // Merge with default structure to ensure new fields are controlled inputs
+    setProfile(prev => ({ ...prev, ...data }));
     setLoading(false);
   };
 
@@ -64,6 +74,18 @@ const Settings: React.FC<SettingsProps> = ({ onProfileUpdate }) => {
       [name]: name === 'studentCount' || name === 'budgetCeiling' ? Number(value) : value
     }));
     setSaved(false);
+  };
+
+  const handleImageUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (file) {
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        setProfile(prev => ({ ...prev, headerImage: reader.result as string }));
+        setSaved(false);
+      };
+      reader.readAsDataURL(file);
+    }
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -85,7 +107,7 @@ const Settings: React.FC<SettingsProps> = ({ onProfileUpdate }) => {
       <div className="flex justify-between items-end">
         <div>
            <h2 className="text-xl font-bold text-gray-800">Pengaturan Sekolah</h2>
-           <p className="text-sm text-gray-500">Kelola data identitas sekolah dan pagu anggaran.</p>
+           <p className="text-sm text-gray-500">Kelola identitas, data bank, dan parameter sistem.</p>
         </div>
       </div>
 
@@ -109,57 +131,6 @@ const Settings: React.FC<SettingsProps> = ({ onProfileUpdate }) => {
          <div className="hidden sm:block">
             {isConnected ? <Wifi className="text-green-500" size={24} /> : <WifiOff className="text-orange-400" size={24} />}
          </div>
-      </div>
-
-      {/* Diagnostic Panel */}
-      <div className="bg-gray-800 text-gray-300 p-5 rounded-xl text-sm font-mono space-y-3 border border-gray-700 shadow-xl">
-         <div className="flex items-center gap-2 text-white font-bold border-b border-gray-700 pb-2 mb-2">
-            <Activity size={16} className="text-blue-400" /> STATUS SISTEM & ENVIRONMENT
-         </div>
-         
-         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            <div className="bg-gray-900/50 p-3 rounded">
-               <span className="block text-gray-500 text-xs mb-1">Supabase URL & Key:</span>
-               {envStatus.url ? (
-                  <span className="text-green-400 font-bold">✅ Ditemukan</span>
-               ) : (
-                  <span className="text-red-400 font-bold">❌ Missing Configuration</span>
-               )}
-            </div>
-            <div className="bg-gray-900/50 p-3 rounded">
-               <span className="block text-gray-500 text-xs mb-1">Koneksi Database:</span>
-               {isConnected ? (
-                   <span className="text-green-400 font-bold">✅ Terhubung</span>
-               ) : (
-                   <span className="text-orange-400 font-bold">⚠️ Offline / Lokal</span>
-               )}
-            </div>
-            <div className="bg-gray-900/50 p-3 rounded">
-               <span className="block text-gray-500 text-xs mb-1">Gemini AI (Google):</span>
-               {envStatus.ai ? (
-                  <span className="text-green-400 font-bold">✅ Terkonfigurasi</span>
-               ) : (
-                  <span className="text-red-400 font-bold">❌ Missing API_KEY</span>
-               )}
-            </div>
-         </div>
-
-         {!isConnected && (
-             <div className="mt-4 pt-4 border-t border-gray-600">
-                <p className="text-yellow-400 font-bold mb-2 flex items-center gap-2">
-                  <AlertCircle size={16} /> PETUNJUK SETUP ENV:
-                </p>
-                <div className="bg-gray-900 p-4 rounded text-gray-300 space-y-3">
-                  <p>Pastikan variabel berikut ada di Vercel atau file <code>.env</code> lokal Anda:</p>
-                  <ul className="list-disc pl-5 mt-1 text-white text-xs space-y-1">
-                     <li><code>VITE_SUPABASE_URL</code></li>
-                     <li><code>VITE_SUPABASE_ANON_KEY</code></li>
-                     <li><code>VITE_API_KEY</code> (Untuk AI Gemini)</li>
-                  </ul>
-                  <p className="text-xs text-gray-500">Jika deploy di Vercel, jangan lupa Redeploy setelah update environment variable.</p>
-                </div>
-             </div>
-         )}
       </div>
 
       <form onSubmit={handleSubmit} className="space-y-6">
@@ -221,6 +192,127 @@ const Settings: React.FC<SettingsProps> = ({ onProfileUpdate }) => {
                   className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none"
                 />
               </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Kabupaten/Kota</label>
+                <input
+                  type="text"
+                  name="city"
+                  value={profile.city}
+                  onChange={handleChange}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none"
+                  placeholder="KOTA KEDIRI"
+                />
+              </div>
+              <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Kecamatan</label>
+                    <input
+                      type="text"
+                      name="district"
+                      value={profile.district}
+                      onChange={handleChange}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Kode Pos</label>
+                    <input
+                      type="text"
+                      name="postalCode"
+                      value={profile.postalCode}
+                      onChange={handleChange}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none"
+                    />
+                  </div>
+              </div>
+           </div>
+        </div>
+
+        {/* Data Rekening Bank */}
+        <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
+           <h3 className="text-md font-bold text-gray-800 mb-4 flex items-center gap-2 pb-2 border-b border-gray-100">
+             <CreditCard className="text-purple-600" size={18} /> Data Rekening Bank Sekolah
+           </h3>
+           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Nama Bank</label>
+                <input
+                  type="text"
+                  name="bankName"
+                  value={profile.bankName}
+                  onChange={handleChange}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none"
+                  placeholder="PT. BPD JAWA TIMUR"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Cabang</label>
+                <input
+                  type="text"
+                  name="bankBranch"
+                  value={profile.bankBranch}
+                  onChange={handleChange}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none"
+                  placeholder="KEDIRI"
+                />
+              </div>
+              <div className="md:col-span-2">
+                <label className="block text-sm font-medium text-gray-700 mb-1">Alamat Bank</label>
+                <input
+                  type="text"
+                  name="bankAddress"
+                  value={profile.bankAddress}
+                  onChange={handleChange}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none"
+                />
+              </div>
+              <div className="md:col-span-2">
+                <label className="block text-sm font-medium text-gray-700 mb-1">Nomor Rekening</label>
+                <input
+                  type="text"
+                  name="accountNo"
+                  value={profile.accountNo}
+                  onChange={handleChange}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none font-mono text-lg"
+                />
+              </div>
+           </div>
+        </div>
+
+        {/* Kop Surat */}
+        <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
+           <h3 className="text-md font-bold text-gray-800 mb-4 flex items-center gap-2 pb-2 border-b border-gray-100">
+             <ImageIcon className="text-indigo-600" size={18} /> Kop Surat & Logo
+           </h3>
+           <div className="flex flex-col md:flex-row gap-6 items-start">
+               <div className="flex-1 w-full">
+                   <label className="block text-sm font-medium text-gray-700 mb-2">Upload Logo (Kiri Atas)</label>
+                   <label className="flex flex-col items-center justify-center w-full h-32 border-2 border-gray-300 border-dashed rounded-lg cursor-pointer bg-gray-50 hover:bg-gray-100 transition">
+                         <div className="flex flex-col items-center justify-center pt-5 pb-6">
+                             <Upload className="w-8 h-8 text-gray-400 mb-2" />
+                             <p className="text-sm text-gray-500"><span className="font-semibold">Klik untuk upload</span></p>
+                             <p className="text-xs text-gray-400">PNG, JPG (Transparan disarankan)</p>
+                         </div>
+                         <input type="file" className="hidden" accept="image/*" onChange={handleImageUpload} />
+                   </label>
+               </div>
+               
+               {profile.headerImage && (
+                   <div className="flex-1 w-full">
+                       <label className="block text-sm font-medium text-gray-700 mb-2">Preview Logo</label>
+                       <div className="relative border border-gray-200 rounded-lg overflow-hidden h-32 flex items-center justify-center bg-gray-50 p-2">
+                          <img src={profile.headerImage} alt="Kop Surat" className="max-w-full max-h-full object-contain" />
+                          <button 
+                            type="button"
+                            onClick={() => setProfile(prev => ({...prev, headerImage: ''}))}
+                            className="absolute top-2 right-2 bg-white text-red-500 rounded-full p-1 shadow hover:bg-red-50 border border-red-100"
+                          >
+                             <Edit3 size={14} />
+                          </button>
+                       </div>
+                   </div>
+               )}
            </div>
         </div>
 
