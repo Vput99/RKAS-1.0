@@ -295,11 +295,22 @@ export const analyzeRaporQuality = async (indicators: RaporIndicator[], targetYe
     const weakIndicators = indicators.filter(i => i.category === 'Kurang' || i.category === 'Sedang');
     if (weakIndicators.length === 0) return [];
 
+    // Prepare a summarized list of accounts for the AI to choose from
+    // We only send key accounts to avoid token limits, prioritizing valid RKAS codes
+    const accountContext = Object.entries(AccountCodes)
+        .slice(0, 100) // Take top 100 or specific relevant ones
+        .map(([c, n]) => `- ${c}: ${n}`)
+        .join('\n');
+
     try {
         const response = await ai.models.generateContent({
             model: 'gemini-3-flash-preview',
             contents: `Task: Recommend RKAS activities (PBD) for weak indicators.
             Weak Indicators: ${JSON.stringify(weakIndicators)}
+            
+            IMPORTANT: For each item, select a valid 'accountCode' from the list below:
+            ${accountContext}
+
             Return JSON Array with detailed budget items.`,
             config: {
                 responseMimeType: "application/json",

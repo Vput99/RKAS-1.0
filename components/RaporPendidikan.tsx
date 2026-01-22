@@ -1,12 +1,13 @@
 import React, { useState, useEffect } from 'react';
-import { RaporIndicator, PBDRecommendation, TransactionType } from '../types';
+import { RaporIndicator, PBDRecommendation, TransactionType, Budget } from '../types';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell } from 'recharts';
-import { AlertCircle, BrainCircuit, CheckCircle, Plus, Search, TrendingUp, AlertTriangle, CalendarRange, Save, Loader2, List, X, ShoppingCart } from 'lucide-react';
+import { AlertCircle, BrainCircuit, CheckCircle, Plus, TrendingUp, AlertTriangle, CalendarRange, Save, Loader2, List, X, Check } from 'lucide-react';
 import { analyzeRaporQuality, isAiConfigured } from '../lib/gemini';
 import { getRaporData, saveRaporData } from '../lib/db';
 
 interface RaporPendidikanProps {
   onAddBudget: (item: any) => Promise<void>;
+  budgetData: Budget[]; // Receive current budget data to check for duplicates
 }
 
 const DEFAULT_INDICATORS: RaporIndicator[] = [
@@ -18,7 +19,7 @@ const DEFAULT_INDICATORS: RaporIndicator[] = [
   { id: 'D.8', label: 'Iklim Kebinekaan', score: 0, category: 'Kurang' },
 ];
 
-const RaporPendidikan: React.FC<RaporPendidikanProps> = ({ onAddBudget }) => {
+const RaporPendidikan: React.FC<RaporPendidikanProps> = ({ onAddBudget, budgetData }) => {
   const [indicators, setIndicators] = useState<RaporIndicator[]>(DEFAULT_INDICATORS);
   const [recommendations, setRecommendations] = useState<PBDRecommendation[]>([]);
   const [loading, setLoading] = useState(false);
@@ -37,7 +38,6 @@ const RaporPendidikan: React.FC<RaporPendidikanProps> = ({ onAddBudget }) => {
 
   const loadSavedRapor = async () => {
     // Determine the "Data Year". If planning for 2027, usually we use Rapor 2026 data.
-    // For simplicity, let's map UI Target Year to Data Year.
     const dataYear = (parseInt(targetYear) - 1).toString();
     
     const savedData = await getRaporData(dataYear);
@@ -57,10 +57,7 @@ const RaporPendidikan: React.FC<RaporPendidikanProps> = ({ onAddBudget }) => {
   const handleSaveRapor = async () => {
       setIsSaving(true);
       const dataYear = (parseInt(targetYear) - 1).toString();
-      const success = await saveRaporData(indicators, dataYear);
-      if (success) {
-          // Optional: Show toast
-      }
+      await saveRaporData(indicators, dataYear);
       setIsSaving(false);
   };
 
@@ -111,7 +108,7 @@ const RaporPendidikan: React.FC<RaporPendidikanProps> = ({ onAddBudget }) => {
                 category: selectedRec.snpStandard,
                 account_code: item.accountCode, // Use specific item account code
                 status: 'draft',
-                date: `${targetYear}-01-01T00:00:00.000Z`, 
+                date: new Date().toISOString(), 
                 realization_months: [new Date().getMonth() + 2],
                 notes: `PBD Indikator ${selectedRec.indicatorId}`
             });
@@ -133,6 +130,16 @@ const RaporPendidikan: React.FC<RaporPendidikanProps> = ({ onAddBudget }) => {
           case 'Kurang': return '#ef4444'; // Red
           default: return '#9ca3af';
       }
+  };
+
+  // Helper to check if an activity is already in budget
+  const isActivityInBudget = (rec: PBDRecommendation) => {
+      if (!budgetData) return false;
+      // Loose check: look for indicator ID or activity name in existing budget descriptions
+      return budgetData.some(b => 
+          b.notes?.includes(rec.indicatorId) || 
+          b.description.toLowerCase().includes(rec.activityName.toLowerCase())
+      );
   };
 
   return (
@@ -198,207 +205,200 @@ const RaporPendidikan: React.FC<RaporPendidikanProps> = ({ onAddBudget }) => {
                                    className="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-blue-600"
                                 />
                             </div>
-                            <div className="w-16">
-                                <input 
-                                   type="number" 
-                                   className="w-full px-2 py-1 border border-gray-300 rounded text-center font-bold text-sm"
-                                   value={ind.score}
-                                   onChange={(e) => handleScoreChange(ind.id, e.target.value)}
-                                />
-                            </div>
-                            <div className="w-20 text-center">
-                                <span className={`text-xs px-2 py-1 rounded font-bold text-white`} style={{backgroundColor: getColor(ind.category)}}>
-                                    {ind.category}
-                                </span>
+                            <div className="w-12 text-right font-bold text-blue-600">{ind.score}</div>
+                            <div className={`text-xs px-2 py-1 rounded font-bold w-16 text-center ${
+                                ind.category === 'Baik' ? 'bg-green-100 text-green-700' : 
+                                ind.category === 'Sedang' ? 'bg-yellow-100 text-yellow-700' : 'bg-red-100 text-red-700'
+                            }`}>
+                                {ind.category}
                             </div>
                         </div>
                     ))}
                 </div>
+
                 <div className="mt-6 pt-4 border-t border-gray-100">
                     <button 
                         onClick={handleAnalyze}
                         disabled={loading}
-                        className="w-full bg-blue-600 hover:bg-blue-700 text-white py-3 rounded-xl font-bold flex items-center justify-center gap-2 transition disabled:opacity-50"
+                        className="w-full bg-indigo-600 hover:bg-indigo-700 text-white py-3 rounded-xl font-bold flex items-center justify-center gap-2 shadow-lg transition transform active:scale-95"
                     >
-                        {loading ? <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white"></div> : <BrainCircuit size={20} />}
-                        {loading ? 'Menganalisis...' : `Simpan & Buat Rekomendasi RKAS ${targetYear}`}
+                        {loading ? <Loader2 className="animate-spin" /> : <BrainCircuit />}
+                        {loading ? 'Menganalisis PBD...' : 'Analisis Otomatis & Buat Rekomendasi'}
                     </button>
-                    <p className="text-xs text-center text-gray-400 mt-2">Powered by Gemini AI</p>
+                    <p className="text-xs text-gray-400 text-center mt-2">
+                        Powered by Google Gemini AI
+                    </p>
                 </div>
              </div>
 
-             <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6 flex flex-col items-center justify-center">
-                <h3 className="font-bold text-gray-700 mb-4 w-full">Visualisasi Capaian</h3>
-                <div className="w-full h-64">
+             <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6 flex flex-col items-center justify-center text-center">
+                 <h3 className="font-bold text-gray-700 mb-6">Visualisasi Mutu Sekolah</h3>
+                 <div className="w-full h-64">
                     <ResponsiveContainer width="100%" height="100%">
-                        <BarChart data={indicators} layout="vertical" margin={{ top: 5, right: 30, left: 40, bottom: 5 }}>
-                            <CartesianGrid strokeDasharray="3 3" horizontal={false} />
-                            <XAxis type="number" domain={[0, 100]} />
-                            <YAxis dataKey="id" type="category" width={30} />
-                            <Tooltip />
-                            <Bar dataKey="score" radius={[0, 4, 4, 0]}>
+                        <BarChart data={indicators}>
+                            <CartesianGrid strokeDasharray="3 3" vertical={false} />
+                            <XAxis dataKey="id" tick={{fontSize: 12}} />
+                            <YAxis domain={[0, 100]} />
+                            <Tooltip 
+                                contentStyle={{ borderRadius: '8px', border: 'none', boxShadow: '0 4px 12px rgba(0,0,0,0.1)' }}
+                                cursor={{fill: '#f3f4f6'}}
+                            />
+                            <Bar dataKey="score" radius={[4, 4, 0, 0]}>
                                 {indicators.map((entry, index) => (
                                     <Cell key={`cell-${index}`} fill={getColor(entry.category)} />
                                 ))}
                             </Bar>
                         </BarChart>
                     </ResponsiveContainer>
-                </div>
-                <div className="flex gap-4 mt-4 text-xs font-medium">
-                    <div className="flex items-center gap-1"><div className="w-3 h-3 bg-red-500 rounded"></div> Kurang (&lt;50)</div>
-                    <div className="flex items-center gap-1"><div className="w-3 h-3 bg-yellow-500 rounded"></div> Sedang (50-70)</div>
-                    <div className="flex items-center gap-1"><div className="w-3 h-3 bg-green-500 rounded"></div> Baik (&gt;70)</div>
-                </div>
+                 </div>
+                 <div className="flex gap-4 mt-4 text-xs font-medium text-gray-500">
+                    <div className="flex items-center gap-1"><span className="w-3 h-3 bg-red-500 rounded-full"></span> Kurang (&lt;50)</div>
+                    <div className="flex items-center gap-1"><span className="w-3 h-3 bg-yellow-500 rounded-full"></span> Sedang (50-70)</div>
+                    <div className="flex items-center gap-1"><span className="w-3 h-3 bg-green-500 rounded-full"></span> Baik (&gt;70)</div>
+                 </div>
              </div>
           </div>
       )}
 
       {activeView === 'analysis' && (
-          <div className="space-y-4">
-              <button 
-                onClick={() => setActiveView('input')} 
-                className="text-sm text-gray-500 hover:text-blue-600 flex items-center gap-1"
-              >
-                 &larr; Kembali ke Input Data
-              </button>
-
-              <div className="bg-blue-50 border border-blue-200 p-4 rounded-xl flex gap-3">
-                 <BrainCircuit className="text-blue-600 flex-shrink-0" size={24} />
-                 <div>
-                    <h3 className="font-bold text-blue-900">Hasil Analisis PBD (Target RKAS {targetYear})</h3>
-                    <p className="text-sm text-blue-700">AI telah menyusun rekomendasi kegiatan (Benahi) beserta <b>rincian anggaran (RAB)</b>.</p>
-                 </div>
+          <div className="space-y-6">
+              <div className="flex items-center justify-between">
+                  <h3 className="font-bold text-gray-800 text-lg">Rekomendasi Kegiatan (PBD)</h3>
+                  <button 
+                    onClick={() => setActiveView('input')}
+                    className="text-sm text-blue-600 hover:underline"
+                  >
+                    Kembali ke Input
+                  </button>
               </div>
 
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+              <div className="grid grid-cols-1 gap-4">
                   {recommendations.length === 0 ? (
-                      <div className="col-span-3 text-center py-12 text-gray-400 bg-white rounded-xl">
-                          <CheckCircle size={48} className="mx-auto mb-2 text-green-500" />
-                          <p>Semua indikator bernilai Baik! Pertahankan kualitas sekolah Anda.</p>
+                      <div className="p-8 bg-white rounded-xl text-center text-gray-500 border border-gray-200">
+                          <CheckCircle className="mx-auto text-green-500 mb-2" size={32} />
+                          <p>Tidak ada rekomendasi. Semua indikator sudah BAIK!</p>
                       </div>
                   ) : (
-                      recommendations.map((rec, idx) => (
-                          <div key={idx} className="bg-white rounded-xl border border-gray-200 shadow-sm p-5 hover:shadow-md transition relative overflow-hidden group">
-                              <div className={`absolute top-0 right-0 px-3 py-1 rounded-bl-xl text-xs font-bold text-white ${rec.priority === 'Tinggi' ? 'bg-red-500' : 'bg-yellow-500'}`}>
-                                  Prioritas {rec.priority}
-                              </div>
-                              
-                              <div className="mb-3">
-                                  <div className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-1">Benahi: Indikator {rec.indicatorId}</div>
-                                  <h4 className="font-bold text-gray-800 text-lg leading-tight">{rec.activityName}</h4>
-                              </div>
-                              
-                              <p className="text-sm text-gray-600 mb-4 line-clamp-3">{rec.description}</p>
-                              
-                              <div className="space-y-2 mb-4">
-                                  <div className="flex justify-between text-xs border-b border-gray-50 pb-1">
-                                      <span className="text-gray-400">SNP</span>
-                                      <span className="text-gray-700 text-right truncate w-40">{rec.snpStandard}</span>
-                                  </div>
-                                  <div className="flex justify-between text-xs">
-                                      <span className="text-gray-400">Est. Total Biaya</span>
-                                      <span className="font-bold text-green-600">
-                                          {new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', maximumFractionDigits: 0 }).format(rec.estimatedCost)}
-                                      </span>
-                                  </div>
-                              </div>
-
-                              <button 
-                                 onClick={() => setSelectedRec(rec)}
-                                 className="w-full py-2 bg-blue-50 hover:bg-blue-100 text-blue-600 hover:text-blue-700 font-bold text-sm rounded-lg border border-blue-200 flex items-center justify-center gap-2 transition"
-                              >
-                                 <List size={16} /> Lihat Rincian Anggaran
-                              </button>
-                          </div>
-                      ))
+                      recommendations.map((rec, idx) => {
+                          const isBudgeted = isActivityInBudget(rec);
+                          return (
+                            <div key={idx} className={`bg-white rounded-xl shadow-sm border p-6 transition hover:shadow-md ${isBudgeted ? 'border-green-200 bg-green-50/30' : 'border-gray-200'}`}>
+                                <div className="flex justify-between items-start gap-4">
+                                    <div className="flex-1">
+                                        <div className="flex items-center gap-2 mb-2">
+                                            <span className="bg-red-100 text-red-700 px-2 py-0.5 rounded text-xs font-bold border border-red-200">
+                                                Indikator {rec.indicatorId}
+                                            </span>
+                                            <span className={`px-2 py-0.5 rounded text-xs font-bold border ${rec.priority === 'Tinggi' ? 'bg-orange-100 text-orange-700 border-orange-200' : 'bg-blue-50 text-blue-700 border-blue-100'}`}>
+                                                Prioritas {rec.priority}
+                                            </span>
+                                            {isBudgeted && (
+                                                <span className="bg-green-100 text-green-700 px-2 py-0.5 rounded text-xs font-bold border border-green-200 flex items-center gap-1">
+                                                    <Check size={10} /> Sudah Dianggarkan
+                                                </span>
+                                            )}
+                                        </div>
+                                        <h4 className="text-lg font-bold text-gray-800 mb-1">{rec.activityName}</h4>
+                                        <p className="text-sm text-gray-600 mb-3">{rec.description}</p>
+                                        
+                                        <div className="flex flex-wrap gap-2 text-xs text-gray-500">
+                                            <span className="bg-gray-100 px-2 py-1 rounded">SNP: {rec.snpStandard}</span>
+                                            <span className="bg-gray-100 px-2 py-1 rounded">Komponen: {rec.bospComponent}</span>
+                                        </div>
+                                    </div>
+                                    <div className="text-right flex flex-col items-end">
+                                        <div className="text-lg font-bold text-gray-800">
+                                            {new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', maximumFractionDigits: 0 }).format(rec.estimatedCost)}
+                                        </div>
+                                        <button 
+                                            onClick={() => setSelectedRec(rec)}
+                                            disabled={isBudgeted}
+                                            className={`mt-3 px-4 py-2 rounded-lg font-bold text-sm flex items-center gap-2 transition ${
+                                                isBudgeted 
+                                                ? 'bg-gray-100 text-gray-400 cursor-not-allowed' 
+                                                : 'bg-blue-600 hover:bg-blue-700 text-white shadow-lg shadow-blue-500/30'
+                                            }`}
+                                        >
+                                            {isBudgeted ? <Check size={16} /> : <Plus size={16} />}
+                                            {isBudgeted ? 'Tersimpan' : 'Masukkan ke RKAS'}
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+                          )
+                      })
                   )}
               </div>
           </div>
       )}
 
-      {/* Detail Breakdown Modal */}
+      {/* Confirmation Modal */}
       {selectedRec && (
-          <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-              <div className="bg-white rounded-xl shadow-xl w-full max-w-2xl overflow-hidden animate-fade-in-up flex flex-col max-h-[90vh]">
+          <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
+              <div className="bg-white rounded-xl shadow-xl w-full max-w-lg overflow-hidden animate-fade-in-up">
                   <div className="px-6 py-4 border-b border-gray-100 flex justify-between items-center bg-gray-50">
-                      <div>
-                          <p className="text-xs font-bold text-gray-500 uppercase">Rincian Kegiatan</p>
-                          <h3 className="text-lg font-bold text-gray-800">{selectedRec.activityName}</h3>
-                      </div>
+                      <h3 className="font-bold text-gray-800">Rincian Anggaran Kegiatan</h3>
                       <button onClick={() => setSelectedRec(null)} className="text-gray-400 hover:text-gray-600">
-                          <X size={20} />
+                        <X size={20} />
                       </button>
                   </div>
                   
-                  <div className="flex-1 overflow-y-auto p-6">
-                      <div className="bg-blue-50 p-4 rounded-lg border border-blue-100 mb-4">
-                          <p className="text-sm text-blue-800">{selectedRec.description}</p>
+                  <div className="p-6">
+                      <div className="mb-4">
+                          <h4 className="font-bold text-gray-800">{selectedRec.activityName}</h4>
+                          <p className="text-sm text-gray-500">Item berikut akan ditambahkan ke Draft Anggaran:</p>
                       </div>
 
-                      <h4 className="font-bold text-gray-700 mb-3 flex items-center gap-2">
-                          <ShoppingCart size={18} /> Daftar Item Belanja (RAB)
-                      </h4>
-                      <div className="border border-gray-200 rounded-lg overflow-hidden">
-                          <table className="w-full text-sm text-left">
-                              <thead className="bg-gray-50 text-gray-600 font-bold border-b border-gray-200">
+                      <div className="bg-gray-50 rounded-lg border border-gray-200 overflow-hidden mb-6">
+                          <table className="w-full text-left text-sm">
+                              <thead className="bg-gray-100 text-gray-600 font-bold border-b border-gray-200">
                                   <tr>
-                                      <th className="px-4 py-3">Uraian Item</th>
-                                      <th className="px-4 py-3 text-center">Volume</th>
-                                      <th className="px-4 py-3 text-right">Harga Satuan</th>
-                                      <th className="px-4 py-3 text-right">Total</th>
+                                      <th className="px-3 py-2">Uraian / Barang</th>
+                                      <th className="px-3 py-2 text-right">Vol</th>
+                                      <th className="px-3 py-2 text-right">Harga</th>
+                                      <th className="px-3 py-2 text-right">Total</th>
                                   </tr>
                               </thead>
-                              <tbody className="divide-y divide-gray-100">
-                                  {selectedRec.items.map((item, idx) => (
-                                      <tr key={idx} className="hover:bg-gray-50">
-                                          <td className="px-4 py-2">
+                              <tbody className="divide-y divide-gray-200">
+                                  {selectedRec.items.map((item, i) => (
+                                      <tr key={i}>
+                                          <td className="px-3 py-2">
                                               <div className="font-medium text-gray-800">{item.name}</div>
                                               <div className="text-[10px] text-gray-400 font-mono">{item.accountCode}</div>
                                           </td>
-                                          <td className="px-4 py-2 text-center text-gray-600">
-                                              {item.quantity} {item.unit}
+                                          <td className="px-3 py-2 text-right text-xs">{item.quantity} {item.unit}</td>
+                                          <td className="px-3 py-2 text-right text-xs">
+                                            {new Intl.NumberFormat('id-ID').format(item.price)}
                                           </td>
-                                          <td className="px-4 py-2 text-right text-gray-600">
-                                              {new Intl.NumberFormat('id-ID').format(item.price)}
-                                          </td>
-                                          <td className="px-4 py-2 text-right font-bold text-gray-800">
-                                              {new Intl.NumberFormat('id-ID').format(item.quantity * item.price)}
+                                          <td className="px-3 py-2 text-right font-bold text-xs">
+                                            {new Intl.NumberFormat('id-ID').format(item.quantity * item.price)}
                                           </td>
                                       </tr>
                                   ))}
                               </tbody>
-                              <tfoot className="bg-gray-50 font-bold text-gray-800">
-                                  <tr>
-                                      <td colSpan={3} className="px-4 py-3 text-right">Total Estimasi:</td>
-                                      <td className="px-4 py-3 text-right text-blue-600">
-                                          {new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', maximumFractionDigits: 0 }).format(selectedRec.estimatedCost)}
-                                      </td>
-                                  </tr>
-                              </tfoot>
                           </table>
                       </div>
-                  </div>
 
-                  <div className="p-4 border-t border-gray-100 flex justify-end gap-3 bg-gray-50">
-                      <button 
-                          onClick={() => setSelectedRec(null)}
-                          className="px-4 py-2 text-gray-600 hover:bg-gray-200 rounded-lg transition"
-                      >
-                          Tutup
-                      </button>
-                      <button 
-                          onClick={handleConfirmAddToBudget}
-                          disabled={isAddingToBudget}
-                          className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition shadow-sm font-bold flex items-center gap-2"
-                      >
-                          {isAddingToBudget ? <Loader2 size={16} className="animate-spin" /> : <Plus size={16} />}
-                          {isAddingToBudget ? 'Menambahkan...' : 'Simpan Semua ke RKAS'}
-                      </button>
+                      <div className="flex gap-3">
+                          <button 
+                            onClick={() => setSelectedRec(null)}
+                            className="flex-1 py-2.5 border border-gray-300 text-gray-600 rounded-lg font-bold hover:bg-gray-50"
+                          >
+                             Batal
+                          </button>
+                          <button 
+                            onClick={handleConfirmAddToBudget}
+                            disabled={isAddingToBudget}
+                            className="flex-1 py-2.5 bg-blue-600 text-white rounded-lg font-bold hover:bg-blue-700 shadow-lg flex items-center justify-center gap-2"
+                          >
+                             {isAddingToBudget ? <Loader2 className="animate-spin" size={18} /> : <Save size={18} />}
+                             Konfirmasi Simpan
+                          </button>
+                      </div>
                   </div>
               </div>
           </div>
       )}
-
     </div>
   );
 };
