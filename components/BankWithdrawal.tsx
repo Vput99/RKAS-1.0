@@ -316,40 +316,84 @@ const BankWithdrawal: React.FC<BankWithdrawalProps> = ({ data, profile }) => {
     generateHeader(doc);
     const topMargin = 55;
 
-    doc.setFont('times', 'bold');
-    doc.setFontSize(12);
-    doc.text('SURAT PERINTAH PEMINDAHBUKUAN', 105, topMargin, { align: 'center' });
-    
-    const months = ["Januari", "Februari", "Maret", "April", "Mei", "Juni", "Juli", "Agustus", "September", "Oktober", "November", "Desember"];
-    const d = new Date(withdrawDate);
-    const dateStr = `${d.getDate()} ${months[d.getMonth()]} ${d.getFullYear()}`;
-
+    // 1. NOMOR
     doc.setFont('times', 'normal');
     doc.setFontSize(12);
-    doc.text(`Kepada Yth.`, 20, topMargin + 15);
-    doc.text(`Pimpinan ${bankName}`, 20, topMargin + 20);
-    doc.text(`Cabang ${bankBranch}`, 20, topMargin + 25);
-    doc.text(`di Tempat`, 20, topMargin + 30);
+    doc.text(`NOMOR : ${suratNo}`, 105, topMargin, { align: 'center' });
 
-    doc.text("Dengan hormat,", 20, topMargin + 45);
-    const content = `Mohon dipindahbukukan dana dari Rekening Giro kami Nomor: ${accountNo} atas nama ${profile?.name} sebesar ${formatRupiah(totalSelectedAmount)} (${getTerbilang(totalSelectedAmount)} Rupiah).`;
-    const splitContent = doc.splitTextToSize(content, 170);
-    doc.text(splitContent, 20, topMargin + 55);
-
-    doc.text(`Cek / Bilyet Giro Nomor: ${chequeNo || '..................'}`, 20, topMargin + 75);
-
-    // Signatures
-    const dateY = topMargin + 100;
-    const cityTitle = schoolCity.replace('KOTA ', '').replace('KABUPATEN ', '');
-    doc.text(`${cityTitle}, ${dateStr}`, 140, dateY);
-    doc.text(ksTitle, 140, dateY + 6);
-    doc.text(profile?.name || '', 140, dateY + 11);
+    // 2. KEPADA YTH
+    const recipientY = topMargin + 10;
+    const leftMargin = 20;
     
+    doc.text('Kepada Yth : Bapak Direktur', leftMargin, recipientY);
+    // Extract bank name logic
+    const bankShort = bankName.replace('PT. ', '').replace('BANK PEMBANGUNAN DAERAH JAWA TIMUR', 'BANK JATIM'); // Example standardizing
+    doc.text(`${bankShort} CABANG ${bankBranch}`, leftMargin, recipientY + 5); 
+    doc.text('DI', leftMargin, recipientY + 10);
+    
+    const cityClean = schoolCity.replace('KOTA ', '').replace('KABUPATEN ', '');
+    doc.text(cityClean, leftMargin, recipientY + 15);
+
+    // 3. PERIHAL
+    const perihalY = recipientY + 25;
+    doc.text('Perihal : ', leftMargin, perihalY);
+    // Underline "Kuasa Pemindahbukuan"
+    const perihalTitle = "Kuasa Pemindahbukuan";
+    doc.text(perihalTitle, leftMargin + 17, perihalY);
+    const titleWidth = doc.getTextWidth(perihalTitle);
+    doc.setLineWidth(0.3);
+    doc.line(leftMargin + 17, perihalY + 1, leftMargin + 17 + titleWidth, perihalY + 1);
+
+    // 4. BODY 1
+    const bodyY = perihalY + 10;
+    const body1 = `Sehubungan dengan adanya rekening kami di ${bankShort} Cabang ${bankBranch} atas nama ${profile?.name} nomor rekening ${accountNo} bersama ini kami mengajukan kuasa pemindahbukuan. (Terlampir)`;
+    const splitBody1 = doc.splitTextToSize(body1, 170);
+    doc.text(splitBody1, leftMargin, bodyY);
+
+    // 5. BODY 2
+    const body2Y = bodyY + (splitBody1.length * 5) + 5;
+    const body2 = `Kami harap dengan adanya kuasa tersebut dapat dilakukan pemindahbukuan secara otomatis dari rekening Giro kami yang ada di ${bankShort} Cabang ${bankBranch}`;
+    const splitBody2 = doc.splitTextToSize(body2, 170);
+    doc.text(splitBody2, leftMargin, body2Y);
+
+    // 6. CLOSING
+    const closingY = body2Y + (splitBody2.length * 5) + 5;
+    doc.text('Demikian atas kerja sama yang baik sampaikan terima kasih.', leftMargin, closingY);
+
+    // 7. SIGNATURE SECTION (No Date, School Name Center, 2 Cols)
+    const signY = closingY + 20;
+
+    // School Name (Centered)
     doc.setFont('times', 'bold');
-    doc.text(`(${ksName})`, 140, dateY + 40);
+    doc.text(profile?.name || 'SEKOLAH', 105, signY, { align: 'center' });
+
+    const titleY = signY + 6;
     doc.setFont('times', 'normal');
-    doc.text(`NIP. ${ksNip}`, 140, dateY + 45);
     
+    // Coordinates
+    const leftColX = 60;
+    const rightColX = 150;
+
+    doc.text(ksTitle, leftColX, titleY, { align: 'center' });
+    doc.text('Bendahara', rightColX, titleY, { align: 'center' });
+
+    const nameY = titleY + 30;
+    doc.setFont('times', 'bold');
+    
+    // KS Name
+    doc.text(ksName, leftColX, nameY, { align: 'center' });
+    const ksNameWidth = doc.getTextWidth(ksName);
+    doc.line(leftColX - (ksNameWidth/2), nameY + 1, leftColX + (ksNameWidth/2), nameY + 1);
+    
+    // TR Name
+    doc.text(trName, rightColX, nameY, { align: 'center' });
+    const trNameWidth = doc.getTextWidth(trName);
+    doc.line(rightColX - (trNameWidth/2), nameY + 1, rightColX + (trNameWidth/2), nameY + 1);
+
+    doc.setFont('times', 'normal');
+    doc.text(`NIP. ${ksNip}`, leftColX, nameY + 5, { align: 'center' });
+    doc.text(`NIP. ${trNip}`, rightColX, nameY + 5, { align: 'center' });
+
     return doc;
   };
 
