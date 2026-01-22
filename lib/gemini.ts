@@ -31,15 +31,17 @@ const ai = apiKey ? new GoogleGenAI({ apiKey }) : null;
 const parseAIResponse = (text: string | undefined) => {
   if (!text) return null;
   try {
-    let clean = text.trim();
-    if (clean.startsWith('```json')) {
-      clean = clean.replace(/^```json\s*/, '').replace(/\s*```$/, '');
-    } else if (clean.startsWith('```')) {
-      clean = clean.replace(/^```\s*/, '').replace(/\s*```$/, '');
+    // 1. Try to extract JSON from markdown code blocks (e.g. ```json ... ```)
+    // Regex explanation: Matches ``` optionally followed by json, capturing content, ending with ```
+    const match = text.match(/```(?:json)?\s*([\s\S]*?)\s*```/);
+    if (match) {
+      return JSON.parse(match[1]);
     }
-    return JSON.parse(clean);
+    
+    // 2. Try parsing the raw text directly (cleaning potential whitespace)
+    return JSON.parse(text.trim());
   } catch (e) {
-    console.error("Failed to parse JSON from AI:", text);
+    console.error("Failed to parse JSON from AI:", text, e);
     return null;
   }
 };
@@ -47,16 +49,26 @@ const parseAIResponse = (text: string | undefined) => {
 // --- OPTIMIZATION: SMART FILTERING ---
 // Reduces payload size by only sending relevant account codes to AI
 const filterRelevantAccounts = (query: string, accounts: Record<string, string>): string => {
+  const entries = Object.entries(accounts);
+  
+  // STRATEGY 1: Small Dataset (< 150 items)
+  // If the list is small enough, send EVERYTHING. This ensures 100% accuracy for finding matches.
+  if (entries.length < 150) {
+      return entries.map(([c, n]) => `- ${c}: ${n}`).join('\n');
+  }
+
+  // STRATEGY 2: Large Dataset (Imported Excel)
+  // Use keyword matching to find relevant codes.
   const queryLower = query.toLowerCase();
-  const queryWords = queryLower.split(/\s+/).filter(w => w.length > 2); // Ignore short words
+  const queryWords = queryLower.split(/\s+/).filter(w => w.length > 1); // Allow 2 chars like 'HP', 'PC'
 
   // Score each account based on match relevance
-  const scored = Object.entries(accounts).map(([code, name]) => {
+  const scored = entries.map(([code, name]) => {
       const nameLower = name.toLowerCase();
       let score = 0;
       
-      // Exact match bonus
-      if (nameLower.includes(queryLower)) score += 50;
+      // Exact phrase match bonus
+      if (nameLower.includes(queryLower)) score += 100;
       
       // Word match bonus
       queryWords.forEach(word => {
@@ -70,16 +82,16 @@ const filterRelevantAccounts = (query: string, accounts: Record<string, string>)
       return { code, name, score };
   });
 
-  // Filter items with score > 0, sort descending, take top 40 matches
+  // Filter items with score > 0, sort descending, take top 50 matches
   let candidates = scored
     .filter(s => s.score > 0)
     .sort((a,b) => b.score - a.score)
-    .slice(0, 40);
+    .slice(0, 50);
 
-  // Fallback: If no matches found (e.g. typos), include a mix of common accounts
+  // Fallback: If no matches found (e.g. typos), include a mix of common accounts + top custom ones
   if (candidates.length === 0) {
-      candidates = Object.entries(AccountCodes)
-        .slice(0, 20)
+      candidates = entries
+        .slice(0, 30) // Take first 30 (usually standard accounts)
         .map(([code, name]) => ({ code, name, score: 0 }));
   }
 
@@ -122,19 +134,24 @@ export const analyzeBudgetEntry = async (description: string, availableAccounts:
       model: 'gemini-3-flash-preview',
       contents: `
       Role: BOSP Auditor & Budget Planner (Indonesia).
-      Task: Validate input & Auto-fill budget details.
       
-      Input: "${description}"
+      Task: 
+      1. Validate the user's budget plan input against Juknis BOSP 2026.
+      2. Select the BEST matching Account Code from the provided list.
+      3. ESTIMATE the Quantity, Unit, and Unit Price (IDR) based on standard market rates in Indonesia (2026).
       
-      Relevant Account Codes (Choose ONE best match):
+      User Input: "${description}"
+      
+      Available Account Codes (Select one):
       ${relevantAccountsList}
       
       Rules:
       1. JUKNIS 2026: No land purchase, no personal vehicle, no PNS salary.
-      2. If forbidden, is_eligible=false.
-      3. Auto-fill estimates (Price IDR, Vol, Unit).
+      2. If forbidden, set is_eligible=false and provide a warning.
+      3. YOU MUST ESTIMATE THE PRICE. Do not return 0 unless absolutely unknown. Example: Laptop ~7.000.000, ATK ~50.000.
+      4. Suggest a formal "Uraian Kegiatan" text if the input is informal.
       
-      Return JSON only.`,
+      Output JSON Format Only.`,
       config: {
         responseMimeType: "application/json",
         responseSchema: {
@@ -166,7 +183,7 @@ export const analyzeBudgetEntry = async (description: string, availableAccounts:
       realization_months_estimate: [1],
       suggestion: description,
       is_eligible: true,
-      warning: "Gagal memproses respon AI."
+      warning: "Gagal memproses respon AI (Format Invalid)."
     };
   } catch (error) {
     console.error("Gemini Error:", error);
@@ -178,9 +195,9 @@ export const analyzeBudgetEntry = async (description: string, availableAccounts:
       unit_estimate: 'Paket',
       price_estimate: 0,
       realization_months_estimate: [1],
-      suggestion: "Koneksi AI Gagal (Timeout/Limit).",
+      suggestion: description,
       is_eligible: true,
-      warning: "Silakan isi manual."
+      warning: "Koneksi AI Gagal (Timeout/Limit)."
     };
   }
 };
