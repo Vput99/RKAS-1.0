@@ -103,7 +103,13 @@ export const updateBudget = async (id: string, updates: Partial<Budget>): Promis
     const { data, error } = await supabase.from('budgets').update(updates).eq('id', id).select();
     if (error) {
         console.error("Supabase update error:", error);
-        alert(`Gagal mengupdate data: ${error.message}`);
+        
+        // Handle specific schema cache error
+        if (error.message.includes('Could not find the') && error.message.includes('column')) {
+             alert(`Database Error: Kolom data tidak ditemukan.\n\nPenyebab: Struktur database berubah tapi API Supabase belum refresh.\n\nSOLUSI:\n1. Buka Supabase Dashboard > Project Settings > API.\n2. Klik tombol "Reload schema cache" di bagian Definition.`);
+        } else {
+             alert(`Gagal mengupdate data: ${error.message}`);
+        }
         return null;
     }
     return data ? data[0] as Budget : null;

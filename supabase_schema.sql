@@ -35,7 +35,10 @@ CREATE TABLE IF NOT EXISTS public.budgets (
     notes TEXT,
 
     -- Data Realisasi (SPJ)
-    realizations JSONB DEFAULT '[]'::jsonb -- Menyimpan history realisasi per bulan
+    realizations JSONB DEFAULT '[]'::jsonb, -- Menyimpan history realisasi per bulan
+    
+    -- Transfer Details (Penerima & Pajak)
+    transfer_details JSONB DEFAULT '{}'::jsonb
 );
 
 -- 3. Pastikan Kolom Ada (Jika tabel sudah dibuat sebelumnya tanpa kolom ini)
@@ -47,6 +50,7 @@ BEGIN
     ALTER TABLE public.budgets ADD COLUMN IF NOT EXISTS account_code TEXT;
     ALTER TABLE public.budgets ADD COLUMN IF NOT EXISTS realization_months INTEGER[];
     ALTER TABLE public.budgets ADD COLUMN IF NOT EXISTS realizations JSONB DEFAULT '[]'::jsonb;
+    ALTER TABLE public.budgets ADD COLUMN IF NOT EXISTS transfer_details JSONB DEFAULT '{}'::jsonb;
 EXCEPTION
     WHEN duplicate_column THEN RAISE NOTICE 'Kolom sudah ada, aman.';
 END $$;
@@ -156,10 +160,33 @@ DROP POLICY IF EXISTS "Authenticated Access Rapor" ON public.rapor_pendidikan;
 CREATE POLICY "Authenticated Access Rapor" ON public.rapor_pendidikan 
 FOR ALL TO authenticated USING (true) WITH CHECK (true);
 
--- 10. Aktifkan Realtime (Agar data langsung muncul tanpa refresh)
+-- 10. TABEL RIWAYAT PENCAIRAN (ARSIP)
+CREATE TABLE IF NOT EXISTS public.withdrawal_history (
+    id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL,
+    
+    letter_number TEXT,
+    letter_date DATE,
+    bank_name TEXT,
+    bank_branch TEXT,
+    
+    total_amount NUMERIC DEFAULT 0,
+    item_count INTEGER DEFAULT 0,
+    
+    snapshot_data JSONB DEFAULT '{}'::jsonb, -- JSON Lengkap Data Penerima
+    notes TEXT
+);
+
+ALTER TABLE public.withdrawal_history ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS "Authenticated Access History" ON public.withdrawal_history;
+
+CREATE POLICY "Authenticated Access History" ON public.withdrawal_history 
+FOR ALL TO authenticated USING (true) WITH CHECK (true);
+
+-- 11. Aktifkan Realtime (Agar data langsung muncul tanpa refresh)
 BEGIN;
   DROP PUBLICATION IF EXISTS supabase_realtime;
-  CREATE PUBLICATION supabase_realtime FOR TABLE budgets, school_profiles, bank_statements, rapor_pendidikan;
+  CREATE PUBLICATION supabase_realtime FOR TABLE budgets, school_profiles, bank_statements, rapor_pendidikan, withdrawal_history;
 COMMIT;
 
 -- Selesai.
