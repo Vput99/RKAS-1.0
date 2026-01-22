@@ -310,17 +310,19 @@ const BankWithdrawal: React.FC<BankWithdrawalProps> = ({ data, profile, onUpdate
       setIsSaving(true);
       try {
           const doc = createRincianDoc();
-          const pdfBlob = doc.output('blob');
-          const fileName = `Rincian_Transfer_${MONTHS[withdrawalMonth-1]}_${new Date().getTime()}.pdf`;
+          if (doc) {
+            const pdfBlob = doc.output('blob');
+            const fileName = `Rincian_Transfer_${MONTHS[withdrawalMonth-1]}_${new Date().getTime()}.pdf`;
 
-          await performArchiving(pdfBlob, fileName);
-          
-          doc.save('Daftar_Rincian_Transfer.pdf');
-          setActiveTab('riwayat');
+            await performArchiving(pdfBlob, fileName);
+            doc.save('Daftar_Rincian_Transfer.pdf');
+            setActiveTab('riwayat');
+          }
       } catch (error) {
           console.error("Print/Archive failed", error);
           alert("Gagal menyimpan riwayat/upload file, namun proses download akan dilanjutkan.");
-          createRincianDoc().save('Daftar_Rincian_Transfer.pdf');
+          const doc = createRincianDoc();
+          if (doc) doc.save('Daftar_Rincian_Transfer.pdf');
       } finally {
           setIsSaving(false);
       }
@@ -378,6 +380,25 @@ const BankWithdrawal: React.FC<BankWithdrawalProps> = ({ data, profile, onUpdate
 
   // --- PDF GENERATORS LOGIC ---
   
+  // Safe init jsPDF
+  const initJsPDF = (options?: any) => {
+    try {
+        // Safe check for constructor to handle different import behaviors (ESM/CJS)
+        if (typeof jsPDF === 'function') {
+            // @ts-ignore
+            return new jsPDF(options);
+        } else if ((jsPDF as any).default) {
+            // @ts-ignore
+            return new (jsPDF as any).default(options);
+        }
+        console.error("jsPDF is not a constructor", jsPDF);
+        return null;
+    } catch (e) {
+        console.error("Failed to initialize jsPDF", e);
+        return null;
+    }
+  };
+
   // Helper for City formatting
   const getCityName = () => {
       let c = profile?.city || '';
@@ -419,7 +440,9 @@ const BankWithdrawal: React.FC<BankWithdrawalProps> = ({ data, profile, onUpdate
   };
 
   const createSuratKuasaDoc = () => {
-    const doc = new jsPDF();
+    const doc = initJsPDF();
+    if (!doc) return null;
+
     generateHeader(doc);
     
     const uniqueRecipientCount = getGroupedData().length;
@@ -520,7 +543,9 @@ const BankWithdrawal: React.FC<BankWithdrawalProps> = ({ data, profile, onUpdate
   };
 
   const createPemindahbukuanDoc = () => {
-    const doc = new jsPDF();
+    const doc = initJsPDF();
+    if (!doc) return null;
+
     generateHeader(doc);
     const topMargin = 55;
     const bankName = profile?.bankName || 'BANK';
@@ -592,7 +617,9 @@ const BankWithdrawal: React.FC<BankWithdrawalProps> = ({ data, profile, onUpdate
   };
 
   const createRincianDoc = () => {
-    const doc = new jsPDF({ orientation: 'landscape' });
+    const doc = initJsPDF({ orientation: 'landscape' });
+    if (!doc) return null;
+
     doc.setFontSize(12);
     doc.setFont('helvetica', 'bold');
     doc.text('DAFTAR RINCIAN TRANSFER', 148, 15, { align: 'center' });
@@ -703,18 +730,23 @@ const BankWithdrawal: React.FC<BankWithdrawalProps> = ({ data, profile, onUpdate
       // Debounce slightly to allow state to settle
       const timeoutId = setTimeout(() => {
         try {
-          let doc: jsPDF;
+          let doc: jsPDF | null = null;
           if (activeTab === 'surat_kuasa') {
             doc = createSuratKuasaDoc();
           } else {
             doc = createPemindahbukuanDoc();
           }
           
-          const blob = doc.output('blob');
-          const url = URL.createObjectURL(blob);
-          setPdfPreviewUrl(url);
+          if (doc) {
+            const blob = doc.output('blob');
+            const url = URL.createObjectURL(blob);
+            setPdfPreviewUrl(url);
+          } else {
+            setPdfPreviewUrl(null);
+          }
         } catch (error) {
           console.error("Preview generation failed", error);
+          setPdfPreviewUrl(null);
         } finally {
           setIsPreviewLoading(false);
         }
@@ -1163,7 +1195,7 @@ const BankWithdrawal: React.FC<BankWithdrawalProps> = ({ data, profile, onUpdate
                             
                             <div className="space-y-3">
                                 <button 
-                                    onClick={() => activeTab === 'surat_kuasa' ? createSuratKuasaDoc().save('Surat_Kuasa.pdf') : createPemindahbukuanDoc().save('Pemindahbukuan.pdf')} 
+                                    onClick={() => activeTab === 'surat_kuasa' ? createSuratKuasaDoc()?.save('Surat_Kuasa.pdf') : createPemindahbukuanDoc()?.save('Pemindahbukuan.pdf')} 
                                     className="w-full bg-blue-600 hover:bg-blue-700 text-white px-6 py-3 rounded-lg font-bold flex items-center justify-center gap-2 shadow-lg transition"
                                 >
                                     <Printer size={18} /> Download PDF
