@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { LayoutDashboard, Wallet, FileCheck, Settings as SettingsIcon, Menu, User, BookOpen, FileBarChart, Wifi, LogOut, Download, Share, PlusSquare, X, School, TrendingUp } from 'lucide-react';
+import { LayoutDashboard, Wallet, FileCheck, Settings as SettingsIcon, Menu, User, BookOpen, FileBarChart, Wifi, LogOut, Download, Share, PlusSquare, X, School, TrendingUp, Landmark } from 'lucide-react';
 import Dashboard from './components/Dashboard';
 import TransactionTable from './components/TransactionTable';
 import BudgetPlanning from './components/BudgetPlanning';
@@ -8,6 +8,7 @@ import Reports from './components/Reports';
 import Settings from './components/Settings';
 import ChatAssistant from './components/ChatAssistant';
 import RaporPendidikan from './components/RaporPendidikan';
+import BankWithdrawal from './components/BankWithdrawal';
 import Auth from './components/Auth';
 import { getBudgets, addBudget, updateBudget, deleteBudget, getSchoolProfile, checkDatabaseConnection } from './lib/db';
 import { supabase } from './lib/supabase'; // Import supabase client
@@ -24,7 +25,7 @@ function App() {
   const [isStandalone, setIsStandalone] = useState(false);
 
   // App State
-  const [activeTab, setActiveTab] = useState<'dashboard' | 'income' | 'planning' | 'spj' | 'reports' | 'rapor' | 'settings'>('dashboard');
+  const [activeTab, setActiveTab] = useState<'dashboard' | 'income' | 'planning' | 'spj' | 'reports' | 'rapor' | 'settings' | 'withdrawal'>('dashboard');
   const [isSidebarOpen, setSidebarOpen] = useState(true);
   const [data, setData] = useState<Budget[]>([]);
   const [schoolProfile, setSchoolProfile] = useState<SchoolProfile | null>(null);
@@ -244,6 +245,7 @@ function App() {
             <NavItem id="rapor" label="Rapor Pendidikan" icon={TrendingUp} />
             <NavItem id="income" label="Pendapatan" icon={Wallet} />
             <NavItem id="planning" label="Penganggaran" icon={BookOpen} />
+            <NavItem id="withdrawal" label="Pencairan Bank" icon={Landmark} />
             <NavItem id="spj" label="Peng-SPJ-an" icon={FileCheck} />
             <NavItem id="reports" label="Laporan" icon={FileBarChart} />
           </div>
@@ -286,7 +288,7 @@ function App() {
 
         {/* Version Indicator */}
         <div className={`p-4 text-center border-t border-gray-100 ${!isSidebarOpen && 'lg:hidden xl:block'}`}>
-            <p className="text-[10px] text-gray-400">Versi Aplikasi 1.1</p>
+            <p className="text-[10px] text-gray-400">Versi Aplikasi 1.2</p>
         </div>
       </aside>
 
@@ -347,6 +349,12 @@ function App() {
                     onAdd={handleAdd}
                     onUpdate={handleUpdate}
                     onDelete={handleDelete}
+                  />
+                )}
+                {activeTab === 'withdrawal' && (
+                  <BankWithdrawal 
+                    data={data}
+                    profile={schoolProfile}
                   />
                 )}
                 {activeTab === 'spj' && (
