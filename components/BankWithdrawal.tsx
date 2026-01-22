@@ -1,6 +1,6 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import { Budget, TransactionType, SchoolProfile } from '../types';
-import { FileText, Printer, Landmark, CheckSquare, Square, DollarSign, Calendar, User, CreditCard, Edit3, Upload, Image as ImageIcon, Eye, RefreshCw, ExternalLink, List, X, Coins } from 'lucide-react';
+import { FileText, Printer, Landmark, CheckSquare, Square, DollarSign, Calendar, User, CreditCard, Edit3, Upload, Image as ImageIcon, Eye, RefreshCw, ExternalLink, List, X, Coins, Users } from 'lucide-react';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 
@@ -12,6 +12,7 @@ interface BankWithdrawalProps {
 const BankWithdrawal: React.FC<BankWithdrawalProps> = ({ data, profile }) => {
   const [activeTab, setActiveTab] = useState<'rincian' | 'surat_kuasa' | 'pemindahbukuan'>('rincian');
   const [isSelectionModalOpen, setIsSelectionModalOpen] = useState(false);
+  const [isBulkEditOpen, setIsBulkEditOpen] = useState(false);
   
   // Form States - General
   const [selectedBudgetIds, setSelectedBudgetIds] = useState<string[]>([]);
@@ -44,6 +45,10 @@ const BankWithdrawal: React.FC<BankWithdrawalProps> = ({ data, profile }) => {
 
   // Recipient Details State (Nama & No Rekening per Item)
   const [recipientDetails, setRecipientDetails] = useState<Record<string, { name: string, account: string }>>({});
+  
+  // Bulk Edit State
+  const [bulkName, setBulkName] = useState('');
+  const [bulkAccount, setBulkAccount] = useState('');
 
   // Kop Surat Image State (Base64)
   const [headerImage, setHeaderImage] = useState<string | null>(null);
@@ -69,12 +74,10 @@ const BankWithdrawal: React.FC<BankWithdrawalProps> = ({ data, profile }) => {
   }, [profile]);
 
   // Filter expenses: Show EVERYTHING except Rejected items.
-  // This ensures items added in "Penganggaran" (which are 'draft' by default) appear here immediately.
   const availableExpenses = useMemo(() => {
     return data
         .filter(d => d.type === TransactionType.EXPENSE && d.status !== 'rejected')
         .sort((a, b) => {
-            // Sort by newest created/date first so the user sees their new input at the top
             const dateA = new Date(a.created_at || a.date).getTime();
             const dateB = new Date(b.created_at || b.date).getTime();
             return dateB - dateA;
@@ -86,6 +89,44 @@ const BankWithdrawal: React.FC<BankWithdrawalProps> = ({ data, profile }) => {
       .filter(d => selectedBudgetIds.includes(d.id))
       .reduce((acc, curr) => acc + curr.amount, 0);
   }, [availableExpenses, selectedBudgetIds]);
+
+  // --- LOGIC PENGELOMPOKAN (GROUPING) ---
+  // Menggabungkan item jika Nama & Rekening SAMA PERSIS
+  const getGroupedData = () => {
+      const selectedItems = availableExpenses.filter(d => selectedBudgetIds.includes(d.id));
+      
+      const groups: Record<string, { 
+          name: string, 
+          account: string, 
+          amount: number, 
+          descriptions: string[] 
+      }> = {};
+
+      selectedItems.forEach(item => {
+          const detail = recipientDetails[item.id] || { name: '', account: '' };
+          const cleanName = detail.name.trim();
+          const cleanAccount = detail.account.trim();
+
+          // Kunci Pengelompokan: Nama + Akun. Jika kosong, gunakan ID item (tidak digabung)
+          const key = (cleanName && cleanAccount) 
+              ? `${cleanName.toLowerCase()}_${cleanAccount}` 
+              : `individual_${item.id}`;
+
+          if (!groups[key]) {
+              groups[key] = {
+                  name: cleanName,
+                  account: cleanAccount,
+                  amount: 0,
+                  descriptions: []
+              };
+          }
+
+          groups[key].amount += item.amount;
+          groups[key].descriptions.push(item.description);
+      });
+
+      return Object.values(groups);
+  };
 
   const toggleSelection = (id: string) => {
     setSelectedBudgetIds(prev => 
@@ -111,6 +152,19 @@ const BankWithdrawal: React.FC<BankWithdrawalProps> = ({ data, profile }) => {
               [field]: value
           }
       }));
+  };
+
+  const applyBulkRecipient = () => {
+      setRecipientDetails(prev => {
+          const newState = { ...prev };
+          selectedBudgetIds.forEach(id => {
+              newState[id] = { name: bulkName, account: bulkAccount };
+          });
+          return newState;
+      });
+      setIsBulkEditOpen(false);
+      setBulkName('');
+      setBulkAccount('');
   };
 
   const formatRupiah = (num: number) => {
@@ -147,9 +201,6 @@ const BankWithdrawal: React.FC<BankWithdrawalProps> = ({ data, profile }) => {
   };
 
   // --- PDF GENERATORS LOGIC ---
-  // (PDF Generation logic omitted for brevity as it remains unchanged, reusing existing functions)
-  // ... (Keep existing generateHeader, createSuratKuasaDoc, createPemindahbukuanDoc, generateRincian functions) ...
-  
   const generateHeader = (doc: jsPDF) => {
     if (headerImage) {
         doc.addImage(headerImage, 'PNG', 15, 10, 25, 25);
@@ -176,6 +227,11 @@ const BankWithdrawal: React.FC<BankWithdrawalProps> = ({ data, profile }) => {
   const createSuratKuasaDoc = () => {
     const doc = new jsPDF();
     generateHeader(doc);
+    
+    // Gunakan Data yang sudah dikelompokkan
+    const groupedData = getGroupedData();
+    const uniqueRecipientCount = groupedData.length;
+
     const topMargin = 55;
     doc.setFont('times', 'bold');
     doc.setFontSize(12);
@@ -229,11 +285,13 @@ const BankWithdrawal: React.FC<BankWithdrawalProps> = ({ data, profile }) => {
     doc.line(90, khususY + 1, 120, khususY + 1);
     const contentY = khususY + 8;
     doc.setFont('times', 'normal');
-    const itemCount = selectedBudgetIds.length;
-    const itemCountText = getTerbilang(itemCount);
+    
+    // UPDATE: Gunakan uniqueRecipientCount untuk jumlah rekening
+    const itemCountText = getTerbilang(uniqueRecipientCount);
     const nominalFormatted = formatRupiah(totalSelectedAmount).replace(',00', '').replace('Rp', 'Rp ');
     const nominalTerbilang = getTerbilang(totalSelectedAmount);
-    const mainContent = `Untuk memindahbukuan dari rekening Giro/ Tabungan kami yang ada di ${bankName} Cabang ${bankBranch} dengan nomor rekening ${accountNo} atas nama ${profile?.name} untuk dilimpahkan kepada rekening terlampir yang tidak terpisahkan dari surat kuasa ini sebanyak ${itemCount} ( ${itemCountText} ) rekening dengan total nominal ${nominalFormatted}- ( ${nominalTerbilang} Rupiah), Dengan data sesuai Lampiran.`;
+    
+    const mainContent = `Untuk memindahbukuan dari rekening Giro/ Tabungan kami yang ada di ${bankName} Cabang ${bankBranch} dengan nomor rekening ${accountNo} atas nama ${profile?.name} untuk dilimpahkan kepada rekening terlampir yang tidak terpisahkan dari surat kuasa ini sebanyak ${uniqueRecipientCount} ( ${itemCountText} ) rekening dengan total nominal ${nominalFormatted}- ( ${nominalTerbilang} Rupiah), Dengan data sesuai Lampiran.`;
     const splitMain = doc.splitTextToSize(mainContent, 170);
     doc.text(splitMain, 20, contentY);
     const closingY = contentY + (splitMain.length * 6) + 6;
@@ -339,21 +397,29 @@ const BankWithdrawal: React.FC<BankWithdrawalProps> = ({ data, profile }) => {
     doc.setFont('helvetica', 'italic');
     doc.setFontSize(10);
     doc.text(`Bulan ${months[d.getMonth()]}`, 15, 35);
-    const tableBody = availableExpenses
-        .filter(d => selectedBudgetIds.includes(d.id))
-        .map((item, idx) => {
-            const detail = recipientDetails[item.id] || { name: '', account: '' };
-            return [
-                idx + 1,
-                detail.name || '(Isi Nama)',
-                detail.account || '(Isi No Rek)',
-                formatRupiah(item.amount),
-                '', '', '', '', '', // Tax Columns (Empty)
-                '-', // Jml Potongan
-                formatRupiah(item.amount), // Bersih
-                item.description // Keterangan
-            ]
-        });
+
+    // UPDATE: Gunakan Grouped Data
+    const groupedData = getGroupedData();
+
+    const tableBody = groupedData.map((item, idx) => {
+        // Gabungkan deskripsi jika banyak
+        let mergedDesc = item.descriptions.join(', ');
+        if (mergedDesc.length > 50 && item.descriptions.length > 1) {
+            mergedDesc = `${item.descriptions[0]} dan ${item.descriptions.length - 1} item lainnya`;
+        }
+
+        return [
+            idx + 1,
+            item.name || '(Isi Nama)',
+            item.account || '(Isi No Rek)',
+            formatRupiah(item.amount),
+            '', '', '', '', '', // Tax Columns (Empty)
+            '-', // Jml Potongan
+            formatRupiah(item.amount), // Bersih
+            mergedDesc // Keterangan (Gabungan)
+        ]
+    });
+
     tableBody.push([
         '', 'JUMLAH', '', formatRupiah(totalSelectedAmount), '', '', '', '', '', '-', formatRupiah(totalSelectedAmount), ''
     ]);
@@ -451,11 +517,12 @@ const BankWithdrawal: React.FC<BankWithdrawalProps> = ({ data, profile }) => {
       trName, trNip, trTitle, trAddress, 
       bankName, bankBranch, bankAddress, accountNo, chequeNo, withdrawDate, 
       totalSelectedAmount, headerImage, profile, schoolAddress, schoolCity, schoolKecamatan, schoolPostal,
-      selectedBudgetIds
+      selectedBudgetIds, recipientDetails
   ]);
 
-  const BudgetSelectionTable = () => (
-     <div className="border border-gray-200 rounded-lg overflow-hidden max-h-[500px] overflow-y-auto">
+  // CHANGED: Converted from Component inside Component to a Variable to prevent re-render focus loss
+  const budgetTableContent = (
+     <div className="border border-gray-200 rounded-lg overflow-hidden max-h-[500px] overflow-y-auto relative">
         <table className="w-full text-sm text-left">
             <thead className="bg-gray-50 font-bold text-gray-700 sticky top-0 z-10 shadow-sm">
                 <tr>
@@ -465,7 +532,20 @@ const BankWithdrawal: React.FC<BankWithdrawalProps> = ({ data, profile }) => {
                         </button>
                     </th>
                     <th className="px-4 py-3 w-1/4">Uraian Kegiatan (Keterangan)</th>
-                    <th className="px-4 py-3 w-1/4">Nama Penerima</th>
+                    <th className="px-4 py-3 w-1/4">
+                       <div className="flex items-center justify-between">
+                          <span>Nama Penerima</span>
+                          {selectedBudgetIds.length > 1 && (
+                             <button 
+                                onClick={() => setIsBulkEditOpen(true)}
+                                className="text-[10px] bg-indigo-100 text-indigo-700 px-2 py-1 rounded hover:bg-indigo-200 flex items-center gap-1"
+                                title="Isi nama penerima untuk semua item yang dicentang"
+                             >
+                                <Users size={12} /> Isi Sekaligus
+                             </button>
+                          )}
+                       </div>
+                    </th>
                     <th className="px-4 py-3 w-1/5">No. Rekening</th>
                     <th className="px-4 py-3 text-right">Nominal</th>
                 </tr>
@@ -650,13 +730,16 @@ const BankWithdrawal: React.FC<BankWithdrawalProps> = ({ data, profile }) => {
                         <div className="flex justify-between items-center mb-2">
                            <div>
                                <p className="text-sm font-bold text-gray-800">Daftar Item Transfer</p>
-                               <p className="text-xs text-gray-500">Pilih item dan lengkapi data penerima (Nama & Rekening) sebelum mencetak.</p>
+                               <p className="text-xs text-gray-500">
+                                   Pilih item dan lengkapi data penerima. 
+                                   <span className="text-blue-600 font-bold"> Item dengan Nama & Rekening SAMA otomatis digabung saat cetak.</span>
+                               </p>
                            </div>
                            <button onClick={generateRincian} disabled={totalSelectedAmount === 0} className="bg-blue-600 hover:bg-blue-700 text-white px-3 py-1.5 rounded text-xs font-bold flex items-center gap-2 transition disabled:opacity-50">
                               <Printer size={14} /> Cetak Lampiran Transfer
                            </button>
                         </div>
-                        <BudgetSelectionTable />
+                        {budgetTableContent}
                      </div>
                   )}
 
@@ -780,6 +863,49 @@ const BankWithdrawal: React.FC<BankWithdrawalProps> = ({ data, profile }) => {
          </div>
       </div>
       
+      {/* BULK EDIT MODAL */}
+      {isBulkEditOpen && (
+         <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
+            <div className="bg-white rounded-xl shadow-xl w-full max-w-md animate-fade-in-up">
+               <div className="px-6 py-4 border-b border-gray-100 flex justify-between items-center bg-gray-50 rounded-t-xl">
+                  <h3 className="font-bold text-gray-800">Set Penerima Sekaligus</h3>
+                  <button onClick={() => setIsBulkEditOpen(false)}><X size={20} className="text-gray-400" /></button>
+               </div>
+               <div className="p-6 space-y-4">
+                  <p className="text-sm text-gray-600">
+                     Data ini akan diterapkan ke <b>{selectedBudgetIds.length} item</b> yang sedang dicentang.
+                  </p>
+                  <div>
+                     <label className="block text-xs font-bold text-gray-500 mb-1">Nama Penerima / Toko</label>
+                     <input 
+                        type="text" 
+                        value={bulkName} 
+                        onChange={e => setBulkName(e.target.value)} 
+                        className="w-full border rounded px-3 py-2 text-sm" 
+                        placeholder="Contoh: CV. Sinar Jaya"
+                     />
+                  </div>
+                  <div>
+                     <label className="block text-xs font-bold text-gray-500 mb-1">Nomor Rekening</label>
+                     <input 
+                        type="text" 
+                        value={bulkAccount} 
+                        onChange={e => setBulkAccount(e.target.value)} 
+                        className="w-full border rounded px-3 py-2 text-sm" 
+                        placeholder="Contoh: 1234567890"
+                     />
+                  </div>
+                  <button 
+                     onClick={applyBulkRecipient}
+                     className="w-full bg-blue-600 text-white py-2 rounded-lg font-bold hover:bg-blue-700 transition"
+                  >
+                     Terapkan ke Semua
+                  </button>
+               </div>
+            </div>
+         </div>
+      )}
+
       {/* SELECTION MODAL */}
       {isSelectionModalOpen && (
         <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
@@ -791,7 +917,7 @@ const BankWithdrawal: React.FC<BankWithdrawalProps> = ({ data, profile }) => {
                     </button>
                 </div>
                 <div className="flex-1 overflow-y-auto p-6">
-                    <BudgetSelectionTable />
+                    {budgetTableContent}
                 </div>
                 <div className="px-6 py-4 border-t border-gray-100 flex justify-between items-center bg-gray-50">
                     <div className="text-sm">
