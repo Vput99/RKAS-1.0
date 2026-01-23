@@ -114,6 +114,7 @@ export const AccountCodes = {
 export interface RealizationDetail {
   month: number;
   amount: number;
+  quantity?: number; // Volume realisasi
   date: string; // Tanggal Kuitansi/SPJ
   evidence_file?: string; // Nama file bukti fisik
 }

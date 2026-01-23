@@ -1,9 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { SchoolProfile, AccountCodes } from '../types';
-import { Save, School, Users, Wallet, Calendar, AlertCircle, Database, Wifi, WifiOff, CheckCircle2, FileText, Activity, CreditCard, Image as ImageIcon, Upload, Edit3, Plus, Trash2, List, FileSpreadsheet, ArrowRight, RefreshCcw } from 'lucide-react';
+import { Save, School, Users, Wallet, Calendar, Database, Wifi, WifiOff, CheckCircle2, CreditCard, Image as ImageIcon, Upload, Edit3, Plus, Trash2, List, FileSpreadsheet, RefreshCcw, UserCircle, LogOut, FileText } from 'lucide-react';
 import { getSchoolProfile, saveSchoolProfile, checkDatabaseConnection, getStoredAccounts, saveCustomAccount, deleteCustomAccount, bulkSaveCustomAccounts } from '../lib/db';
 import { supabase } from '../lib/supabase';
-import { isAiConfigured } from '../lib/gemini';
 
 interface SettingsProps {
   onProfileUpdate: (profile: SchoolProfile) => void;
@@ -21,7 +20,6 @@ const Settings: React.FC<SettingsProps> = ({ onProfileUpdate }) => {
     fiscalYear: '2026',
     studentCount: 0,
     budgetCeiling: 0,
-    // Defaults for new fields
     city: '',
     district: '',
     postalCode: '',
@@ -35,6 +33,7 @@ const Settings: React.FC<SettingsProps> = ({ onProfileUpdate }) => {
   const [loading, setLoading] = useState(true);
   const [saved, setSaved] = useState(false);
   const [isConnected, setIsConnected] = useState<boolean | null>(null);
+  const [userEmail, setUserEmail] = useState<string>('');
   
   // Custom Accounts State
   const [customAccounts, setCustomAccounts] = useState<Record<string, string>>({});
@@ -51,7 +50,17 @@ const Settings: React.FC<SettingsProps> = ({ onProfileUpdate }) => {
     loadProfile();
     checkConnection();
     loadAccounts();
+    getUserInfo();
   }, []);
+
+  const getUserInfo = async () => {
+      if (supabase) {
+          const { data } = await supabase.auth.getUser();
+          if (data.user?.email) setUserEmail(data.user.email);
+      } else {
+          setUserEmail('Mode Tamu (Offline)');
+      }
+  };
 
   const loadProfile = async () => {
     const data = await getSchoolProfile();
@@ -100,6 +109,11 @@ const Settings: React.FC<SettingsProps> = ({ onProfileUpdate }) => {
     setTimeout(() => setSaved(false), 3000);
   };
 
+  const handleLogout = async () => {
+      if (supabase) await supabase.auth.signOut();
+      window.location.reload();
+  };
+
   // --- CUSTOM ACCOUNTS LOGIC ---
 
   const handleAddAccount = async (e: React.FormEvent) => {
@@ -129,24 +143,18 @@ const Settings: React.FC<SettingsProps> = ({ onProfileUpdate }) => {
       const parsed: {code: string, name: string}[] = [];
       
       lines.forEach(line => {
-          // Logic: Split by Tab (Excel copy) OR Semicolon OR Dash
-          // Priority: Tab -> Semicolon -> Dash
           let parts: string[] = [];
-          
           if (line.includes('\t')) {
               parts = line.split('\t');
           } else if (line.includes(';')) {
               parts = line.split(';');
-          } else if (line.includes(' - ')) { // Space Dash Space to avoid hyphens in words
+          } else if (line.includes(' - ')) {
               parts = line.split(' - ');
           }
 
-          // Clean up
           if (parts.length >= 2) {
               const code = parts[0].trim();
-              const name = parts.slice(1).join(' ').trim(); // Join rest in case name has separators
-              
-              // Basic validation: Code should look like a code (numbers/dots)
+              const name = parts.slice(1).join(' ').trim();
               if (code.length > 3 && name.length > 2) {
                   parsed.push({ code, name });
               }
@@ -190,8 +198,30 @@ const Settings: React.FC<SettingsProps> = ({ onProfileUpdate }) => {
       <div className="flex justify-between items-end">
         <div>
            <h2 className="text-xl font-bold text-gray-800">Pengaturan Sekolah</h2>
-           <p className="text-sm text-gray-500">Kelola identitas, data bank, dan parameter sistem.</p>
+           <p className="text-sm text-gray-500">Kelola identitas, akun, dan parameter sistem.</p>
         </div>
+      </div>
+
+      {/* Account Info Card (SaaS Feature) */}
+      <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-4 flex items-center justify-between">
+          <div className="flex items-center gap-4">
+              <div className="bg-blue-100 p-3 rounded-full text-blue-600">
+                  <UserCircle size={28} />
+              </div>
+              <div>
+                  <p className="text-xs text-gray-500 font-bold uppercase">Akun Sekolah Login</p>
+                  <p className="text-lg font-bold text-gray-800">{userEmail}</p>
+                  <p className="text-xs text-green-600 flex items-center gap-1 mt-0.5">
+                      <CheckCircle2 size={12} /> Aktif & Terproteksi
+                  </p>
+              </div>
+          </div>
+          <button 
+              onClick={handleLogout}
+              className="text-red-500 hover:bg-red-50 px-4 py-2 rounded-lg text-sm font-bold flex items-center gap-2 transition"
+          >
+              <LogOut size={16} /> Keluar
+          </button>
       </div>
 
       {/* Connection Status Card */}
@@ -213,154 +243,6 @@ const Settings: React.FC<SettingsProps> = ({ onProfileUpdate }) => {
          </div>
          <div className="hidden sm:block">
             {isConnected ? <Wifi className="text-green-500" size={24} /> : <WifiOff className="text-orange-400" size={24} />}
-         </div>
-      </div>
-
-      {/* MANAJEMEN REKENING BARU */}
-      <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
-         <div className="flex justify-between items-center mb-4 pb-2 border-b border-gray-100">
-             <h3 className="text-md font-bold text-gray-800 flex items-center gap-2">
-                 <List className="text-indigo-600" size={18} /> Manajemen Kode Rekening (Akun Belanja)
-             </h3>
-             <button onClick={loadAccounts} className="text-gray-400 hover:text-blue-600" title="Refresh Akun">
-                 <RefreshCcw size={16} className={isAccountLoading ? "animate-spin" : ""} />
-             </button>
-         </div>
-         
-         <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-             {/* Left Column: Manual List */}
-             <div className="space-y-4">
-                 <h4 className="text-xs font-bold text-gray-500 uppercase">Daftar Rekening (Database)</h4>
-                 
-                 {/* Manual Add Form */}
-                 <form onSubmit={handleAddAccount} className="flex gap-2 items-end">
-                     <div className="flex-1">
-                         <label className="block text-[10px] text-gray-400 mb-1">Kode</label>
-                         <input required type="text" value={newCode} onChange={e => setNewCode(e.target.value)} className="w-full px-2 py-1.5 border rounded text-xs" placeholder="5.1.02..." />
-                     </div>
-                     <div className="flex-[2]">
-                         <label className="block text-[10px] text-gray-400 mb-1">Nama Rekening</label>
-                         <input required type="text" value={newName} onChange={e => setNewName(e.target.value)} className="w-full px-2 py-1.5 border rounded text-xs" placeholder="Belanja..." />
-                     </div>
-                     <button type="submit" disabled={isAccountLoading} className="bg-blue-600 text-white p-1.5 rounded hover:bg-blue-700 disabled:opacity-50">
-                        <Plus size={18} />
-                     </button>
-                 </form>
-
-                 <div className="h-64 overflow-y-auto border border-gray-200 rounded-lg">
-                     <table className="w-full text-sm text-left">
-                         <thead className="bg-gray-50 text-gray-600 font-bold sticky top-0">
-                             <tr>
-                                 <th className="px-3 py-2">Kode</th>
-                                 <th className="px-3 py-2">Nama</th>
-                                 <th className="px-3 py-2 w-8"></th>
-                             </tr>
-                         </thead>
-                         <tbody className="divide-y divide-gray-100">
-                             {Object.entries(customAccounts).length === 0 ? (
-                                 <tr><td colSpan={3} className="px-3 py-4 text-center text-gray-400 text-xs">Belum ada data rekening.</td></tr>
-                             ) : (
-                                 Object.entries(customAccounts).map(([code, name]) => {
-                                     // Check if it's a default static account to prevent deletion if desired
-                                     // For now we allow deletion from the custom view context, but real deletion only happens if in DB
-                                     // @ts-ignore
-                                     const isStatic = !!AccountCodes[code]; 
-                                     
-                                     return (
-                                         <tr key={code} className="hover:bg-gray-50">
-                                             <td className="px-3 py-2 font-mono text-xs text-gray-600">{code}</td>
-                                             <td className="px-3 py-2 text-xs">{name}</td>
-                                             <td className="px-3 py-2">
-                                                 <button 
-                                                    onClick={() => handleDeleteAccount(code)} 
-                                                    className="text-gray-300 hover:text-red-500"
-                                                    title={isStatic ? "Akun standar sistem (hati-hati menghapus)" : "Hapus akun"}
-                                                 >
-                                                     <Trash2 size={14} />
-                                                 </button>
-                                             </td>
-                                         </tr>
-                                     )
-                                 })
-                             )}
-                         </tbody>
-                     </table>
-                 </div>
-             </div>
-
-             {/* Right Column: Bulk Import (Copy Paste) */}
-             <div className="space-y-4">
-                 <h4 className="text-xs font-bold text-gray-500 uppercase flex items-center gap-2">
-                    <FileSpreadsheet size={14} /> Import dari Excel (Copy-Paste)
-                 </h4>
-                 
-                 {importMode === 'input' ? (
-                    <>
-                        <div className="bg-blue-50 border border-blue-100 p-3 rounded-lg text-xs text-blue-800">
-                            <strong>Cara Cepat:</strong>
-                            <ol className="list-decimal ml-4 mt-1 space-y-1">
-                                <li>Buka file Excel RKAS Anda.</li>
-                                <li>Blok kolom <b>Kode Rekening</b> dan <b>Uraian</b> (sebelah-sebelahan).</li>
-                                <li>Copy (Ctrl+C).</li>
-                                <li>Paste (Ctrl+V) di kotak di bawah ini.</li>
-                            </ol>
-                        </div>
-                        <textarea 
-                            className="w-full h-40 p-3 border rounded-lg text-xs font-mono focus:ring-2 focus:ring-blue-500 outline-none whitespace-pre"
-                            placeholder={`Paste data Excel di sini...\n\nContoh Format:\n5.1.02.01.01.0024   Belanja Alat Tulis Kantor\n5.1.02.01.01.0026   Belanja Bahan Cetak`}
-                            value={bulkText}
-                            onChange={e => setBulkText(e.target.value)}
-                        />
-                        <button 
-                            type="button" 
-                            onClick={handleParseBulk}
-                            disabled={!bulkText}
-                            className="w-full bg-indigo-600 text-white py-2 rounded-lg font-bold text-sm hover:bg-indigo-700 transition disabled:opacity-50"
-                        >
-                            Preview Data
-                        </button>
-                    </>
-                 ) : (
-                    <>
-                        <div className="bg-green-50 border border-green-100 p-3 rounded-lg flex justify-between items-center">
-                            <div>
-                                <p className="text-sm font-bold text-green-800">{previewData.length} Data Terdeteksi</p>
-                                <p className="text-xs text-green-600">Silakan cek sebelum disimpan.</p>
-                            </div>
-                            <button onClick={() => setImportMode('input')} className="text-xs text-gray-500 underline">Batal</button>
-                        </div>
-                        
-                        <div className="h-40 overflow-y-auto border border-gray-200 rounded-lg bg-gray-50">
-                            <table className="w-full text-xs">
-                                <tbody className="divide-y divide-gray-200">
-                                    {previewData.map((item, idx) => (
-                                        <tr key={idx}>
-                                            <td className="px-2 py-1 font-mono text-gray-600">{item.code}</td>
-                                            <td className="px-2 py-1 font-medium">{item.name}</td>
-                                        </tr>
-                                    ))}
-                                </tbody>
-                            </table>
-                        </div>
-
-                        <div className="flex gap-2">
-                            <button 
-                                onClick={() => setImportMode('input')}
-                                className="flex-1 py-2 border border-gray-300 rounded-lg text-sm text-gray-600 hover:bg-gray-50"
-                            >
-                                Kembali
-                            </button>
-                            <button 
-                                onClick={handleConfirmImport}
-                                disabled={isAccountLoading}
-                                className="flex-1 bg-green-600 text-white py-2 rounded-lg font-bold text-sm hover:bg-green-700 flex items-center justify-center gap-2 disabled:opacity-50"
-                            >
-                                <CheckCircle2 size={16} /> {isAccountLoading ? 'Menyimpan...' : 'Simpan Semua'}
-                            </button>
-                        </div>
-                    </>
-                 )}
-             </div>
          </div>
       </div>
 
@@ -544,6 +426,152 @@ const Settings: React.FC<SettingsProps> = ({ onProfileUpdate }) => {
                        </div>
                    </div>
                )}
+           </div>
+        </div>
+
+        {/* MANAJEMEN REKENING BARU */}
+        <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
+           <div className="flex justify-between items-center mb-4 pb-2 border-b border-gray-100">
+               <h3 className="text-md font-bold text-gray-800 flex items-center gap-2">
+                   <List className="text-indigo-600" size={18} /> Manajemen Kode Rekening (Akun Belanja)
+               </h3>
+               <button onClick={loadAccounts} className="text-gray-400 hover:text-blue-600" title="Refresh Akun">
+                   <RefreshCcw size={16} className={isAccountLoading ? "animate-spin" : ""} />
+               </button>
+           </div>
+           
+           <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+               {/* Left Column: Manual List */}
+               <div className="space-y-4">
+                   <h4 className="text-xs font-bold text-gray-500 uppercase">Daftar Rekening (Database)</h4>
+                   
+                   {/* Manual Add Form */}
+                   <form onSubmit={handleAddAccount} className="flex gap-2 items-end">
+                       <div className="flex-1">
+                           <label className="block text-[10px] text-gray-400 mb-1">Kode</label>
+                           <input required type="text" value={newCode} onChange={e => setNewCode(e.target.value)} className="w-full px-2 py-1.5 border rounded text-xs" placeholder="5.1.02..." />
+                       </div>
+                       <div className="flex-[2]">
+                           <label className="block text-[10px] text-gray-400 mb-1">Nama Rekening</label>
+                           <input required type="text" value={newName} onChange={e => setNewName(e.target.value)} className="w-full px-2 py-1.5 border rounded text-xs" placeholder="Belanja..." />
+                       </div>
+                       <button type="submit" disabled={isAccountLoading} className="bg-blue-600 text-white p-1.5 rounded hover:bg-blue-700 disabled:opacity-50">
+                          <Plus size={18} />
+                       </button>
+                   </form>
+  
+                   <div className="h-64 overflow-y-auto border border-gray-200 rounded-lg">
+                       <table className="w-full text-sm text-left">
+                           <thead className="bg-gray-50 text-gray-600 font-bold sticky top-0">
+                               <tr>
+                                   <th className="px-3 py-2">Kode</th>
+                                   <th className="px-3 py-2">Nama</th>
+                                   <th className="px-3 py-2 w-8"></th>
+                               </tr>
+                           </thead>
+                           <tbody className="divide-y divide-gray-100">
+                               {Object.entries(customAccounts).length === 0 ? (
+                                   <tr><td colSpan={3} className="px-3 py-4 text-center text-gray-400 text-xs">Belum ada data rekening.</td></tr>
+                               ) : (
+                                   Object.entries(customAccounts).map(([code, name]) => {
+                                       // @ts-ignore
+                                       const isStatic = !!AccountCodes[code]; 
+                                       
+                                       return (
+                                           <tr key={code} className="hover:bg-gray-50">
+                                               <td className="px-3 py-2 font-mono text-xs text-gray-600">{code}</td>
+                                               <td className="px-3 py-2 text-xs">{name}</td>
+                                               <td className="px-3 py-2">
+                                                   <button 
+                                                      onClick={() => handleDeleteAccount(code)} 
+                                                      className="text-gray-300 hover:text-red-500"
+                                                      title={isStatic ? "Akun standar sistem (hati-hati menghapus)" : "Hapus akun"}
+                                                   >
+                                                       <Trash2 size={14} />
+                                                   </button>
+                                               </td>
+                                           </tr>
+                                       )
+                                   })
+                               )}
+                           </tbody>
+                       </table>
+                   </div>
+               </div>
+  
+               {/* Right Column: Bulk Import (Copy Paste) */}
+               <div className="space-y-4">
+                   <h4 className="text-xs font-bold text-gray-500 uppercase flex items-center gap-2">
+                      <FileSpreadsheet size={14} /> Import dari Excel (Copy-Paste)
+                   </h4>
+                   
+                   {importMode === 'input' ? (
+                      <>
+                          <div className="bg-blue-50 border border-blue-100 p-3 rounded-lg text-xs text-blue-800">
+                              <strong>Cara Cepat:</strong>
+                              <ol className="list-decimal ml-4 mt-1 space-y-1">
+                                  <li>Buka file Excel RKAS Anda.</li>
+                                  <li>Blok kolom <b>Kode Rekening</b> dan <b>Uraian</b> (sebelah-sebelahan).</li>
+                                  <li>Copy (Ctrl+C).</li>
+                                  <li>Paste (Ctrl+V) di kotak di bawah ini.</li>
+                              </ol>
+                          </div>
+                          <textarea 
+                              className="w-full h-40 p-3 border rounded-lg text-xs font-mono focus:ring-2 focus:ring-blue-500 outline-none whitespace-pre"
+                              placeholder={`Paste data Excel di sini...\n\nContoh Format:\n5.1.02.01.01.0024   Belanja Alat Tulis Kantor\n5.1.02.01.01.0026   Belanja Bahan Cetak`}
+                              value={bulkText}
+                              onChange={e => setBulkText(e.target.value)}
+                          />
+                          <button 
+                              type="button" 
+                              onClick={handleParseBulk}
+                              disabled={!bulkText}
+                              className="w-full bg-indigo-600 text-white py-2 rounded-lg font-bold text-sm hover:bg-indigo-700 transition disabled:opacity-50"
+                          >
+                              Preview Data
+                          </button>
+                      </>
+                   ) : (
+                      <>
+                          <div className="bg-green-50 border border-green-100 p-3 rounded-lg flex justify-between items-center">
+                              <div>
+                                  <p className="text-sm font-bold text-green-800">{previewData.length} Data Terdeteksi</p>
+                                  <p className="text-xs text-green-600">Silakan cek sebelum disimpan.</p>
+                              </div>
+                              <button onClick={() => setImportMode('input')} className="text-xs text-gray-500 underline">Batal</button>
+                          </div>
+                          
+                          <div className="h-40 overflow-y-auto border border-gray-200 rounded-lg bg-gray-50">
+                              <table className="w-full text-xs">
+                                  <tbody className="divide-y divide-gray-200">
+                                      {previewData.map((item, idx) => (
+                                          <tr key={idx}>
+                                              <td className="px-2 py-1 font-mono text-gray-600">{item.code}</td>
+                                              <td className="px-2 py-1 font-medium">{item.name}</td>
+                                          </tr>
+                                      ))}
+                                  </tbody>
+                              </table>
+                          </div>
+  
+                          <div className="flex gap-2">
+                              <button 
+                                  onClick={() => setImportMode('input')}
+                                  className="flex-1 py-2 border border-gray-300 rounded-lg text-sm text-gray-600 hover:bg-gray-50"
+                              >
+                                  Kembali
+                              </button>
+                              <button 
+                                  onClick={handleConfirmImport}
+                                  disabled={isAccountLoading}
+                                  className="flex-1 bg-green-600 text-white py-2 rounded-lg font-bold text-sm hover:bg-green-700 flex items-center justify-center gap-2 disabled:opacity-50"
+                              >
+                                  <CheckCircle2 size={16} /> {isAccountLoading ? 'Menyimpan...' : 'Simpan Semua'}
+                              </button>
+                          </div>
+                      </>
+                   )}
+               </div>
            </div>
         </div>
 

@@ -3,12 +3,12 @@
 import { supabase } from './supabase';
 import { Budget, TransactionType, SNPStandard, BOSPComponent, SchoolProfile, BankStatement, RaporIndicator, WithdrawalHistory, AccountCodes } from '../types';
 
-// Mock data reflecting BOSP structure
+// Mock data for Offline Mode
 const MOCK_DATA: Budget[] = [
   { 
     id: '1', 
     type: TransactionType.INCOME, 
-    description: 'Dana BOSP Reguler Tahap 1', 
+    description: 'Dana BOSP Reguler Tahap 1 (Data Lokal)', 
     amount: 150000000, 
     date: '2026-01-15', 
     bosp_component: 'Penerimaan',
@@ -25,7 +25,7 @@ const HISTORY_KEY = 'rkas_withdrawal_history_v1';
 const CUSTOM_ACCOUNTS_KEY = 'rkas_custom_accounts_v1';
 
 const DEFAULT_PROFILE: SchoolProfile = {
-  name: 'SD Negeri 1 Contoh',
+  name: 'SD Negeri Contoh (Lokal)',
   npsn: '12345678',
   address: 'Jl. Pendidikan No. 1',
   headmaster: 'Budi Santoso, S.Pd',
@@ -35,6 +35,13 @@ const DEFAULT_PROFILE: SchoolProfile = {
   fiscalYear: '2026',
   studentCount: 150,
   budgetCeiling: 150000000 
+};
+
+// Helper: Get Current User ID
+const getCurrentUserId = async () => {
+    if (!supabase) return null;
+    const { data } = await supabase.auth.getSession();
+    return data.session?.user?.id || null;
 };
 
 export const checkDatabaseConnection = async (): Promise<boolean> => {
@@ -50,32 +57,29 @@ export const checkDatabaseConnection = async (): Promise<boolean> => {
 
 export const getBudgets = async (): Promise<Budget[]> => {
   if (supabase) {
+    // RLS Policy on Database will automatically filter by auth.uid()
     const { data, error } = await supabase.from('budgets').select('*').order('date', { ascending: false });
     if (error) {
         console.error("Error fetching budgets:", error);
-        // Do not fallback to local if supabase is configured but errors (to avoid split brain)
         return []; 
     }
     if (data) return data as Budget[];
   }
   
-  // Only use local storage if Supabase is NOT configured (Offline Mode)
   const local = localStorage.getItem(LOCAL_KEY);
   if (local) return JSON.parse(local);
-  
-  localStorage.setItem(LOCAL_KEY, JSON.stringify(MOCK_DATA));
   return MOCK_DATA;
 };
 
 export const addBudget = async (item: Omit<Budget, 'id' | 'created_at'>): Promise<Budget | null> => {
-  // Generate ID locally first for Optimistic UI support if needed
   const newItem = { ...item, id: crypto.randomUUID(), created_at: new Date().toISOString() };
   
   if (supabase) {
-    // Sanitize payload: ensure realizations is array, undefined fields handled
+    const userId = await getCurrentUserId();
+    
     const dbPayload = {
         ...item,
-        // Ensure strictly typed fields for Postgres
+        user_id: userId, // Explicitly attach User ID (though RLS default usually handles it, explicit is safer)
         realizations: item.realizations || [], 
         realization_months: item.realization_months || [],
         quantity: item.quantity || 0,
@@ -86,14 +90,13 @@ export const addBudget = async (item: Omit<Budget, 'id' | 'created_at'>): Promis
     
     if (error) {
         console.error("Supabase insert error:", error);
-        alert(`Gagal menyimpan data ke Cloud: ${error.message}\n\nPastikan Anda sudah menjalankan script SQL di Database.`);
-        return null; // Return null to indicate failure
+        alert(`Gagal menyimpan data: ${error.message}`);
+        return null;
     }
     
     return data ? data[0] as Budget : null;
   }
 
-  // Local Storage Logic (Only runs if supabase is null)
   const current = await getBudgets();
   const updated = [newItem, ...current];
   localStorage.setItem(LOCAL_KEY, JSON.stringify(updated));
@@ -105,13 +108,7 @@ export const updateBudget = async (id: string, updates: Partial<Budget>): Promis
     const { data, error } = await supabase.from('budgets').update(updates).eq('id', id).select();
     if (error) {
         console.error("Supabase update error:", error);
-        
-        // Handle specific schema cache error
-        if (error.message.includes('Could not find the') && error.message.includes('column')) {
-             alert(`Database Error: Kolom data tidak ditemukan.\n\nPenyebab: Struktur database berubah tapi API Supabase belum refresh.\n\nSOLUSI:\n1. Buka Supabase Dashboard > Project Settings > API.\n2. Klik tombol "Reload schema cache" di bagian Definition.`);
-        } else {
-             alert(`Gagal mengupdate data: ${error.message}`);
-        }
+        alert(`Gagal mengupdate data: ${error.message}`);
         return null;
     }
     return data ? data[0] as Budget : null;
@@ -124,7 +121,6 @@ export const updateBudget = async (id: string, updates: Partial<Budget>): Promis
   const updatedItem = { ...current[index], ...updates };
   const newList = [...current];
   newList[index] = updatedItem;
-  
   localStorage.setItem(LOCAL_KEY, JSON.stringify(newList));
   return updatedItem;
 }
@@ -134,7 +130,6 @@ export const deleteBudget = async (id: string): Promise<boolean> => {
     const { error } = await supabase.from('budgets').delete().eq('id', id);
     if (error) {
         console.error("Supabase delete error:", error);
-        alert(`Gagal menghapus data: ${error.message}`);
         return false;
     }
     return true;
@@ -146,15 +141,13 @@ export const deleteBudget = async (id: string): Promise<boolean> => {
   return true;
 };
 
-// --- School Profile Functions ---
+// --- School Profile Functions (MULTI-TENANT UPDATE) ---
 
 export const getSchoolProfile = async (): Promise<SchoolProfile> => {
   if (supabase) {
     try {
+      // RLS ensures we only get OUR profile
       const { data, error } = await supabase.from('school_profiles').select('*').single();
-      if (error && error.code !== 'PGRST116') { // PGRST116 is "Row not found" which is fine initially
-          console.error("Profile fetch error:", error);
-      }
       
       if (data) {
         return {
@@ -168,7 +161,6 @@ export const getSchoolProfile = async (): Promise<SchoolProfile> => {
           fiscalYear: data.fiscal_year,
           studentCount: data.student_count,
           budgetCeiling: data.budget_ceiling,
-          // New Fields
           city: data.city,
           district: data.district,
           postalCode: data.postal_code,
@@ -180,21 +172,26 @@ export const getSchoolProfile = async (): Promise<SchoolProfile> => {
         };
       }
     } catch (error) {
-      console.warn("Supabase profile fetch error.", error);
+      // It's normal to not have a profile yet for a new user
+      console.log("No profile found for this user yet.");
     }
   }
   
   const local = localStorage.getItem(SCHOOL_PROFILE_KEY);
   if (local) return JSON.parse(local);
-  
-  localStorage.setItem(SCHOOL_PROFILE_KEY, JSON.stringify(DEFAULT_PROFILE));
   return DEFAULT_PROFILE;
 };
 
 export const saveSchoolProfile = async (profile: SchoolProfile): Promise<SchoolProfile> => {
   if (supabase) {
+    const userId = await getCurrentUserId();
+    if (!userId) {
+        alert("Anda harus login untuk menyimpan profil.");
+        return profile;
+    }
+
     const dbPayload = {
-      id: 1, // Singleton Row
+      user_id: userId, // UNIQUE constraint on user_id ensures 1 profile per user
       name: profile.name,
       npsn: profile.npsn,
       address: profile.address,
@@ -206,7 +203,6 @@ export const saveSchoolProfile = async (profile: SchoolProfile): Promise<SchoolP
       student_count: profile.studentCount,
       budget_ceiling: profile.budgetCeiling,
       updated_at: new Date().toISOString(),
-      // New Fields
       city: profile.city,
       district: profile.district,
       postal_code: profile.postalCode,
@@ -217,14 +213,14 @@ export const saveSchoolProfile = async (profile: SchoolProfile): Promise<SchoolP
       header_image: profile.headerImage
     };
     
-    const { error } = await supabase.from('school_profiles').upsert(dbPayload);
+    // Upsert based on user_id (needs unique constraint on DB)
+    const { error } = await supabase.from('school_profiles').upsert(dbPayload, { onConflict: 'user_id' });
     if (error) {
         console.error("Supabase profile save error:", error);
         alert(`Gagal menyimpan profil: ${error.message}`);
     }
   }
 
-  // Save to local storage as backup/cache
   localStorage.setItem(SCHOOL_PROFILE_KEY, JSON.stringify(profile));
   return profile;
 };
@@ -236,7 +232,7 @@ export const getRaporData = async (year: string): Promise<RaporIndicator[] | nul
       const { data, error } = await supabase
           .from('rapor_pendidikan')
           .select('*')
-          .eq('year', year);
+          .eq('year', year); // RLS handles user_id filter
       
       if (error) {
           console.error("Error fetching rapor:", error);
@@ -257,24 +253,25 @@ export const getRaporData = async (year: string): Promise<RaporIndicator[] | nul
 
 export const saveRaporData = async (indicators: RaporIndicator[], year: string): Promise<boolean> => {
     if (!supabase) return false;
+    const userId = await getCurrentUserId();
 
     const upsertData = indicators.map(ind => ({
+        user_id: userId,
         year: year,
         indicator_id: ind.id,
         label: ind.label,
         score: ind.score,
         category: ind.category,
-        updated_at: new Date().toISOString() // Optional if column exists
+        updated_at: new Date().toISOString()
     }));
 
-    // Perform upsert based on (year, indicator_id) constraint
     const { error } = await supabase
         .from('rapor_pendidikan')
-        .upsert(upsertData, { onConflict: 'year, indicator_id' });
+        .upsert(upsertData, { onConflict: 'user_id, year, indicator_id' });
 
     if (error) {
         console.error("Error saving rapor:", error);
-        alert("Gagal menyimpan data rapor ke database: " + error.message);
+        alert("Gagal menyimpan data rapor: " + error.message);
         return false;
     }
     return true;
@@ -286,18 +283,19 @@ export const saveRaporData = async (indicators: RaporIndicator[], year: string):
 export const uploadBankStatementFile = async (file: File): Promise<{ url: string | null, path: string | null }> => {
     if (!supabase) return { url: null, path: null };
 
+    const userId = await getCurrentUserId();
     const fileExt = file.name.split('.').pop();
+    // Path includes User ID for isolation: user_id/filename
     const fileName = `${Math.random().toString(36).substring(2, 15)}_${Date.now()}.${fileExt}`;
-    const filePath = `${fileName}`;
+    const filePath = `${userId}/${fileName}`; 
 
     try {
         const { error: uploadError } = await supabase.storage
-            .from('rkas_storage') // Nama bucket yang kita buat
+            .from('rkas_storage')
             .upload(filePath, file);
 
         if (uploadError) {
             console.error('Upload error:', uploadError);
-            alert(`Gagal Upload File ke Storage: ${uploadError.message}\nPastikan Bucket 'rkas_storage' sudah dibuat dan Public.`);
             throw uploadError;
         }
 
@@ -316,52 +314,43 @@ export const getBankStatements = async (): Promise<BankStatement[]> => {
   if (supabase) {
     try {
       const { data, error } = await supabase.from('bank_statements').select('*').order('month', { ascending: true });
-      if (error) {
-          console.error("Failed to fetch bank statements:", error);
-      }
       if (!error && data) return data as BankStatement[];
     } catch (e) {
-      console.warn("Bank statement table fetch error, falling back to local.");
+      console.warn("Bank statement table fetch error");
     }
   }
-
   const local = localStorage.getItem(BANK_STATEMENT_KEY);
   return local ? JSON.parse(local) : [];
 };
 
 export const saveBankStatement = async (statement: BankStatement): Promise<BankStatement> => {
-  const current = await getBankStatements();
-  
-  // Remove existing entry for same month/year if exists (Local update)
-  const filtered = current.filter(s => !(s.month === statement.month && s.year === statement.year));
-  const updated = [...filtered, statement].sort((a,b) => a.month - b.month);
-  
   if (supabase) {
-     const { error } = await supabase.from('bank_statements').upsert(statement);
-     if (error) {
-         console.error("Supabase bank_statements upsert error:", error);
-         alert(`Gagal menyimpan Rekening Koran ke Database.\n\nPesan Error: ${error.message}\n\nKemungkinan kolom 'file_url' belum ada di tabel. Silakan jalankan Script SQL Update.`);
-         throw error; // Stop process so UI doesn't reset falsely
-     }
+     const userId = await getCurrentUserId();
+     const { error } = await supabase.from('bank_statements').upsert({
+         ...statement,
+         user_id: userId
+     });
+     if (error) throw error;
   }
 
-  // Backup to local
+  // Local backup
+  const current = await getBankStatements();
+  const filtered = current.filter(s => !(s.month === statement.month && s.year === statement.year));
+  const updated = [...filtered, statement].sort((a,b) => a.month - b.month);
   localStorage.setItem(BANK_STATEMENT_KEY, JSON.stringify(updated));
+  
   return statement;
 };
 
 export const deleteBankStatement = async (id: string): Promise<void> => {
     const current = await getBankStatements();
-    // Get file path to delete from storage if needed
     const itemToDelete = current.find(s => s.id === id);
 
-    if (supabase && itemToDelete && itemToDelete.file_path) {
-        try {
-            await supabase.storage.from('rkas_storage').remove([itemToDelete.file_path]);
-            await supabase.from('bank_statements').delete().eq('id', id);
-        } catch (e) { console.error("Error deleting from storage/db", e)}
-    } else if (supabase) {
-        try { await supabase.from('bank_statements').delete().eq('id', id); } catch(e){}
+    if (supabase && itemToDelete) {
+        if (itemToDelete.file_path) {
+            try { await supabase.storage.from('rkas_storage').remove([itemToDelete.file_path]); } catch(e){}
+        }
+        await supabase.from('bank_statements').delete().eq('id', id);
     }
 
     const updated = current.filter(s => s.id !== id);
@@ -383,29 +372,19 @@ export const getWithdrawalHistory = async (): Promise<WithdrawalHistory[]> => {
 
 export const uploadWithdrawalFile = async (fileBlob: Blob, fileName: string): Promise<{ url: string | null, path: string | null }> => {
     if (!supabase) return { url: null, path: null };
-
-    const filePath = `withdrawal_docs/${Date.now()}_${fileName}`;
+    const userId = await getCurrentUserId();
+    const filePath = `${userId}/withdrawal_docs/${Date.now()}_${fileName}`;
 
     try {
         const { error: uploadError } = await supabase.storage
             .from('rkas_storage')
-            .upload(filePath, fileBlob, {
-                contentType: 'application/pdf',
-                upsert: true
-            });
+            .upload(filePath, fileBlob, { contentType: 'application/pdf', upsert: true });
 
-        if (uploadError) {
-            console.error('Upload withdrawal file error:', uploadError);
-            return { url: null, path: null };
-        }
+        if (uploadError) return { url: null, path: null };
 
-        const { data } = supabase.storage
-            .from('rkas_storage')
-            .getPublicUrl(filePath);
-
+        const { data } = supabase.storage.from('rkas_storage').getPublicUrl(filePath);
         return { url: data.publicUrl, path: filePath };
     } catch (error) {
-        console.error("Error uploading withdrawal file:", error);
         return { url: null, path: null };
     }
 };
@@ -414,16 +393,15 @@ export const saveWithdrawalHistory = async (history: Omit<WithdrawalHistory, 'id
     const newItem = { ...history, id: crypto.randomUUID(), created_at: new Date().toISOString() };
     
     if (supabase) {
-        const { data, error } = await supabase.from('withdrawal_history').insert([newItem]).select();
+        const userId = await getCurrentUserId();
+        const { data, error } = await supabase.from('withdrawal_history').insert([{ ...newItem, user_id: userId }]).select();
         if (error) {
             console.error("History save error:", error);
-            alert("Gagal menyimpan riwayat: " + error.message);
             return null;
         }
         return data ? data[0] as WithdrawalHistory : null;
     }
 
-    // Local fallback
     const current = await getWithdrawalHistory();
     const updated = [newItem, ...current];
     localStorage.setItem(HISTORY_KEY, JSON.stringify(updated));
@@ -435,13 +413,9 @@ export const deleteWithdrawalHistory = async (id: string): Promise<boolean> => {
     const itemToDelete = current.find(h => h.id === id);
 
     if (supabase) {
-        // Delete file first if exists
         if (itemToDelete && itemToDelete.file_path) {
-            try {
-                await supabase.storage.from('rkas_storage').remove([itemToDelete.file_path]);
-            } catch(e) { console.error("Error deleting withdrawal file", e); }
+            try { await supabase.storage.from('rkas_storage').remove([itemToDelete.file_path]); } catch(e) {}
         }
-
         const { error } = await supabase.from('withdrawal_history').delete().eq('id', id);
         if (error) return false;
         return true;
@@ -452,25 +426,23 @@ export const deleteWithdrawalHistory = async (id: string): Promise<boolean> => {
     return true;
 };
 
-// --- Custom Account Codes Functions (Now DB based) ---
+// --- Custom Account Codes Functions (DB based) ---
 
 export const getStoredAccounts = async (): Promise<Record<string, string>> => {
-    // 1. If Supabase is active, fetch from DB
     if (supabase) {
         try {
+            // Get System defaults (user_id is NULL) OR User's custom accounts (user_id = auth.uid())
             const { data, error } = await supabase
                 .from('account_codes')
                 .select('*')
+                .or(`user_id.is.null,user_id.eq.${await getCurrentUserId()}`)
                 .order('code', { ascending: true });
 
             if (data && !error) {
-                // Convert array [{code: '...', name: '...'}] to Record
                 const dbMap: Record<string, string> = {};
                 data.forEach((item: any) => {
                     dbMap[item.code] = item.name;
                 });
-                
-                // Merge with DEFAULT hardcoded accounts (DB overwrites hardcoded if collision)
                 return { ...AccountCodes, ...dbMap };
             }
         } catch (e) {
@@ -478,44 +450,37 @@ export const getStoredAccounts = async (): Promise<Record<string, string>> => {
         }
     }
 
-    // 2. Fallback to Local Storage if offline or error
     const local = localStorage.getItem(CUSTOM_ACCOUNTS_KEY);
     const localMap = local ? JSON.parse(local) : {};
     return { ...AccountCodes, ...localMap };
 };
 
-export const getCustomAccounts = (): Record<string, string> => {
-    // Deprecated for direct usage, but kept for legacy compat.
-    // Use getStoredAccounts() for async DB fetch.
-    const local = localStorage.getItem(CUSTOM_ACCOUNTS_KEY);
-    return local ? JSON.parse(local) : {};
-};
-
 export const saveCustomAccount = async (code: string, name: string): Promise<Record<string, string>> => {
     if (supabase) {
-        const { error } = await supabase.from('account_codes').upsert({ code, name });
+        const userId = await getCurrentUserId();
+        // Insert with user_id so it's private to this school
+        const { error } = await supabase.from('account_codes').upsert({ code, name, user_id: userId });
         if (error) {
-            alert("Gagal menyimpan akun ke database: " + error.message);
-            return await getStoredAccounts(); // Return current state on error
+            alert("Gagal menyimpan akun: " + error.message);
+            return await getStoredAccounts(); 
         }
     }
     
-    // Also save to local storage as backup cache
-    const current = getCustomAccounts();
+    const current = (localStorage.getItem(CUSTOM_ACCOUNTS_KEY) ? JSON.parse(localStorage.getItem(CUSTOM_ACCOUNTS_KEY)!) : {});
     const updated = { ...current, [code]: name };
     localStorage.setItem(CUSTOM_ACCOUNTS_KEY, JSON.stringify(updated));
     
-    // Return full updated list (including defaults)
     return await getStoredAccounts();
 };
 
 export const deleteCustomAccount = async (code: string): Promise<Record<string, string>> => {
     if (supabase) {
+        // Can only delete user's own accounts (RLS enforced)
         const { error } = await supabase.from('account_codes').delete().eq('code', code);
         if (error) console.error("Error deleting account from DB", error);
     }
 
-    const current = getCustomAccounts();
+    const current = (localStorage.getItem(CUSTOM_ACCOUNTS_KEY) ? JSON.parse(localStorage.getItem(CUSTOM_ACCOUNTS_KEY)!) : {});
     const newAccounts = { ...current };
     delete newAccounts[code];
     localStorage.setItem(CUSTOM_ACCOUNTS_KEY, JSON.stringify(newAccounts));
@@ -525,8 +490,8 @@ export const deleteCustomAccount = async (code: string): Promise<Record<string, 
 
 export const bulkSaveCustomAccounts = async (accounts: Record<string, string>): Promise<Record<string, string>> => {
     if (supabase) {
-        const rows = Object.entries(accounts).map(([code, name]) => ({ code, name }));
-        // Insert chunks of 100 to prevent payload issues
+        const userId = await getCurrentUserId();
+        const rows = Object.entries(accounts).map(([code, name]) => ({ code, name, user_id: userId }));
         for (let i = 0; i < rows.length; i += 100) {
             const chunk = rows.slice(i, i + 100);
             const { error } = await supabase.from('account_codes').upsert(chunk);
@@ -534,7 +499,7 @@ export const bulkSaveCustomAccounts = async (accounts: Record<string, string>): 
         }
     }
 
-    const current = getCustomAccounts();
+    const current = (localStorage.getItem(CUSTOM_ACCOUNTS_KEY) ? JSON.parse(localStorage.getItem(CUSTOM_ACCOUNTS_KEY)!) : {});
     const updated = { ...current, ...accounts };
     localStorage.setItem(CUSTOM_ACCOUNTS_KEY, JSON.stringify(updated));
     

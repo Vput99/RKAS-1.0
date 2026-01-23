@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { Budget, TransactionType, AccountCodes, RealizationDetail } from '../types';
-import { FileText, Save, X, Calendar, Search, CheckCircle2, FileCheck2, AlertCircle, CheckSquare, Square, Sparkles, Loader2, ShoppingCart, Filter, TrendingUp, Wallet, Check, ListChecks, ArrowRightCircle } from 'lucide-react';
+import { FileText, Save, X, Calendar, Search, CheckCircle2, FileCheck2, AlertCircle, CheckSquare, Square, Sparkles, Loader2, ShoppingCart, Filter, TrendingUp, Wallet, Check, ListChecks, ArrowRightCircle, Trash2, Box } from 'lucide-react';
 import { suggestEvidenceList } from '../lib/gemini';
 
 interface SPJRealizationProps {
@@ -135,7 +135,9 @@ const SPJRealization: React.FC<SPJRealizationProps> = ({ data, onUpdate }) => {
   // Form State
   const [activeMonthIndex, setActiveMonthIndex] = useState<number>(0); 
   const [formAmount, setFormAmount] = useState<string>('');
+  const [formQuantity, setFormQuantity] = useState<string>(''); // New Quantity Form
   const [batchAmounts, setBatchAmounts] = useState<Record<string, number>>({});
+  const [batchQuantities, setBatchQuantities] = useState<Record<string, number>>({}); // New Batch Quantities
   const [formDate, setFormDate] = useState<string>('');
   const [existingFileName, setExistingFileName] = useState<string>('');
   
@@ -231,22 +233,29 @@ const SPJRealization: React.FC<SPJRealizationProps> = ({ data, onUpdate }) => {
     setExistingFileName('');
     setCheckedEvidence([]);
 
-    // Initialize amounts for all selected items
+    // Initialize amounts & quantities for all selected items
     const amounts: Record<string, number> = {};
+    const quantities: Record<string, number> = {};
+
     selectedBatchIds.forEach(id => {
        const item = data.find(d => d.id === id);
        if (item) {
           const totalRealized = item.realizations?.reduce((s, r) => s + r.amount, 0) || 0;
-          const remaining = item.amount - totalRealized;
+          const remainingAmount = item.amount - totalRealized;
+          
+          const totalRealizedQty = item.realizations?.reduce((s, r) => s + (r.quantity || 0), 0) || 0;
+          const remainingQty = (item.quantity || 1) - totalRealizedQty;
           
           // Check if already realized this month
           const existing = item.realizations?.find(r => r.month === viewMonth);
           
           // If realized, use that value. If not, suggest remaining balance (Rollover logic)
-          amounts[id] = existing ? existing.amount : remaining;
+          amounts[id] = existing ? existing.amount : remainingAmount;
+          quantities[id] = existing ? (existing.quantity || remainingQty) : remainingQty;
        }
     });
     setBatchAmounts(amounts);
+    setBatchQuantities(quantities);
 
     // Get evidence from first item (assuming batch usually shares type)
     const items = getEvidenceList(firstItem.description, firstItem.account_code);
@@ -278,14 +287,20 @@ const SPJRealization: React.FC<SPJRealizationProps> = ({ data, onUpdate }) => {
 
     if (existingRealization) {
       setFormAmount(existingRealization.amount.toString());
+      // Handle quantity, default to 1 or 0 if undefined
+      setFormQuantity((existingRealization.quantity || 0).toString());
       setFormDate(existingRealization.date.split('T')[0]);
       setExistingFileName(existingRealization.evidence_file || '');
     } else {
       // SUGGESTION LOGIC: Suggest remaining budget (Rollover)
       const totalRealizedBefore = item.realizations?.reduce((sum, r) => sum + r.amount, 0) || 0;
-      const remaining = item.amount - totalRealizedBefore;
+      const remainingAmount = item.amount - totalRealizedBefore;
       
-      setFormAmount(remaining > 0 ? remaining.toString() : '0');
+      const totalQuantityRealizedBefore = item.realizations?.reduce((sum, r) => sum + (r.quantity || 0), 0) || 0;
+      const remainingQuantity = (item.quantity || 1) - totalQuantityRealizedBefore;
+
+      setFormAmount(remainingAmount > 0 ? remainingAmount.toString() : '0');
+      setFormQuantity(remainingQuantity > 0 ? remainingQuantity.toString() : '0');
       
       const lastDay = new Date(2026, month, 0).getDate();
       setFormDate(`2026-${month.toString().padStart(2, '0')}-${lastDay}`);
@@ -314,12 +329,14 @@ const SPJRealization: React.FC<SPJRealizationProps> = ({ data, onUpdate }) => {
           const item = data.find(d => d.id === id);
           if (!item) return;
 
-          // Determine amount: if single mode use formAmount, if batch use batchAmounts
+          // Determine amount & quantity
           const amountToSave = selectedBudget ? Number(formAmount) : (batchAmounts[id] || 0);
+          const quantityToSave = selectedBudget ? Number(formQuantity) : (batchQuantities[id] || 1);
 
           const newRealization: RealizationDetail = {
             month: activeMonthIndex,
             amount: amountToSave,
+            quantity: quantityToSave,
             date: new Date(formDate).toISOString(),
             evidence_file: existingFileName || 'Nota Kolektif'
           };
@@ -336,6 +353,21 @@ const SPJRealization: React.FC<SPJRealizationProps> = ({ data, onUpdate }) => {
     setSelectedBudget(null);
     setSelectedBatchIds([]); // Clear selection after save
   };
+  
+  const handleDeleteSPJ = () => {
+    if (!selectedBudget) return;
+    if (!confirm(`Batalkan/Hapus SPJ untuk bulan ${MONTHS[activeMonthIndex-1]}? Data realisasi akan dihapus.`)) return;
+
+    const currentRealizations = selectedBudget.realizations || [];
+    // Remove the realization for the current active month
+    const updatedRealizations = currentRealizations.filter(r => r.month !== activeMonthIndex);
+    
+    onUpdate(selectedBudget.id, { realizations: updatedRealizations });
+    
+    setIsModalOpen(false);
+    setSelectedBudget(null);
+    setSelectedBatchIds([]);
+  };
 
   const formatRupiah = (num: number) => {
     return new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', maximumFractionDigits: 0 }).format(num);
@@ -343,6 +375,9 @@ const SPJRealization: React.FC<SPJRealizationProps> = ({ data, onUpdate }) => {
 
   // Check if we are in batch mode inside modal
   const isBatchMode = !selectedBudget && selectedBatchIds.length > 0;
+  
+  // Logic to show delete button: only in single mode AND if there is already a realization for this month
+  const showDeleteButton = !isBatchMode && selectedBudget && selectedBudget.realizations?.some(r => r.month === activeMonthIndex);
 
   return (
     <div className="space-y-6">
@@ -619,7 +654,7 @@ const SPJRealization: React.FC<SPJRealizationProps> = ({ data, onUpdate }) => {
                     {/* Amount Input */}
                     {isBatchMode ? (
                        <div className="space-y-3 bg-gray-50 p-4 rounded-lg border border-gray-200">
-                          <label className="block text-sm font-bold text-gray-700 mb-2">Rincian Nilai Realisasi per Item</label>
+                          <label className="block text-sm font-bold text-gray-700 mb-2">Rincian Nilai & Volume Realisasi per Item</label>
                           <div className="space-y-3 max-h-60 overflow-y-auto pr-2">
                             {selectedBatchIds.map(id => {
                                 const item = data.find(d => d.id === id);
@@ -632,19 +667,34 @@ const SPJRealization: React.FC<SPJRealizationProps> = ({ data, onUpdate }) => {
                                 const available = remaining + realizedThisMonth;
 
                                 return (
-                                  <div key={id} className="flex items-center justify-between gap-3 bg-white p-2 rounded border border-gray-200">
-                                     <div className="flex-1 overflow-hidden">
-                                        <p className="text-xs font-bold text-gray-700 truncate">{item.description}</p>
-                                        <p className="text-[10px] text-gray-500">Sisa Pagu: <span className="font-mono text-blue-600 font-bold">{formatRupiah(available)}</span></p>
+                                  <div key={id} className="flex flex-col gap-2 bg-white p-2 rounded border border-gray-200">
+                                     <div className="flex justify-between items-center">
+                                        <div className="overflow-hidden">
+                                           <p className="text-xs font-bold text-gray-700 truncate">{item.description}</p>
+                                           <p className="text-[10px] text-gray-500">Sisa Pagu: <span className="font-mono text-blue-600 font-bold">{formatRupiah(available)}</span></p>
+                                        </div>
                                      </div>
-                                     <div className="w-32">
-                                        <input 
-                                           type="number" 
-                                           className="w-full px-2 py-1 border border-gray-300 rounded text-right text-sm font-bold font-mono text-gray-800 focus:border-indigo-500 outline-none focus:ring-1 focus:ring-indigo-500"
-                                           value={batchAmounts[id] || 0}
-                                           onChange={(e) => setBatchAmounts(prev => ({...prev, [id]: Number(e.target.value)}))}
-                                           placeholder="0"
-                                        />
+                                     <div className="flex gap-2">
+                                        <div className="flex-1">
+                                            <p className="text-[9px] text-gray-400 mb-0.5">Nominal (Rp)</p>
+                                            <input 
+                                                type="number" 
+                                                className="w-full px-2 py-1 border border-gray-300 rounded text-right text-sm font-bold font-mono text-gray-800 focus:border-indigo-500 outline-none focus:ring-1 focus:ring-indigo-500"
+                                                value={batchAmounts[id] || 0}
+                                                onChange={(e) => setBatchAmounts(prev => ({...prev, [id]: Number(e.target.value)}))}
+                                                placeholder="0"
+                                            />
+                                        </div>
+                                        <div className="w-20">
+                                            <p className="text-[9px] text-gray-400 mb-0.5">Vol (Unit)</p>
+                                            <input 
+                                                type="number" 
+                                                className="w-full px-2 py-1 border border-gray-300 rounded text-center text-sm font-medium text-gray-700 focus:border-indigo-500 outline-none focus:ring-1 focus:ring-indigo-500"
+                                                value={batchQuantities[id] || 0}
+                                                onChange={(e) => setBatchQuantities(prev => ({...prev, [id]: Number(e.target.value)}))}
+                                                placeholder="1"
+                                            />
+                                        </div>
                                      </div>
                                   </div>
                                 )
@@ -659,7 +709,7 @@ const SPJRealization: React.FC<SPJRealizationProps> = ({ data, onUpdate }) => {
                        </div>
                     ) : (
                        <div className="grid grid-cols-2 gap-4">
-                         <div>
+                         <div className="col-span-2 md:col-span-1">
                            <label className="block text-sm font-medium text-gray-700 mb-1">Nilai Realisasi (Rp)</label>
                            <input 
                              type="number" 
@@ -671,7 +721,25 @@ const SPJRealization: React.FC<SPJRealizationProps> = ({ data, onUpdate }) => {
                              placeholder="0"
                            />
                          </div>
-                         <div>
+                         <div className="col-span-2 md:col-span-1">
+                           <label className="block text-sm font-medium text-gray-700 mb-1">Volume Realisasi (Unit/Paket)</label>
+                           <div className="relative">
+                               <Box size={18} className="absolute left-3 top-2.5 text-gray-400" />
+                               <input 
+                                type="number" 
+                                required
+                                min="0"
+                                value={formQuantity}
+                                onChange={(e) => setFormQuantity(e.target.value)}
+                                className="w-full pl-10 pr-3 py-2 border border-blue-200 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none text-lg font-bold text-gray-700"
+                                placeholder="0"
+                               />
+                           </div>
+                           <p className="text-[10px] text-gray-400 mt-1 text-right">
+                             Sisa Volume: {(selectedBudget?.quantity || 1) - (selectedBudget?.realizations?.reduce((acc, r) => acc + (r.quantity || 0), 0) || 0) + (selectedBudget?.realizations?.find(r => r.month === activeMonthIndex)?.quantity || 0)} {selectedBudget?.unit || 'Paket'}
+                           </p>
+                         </div>
+                         <div className="col-span-2">
                            <label className="block text-sm font-medium text-gray-700 mb-1">Tanggal Kuitansi/Nota</label>
                            <div className="relative">
                              <Calendar size={18} className="absolute left-3 top-2.5 text-gray-400" />
@@ -753,14 +821,27 @@ const SPJRealization: React.FC<SPJRealizationProps> = ({ data, onUpdate }) => {
                        </div>
                     </div>
 
-                    <div className="pt-2 flex gap-3">
+                    <div className="pt-2 flex flex-col md:flex-row gap-3">
+                      {/* Tombol Hapus SPJ (Hanya tampil di Single Mode jika sudah ada realisasi) */}
+                      {showDeleteButton && (
+                        <button 
+                          type="button" 
+                          onClick={handleDeleteSPJ}
+                          className="px-4 py-2 border border-red-200 text-red-600 rounded-lg hover:bg-red-50 transition flex items-center justify-center gap-2"
+                          title="Hapus realisasi bulan ini"
+                        >
+                           <Trash2 size={16} /> <span className="md:hidden">Hapus</span>
+                        </button>
+                      )}
+
                       <button 
                         type="button" 
                         onClick={() => { setIsModalOpen(false); setSelectedBatchIds([]); }}
                         className="flex-1 px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition"
                       >
-                        Tutup
+                        Batal
                       </button>
+                      
                       <button 
                         type="submit" 
                         className={`flex-1 px-4 py-2 text-white rounded-lg transition flex items-center justify-center gap-2 ${isBatchMode ? 'bg-indigo-600 hover:bg-indigo-700' : 'bg-blue-600 hover:bg-blue-700'}`}

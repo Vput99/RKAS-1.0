@@ -333,7 +333,7 @@ function App() {
               <>
                 {activeTab === 'dashboard' && <Dashboard data={data} />}
                 {activeTab === 'rapor' && (
-                  <RaporPendidikan onAddBudget={handleAdd} />
+                  <RaporPendidikan onAddBudget={handleAdd} budgetData={data} />
                 )}
                 {activeTab === 'income' && (
                   <TransactionTable 
