@@ -1,6 +1,6 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import { Budget, TransactionType, SchoolProfile, TransferDetail, WithdrawalHistory } from '../types';
-import { FileText, Printer, Landmark, CheckSquare, Square, DollarSign, Calendar, User, CreditCard, Edit3, List, X, Coins, Users, Save, Loader2, Archive, History, RefreshCcw, Trash2, Download, Filter, Settings, Info } from 'lucide-react';
+import { FileText, Printer, Landmark, CheckSquare, Square, DollarSign, Calendar, User, CreditCard, Edit3, List, X, Coins, Users, Save, Loader2, Archive, History, RefreshCcw, Trash2, Download, Filter, Settings, Info, Calculator, Percent } from 'lucide-react';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import { getWithdrawalHistory, saveWithdrawalHistory, deleteWithdrawalHistory, uploadWithdrawalFile } from '../lib/db';
@@ -20,6 +20,7 @@ const BankWithdrawal: React.FC<BankWithdrawalProps> = ({ data, profile, onUpdate
   const [activeTab, setActiveTab] = useState<'rincian' | 'surat_kuasa' | 'pemindahbukuan' | 'riwayat'>('rincian');
   const [isSelectionModalOpen, setIsSelectionModalOpen] = useState(false);
   const [isBulkEditOpen, setIsBulkEditOpen] = useState(false);
+  const [isTaxModalOpen, setIsTaxModalOpen] = useState(false); // New Tax Modal
   const [isSaving, setIsSaving] = useState(false);
   
   // Withdrawal Month State
@@ -232,6 +233,72 @@ const BankWithdrawal: React.FC<BankWithdrawalProps> = ({ data, profile, onUpdate
       setBulkName('');
       setBulkAccount('');
   };
+
+  // --- AUTOMATIC TAX CALCULATION LOGIC ---
+  const applyAutoTax = (type: 'barang_pkp' | 'mamin_daerah' | 'mamin_pph' | 'jasa' | 'honor_5' | 'honor_6' | 'clear') => {
+      setRecipientDetails(prev => {
+          const newState = { ...prev };
+          
+          selectedBudgetIds.forEach(id => {
+              const item = monthlyRealizations.find(r => r.id === id);
+              if (!item) return;
+
+              const amount = item.amount; // Gross amount
+              let newTax = { ppn: 0, pph21: 0, pph22: 0, pph23: 0, pajakDaerah: 0 };
+
+              switch (type) {
+                  case 'barang_pkp':
+                      // Asumsi: Nilai belanja sudah termasuk PPN (Gross Up)
+                      // DPP = Amount / 1.11
+                      const dpp = Math.round(amount / 1.11);
+                      newTax.ppn = Math.round(dpp * 0.11);
+                      newTax.pph22 = Math.round(dpp * 0.015);
+                      break;
+                  
+                  case 'mamin_daerah':
+                      // Pajak Daerah (PB1) 10% dari Gross
+                      newTax.pajakDaerah = Math.round(amount * 0.10);
+                      break;
+
+                  case 'mamin_pph':
+                      // PPh 23 Jasa Katering 2% dari Gross
+                      newTax.pph23 = Math.round(amount * 0.02);
+                      break;
+
+                  case 'jasa':
+                      // PPh 23 Jasa 2%
+                      newTax.pph23 = Math.round(amount * 0.02);
+                      break;
+
+                  case 'honor_5':
+                      // PPh 21 PNS Gol III (5%)
+                      newTax.pph21 = Math.round(amount * 0.05);
+                      break;
+                  
+                  case 'honor_6':
+                      // PPh 21 Non NPWP / Non PNS (6%) - Asumsi 20% lebih tinggi dari 5% atau rate khusus
+                      // Simplifikasi: 6% dari Bruto untuk Non-PNS ber-NPWP biasanya 5%, Non-NPWP 6% (5% x 120%)
+                      newTax.pph21 = Math.round(amount * 0.06);
+                      break;
+
+                  case 'clear':
+                      // Reset all to 0
+                      break;
+              }
+
+              // Preserve name and account, update taxes
+              newState[id] = {
+                  ...newState[id],
+                  ...newTax
+              };
+          });
+
+          return newState;
+      });
+      
+      setIsTaxModalOpen(false);
+  };
+
 
   // --- CORE ARCHIVE LOGIC ---
   const performArchiving = async (fileBlob?: Blob, fileName?: string) => {
@@ -719,7 +786,20 @@ const BankWithdrawal: React.FC<BankWithdrawalProps> = ({ data, profile, onUpdate
                             {isAllSelected ? <CheckSquare size={18} /> : <Square size={18} />}
                         </button>
                     </th>
-                    <th className="px-4 py-3 min-w-[200px]">Uraian Kegiatan (Keterangan)</th>
+                    <th className="px-4 py-3 min-w-[200px]">
+                        <div className="flex items-center gap-2">
+                           <span>Uraian Kegiatan</span>
+                           {selectedBudgetIds.length > 0 && (
+                                <button 
+                                    onClick={() => setIsTaxModalOpen(true)}
+                                    className="ml-2 text-[10px] bg-green-100 text-green-700 px-2 py-1 rounded hover:bg-green-200 flex items-center gap-1 border border-green-200 shadow-sm"
+                                    title="Hitung Pajak Otomatis untuk item terpilih"
+                                >
+                                    <Calculator size={12} /> Hitung Pajak
+                                </button>
+                           )}
+                        </div>
+                    </th>
                     <th className="px-4 py-3 min-w-[150px]">
                        <div className="flex items-center justify-between">
                           <span>Nama Penerima</span>
@@ -1187,6 +1267,77 @@ const BankWithdrawal: React.FC<BankWithdrawalProps> = ({ data, profile, onUpdate
                      className="w-full bg-blue-600 text-white py-2 rounded-lg font-bold hover:bg-blue-700 transition"
                   >
                      Terapkan ke Semua
+                  </button>
+               </div>
+            </div>
+         </div>
+      )}
+
+      {/* TAX AUTOMATION MODAL */}
+      {isTaxModalOpen && (
+         <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
+            <div className="bg-white rounded-xl shadow-xl w-full max-w-md animate-fade-in-up">
+               <div className="px-6 py-4 border-b border-gray-100 flex justify-between items-center bg-gray-50 rounded-t-xl">
+                  <h3 className="font-bold text-gray-800 flex items-center gap-2">
+                     <Calculator size={18} className="text-green-600" /> Otomatisasi Pajak
+                  </h3>
+                  <button onClick={() => setIsTaxModalOpen(false)}><X size={20} className="text-gray-400" /></button>
+               </div>
+               <div className="p-6 space-y-3">
+                  <p className="text-sm text-gray-600 mb-2">
+                     Pilih jenis transaksi untuk item yang dicentang ({selectedBudgetIds.length} item). Sistem akan menghitung pajak secara otomatis.
+                  </p>
+                  
+                  <button onClick={() => applyAutoTax('barang_pkp')} className="w-full text-left bg-gray-50 hover:bg-gray-100 p-3 rounded-lg border border-gray-200 transition flex items-center gap-3 group">
+                     <div className="bg-blue-100 p-2 rounded text-blue-600 group-hover:bg-blue-200"><Percent size={18} /></div>
+                     <div>
+                        <p className="text-sm font-bold text-gray-800">Belanja Barang {'>'} Rp 2 Juta</p>
+                        <p className="text-xs text-gray-500">Hitung PPN (11%) & PPh 22 (1.5%) dari Bruto</p>
+                     </div>
+                  </button>
+
+                  <button onClick={() => applyAutoTax('mamin_daerah')} className="w-full text-left bg-gray-50 hover:bg-gray-100 p-3 rounded-lg border border-gray-200 transition flex items-center gap-3 group">
+                     <div className="bg-orange-100 p-2 rounded text-orange-600 group-hover:bg-orange-200"><Percent size={18} /></div>
+                     <div>
+                        <p className="text-sm font-bold text-gray-800">Makan Minum (Restoran)</p>
+                        <p className="text-xs text-gray-500">Hitung Pajak Daerah (PB1) 10%</p>
+                     </div>
+                  </button>
+                  
+                   <button onClick={() => applyAutoTax('mamin_pph')} className="w-full text-left bg-gray-50 hover:bg-gray-100 p-3 rounded-lg border border-gray-200 transition flex items-center gap-3 group">
+                     <div className="bg-orange-100 p-2 rounded text-orange-600 group-hover:bg-orange-200"><Percent size={18} /></div>
+                     <div>
+                        <p className="text-sm font-bold text-gray-800">Makan Minum (Katering/Jasa)</p>
+                        <p className="text-xs text-gray-500">Hitung PPh 23 (2%)</p>
+                     </div>
+                  </button>
+
+                  <button onClick={() => applyAutoTax('jasa')} className="w-full text-left bg-gray-50 hover:bg-gray-100 p-3 rounded-lg border border-gray-200 transition flex items-center gap-3 group">
+                     <div className="bg-purple-100 p-2 rounded text-purple-600 group-hover:bg-purple-200"><Percent size={18} /></div>
+                     <div>
+                        <p className="text-sm font-bold text-gray-800">Jasa / Servis / Sewa</p>
+                        <p className="text-xs text-gray-500">Hitung PPh 23 (2%)</p>
+                     </div>
+                  </button>
+
+                  <button onClick={() => applyAutoTax('honor_5')} className="w-full text-left bg-gray-50 hover:bg-gray-100 p-3 rounded-lg border border-gray-200 transition flex items-center gap-3 group">
+                     <div className="bg-green-100 p-2 rounded text-green-600 group-hover:bg-green-200"><Percent size={18} /></div>
+                     <div>
+                        <p className="text-sm font-bold text-gray-800">Honor (PNS Gol III)</p>
+                        <p className="text-xs text-gray-500">Hitung PPh 21 (5%)</p>
+                     </div>
+                  </button>
+                  
+                  <button onClick={() => applyAutoTax('honor_6')} className="w-full text-left bg-gray-50 hover:bg-gray-100 p-3 rounded-lg border border-gray-200 transition flex items-center gap-3 group">
+                     <div className="bg-green-100 p-2 rounded text-green-600 group-hover:bg-green-200"><Percent size={18} /></div>
+                     <div>
+                        <p className="text-sm font-bold text-gray-800">Honor (Non NPWP)</p>
+                        <p className="text-xs text-gray-500">Hitung PPh 21 (6%)</p>
+                     </div>
+                  </button>
+
+                  <button onClick={() => applyAutoTax('clear')} className="w-full mt-2 text-center text-red-600 hover:text-red-700 text-xs font-bold p-2 border border-red-100 rounded hover:bg-red-50">
+                      Hapus Semua Pajak pada Item Terpilih
                   </button>
                </div>
             </div>
