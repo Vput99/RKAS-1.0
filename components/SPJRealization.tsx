@@ -308,6 +308,33 @@ const SPJRealization: React.FC<SPJRealizationProps> = ({ data, onUpdate }) => {
     }
   };
 
+  const handleSingleQuantityChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+      const val = e.target.value;
+      setFormQuantity(val);
+      
+      if (selectedBudget) {
+          // Use unit_price if available, or derive from total amount/quantity
+          const price = selectedBudget.unit_price || (selectedBudget.quantity ? selectedBudget.amount / selectedBudget.quantity : 0);
+          if (price > 0) {
+             const qty = parseFloat(val) || 0;
+             setFormAmount((qty * price).toFixed(0));
+          }
+      }
+  };
+
+  const handleBatchQuantityChange = (id: string, val: string) => {
+      const qty = parseFloat(val) || 0;
+      setBatchQuantities(prev => ({...prev, [id]: qty}));
+      
+      const item = data.find(d => d.id === id);
+      if (item) {
+          const price = item.unit_price || (item.quantity ? item.amount / item.quantity : 0);
+          if (price > 0) {
+              setBatchAmounts(prev => ({...prev, [id]: Math.round(qty * price)}));
+          }
+      }
+  };
+
   const toggleEvidence = (item: string) => {
     setCheckedEvidence(prev => 
       prev.includes(item) ? prev.filter(i => i !== item) : [...prev, item]
@@ -691,7 +718,7 @@ const SPJRealization: React.FC<SPJRealizationProps> = ({ data, onUpdate }) => {
                                                 type="number" 
                                                 className="w-full px-2 py-1 border border-gray-300 rounded text-center text-sm font-medium text-gray-700 focus:border-indigo-500 outline-none focus:ring-1 focus:ring-indigo-500"
                                                 value={batchQuantities[id] || 0}
-                                                onChange={(e) => setBatchQuantities(prev => ({...prev, [id]: Number(e.target.value)}))}
+                                                onChange={(e) => handleBatchQuantityChange(id, e.target.value)}
                                                 placeholder="1"
                                             />
                                         </div>
@@ -730,7 +757,7 @@ const SPJRealization: React.FC<SPJRealizationProps> = ({ data, onUpdate }) => {
                                 required
                                 min="0"
                                 value={formQuantity}
-                                onChange={(e) => setFormQuantity(e.target.value)}
+                                onChange={handleSingleQuantityChange}
                                 className="w-full pl-10 pr-3 py-2 border border-blue-200 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none text-lg font-bold text-gray-700"
                                 placeholder="0"
                                />
