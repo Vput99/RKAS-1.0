@@ -2,7 +2,7 @@ import React, { useState, useMemo, useEffect, useRef } from 'react';
 import { Budget, TransactionType, BOSPComponent, SNPStandard, AccountCodes } from '../types';
 import { Plus, Search, Edit2, Trash2, X, Save, Calculator, Calendar, Sparkles, Loader2, AlertTriangle, CheckCircle, Filter, Info, ChevronDown, Check } from 'lucide-react';
 import { analyzeBudgetEntry } from '../lib/gemini';
-import { getCustomAccounts } from '../lib/db';
+import { getStoredAccounts } from '../lib/db';
 
 interface BudgetPlanningProps {
   data: Budget[];
@@ -50,8 +50,11 @@ const BudgetPlanning: React.FC<BudgetPlanningProps> = ({ data, onAdd, onUpdate, 
   const dropdownRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-     const custom = getCustomAccounts();
-     setAllAccounts({ ...AccountCodes, ...custom });
+     const load = async () => {
+         const accs = await getStoredAccounts();
+         setAllAccounts(accs);
+     }
+     if (isModalOpen) load();
   }, [isModalOpen]); 
 
   // Close dropdown when clicking outside

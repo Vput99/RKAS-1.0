@@ -3,7 +3,7 @@ import { Budget, TransactionType, AccountCodes, BankStatement } from '../types';
 import { FileDown, Printer, FileText, TrendingUp, Table2, List, Calendar, FilterX, Upload, Plus, Trash2, CheckCircle2, AlertCircle, AlertTriangle, Download, Loader2 } from 'lucide-react';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
-import { getBankStatements, saveBankStatement, deleteBankStatement, uploadBankStatementFile } from '../lib/db';
+import { getBankStatements, saveBankStatement, deleteBankStatement, uploadBankStatementFile, getStoredAccounts } from '../lib/db';
 import { supabase } from '../lib/supabase';
 
 interface ReportsProps {
@@ -24,17 +24,26 @@ const Reports: React.FC<ReportsProps> = ({ data }) => {
   const [bsMonth, setBsMonth] = useState(new Date().getMonth() + 1);
   const [bsBalance, setBsBalance] = useState('');
   
+  // Account Mapping State (Dynamic from DB)
+  const [allAccounts, setAllAccounts] = useState<Record<string, string>>(AccountCodes);
+  
   // File Upload State
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [isStatementLoading, setIsStatementLoading] = useState(false);
 
   useEffect(() => {
     loadBankStatements();
+    loadAccounts();
   }, []);
 
   const loadBankStatements = async () => {
     const stmts = await getBankStatements();
     setBankStatements(stmts);
+  };
+
+  const loadAccounts = async () => {
+      const accs = await getStoredAccounts();
+      setAllAccounts(accs);
   };
 
   // --- 1. DATA LAPORAN RINCIAN (EXISTING) ---
@@ -75,8 +84,7 @@ const Reports: React.FC<ReportsProps> = ({ data }) => {
       const code = item.account_code || 'Tanpa Kode';
       
       if (!grouped[code]) {
-        // @ts-ignore
-        const name = AccountCodes[code] || 'Belanja Lainnya / Belum Terkategori';
+        const name = allAccounts[code] || 'Belanja Lainnya / Belum Terkategori';
         grouped[code] = { description: name, budget: 0, past: 0, current: 0 };
       }
 
@@ -118,7 +126,7 @@ const Reports: React.FC<ReportsProps> = ({ data }) => {
         .filter(row => row.current > 0)
         .sort((a, b) => a.code.localeCompare(b.code));
 
-  }, [data, reportMonth]);
+  }, [data, reportMonth, allAccounts]);
 
   const monthlyRecapTotals = useMemo(() => {
     return monthlyRecapData.reduce((acc, curr) => ({

@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
-import { SchoolProfile } from '../types';
-import { Save, School, Users, Wallet, Calendar, AlertCircle, Database, Wifi, WifiOff, CheckCircle2, FileText, Activity, CreditCard, Image as ImageIcon, Upload, Edit3, Plus, Trash2, List, FileSpreadsheet, ArrowRight } from 'lucide-react';
-import { getSchoolProfile, saveSchoolProfile, checkDatabaseConnection, getCustomAccounts, saveCustomAccount, deleteCustomAccount, bulkSaveCustomAccounts } from '../lib/db';
+import { SchoolProfile, AccountCodes } from '../types';
+import { Save, School, Users, Wallet, Calendar, AlertCircle, Database, Wifi, WifiOff, CheckCircle2, FileText, Activity, CreditCard, Image as ImageIcon, Upload, Edit3, Plus, Trash2, List, FileSpreadsheet, ArrowRight, RefreshCcw } from 'lucide-react';
+import { getSchoolProfile, saveSchoolProfile, checkDatabaseConnection, getStoredAccounts, saveCustomAccount, deleteCustomAccount, bulkSaveCustomAccounts } from '../lib/db';
 import { supabase } from '../lib/supabase';
 import { isAiConfigured } from '../lib/gemini';
 
@@ -38,6 +38,7 @@ const Settings: React.FC<SettingsProps> = ({ onProfileUpdate }) => {
   
   // Custom Accounts State
   const [customAccounts, setCustomAccounts] = useState<Record<string, string>>({});
+  const [isAccountLoading, setIsAccountLoading] = useState(false);
   const [newCode, setNewCode] = useState('');
   const [newName, setNewName] = useState('');
   
@@ -58,9 +59,11 @@ const Settings: React.FC<SettingsProps> = ({ onProfileUpdate }) => {
     setLoading(false);
   };
 
-  const loadAccounts = () => {
-      const accounts = getCustomAccounts();
+  const loadAccounts = async () => {
+      setIsAccountLoading(true);
+      const accounts = await getStoredAccounts();
       setCustomAccounts(accounts);
+      setIsAccountLoading(false);
   };
 
   const checkConnection = async () => {
@@ -99,19 +102,23 @@ const Settings: React.FC<SettingsProps> = ({ onProfileUpdate }) => {
 
   // --- CUSTOM ACCOUNTS LOGIC ---
 
-  const handleAddAccount = (e: React.FormEvent) => {
+  const handleAddAccount = async (e: React.FormEvent) => {
       e.preventDefault();
       if (!newCode || !newName) return;
-      const updated = saveCustomAccount(newCode, newName);
+      setIsAccountLoading(true);
+      const updated = await saveCustomAccount(newCode, newName);
       setCustomAccounts(updated);
       setNewCode('');
       setNewName('');
+      setIsAccountLoading(false);
   };
 
-  const handleDeleteAccount = (code: string) => {
+  const handleDeleteAccount = async (code: string) => {
       if(confirm(`Hapus rekening ${code}?`)) {
-          const updated = deleteCustomAccount(code);
+          setIsAccountLoading(true);
+          const updated = await deleteCustomAccount(code);
           setCustomAccounts(updated);
+          setIsAccountLoading(false);
       }
   };
 
@@ -155,18 +162,20 @@ const Settings: React.FC<SettingsProps> = ({ onProfileUpdate }) => {
       setImportMode('preview');
   };
 
-  const handleConfirmImport = () => {
+  const handleConfirmImport = async () => {
       const newMap: Record<string, string> = {};
       previewData.forEach(item => {
           newMap[item.code] = item.name;
       });
 
-      const updated = bulkSaveCustomAccounts(newMap);
+      setIsAccountLoading(true);
+      const updated = await bulkSaveCustomAccounts(newMap);
       setCustomAccounts(updated);
       
       setBulkText('');
       setPreviewData([]);
       setImportMode('input');
+      setIsAccountLoading(false);
       alert(`Berhasil menambahkan ${previewData.length} rekening baru.`);
   };
 
@@ -209,14 +218,19 @@ const Settings: React.FC<SettingsProps> = ({ onProfileUpdate }) => {
 
       {/* MANAJEMEN REKENING BARU */}
       <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
-         <h3 className="text-md font-bold text-gray-800 mb-4 flex items-center gap-2 pb-2 border-b border-gray-100">
-             <List className="text-indigo-600" size={18} /> Manajemen Kode Rekening (Akun Belanja)
-         </h3>
+         <div className="flex justify-between items-center mb-4 pb-2 border-b border-gray-100">
+             <h3 className="text-md font-bold text-gray-800 flex items-center gap-2">
+                 <List className="text-indigo-600" size={18} /> Manajemen Kode Rekening (Akun Belanja)
+             </h3>
+             <button onClick={loadAccounts} className="text-gray-400 hover:text-blue-600" title="Refresh Akun">
+                 <RefreshCcw size={16} className={isAccountLoading ? "animate-spin" : ""} />
+             </button>
+         </div>
          
          <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
              {/* Left Column: Manual List */}
              <div className="space-y-4">
-                 <h4 className="text-xs font-bold text-gray-500 uppercase">Daftar Rekening Tambahan</h4>
+                 <h4 className="text-xs font-bold text-gray-500 uppercase">Daftar Rekening (Database)</h4>
                  
                  {/* Manual Add Form */}
                  <form onSubmit={handleAddAccount} className="flex gap-2 items-end">
@@ -228,7 +242,9 @@ const Settings: React.FC<SettingsProps> = ({ onProfileUpdate }) => {
                          <label className="block text-[10px] text-gray-400 mb-1">Nama Rekening</label>
                          <input required type="text" value={newName} onChange={e => setNewName(e.target.value)} className="w-full px-2 py-1.5 border rounded text-xs" placeholder="Belanja..." />
                      </div>
-                     <button type="submit" className="bg-blue-600 text-white p-1.5 rounded hover:bg-blue-700"><Plus size={18} /></button>
+                     <button type="submit" disabled={isAccountLoading} className="bg-blue-600 text-white p-1.5 rounded hover:bg-blue-700 disabled:opacity-50">
+                        <Plus size={18} />
+                     </button>
                  </form>
 
                  <div className="h-64 overflow-y-auto border border-gray-200 rounded-lg">
@@ -242,17 +258,30 @@ const Settings: React.FC<SettingsProps> = ({ onProfileUpdate }) => {
                          </thead>
                          <tbody className="divide-y divide-gray-100">
                              {Object.entries(customAccounts).length === 0 ? (
-                                 <tr><td colSpan={3} className="px-3 py-4 text-center text-gray-400 text-xs">Belum ada rekening tambahan.</td></tr>
+                                 <tr><td colSpan={3} className="px-3 py-4 text-center text-gray-400 text-xs">Belum ada data rekening.</td></tr>
                              ) : (
-                                 Object.entries(customAccounts).map(([code, name]) => (
-                                     <tr key={code} className="hover:bg-gray-50">
-                                         <td className="px-3 py-2 font-mono text-xs">{code}</td>
-                                         <td className="px-3 py-2">{name}</td>
-                                         <td className="px-3 py-2">
-                                             <button onClick={() => handleDeleteAccount(code)} className="text-gray-400 hover:text-red-500"><Trash2 size={14} /></button>
-                                         </td>
-                                     </tr>
-                                 ))
+                                 Object.entries(customAccounts).map(([code, name]) => {
+                                     // Check if it's a default static account to prevent deletion if desired
+                                     // For now we allow deletion from the custom view context, but real deletion only happens if in DB
+                                     // @ts-ignore
+                                     const isStatic = !!AccountCodes[code]; 
+                                     
+                                     return (
+                                         <tr key={code} className="hover:bg-gray-50">
+                                             <td className="px-3 py-2 font-mono text-xs text-gray-600">{code}</td>
+                                             <td className="px-3 py-2 text-xs">{name}</td>
+                                             <td className="px-3 py-2">
+                                                 <button 
+                                                    onClick={() => handleDeleteAccount(code)} 
+                                                    className="text-gray-300 hover:text-red-500"
+                                                    title={isStatic ? "Akun standar sistem (hati-hati menghapus)" : "Hapus akun"}
+                                                 >
+                                                     <Trash2 size={14} />
+                                                 </button>
+                                             </td>
+                                         </tr>
+                                     )
+                                 })
                              )}
                          </tbody>
                      </table>
@@ -323,9 +352,10 @@ const Settings: React.FC<SettingsProps> = ({ onProfileUpdate }) => {
                             </button>
                             <button 
                                 onClick={handleConfirmImport}
-                                className="flex-1 bg-green-600 text-white py-2 rounded-lg font-bold text-sm hover:bg-green-700 flex items-center justify-center gap-2"
+                                disabled={isAccountLoading}
+                                className="flex-1 bg-green-600 text-white py-2 rounded-lg font-bold text-sm hover:bg-green-700 flex items-center justify-center gap-2 disabled:opacity-50"
                             >
-                                <CheckCircle2 size={16} /> Simpan Semua
+                                <CheckCircle2 size={16} /> {isAccountLoading ? 'Menyimpan...' : 'Simpan Semua'}
                             </button>
                         </div>
                     </>

@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { Budget, TransactionType, AccountCodes, RealizationDetail } from '../types';
-import { FileText, Save, X, Calendar, Search, CheckCircle2, FileCheck2, AlertCircle, CheckSquare, Square, Sparkles, Loader2, ShoppingCart, Filter, TrendingUp, Wallet, Check, ListChecks } from 'lucide-react';
+import { FileText, Save, X, Calendar, Search, CheckCircle2, FileCheck2, AlertCircle, CheckSquare, Square, Sparkles, Loader2, ShoppingCart, Filter, TrendingUp, Wallet, Check, ListChecks, ArrowRightCircle } from 'lucide-react';
 import { suggestEvidenceList } from '../lib/gemini';
 
 interface SPJRealizationProps {
@@ -144,35 +144,61 @@ const SPJRealization: React.FC<SPJRealizationProps> = ({ data, onUpdate }) => {
   const [checkedEvidence, setCheckedEvidence] = useState<string[]>([]);
   const [isAiLoading, setIsAiLoading] = useState(false);
 
-  // Filter Data based on Month Tab
+  // --- LOGIKA UTAMA: FILTER ITEM & ROLLOVER (LUNCURAN) ---
   const expensesInMonth = useMemo(() => {
-    return data.filter(d => 
-      d.type === TransactionType.EXPENSE && 
-      d.status !== 'rejected' &&
-      d.realization_months?.includes(viewMonth) && // Only show items planned for this month
-      d.description.toLowerCase().includes(searchTerm.toLowerCase())
-    );
+    return data.filter(d => {
+        // 1. Basic Filter: Must be Expense, Not Rejected, Match Search
+        if (d.type !== TransactionType.EXPENSE || d.status === 'rejected') return false;
+        if (!d.description.toLowerCase().includes(searchTerm.toLowerCase())) return false;
+
+        // 2. Rollover Logic (Logika Luncuran)
+        const totalRealized = d.realizations?.reduce((sum, r) => sum + r.amount, 0) || 0;
+        const remaining = d.amount - totalRealized;
+        const realizedThisView = d.realizations?.find(r => r.month === viewMonth)?.amount || 0;
+
+        // KONDISI A: Sudah ada transaksi di bulan ini (Tampilkan sebagai item selesai/edit)
+        if (realizedThisView > 0) return true;
+
+        // KONDISI B: Item belum lunas (Remaining > 0) DAN Bulan sekarang >= Bulan Rencana Pertama
+        // Ini artinya item "meluncur" terus ke bulan berikutnya sampai habis
+        const firstPlannedMonth = Math.min(...(d.realization_months || [12]));
+        
+        // Toleransi: Jika sisa < Rp 100 perak, anggap lunas (pembulatan)
+        if (remaining > 100 && viewMonth >= firstPlannedMonth) {
+            return true;
+        }
+
+        return false;
+    }).sort((a, b) => {
+        // Sort: Items with realization first, then alphabetic
+        const aRealized = a.realizations?.some(r => r.month === viewMonth);
+        const bRealized = b.realizations?.some(r => r.month === viewMonth);
+        if (aRealized && !bRealized) return -1;
+        if (!aRealized && bRealized) return 1;
+        return a.description.localeCompare(b.description);
+    });
   }, [data, viewMonth, searchTerm]);
 
   // Calculate Monthly Stats
   const monthStats = useMemo(() => {
-    let totalPlanned = 0;
+    let totalAvailableToSpend = 0; // Dana yang BISA dibelanjakan bulan ini (termasuk luncuran)
     let totalRealized = 0;
 
     expensesInMonth.forEach(item => {
-      // Calculate estimated plan for this specific month (Total / num months)
-      const numMonths = item.realization_months?.length || 1;
-      const monthlyPlan = item.amount / numMonths;
-      totalPlanned += monthlyPlan;
+      // Logic Sisa: Total Pagu - Total Realisasi Global (sebelum bulan ini)
+      const totalGlobalRealized = item.realizations?.reduce((sum, r) => sum + r.amount, 0) || 0;
+      const realizedInThisMonth = item.realizations?.find(r => r.month === viewMonth)?.amount || 0;
+      
+      // Jika sudah terealisasi bulan ini, tambahkan ke stats
+      totalRealized += realizedInThisMonth;
 
-      // Find realization strictly for this month
-      const realization = item.realizations?.find(r => r.month === viewMonth);
-      if (realization) {
-        totalRealized += realization.amount;
-      }
+      // Dana tersedia = Sisa Pagu + Apa yang sudah dibelanjakan bulan ini
+      // (Agar progress bar masuk akal: 100% dari potensi belanja)
+      const remainingGlobal = item.amount - totalGlobalRealized; 
+      totalAvailableToSpend += (remainingGlobal + realizedInThisMonth);
     });
 
-    return { totalPlanned, totalRealized };
+    return { totalAvailableToSpend, totalRealized };
   }, [expensesInMonth, viewMonth]);
 
   const handleOpenSPJ = (item: Budget) => {
@@ -210,10 +236,14 @@ const SPJRealization: React.FC<SPJRealizationProps> = ({ data, onUpdate }) => {
     selectedBatchIds.forEach(id => {
        const item = data.find(d => d.id === id);
        if (item) {
-          const monthsCount = item.realization_months?.length || 1;
-          // Check if already realized, if so use that amount, otherwise forecast
+          const totalRealized = item.realizations?.reduce((s, r) => s + r.amount, 0) || 0;
+          const remaining = item.amount - totalRealized;
+          
+          // Check if already realized this month
           const existing = item.realizations?.find(r => r.month === viewMonth);
-          amounts[id] = existing ? existing.amount : Math.floor(item.amount / monthsCount);
+          
+          // If realized, use that value. If not, suggest remaining balance (Rollover logic)
+          amounts[id] = existing ? existing.amount : remaining;
        }
     });
     setBatchAmounts(amounts);
@@ -251,9 +281,11 @@ const SPJRealization: React.FC<SPJRealizationProps> = ({ data, onUpdate }) => {
       setFormDate(existingRealization.date.split('T')[0]);
       setExistingFileName(existingRealization.evidence_file || '');
     } else {
-      const monthsCount = item.realization_months?.length || 1;
-      const suggestedAmount = Math.floor(item.amount / monthsCount);
-      setFormAmount(suggestedAmount.toString());
+      // SUGGESTION LOGIC: Suggest remaining budget (Rollover)
+      const totalRealizedBefore = item.realizations?.reduce((sum, r) => sum + r.amount, 0) || 0;
+      const remaining = item.amount - totalRealizedBefore;
+      
+      setFormAmount(remaining > 0 ? remaining.toString() : '0');
       
       const lastDay = new Date(2026, month, 0).getDate();
       setFormDate(`2026-${month.toString().padStart(2, '0')}-${lastDay}`);
@@ -319,7 +351,9 @@ const SPJRealization: React.FC<SPJRealizationProps> = ({ data, onUpdate }) => {
       <div className="flex flex-col md:flex-row md:justify-between md:items-end gap-4">
         <div>
            <h2 className="text-xl font-bold text-gray-800">Peng-SPJ-an & Realisasi</h2>
-           <p className="text-sm text-gray-500">Input realisasi per bulan. Gunakan fitur checkbox untuk <b>satu nota banyak item</b>.</p>
+           <p className="text-sm text-gray-500">
+              Input realisasi bulanan. Anggaran yang belum terserap otomatis menjadi <b>Luncuran</b> di bulan berikutnya.
+           </p>
         </div>
         <div className="relative w-full md:w-auto">
           <Search className="absolute left-3 top-2.5 text-gray-400" size={16} />
@@ -360,8 +394,9 @@ const SPJRealization: React.FC<SPJRealizationProps> = ({ data, onUpdate }) => {
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
          <div className="bg-gradient-to-r from-blue-50 to-indigo-50 border border-blue-100 p-4 rounded-xl flex items-center justify-between">
             <div>
-              <p className="text-xs text-blue-600 font-bold uppercase mb-1">Rencana {MONTHS[viewMonth-1]}</p>
-              <h3 className="text-lg font-bold text-blue-900">{formatRupiah(monthStats.totalPlanned)}</h3>
+              <p className="text-xs text-blue-600 font-bold uppercase mb-1">Potensi Belanja {MONTHS[viewMonth-1]}</p>
+              <h3 className="text-lg font-bold text-blue-900">{formatRupiah(monthStats.totalAvailableToSpend)}</h3>
+              <p className="text-[10px] text-blue-500 mt-1">Termasuk luncuran bulan lalu</p>
             </div>
             <div className="p-2 bg-blue-100 rounded-lg text-blue-600">
                <Wallet size={20} />
@@ -384,17 +419,17 @@ const SPJRealization: React.FC<SPJRealizationProps> = ({ data, onUpdate }) => {
              <div className="flex justify-between items-center text-xs mb-1">
                <span className="font-bold text-gray-500">Serapan Bulan Ini</span>
                <span className="font-bold text-blue-600">
-                 {monthStats.totalPlanned > 0 
-                    ? ((monthStats.totalRealized / monthStats.totalPlanned) * 100).toFixed(0) 
+                 {monthStats.totalAvailableToSpend > 0 
+                    ? ((monthStats.totalRealized / monthStats.totalAvailableToSpend) * 100).toFixed(0) 
                     : 0}%
                </span>
              </div>
              <div className="w-full bg-gray-100 rounded-full h-2">
                 <div 
                   className={`h-2 rounded-full transition-all duration-500 ${
-                    monthStats.totalRealized >= monthStats.totalPlanned ? 'bg-green-500' : 'bg-blue-500'
+                    monthStats.totalRealized >= monthStats.totalAvailableToSpend ? 'bg-green-500' : 'bg-blue-500'
                   }`}
-                  style={{ width: `${monthStats.totalPlanned > 0 ? Math.min((monthStats.totalRealized / monthStats.totalPlanned) * 100, 100) : 0}%` }}
+                  style={{ width: `${monthStats.totalAvailableToSpend > 0 ? Math.min((monthStats.totalRealized / monthStats.totalAvailableToSpend) * 100, 100) : 0}%` }}
                 ></div>
              </div>
          </div>
@@ -404,7 +439,7 @@ const SPJRealization: React.FC<SPJRealizationProps> = ({ data, onUpdate }) => {
         <div className="px-6 py-4 border-b border-gray-100 bg-gray-50 flex items-center justify-between">
            <div className="flex items-center gap-2">
               <Filter size={16} className="text-gray-400" />
-              <h3 className="text-sm font-bold text-gray-700">Daftar Kegiatan Bulan {MONTHS[viewMonth-1]}</h3>
+              <h3 className="text-sm font-bold text-gray-700">Daftar Kegiatan Siap SPJ (Bulan {MONTHS[viewMonth-1]})</h3>
            </div>
            
            {/* Batch Action Button */}
@@ -426,9 +461,9 @@ const SPJRealization: React.FC<SPJRealizationProps> = ({ data, onUpdate }) => {
                    <CheckSquare size={16} className="mx-auto text-gray-400" />
                 </th>
                 <th className="px-4 py-4 font-semibold w-1/3">Uraian Kegiatan</th>
-                <th className="px-4 py-4 font-semibold text-right">Pagu (Per Bulan)</th>
-                <th className="px-4 py-4 font-semibold text-right">Realisasi (Per Bulan)</th>
-                <th className="px-4 py-4 font-semibold text-center">Status Bukti</th>
+                <th className="px-4 py-4 font-semibold text-right">Sisa Pagu (Available)</th>
+                <th className="px-4 py-4 font-semibold text-right">Realisasi Bulan Ini</th>
+                <th className="px-4 py-4 font-semibold text-center">Status</th>
                 <th className="px-4 py-4 font-semibold text-right">Aksi</th>
               </tr>
             </thead>
@@ -438,19 +473,22 @@ const SPJRealization: React.FC<SPJRealizationProps> = ({ data, onUpdate }) => {
                   <td colSpan={6} className="px-6 py-12 text-center text-gray-400">
                     <div className="flex flex-col items-center gap-2">
                        <FileText size={32} className="opacity-20" />
-                       <p>Tidak ada jadwal kegiatan di bulan {MONTHS[viewMonth-1]}.</p>
+                       <p>Semua anggaran telah terealisasi atau belum masuk jadwal.</p>
                     </div>
                   </td>
                 </tr>
               ) : (
                 expensesInMonth.map((item) => {
-                  // Monthly Specific Logic
-                  const numMonths = item.realization_months?.length || 1;
-                  const monthlyBudget = item.amount / numMonths;
-                  const realizationThisMonth = item.realizations?.find(r => r.month === viewMonth);
-                  const amountRealized = realizationThisMonth?.amount || 0;
-                  const isDone = amountRealized > 0;
+                  const totalGlobalRealized = item.realizations?.reduce((s,r) => s+r.amount, 0) || 0;
+                  const realizedThisMonth = item.realizations?.find(r => r.month === viewMonth)?.amount || 0;
+                  const remainingBudget = item.amount - totalGlobalRealized;
+                  
+                  // AVAILABLE = Sisa Global + Apa yang sudah diinput bulan ini (untuk diedit)
+                  const availableToSpend = remainingBudget + realizedThisMonth; 
+                  
+                  const isDone = realizedThisMonth > 0;
                   const isSelected = selectedBatchIds.includes(item.id);
+                  const isRollover = !(item.realization_months?.includes(viewMonth)) && remainingBudget > 0;
                   
                   return (
                     <tr key={item.id} className={`transition-colors ${isSelected ? 'bg-indigo-50/60' : 'hover:bg-gray-50'}`}>
@@ -464,23 +502,28 @@ const SPJRealization: React.FC<SPJRealizationProps> = ({ data, onUpdate }) => {
                       </td>
                       <td className="px-4 py-4">
                         <div className="font-medium text-gray-800">{item.description}</div>
-                         <div className="text-[10px] text-gray-400 font-mono mt-1">
-                           {item.account_code || 'Kode Rekening -'}
+                         <div className="flex items-center gap-2 mt-1">
+                            <span className="text-[10px] text-gray-400 font-mono">{item.account_code || 'Kode Rekening -'}</span>
+                            {isRollover && !isDone && (
+                                <span className="text-[9px] bg-orange-100 text-orange-700 px-1.5 py-0.5 rounded flex items-center gap-1">
+                                    <ArrowRightCircle size={10} /> Luncuran
+                                </span>
+                            )}
                          </div>
                       </td>
-                      <td className="px-4 py-4 text-right font-mono text-gray-900">
-                         {formatRupiah(monthlyBudget)}
-                         <div className="text-[10px] text-gray-400">Est. RPD</div>
+                      <td className="px-4 py-4 text-right font-mono text-blue-700 font-bold">
+                         {formatRupiah(availableToSpend)}
+                         <div className="text-[10px] text-gray-400 font-normal">Pagu Tersedia</div>
                       </td>
                       <td className="px-4 py-4 text-right font-mono font-medium">
-                         <span className={amountRealized > 0 ? 'text-green-700' : 'text-gray-400'}>
-                            {formatRupiah(amountRealized)}
+                         <span className={realizedThisMonth > 0 ? 'text-green-700' : 'text-gray-300'}>
+                            {formatRupiah(realizedThisMonth)}
                          </span>
                       </td>
                       <td className="px-4 py-4 text-center">
                          {isDone ? (
                             <span className="inline-flex items-center gap-1 px-2 py-1 bg-green-50 text-green-700 rounded text-xs font-medium border border-green-100">
-                               <CheckCircle2 size={12} /> Selesai
+                               <CheckCircle2 size={12} /> SPJ OK
                             </span>
                          ) : (
                             <span className="inline-flex items-center gap-1 px-2 py-1 bg-gray-100 text-gray-500 rounded text-xs border border-gray-200">
@@ -583,14 +626,16 @@ const SPJRealization: React.FC<SPJRealizationProps> = ({ data, onUpdate }) => {
                                 if(!item) return null;
                                 
                                 // Calculate planned amount context
-                                const numMonths = item.realization_months?.length || 1;
-                                const plannedMonthly = Math.floor(item.amount / numMonths);
+                                const totalRealized = item.realizations?.reduce((s, r) => s + r.amount, 0) || 0;
+                                const remaining = item.amount - totalRealized;
+                                const realizedThisMonth = item.realizations?.find(r => r.month === viewMonth)?.amount || 0;
+                                const available = remaining + realizedThisMonth;
 
                                 return (
                                   <div key={id} className="flex items-center justify-between gap-3 bg-white p-2 rounded border border-gray-200">
                                      <div className="flex-1 overflow-hidden">
                                         <p className="text-xs font-bold text-gray-700 truncate">{item.description}</p>
-                                        <p className="text-[10px] text-gray-500">Pagu Bulan Ini: <span className="font-mono">{formatRupiah(plannedMonthly)}</span></p>
+                                        <p className="text-[10px] text-gray-500">Sisa Pagu: <span className="font-mono text-blue-600 font-bold">{formatRupiah(available)}</span></p>
                                      </div>
                                      <div className="w-32">
                                         <input 

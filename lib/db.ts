@@ -1,6 +1,7 @@
 
+
 import { supabase } from './supabase';
-import { Budget, TransactionType, SNPStandard, BOSPComponent, SchoolProfile, BankStatement, RaporIndicator, WithdrawalHistory } from '../types';
+import { Budget, TransactionType, SNPStandard, BOSPComponent, SchoolProfile, BankStatement, RaporIndicator, WithdrawalHistory, AccountCodes } from '../types';
 
 // Mock data reflecting BOSP structure
 const MOCK_DATA: Budget[] = [
@@ -451,31 +452,91 @@ export const deleteWithdrawalHistory = async (id: string): Promise<boolean> => {
     return true;
 };
 
-// --- Custom Account Codes Functions ---
+// --- Custom Account Codes Functions (Now DB based) ---
+
+export const getStoredAccounts = async (): Promise<Record<string, string>> => {
+    // 1. If Supabase is active, fetch from DB
+    if (supabase) {
+        try {
+            const { data, error } = await supabase
+                .from('account_codes')
+                .select('*')
+                .order('code', { ascending: true });
+
+            if (data && !error) {
+                // Convert array [{code: '...', name: '...'}] to Record
+                const dbMap: Record<string, string> = {};
+                data.forEach((item: any) => {
+                    dbMap[item.code] = item.name;
+                });
+                
+                // Merge with DEFAULT hardcoded accounts (DB overwrites hardcoded if collision)
+                return { ...AccountCodes, ...dbMap };
+            }
+        } catch (e) {
+            console.error("Failed to fetch accounts from DB", e);
+        }
+    }
+
+    // 2. Fallback to Local Storage if offline or error
+    const local = localStorage.getItem(CUSTOM_ACCOUNTS_KEY);
+    const localMap = local ? JSON.parse(local) : {};
+    return { ...AccountCodes, ...localMap };
+};
 
 export const getCustomAccounts = (): Record<string, string> => {
+    // Deprecated for direct usage, but kept for legacy compat.
+    // Use getStoredAccounts() for async DB fetch.
     const local = localStorage.getItem(CUSTOM_ACCOUNTS_KEY);
     return local ? JSON.parse(local) : {};
 };
 
-export const saveCustomAccount = (code: string, name: string): Record<string, string> => {
+export const saveCustomAccount = async (code: string, name: string): Promise<Record<string, string>> => {
+    if (supabase) {
+        const { error } = await supabase.from('account_codes').upsert({ code, name });
+        if (error) {
+            alert("Gagal menyimpan akun ke database: " + error.message);
+            return await getStoredAccounts(); // Return current state on error
+        }
+    }
+    
+    // Also save to local storage as backup cache
     const current = getCustomAccounts();
     const updated = { ...current, [code]: name };
     localStorage.setItem(CUSTOM_ACCOUNTS_KEY, JSON.stringify(updated));
-    return updated;
+    
+    // Return full updated list (including defaults)
+    return await getStoredAccounts();
 };
 
-export const deleteCustomAccount = (code: string): Record<string, string> => {
+export const deleteCustomAccount = async (code: string): Promise<Record<string, string>> => {
+    if (supabase) {
+        const { error } = await supabase.from('account_codes').delete().eq('code', code);
+        if (error) console.error("Error deleting account from DB", error);
+    }
+
     const current = getCustomAccounts();
     const newAccounts = { ...current };
     delete newAccounts[code];
     localStorage.setItem(CUSTOM_ACCOUNTS_KEY, JSON.stringify(newAccounts));
-    return newAccounts;
+    
+    return await getStoredAccounts();
 };
 
-export const bulkSaveCustomAccounts = (accounts: Record<string, string>): Record<string, string> => {
+export const bulkSaveCustomAccounts = async (accounts: Record<string, string>): Promise<Record<string, string>> => {
+    if (supabase) {
+        const rows = Object.entries(accounts).map(([code, name]) => ({ code, name }));
+        // Insert chunks of 100 to prevent payload issues
+        for (let i = 0; i < rows.length; i += 100) {
+            const chunk = rows.slice(i, i + 100);
+            const { error } = await supabase.from('account_codes').upsert(chunk);
+            if (error) console.error("Error bulk upserting accounts", error);
+        }
+    }
+
     const current = getCustomAccounts();
     const updated = { ...current, ...accounts };
     localStorage.setItem(CUSTOM_ACCOUNTS_KEY, JSON.stringify(updated));
-    return updated;
+    
+    return await getStoredAccounts();
 }
