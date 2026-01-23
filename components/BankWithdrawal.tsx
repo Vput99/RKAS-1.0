@@ -235,7 +235,7 @@ const BankWithdrawal: React.FC<BankWithdrawalProps> = ({ data, profile, onUpdate
   };
 
   // --- AUTOMATIC TAX CALCULATION LOGIC ---
-  const applyAutoTax = (type: 'barang_pkp' | 'mamin_daerah' | 'mamin_pph' | 'jasa' | 'honor_5' | 'honor_6' | 'clear') => {
+  const applyAutoTax = (type: 'barang_pkp' | 'mamin_daerah' | 'mamin_pph' | 'jasa' | 'honor_5' | 'honor_non_asn' | 'honor_6' | 'honor_2' | 'clear') => {
       setRecipientDetails(prev => {
           const newState = { ...prev };
           
@@ -274,10 +274,19 @@ const BankWithdrawal: React.FC<BankWithdrawalProps> = ({ data, profile, onUpdate
                       // PPh 21 PNS Gol III (5%)
                       newTax.pph21 = Math.round(amount * 0.05);
                       break;
+
+                  case 'honor_non_asn':
+                      // PPh 21 Non ASN (GTT/PTT) ber-NPWP (5%) - Aturan Baku
+                      newTax.pph21 = Math.round(amount * 0.05);
+                      break;
                   
+                  case 'honor_2':
+                      // PPh 23 Jasa Non ASN (2%) - Jika dikategorikan sebagai Jasa Pihak Ketiga
+                      newTax.pph23 = Math.round(amount * 0.02);
+                      break;
+
                   case 'honor_6':
-                      // PPh 21 Non NPWP / Non PNS (6%) - Asumsi 20% lebih tinggi dari 5% atau rate khusus
-                      // Simplifikasi: 6% dari Bruto untuk Non-PNS ber-NPWP biasanya 5%, Non-NPWP 6% (5% x 120%)
+                      // PPh 21 Non NPWP (6%) - Biasanya Non ASN tanpa NPWP
                       newTax.pph21 = Math.round(amount * 0.06);
                       break;
 
@@ -1325,6 +1334,22 @@ const BankWithdrawal: React.FC<BankWithdrawalProps> = ({ data, profile, onUpdate
                      <div>
                         <p className="text-sm font-bold text-gray-800">Honor (PNS Gol III)</p>
                         <p className="text-xs text-gray-500">Hitung PPh 21 (5%)</p>
+                     </div>
+                  </button>
+
+                  <button onClick={() => applyAutoTax('honor_non_asn')} className="w-full text-left bg-gray-50 hover:bg-gray-100 p-3 rounded-lg border border-gray-200 transition flex items-center gap-3 group">
+                     <div className="bg-teal-100 p-2 rounded text-teal-600 group-hover:bg-teal-200"><Percent size={18} /></div>
+                     <div>
+                        <p className="text-sm font-bold text-gray-800">Honor Non ASN (PPh 21)</p>
+                        <p className="text-xs text-gray-500">Hitung PPh 21 (5%) - Ber NPWP</p>
+                     </div>
+                  </button>
+                  
+                  <button onClick={() => applyAutoTax('honor_2')} className="w-full text-left bg-gray-50 hover:bg-gray-100 p-3 rounded-lg border border-gray-200 transition flex items-center gap-3 group">
+                     <div className="bg-teal-100 p-2 rounded text-teal-600 group-hover:bg-teal-200"><Percent size={18} /></div>
+                     <div>
+                        <p className="text-sm font-bold text-gray-800">Jasa Non ASN / Pihak Ketiga (2%)</p>
+                        <p className="text-xs text-gray-500">Hitung PPh 23 (2%) - Tukang/Servis</p>
                      </div>
                   </button>
                   
