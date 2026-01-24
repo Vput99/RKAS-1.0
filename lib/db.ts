@@ -1,5 +1,4 @@
 
-
 import { supabase } from './supabase';
 import { Budget, TransactionType, SNPStandard, BOSPComponent, SchoolProfile, BankStatement, RaporIndicator, WithdrawalHistory, AccountCodes } from '../types';
 
@@ -57,7 +56,6 @@ export const checkDatabaseConnection = async (): Promise<boolean> => {
 
 export const getBudgets = async (): Promise<Budget[]> => {
   if (supabase) {
-    // RLS Policy on Database will automatically filter by auth.uid()
     const { data, error } = await supabase.from('budgets').select('*').order('date', { ascending: false });
     if (error) {
         console.error("Error fetching budgets:", error);
@@ -79,7 +77,7 @@ export const addBudget = async (item: Omit<Budget, 'id' | 'created_at'>): Promis
     
     const dbPayload = {
         ...item,
-        user_id: userId, // Explicitly attach User ID (though RLS default usually handles it, explicit is safer)
+        user_id: userId,
         realizations: item.realizations || [], 
         realization_months: item.realization_months || [],
         quantity: item.quantity || 0,
@@ -141,12 +139,11 @@ export const deleteBudget = async (id: string): Promise<boolean> => {
   return true;
 };
 
-// --- School Profile Functions (MULTI-TENANT UPDATE) ---
+// --- School Profile Functions ---
 
 export const getSchoolProfile = async (): Promise<SchoolProfile> => {
   if (supabase) {
     try {
-      // RLS ensures we only get OUR profile
       const { data, error } = await supabase.from('school_profiles').select('*').single();
       
       if (data) {
@@ -172,7 +169,6 @@ export const getSchoolProfile = async (): Promise<SchoolProfile> => {
         };
       }
     } catch (error) {
-      // It's normal to not have a profile yet for a new user
       console.log("No profile found for this user yet.");
     }
   }
@@ -191,7 +187,7 @@ export const saveSchoolProfile = async (profile: SchoolProfile): Promise<SchoolP
     }
 
     const dbPayload = {
-      user_id: userId, // UNIQUE constraint on user_id ensures 1 profile per user
+      user_id: userId,
       name: profile.name,
       npsn: profile.npsn,
       address: profile.address,
@@ -213,7 +209,6 @@ export const saveSchoolProfile = async (profile: SchoolProfile): Promise<SchoolP
       header_image: profile.headerImage
     };
     
-    // Upsert based on user_id (needs unique constraint on DB)
     const { error } = await supabase.from('school_profiles').upsert(dbPayload, { onConflict: 'user_id' });
     if (error) {
         console.error("Supabase profile save error:", error);
@@ -232,7 +227,7 @@ export const getRaporData = async (year: string): Promise<RaporIndicator[] | nul
       const { data, error } = await supabase
           .from('rapor_pendidikan')
           .select('*')
-          .eq('year', year); // RLS handles user_id filter
+          .eq('year', year);
       
       if (error) {
           console.error("Error fetching rapor:", error);
@@ -254,6 +249,12 @@ export const getRaporData = async (year: string): Promise<RaporIndicator[] | nul
 export const saveRaporData = async (indicators: RaporIndicator[], year: string): Promise<boolean> => {
     if (!supabase) return false;
     const userId = await getCurrentUserId();
+    
+    if (!userId) {
+        console.error("User not authenticated");
+        alert("Sesi login berakhir. Silakan login ulang.");
+        return false;
+    }
 
     const upsertData = indicators.map(ind => ({
         user_id: userId,
@@ -265,13 +266,29 @@ export const saveRaporData = async (indicators: RaporIndicator[], year: string):
         updated_at: new Date().toISOString()
     }));
 
+    // Gunakan upsert dengan onConflict yang sesuai dengan UNIQUE INDEX di database
     const { error } = await supabase
         .from('rapor_pendidikan')
-        .upsert(upsertData, { onConflict: 'user_id, year, indicator_id' });
+        .upsert(upsertData, { onConflict: 'user_id,year,indicator_id' });
 
     if (error) {
         console.error("Error saving rapor:", error);
-        alert("Gagal menyimpan data rapor: " + error.message);
+        
+        // Cek pesan error spesifik schema cache
+        if (error.message.includes("Could not find the 'user_id' column") || error.message.includes('schema cache')) {
+            alert(
+                "⚠️ PERBAIKAN DATABASE DIPERLUKAN\n\n" +
+                "Struktur database belum diperbarui di sisi server Supabase.\n\n" +
+                "CARA MEMPERBAIKI:\n" +
+                "1. Buka file 'FIX_DATABASE.sql' di folder project ini.\n" +
+                "2. Copy seluruh isinya.\n" +
+                "3. Buka Dashboard Supabase > SQL Editor.\n" +
+                "4. Paste dan Klik 'RUN'.\n\n" +
+                "Setelah itu refresh halaman ini."
+            );
+        } else {
+            alert("Gagal menyimpan data rapor: " + error.message);
+        }
         return false;
     }
     return true;
@@ -285,7 +302,6 @@ export const uploadBankStatementFile = async (file: File): Promise<{ url: string
 
     const userId = await getCurrentUserId();
     const fileExt = file.name.split('.').pop();
-    // Path includes User ID for isolation: user_id/filename
     const fileName = `${Math.random().toString(36).substring(2, 15)}_${Date.now()}.${fileExt}`;
     const filePath = `${userId}/${fileName}`; 
 
@@ -333,7 +349,6 @@ export const saveBankStatement = async (statement: BankStatement): Promise<BankS
      if (error) throw error;
   }
 
-  // Local backup
   const current = await getBankStatements();
   const filtered = current.filter(s => !(s.month === statement.month && s.year === statement.year));
   const updated = [...filtered, statement].sort((a,b) => a.month - b.month);
@@ -426,12 +441,11 @@ export const deleteWithdrawalHistory = async (id: string): Promise<boolean> => {
     return true;
 };
 
-// --- Custom Account Codes Functions (DB based) ---
+// --- Custom Account Codes Functions ---
 
 export const getStoredAccounts = async (): Promise<Record<string, string>> => {
     if (supabase) {
         try {
-            // Get System defaults (user_id is NULL) OR User's custom accounts (user_id = auth.uid())
             const { data, error } = await supabase
                 .from('account_codes')
                 .select('*')
@@ -458,7 +472,6 @@ export const getStoredAccounts = async (): Promise<Record<string, string>> => {
 export const saveCustomAccount = async (code: string, name: string): Promise<Record<string, string>> => {
     if (supabase) {
         const userId = await getCurrentUserId();
-        // Insert with user_id so it's private to this school
         const { error } = await supabase.from('account_codes').upsert({ code, name, user_id: userId });
         if (error) {
             alert("Gagal menyimpan akun: " + error.message);
@@ -475,7 +488,6 @@ export const saveCustomAccount = async (code: string, name: string): Promise<Rec
 
 export const deleteCustomAccount = async (code: string): Promise<Record<string, string>> => {
     if (supabase) {
-        // Can only delete user's own accounts (RLS enforced)
         const { error } = await supabase.from('account_codes').delete().eq('code', code);
         if (error) console.error("Error deleting account from DB", error);
     }
