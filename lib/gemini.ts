@@ -1,3 +1,4 @@
+
 import { GoogleGenAI, Type } from "@google/genai";
 import { SNPStandard, BOSPComponent, AccountCodes, RaporIndicator, PBDRecommendation } from "../types";
 
@@ -289,16 +290,15 @@ export const chatWithFinancialAdvisor = async (query: string, context: string) =
   }
 }
 
-export const analyzeRaporQuality = async (indicators: RaporIndicator[], targetYear: string): Promise<PBDRecommendation[]> => {
-    if (!ai) return [];
+export const analyzeRaporQuality = async (indicators: RaporIndicator[], targetYear: string): Promise<PBDRecommendation[] | null> => {
+    if (!ai) return null;
     
     const weakIndicators = indicators.filter(i => i.category === 'Kurang' || i.category === 'Sedang');
     if (weakIndicators.length === 0) return [];
 
     // Prepare a summarized list of accounts for the AI to choose from
-    // We only send key accounts to avoid token limits, prioritizing valid RKAS codes
     const accountContext = Object.entries(AccountCodes)
-        .slice(0, 100) // Take top 100 or specific relevant ones
+        .slice(0, 100) 
         .map(([c, n]) => `- ${c}: ${n}`)
         .join('\n');
 
@@ -336,19 +336,25 @@ export const analyzeRaporQuality = async (indicators: RaporIndicator[], targetYe
                                         unit: { type: Type.STRING },
                                         price: { type: Type.NUMBER },
                                         accountCode: { type: Type.STRING }
-                                    }
+                                    },
+                                    required: ['name', 'quantity', 'unit', 'price', 'accountCode']
                                 }
                             }
-                        }
+                        },
+                        required: ['indicatorId', 'activityName', 'description', 'bospComponent', 'snpStandard', 'estimatedCost', 'priority', 'items']
                     }
                 }
             }
         });
 
         const result = parseAIResponse(response.text);
-        return Array.isArray(result) ? result : [];
+        if (!Array.isArray(result)) {
+            console.error("AI returned invalid format:", result);
+            return null;
+        }
+        return result;
     } catch (error) {
         console.error("Gemini PBD Error:", error);
-        return [];
+        return null;
     }
 }

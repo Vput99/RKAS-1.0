@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { RaporIndicator, PBDRecommendation, TransactionType, Budget } from '../types';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell } from 'recharts';
@@ -85,6 +86,13 @@ const RaporPendidikan: React.FC<RaporPendidikanProps> = ({ onAddBudget, budgetDa
 
     setLoading(true);
     const results = await analyzeRaporQuality(indicators, targetYear);
+    
+    if (results === null) {
+        alert("Gagal menganalisis rapor. Mohon periksa koneksi internet Anda atau coba lagi beberapa saat lagi.");
+        setLoading(false);
+        return;
+    }
+
     setRecommendations(results);
     setActiveView('analysis');
     setLoading(false);
