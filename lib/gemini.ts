@@ -65,7 +65,7 @@ const filterRelevantAccounts = (query: string, accounts: Record<string, string>)
     queryLower.includes('upah') || 
     queryLower.includes('jasa') || 
     queryLower.includes('pelatih') || 
-    queryLower.includes('pembina') ||
+    queryLower.includes('pembina') || 
     queryLower.includes('narasumber') ||
     queryLower.includes('tukang');
 
@@ -172,8 +172,10 @@ export const analyzeBudgetEntry = async (description: string, availableAccounts:
   try {
     const relevantAccountsList = filterRelevantAccounts(description, availableAccounts);
 
+    // UPGRADE: Use gemini-3-pro-preview for Budget Planning logic as well
+    // It is better at following complex instructions like Juknis mapping.
     const response = await ai.models.generateContent({
-      model: 'gemini-3-flash-preview',
+      model: 'gemini-3-pro-preview',
       contents: `
       Role: BOSP Auditor & Budget Planner (Indonesia).
       
@@ -200,8 +202,8 @@ export const analyzeBudgetEntry = async (description: string, availableAccounts:
         responseSchema: {
           type: Type.OBJECT,
           properties: {
-            bosp_component: { type: Type.STRING, enum: Object.values(BOSPComponent) },
-            snp_standard: { type: Type.STRING, enum: Object.values(SNPStandard) },
+            bosp_component: { type: Type.STRING },
+            snp_standard: { type: Type.STRING },
             account_code: { type: Type.STRING },
             quantity_estimate: { type: Type.NUMBER },
             unit_estimate: { type: Type.STRING },
@@ -296,22 +298,31 @@ export const analyzeRaporQuality = async (indicators: RaporIndicator[], targetYe
     const weakIndicators = indicators.filter(i => i.category === 'Kurang' || i.category === 'Sedang');
     if (weakIndicators.length === 0) return [];
 
-    // Prepare a summarized list of accounts for the AI to choose from
+    // Increase context for Pro model
     const accountContext = Object.entries(AccountCodes)
-        .slice(0, 100) 
+        .slice(0, 150) 
         .map(([c, n]) => `- ${c}: ${n}`)
         .join('\n');
 
     try {
         const response = await ai.models.generateContent({
-            model: 'gemini-3-flash-preview',
-            contents: `Task: Recommend RKAS activities (PBD) for weak indicators.
+            // UPGRADE: Use Pro model for complex reasoning tasks like PBD analysis
+            model: 'gemini-3-pro-preview', 
+            contents: `Role: Expert School Budget Consultant (BOSP Indonesia).
+            
+            Task: Analyze the following "Weak" Rapor Pendidikan indicators and recommend specific, actionable RKAS budget activities to improve them for Fiscal Year ${targetYear}.
+            
             Weak Indicators: ${JSON.stringify(weakIndicators)}
             
-            IMPORTANT: For each item, select a valid 'accountCode' from the list below:
+            Guidelines:
+            1. Create 1-2 activities per indicator.
+            2. For each activity, break it down into concrete budget items (e.g., "Makan Minum", "Honor Narasumber", "ATK").
+            3. You MUST select a valid 'accountCode' for each item from the list below. If no exact match, pick the closest one starting with '5.'.
+            
+            Available Account Codes:
             ${accountContext}
 
-            Return JSON Array with detailed budget items.`,
+            Output: JSON Array of PBDRecommendation objects.`,
             config: {
                 responseMimeType: "application/json",
                 responseSchema: {
@@ -322,10 +333,10 @@ export const analyzeRaporQuality = async (indicators: RaporIndicator[], targetYe
                             indicatorId: { type: Type.STRING },
                             activityName: { type: Type.STRING },
                             description: { type: Type.STRING },
-                            bospComponent: { type: Type.STRING },
+                            bospComponent: { type: Type.STRING }, 
                             snpStandard: { type: Type.STRING },
                             estimatedCost: { type: Type.NUMBER },
-                            priority: { type: Type.STRING, enum: ['Tinggi', 'Sedang', 'Rendah'] },
+                            priority: { type: Type.STRING },
                             items: {
                                 type: Type.ARRAY,
                                 items: {
@@ -349,7 +360,7 @@ export const analyzeRaporQuality = async (indicators: RaporIndicator[], targetYe
 
         const result = parseAIResponse(response.text);
         if (!Array.isArray(result)) {
-            console.error("AI returned invalid format:", result);
+            console.error("AI returned invalid format (not array):", result);
             return null;
         }
         return result;
