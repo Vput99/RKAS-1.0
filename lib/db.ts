@@ -266,7 +266,8 @@ export const saveRaporData = async (indicators: RaporIndicator[], year: string):
         updated_at: new Date().toISOString()
     }));
 
-    // Gunakan upsert dengan onConflict yang sesuai dengan UNIQUE INDEX di database
+    // CRITICAL FIX: onConflict harus sesuai dengan UNIQUE INDEX di database
+    // Index yang benar adalah (user_id, year, indicator_id)
     const { error } = await supabase
         .from('rapor_pendidikan')
         .upsert(upsertData, { onConflict: 'user_id,year,indicator_id' });
@@ -274,17 +275,12 @@ export const saveRaporData = async (indicators: RaporIndicator[], year: string):
     if (error) {
         console.error("Error saving rapor:", error);
         
-        // Cek pesan error spesifik schema cache
-        if (error.message.includes("Could not find the 'user_id' column") || error.message.includes('schema cache')) {
+        // Deteksi error specific constraint conflict
+        if (error.message.includes("rapor_pendidikan_year_indicator_id_key") || error.code === '23505') {
             alert(
-                "⚠️ PERBAIKAN DATABASE DIPERLUKAN\n\n" +
-                "Struktur database belum diperbarui di sisi server Supabase.\n\n" +
-                "CARA MEMPERBAIKI:\n" +
-                "1. Buka file 'FIX_DATABASE.sql' di folder project ini.\n" +
-                "2. Copy seluruh isinya.\n" +
-                "3. Buka Dashboard Supabase > SQL Editor.\n" +
-                "4. Paste dan Klik 'RUN'.\n\n" +
-                "Setelah itu refresh halaman ini."
+                "⚠️ ERROR DUPLIKASI DATA DATABASE\n\n" +
+                "Database Anda masih menggunakan aturan validasi lama.\n" +
+                "Mohon jalankan script 'FIX_CONSTRAINT.sql' di SQL Editor Supabase untuk memperbaikinya."
             );
         } else {
             alert("Gagal menyimpan data rapor: " + error.message);
