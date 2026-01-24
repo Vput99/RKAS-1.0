@@ -183,8 +183,9 @@ const SPJRealization: React.FC<SPJRealizationProps> = ({ data, onUpdate }) => {
 
   // Calculate Monthly Stats (Updated to show Remaining as 0 when done)
   const monthStats = useMemo(() => {
-    let totalRemainingToSpend = 0; // Sisa Dana yang BELUM di-SPJ-kan
+    let totalRemainingToSpend = 0; // Sisa Dana yang BELUM di-SPJ-kan (Sisa Pagu)
     let totalRealized = 0;         // Yang SUDAH di-SPJ-kan bulan ini
+    let totalActivePagu = 0;       // Total Pagu (Nominal Awal) dari item yang aktif di bulan ini
 
     expensesInMonth.forEach(item => {
       // 1. Hitung Realisasi Global & Sisa
@@ -195,16 +196,17 @@ const SPJRealization: React.FC<SPJRealizationProps> = ({ data, onUpdate }) => {
       totalRealized += realizedInThisMonth;
 
       // 3. Hitung Sisa Anggaran (Global)
-      // Jika semua sudah di SPJ-kan, nilai ini akan 0 (atau negatif kecil karena pembulatan)
+      // Jika semua sudah di SPJ-kan, nilai ini akan 0
       const remainingGlobal = Math.max(0, item.amount - totalGlobalRealized); 
-      
       totalRemainingToSpend += remainingGlobal;
+
+      // 4. Hitung Total Pagu Aktif (Sebagai pembagi/konteks)
+      // Pagu Aktif = Sisa + Yang sudah dipakai bulan ini
+      // Ini menggambarkan "Total dana yang diurus di bulan ini"
+      totalActivePagu += (remainingGlobal + realizedInThisMonth);
     });
 
-    // Total Potensi (Denominator Progress Bar) = (Sisa + Yang Sudah Dipakai Bulan Ini)
-    const totalBudgetPool = totalRemainingToSpend + totalRealized;
-
-    return { totalRemainingToSpend, totalRealized, totalBudgetPool };
+    return { totalRemainingToSpend, totalRealized, totalActivePagu };
   }, [expensesInMonth, viewMonth]);
 
   const handleOpenSPJ = (item: Budget) => {
@@ -460,9 +462,11 @@ const SPJRealization: React.FC<SPJRealizationProps> = ({ data, onUpdate }) => {
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
          <div className="bg-gradient-to-r from-blue-50 to-indigo-50 border border-blue-100 p-4 rounded-xl flex items-center justify-between">
             <div>
-              <p className="text-xs text-blue-600 font-bold uppercase mb-1">Sisa Anggaran (Bisa di-SPJ)</p>
-              <h3 className="text-lg font-bold text-blue-900">{formatRupiah(monthStats.totalRemainingToSpend)}</h3>
-              <p className="text-[10px] text-blue-500 mt-1">Akan menjadi 0 jika semua lunas</p>
+              <p className="text-xs text-blue-600 font-bold uppercase mb-1">Sisa Pagu (Potensi Belanja)</p>
+              <h3 className="text-2xl font-bold text-blue-900">{formatRupiah(monthStats.totalRemainingToSpend)}</h3>
+              <p className="text-[10px] text-blue-500 mt-1 font-medium">
+                 Dari Total Pagu Aktif: {formatRupiah(monthStats.totalActivePagu)}
+              </p>
             </div>
             <div className="p-2 bg-blue-100 rounded-lg text-blue-600">
                <Wallet size={20} />
@@ -472,7 +476,7 @@ const SPJRealization: React.FC<SPJRealizationProps> = ({ data, onUpdate }) => {
          <div className="bg-white border border-gray-200 p-4 rounded-xl flex items-center justify-between">
             <div>
               <p className="text-xs text-gray-500 font-bold uppercase mb-1">Sudah di-SPJ-kan {MONTHS[viewMonth-1]}</p>
-              <h3 className={`text-lg font-bold ${monthStats.totalRealized > 0 ? 'text-green-600' : 'text-gray-400'}`}>
+              <h3 className={`text-2xl font-bold ${monthStats.totalRealized > 0 ? 'text-green-600' : 'text-gray-400'}`}>
                 {formatRupiah(monthStats.totalRealized)}
               </h3>
             </div>
@@ -483,19 +487,19 @@ const SPJRealization: React.FC<SPJRealizationProps> = ({ data, onUpdate }) => {
 
          <div className="bg-white border border-gray-200 p-4 rounded-xl flex flex-col justify-center">
              <div className="flex justify-between items-center text-xs mb-1">
-               <span className="font-bold text-gray-500">Persentase Serapan</span>
+               <span className="font-bold text-gray-500">Persentase Serapan Bulan Ini</span>
                <span className="font-bold text-blue-600">
-                 {monthStats.totalBudgetPool > 0 
-                    ? ((monthStats.totalRealized / monthStats.totalBudgetPool) * 100).toFixed(0) 
+                 {monthStats.totalActivePagu > 0 
+                    ? ((monthStats.totalRealized / monthStats.totalActivePagu) * 100).toFixed(0) 
                     : 0}%
                </span>
              </div>
              <div className="w-full bg-gray-100 rounded-full h-2">
                 <div 
                   className={`h-2 rounded-full transition-all duration-500 ${
-                    monthStats.totalRealized >= monthStats.totalBudgetPool ? 'bg-green-500' : 'bg-blue-500'
+                    monthStats.totalRealized >= monthStats.totalActivePagu ? 'bg-green-500' : 'bg-blue-500'
                   }`}
-                  style={{ width: `${monthStats.totalBudgetPool > 0 ? Math.min((monthStats.totalRealized / monthStats.totalBudgetPool) * 100, 100) : 0}%` }}
+                  style={{ width: `${monthStats.totalActivePagu > 0 ? Math.min((monthStats.totalRealized / monthStats.totalActivePagu) * 100, 100) : 0}%` }}
                 ></div>
              </div>
          </div>
