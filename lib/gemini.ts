@@ -172,10 +172,9 @@ export const analyzeBudgetEntry = async (description: string, availableAccounts:
   try {
     const relevantAccountsList = filterRelevantAccounts(description, availableAccounts);
 
-    // UPGRADE: Use gemini-3-pro-preview for Budget Planning logic as well
-    // It is better at following complex instructions like Juknis mapping.
+    // Default use flash for speed, unless very complex
     const response = await ai.models.generateContent({
-      model: 'gemini-3-pro-preview',
+      model: 'gemini-3-flash-preview', 
       contents: `
       Role: BOSP Auditor & Budget Planner (Indonesia).
       
@@ -298,74 +297,92 @@ export const analyzeRaporQuality = async (indicators: RaporIndicator[], targetYe
     const weakIndicators = indicators.filter(i => i.category === 'Kurang' || i.category === 'Sedang');
     if (weakIndicators.length === 0) return [];
 
-    // Increase context for Pro model
+    // Reduce context slightly to ensure it fits and processes faster
     const accountContext = Object.entries(AccountCodes)
-        .slice(0, 150) 
+        .slice(0, 100) 
         .map(([c, n]) => `- ${c}: ${n}`)
         .join('\n');
 
-    try {
-        const response = await ai.models.generateContent({
-            // UPGRADE: Use Pro model for complex reasoning tasks like PBD analysis
-            model: 'gemini-3-pro-preview', 
-            contents: `Role: Expert School Budget Consultant (BOSP Indonesia).
+    const prompt = `Role: Expert School Budget Consultant (BOSP Indonesia).
             
-            Task: Analyze the following "Weak" Rapor Pendidikan indicators and recommend specific, actionable RKAS budget activities to improve them for Fiscal Year ${targetYear}.
-            
-            Weak Indicators: ${JSON.stringify(weakIndicators)}
-            
-            Guidelines:
-            1. Create 1-2 activities per indicator.
-            2. For each activity, break it down into concrete budget items (e.g., "Makan Minum", "Honor Narasumber", "ATK").
-            3. You MUST select a valid 'accountCode' for each item from the list below. If no exact match, pick the closest one starting with '5.'.
-            
-            Available Account Codes:
-            ${accountContext}
+    Task: Analyze the following "Weak" Rapor Pendidikan indicators and recommend specific, actionable RKAS budget activities to improve them for Fiscal Year ${targetYear}.
+    
+    Weak Indicators: ${JSON.stringify(weakIndicators)}
+    
+    Guidelines:
+    1. Create 1-2 activities per indicator.
+    2. For each activity, break it down into concrete budget items (e.g., "Makan Minum", "Honor Narasumber", "ATK").
+    3. You MUST select a valid 'accountCode' for each item from the list below. If no exact match, pick the closest one starting with '5.'.
+    
+    Available Account Codes:
+    ${accountContext}
 
-            Output: JSON Array of PBDRecommendation objects.`,
-            config: {
-                responseMimeType: "application/json",
-                responseSchema: {
+    Output: JSON Array of PBDRecommendation objects.`;
+
+    const schema = {
+        type: Type.ARRAY,
+        items: {
+            type: Type.OBJECT,
+            properties: {
+                indicatorId: { type: Type.STRING },
+                activityName: { type: Type.STRING },
+                description: { type: Type.STRING },
+                bospComponent: { type: Type.STRING }, 
+                snpStandard: { type: Type.STRING },
+                estimatedCost: { type: Type.NUMBER },
+                priority: { type: Type.STRING },
+                items: {
                     type: Type.ARRAY,
                     items: {
                         type: Type.OBJECT,
                         properties: {
-                            indicatorId: { type: Type.STRING },
-                            activityName: { type: Type.STRING },
-                            description: { type: Type.STRING },
-                            bospComponent: { type: Type.STRING }, 
-                            snpStandard: { type: Type.STRING },
-                            estimatedCost: { type: Type.NUMBER },
-                            priority: { type: Type.STRING },
-                            items: {
-                                type: Type.ARRAY,
-                                items: {
-                                    type: Type.OBJECT,
-                                    properties: {
-                                        name: { type: Type.STRING },
-                                        quantity: { type: Type.NUMBER },
-                                        unit: { type: Type.STRING },
-                                        price: { type: Type.NUMBER },
-                                        accountCode: { type: Type.STRING }
-                                    },
-                                    required: ['name', 'quantity', 'unit', 'price', 'accountCode']
-                                }
-                            }
+                            name: { type: Type.STRING },
+                            quantity: { type: Type.NUMBER },
+                            unit: { type: Type.STRING },
+                            price: { type: Type.NUMBER },
+                            accountCode: { type: Type.STRING }
                         },
-                        required: ['indicatorId', 'activityName', 'description', 'bospComponent', 'snpStandard', 'estimatedCost', 'priority', 'items']
+                        required: ['name', 'quantity', 'unit', 'price', 'accountCode']
                     }
                 }
+            },
+            required: ['indicatorId', 'activityName', 'description', 'bospComponent', 'snpStandard', 'estimatedCost', 'priority', 'items']
+        }
+    };
+
+    // ATTEMPT 1: Try Pro Model (Best Quality)
+    try {
+        const response = await ai.models.generateContent({
+            model: 'gemini-3-pro-preview', 
+            contents: prompt,
+            config: {
+                responseMimeType: "application/json",
+                responseSchema: schema
             }
         });
 
         const result = parseAIResponse(response.text);
-        if (!Array.isArray(result)) {
-            console.error("AI returned invalid format (not array):", result);
-            return null;
-        }
-        return result;
+        if (Array.isArray(result) && result.length > 0) return result;
     } catch (error) {
-        console.error("Gemini PBD Error:", error);
-        return null;
+        console.warn("Gemini Pro failed, attempting fallback...", error);
     }
+
+    // ATTEMPT 2: Fallback to Flash Model (Higher Availability)
+    try {
+        const response = await ai.models.generateContent({
+            model: 'gemini-3-flash-preview',
+            contents: prompt,
+            config: {
+                responseMimeType: "application/json",
+                responseSchema: schema
+            }
+        });
+
+        const result = parseAIResponse(response.text);
+        if (Array.isArray(result)) return result;
+    } catch (error) {
+        console.error("Gemini Flash also failed:", error);
+    }
+
+    return null;
 }
