@@ -1,5 +1,6 @@
+
 import React, { useState, useRef, useEffect } from 'react';
-import { MessageCircle, X, Send, User, Bot } from 'lucide-react';
+import { MessageCircle, X, Send, User, Bot, Paperclip, FileText, Image as ImageIcon, Trash2 } from 'lucide-react';
 import { chatWithFinancialAdvisor } from '../lib/gemini';
 import { Budget } from '../types';
 
@@ -10,10 +11,15 @@ interface ChatAssistantProps {
 const ChatAssistant: React.FC<ChatAssistantProps> = ({ budgets }) => {
   const [isOpen, setIsOpen] = useState(false);
   const [messages, setMessages] = useState<{role: 'user' | 'bot', text: string}[]>([
-    {role: 'bot', text: 'Halo! Saya asisten virtual RKAS. Ada yang bisa saya bantu terkait perencanaan anggaran sekolah?'}
+    {role: 'bot', text: 'Halo! Saya asisten virtual RKAS. Ada yang bisa saya bantu? Anda juga bisa upload PDF/Foto dokumen untuk saya analisa.'}
   ]);
   const [input, setInput] = useState('');
   const [loading, setLoading] = useState(false);
+  
+  // File Upload State
+  const [attachment, setAttachment] = useState<{file: File, base64: string, type: 'pdf' | 'image'} | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   const scrollToBottom = () => {
@@ -24,12 +30,50 @@ const ChatAssistant: React.FC<ChatAssistantProps> = ({ budgets }) => {
     scrollToBottom();
   }, [messages, isOpen]);
 
+  const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+      const file = e.target.files?.[0];
+      if (!file) return;
+
+      if (file.size > 5 * 1024 * 1024) { // 5MB limit
+          alert("Ukuran file maksimal 5MB");
+          return;
+      }
+
+      const reader = new FileReader();
+      reader.onload = () => {
+          const base64String = (reader.result as string).split(',')[1];
+          const isPdf = file.type === 'application/pdf';
+          setAttachment({
+              file,
+              base64: base64String,
+              type: isPdf ? 'pdf' : 'image'
+          });
+      };
+      reader.readAsDataURL(file);
+  };
+
+  const clearAttachment = () => {
+      setAttachment(null);
+      if (fileInputRef.current) fileInputRef.current.value = '';
+  };
+
   const handleSend = async () => {
-    if (!input.trim()) return;
+    if (!input.trim() && !attachment) return;
 
     const userMsg = input;
-    setMessages(prev => [...prev, {role: 'user', text: userMsg}]);
+    const currentAttachment = attachment;
+    
+    // UI Update
+    setMessages(prev => [
+        ...prev, 
+        {
+            role: 'user', 
+            text: userMsg + (currentAttachment ? ` [Lampiran: ${currentAttachment.file.name}]` : '')
+        }
+    ]);
+    
     setInput('');
+    setAttachment(null); // Clear attachment from UI immediately
     setLoading(true);
 
     // Prepare context from current budget data
@@ -37,9 +81,13 @@ const ChatAssistant: React.FC<ChatAssistantProps> = ({ budgets }) => {
     const totalExpense = budgets.filter(b => b.type === 'belanja').reduce((a,b) => a+b.amount, 0);
     const context = `Total Pendapatan: Rp${totalIncome}, Total Belanja: Rp${totalExpense}. Jumlah item belanja: ${budgets.filter(b => b.type === 'belanja').length}.`;
 
-    const response = await chatWithFinancialAdvisor(userMsg, context);
+    const aiResponse = await chatWithFinancialAdvisor(
+        userMsg || "Tolong analisa dokumen terlampir.", 
+        context,
+        currentAttachment ? { data: currentAttachment.base64, mimeType: currentAttachment.file.type } : undefined
+    );
     
-    setMessages(prev => [...prev, {role: 'bot', text: response || "Maaf, terjadi kesalahan."}]);
+    setMessages(prev => [...prev, {role: 'bot', text: aiResponse || "Maaf, terjadi kesalahan."}]);
     setLoading(false);
   };
 
@@ -64,14 +112,14 @@ const ChatAssistant: React.FC<ChatAssistantProps> = ({ budgets }) => {
             </div>
             <div>
               <h3 className="font-bold">Asisten RKAS</h3>
-              <p className="text-xs text-blue-100">Powered by Gemini AI</p>
+              <p className="text-xs text-blue-100">Support PDF & Gambar</p>
             </div>
           </div>
 
           <div className="flex-1 overflow-y-auto p-4 space-y-4 bg-gray-50">
             {messages.map((msg, idx) => (
               <div key={idx} className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}>
-                <div className={`max-w-[80%] rounded-2xl p-3 text-sm ${
+                <div className={`max-w-[85%] rounded-2xl p-3 text-sm whitespace-pre-wrap ${
                   msg.role === 'user' 
                     ? 'bg-blue-600 text-white rounded-tr-none' 
                     : 'bg-white border border-gray-200 text-gray-800 rounded-tl-none shadow-sm'
@@ -86,24 +134,56 @@ const ChatAssistant: React.FC<ChatAssistantProps> = ({ budgets }) => {
                    <span className="w-1.5 h-1.5 bg-gray-400 rounded-full animate-bounce" style={{animationDelay: '0ms'}}></span>
                    <span className="w-1.5 h-1.5 bg-gray-400 rounded-full animate-bounce" style={{animationDelay: '150ms'}}></span>
                    <span className="w-1.5 h-1.5 bg-gray-400 rounded-full animate-bounce" style={{animationDelay: '300ms'}}></span>
+                   <span className="ml-1">Menganalisa...</span>
                 </div>
               </div>
             )}
             <div ref={messagesEndRef} />
           </div>
 
-          <div className="p-3 bg-white border-t border-gray-100 flex gap-2">
+          {/* Attachment Preview */}
+          {attachment && (
+              <div className="px-3 pt-2 bg-white border-t border-gray-100">
+                  <div className="flex items-center justify-between bg-gray-100 p-2 rounded-lg text-xs">
+                      <div className="flex items-center gap-2 overflow-hidden">
+                          {attachment.type === 'pdf' ? <FileText size={16} className="text-red-500" /> : <ImageIcon size={16} className="text-blue-500" />}
+                          <span className="truncate max-w-[200px] text-gray-700 font-medium">{attachment.file.name}</span>
+                      </div>
+                      <button onClick={clearAttachment} className="text-gray-400 hover:text-red-500">
+                          <Trash2 size={14} />
+                      </button>
+                  </div>
+              </div>
+          )}
+
+          <div className="p-3 bg-white border-t border-gray-100 flex gap-2 items-center">
+            {/* File Input */}
+            <input 
+                type="file" 
+                ref={fileInputRef}
+                className="hidden"
+                accept="application/pdf,image/*"
+                onChange={handleFileSelect}
+            />
+            <button 
+                onClick={() => fileInputRef.current?.click()}
+                className={`p-2 rounded-full transition ${attachment ? 'bg-blue-100 text-blue-600' : 'text-gray-400 hover:bg-gray-100'}`}
+                title="Lampirkan PDF/Gambar"
+            >
+                <Paperclip size={20} />
+            </button>
+
             <input 
               type="text" 
               value={input}
               onChange={(e) => setInput(e.target.value)}
               onKeyDown={handleKeyPress}
-              placeholder="Tanya soal anggaran..."
+              placeholder={attachment ? "Tanyakan tentang file ini..." : "Ketik pesan..."}
               className="flex-1 px-4 py-2 border border-gray-200 rounded-full text-sm focus:outline-none focus:border-blue-500"
             />
             <button 
               onClick={handleSend}
-              disabled={loading || !input.trim()}
+              disabled={loading || (!input.trim() && !attachment)}
               className="p-2 bg-blue-600 text-white rounded-full hover:bg-blue-700 transition disabled:opacity-50"
             >
               <Send size={18} />
