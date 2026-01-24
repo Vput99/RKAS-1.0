@@ -99,13 +99,14 @@ const ChatAssistant: React.FC<ChatAssistantProps> = ({ budgets }) => {
     <>
       <button 
         onClick={() => setIsOpen(!isOpen)}
-        className="fixed bottom-6 right-6 bg-blue-600 text-white p-4 rounded-full shadow-lg hover:bg-blue-700 transition-all z-40"
+        className="fixed bottom-6 right-6 bg-blue-600 text-white p-5 md:p-6 rounded-full shadow-2xl hover:bg-blue-700 hover:scale-110 transition-all z-50 flex items-center justify-center border-4 border-white/20"
+        title="Buka Asisten AI"
       >
-        {isOpen ? <X size={24} /> : <MessageCircle size={24} />}
+        {isOpen ? <X size={32} /> : <MessageCircle size={32} />}
       </button>
 
       {isOpen && (
-        <div className="fixed bottom-24 right-6 w-96 max-w-[calc(100vw-3rem)] bg-white rounded-2xl shadow-2xl border border-gray-200 overflow-hidden z-40 flex flex-col h-[500px] animate-fade-in-up">
+        <div className="fixed bottom-28 right-4 md:bottom-32 md:right-8 w-96 max-w-[calc(100vw-2rem)] bg-white rounded-2xl shadow-2xl border border-gray-200 overflow-hidden z-40 flex flex-col h-[500px] animate-fade-in-up">
           <div className="bg-blue-600 p-4 text-white flex items-center gap-3">
             <div className="p-2 bg-white/20 rounded-full">
                <Bot size={20} />
