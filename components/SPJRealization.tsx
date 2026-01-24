@@ -181,26 +181,30 @@ const SPJRealization: React.FC<SPJRealizationProps> = ({ data, onUpdate }) => {
     });
   }, [data, viewMonth, searchTerm]);
 
-  // Calculate Monthly Stats
+  // Calculate Monthly Stats (Updated to show Remaining as 0 when done)
   const monthStats = useMemo(() => {
-    let totalAvailableToSpend = 0; // Dana yang BISA dibelanjakan bulan ini (termasuk luncuran)
-    let totalRealized = 0;
+    let totalRemainingToSpend = 0; // Sisa Dana yang BELUM di-SPJ-kan
+    let totalRealized = 0;         // Yang SUDAH di-SPJ-kan bulan ini
 
     expensesInMonth.forEach(item => {
-      // Logic Sisa: Total Pagu - Total Realisasi Global (sebelum bulan ini)
+      // 1. Hitung Realisasi Global & Sisa
       const totalGlobalRealized = item.realizations?.reduce((sum, r) => sum + r.amount, 0) || 0;
       const realizedInThisMonth = item.realizations?.find(r => r.month === viewMonth)?.amount || 0;
       
-      // Jika sudah terealisasi bulan ini, tambahkan ke stats
+      // 2. Tambahkan ke Total Realisasi Bulan Ini
       totalRealized += realizedInThisMonth;
 
-      // Dana tersedia = Sisa Pagu + Apa yang sudah dibelanjakan bulan ini
-      // (Agar progress bar masuk akal: 100% dari potensi belanja)
-      const remainingGlobal = item.amount - totalGlobalRealized; 
-      totalAvailableToSpend += (remainingGlobal + realizedInThisMonth);
+      // 3. Hitung Sisa Anggaran (Global)
+      // Jika semua sudah di SPJ-kan, nilai ini akan 0 (atau negatif kecil karena pembulatan)
+      const remainingGlobal = Math.max(0, item.amount - totalGlobalRealized); 
+      
+      totalRemainingToSpend += remainingGlobal;
     });
 
-    return { totalAvailableToSpend, totalRealized };
+    // Total Potensi (Denominator Progress Bar) = (Sisa + Yang Sudah Dipakai Bulan Ini)
+    const totalBudgetPool = totalRemainingToSpend + totalRealized;
+
+    return { totalRemainingToSpend, totalRealized, totalBudgetPool };
   }, [expensesInMonth, viewMonth]);
 
   const handleOpenSPJ = (item: Budget) => {
@@ -456,9 +460,9 @@ const SPJRealization: React.FC<SPJRealizationProps> = ({ data, onUpdate }) => {
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
          <div className="bg-gradient-to-r from-blue-50 to-indigo-50 border border-blue-100 p-4 rounded-xl flex items-center justify-between">
             <div>
-              <p className="text-xs text-blue-600 font-bold uppercase mb-1">Potensi Belanja {MONTHS[viewMonth-1]}</p>
-              <h3 className="text-lg font-bold text-blue-900">{formatRupiah(monthStats.totalAvailableToSpend)}</h3>
-              <p className="text-[10px] text-blue-500 mt-1">Termasuk luncuran bulan lalu</p>
+              <p className="text-xs text-blue-600 font-bold uppercase mb-1">Sisa Anggaran (Bisa di-SPJ)</p>
+              <h3 className="text-lg font-bold text-blue-900">{formatRupiah(monthStats.totalRemainingToSpend)}</h3>
+              <p className="text-[10px] text-blue-500 mt-1">Akan menjadi 0 jika semua lunas</p>
             </div>
             <div className="p-2 bg-blue-100 rounded-lg text-blue-600">
                <Wallet size={20} />
@@ -467,7 +471,7 @@ const SPJRealization: React.FC<SPJRealizationProps> = ({ data, onUpdate }) => {
          
          <div className="bg-white border border-gray-200 p-4 rounded-xl flex items-center justify-between">
             <div>
-              <p className="text-xs text-gray-500 font-bold uppercase mb-1">Realisasi {MONTHS[viewMonth-1]}</p>
+              <p className="text-xs text-gray-500 font-bold uppercase mb-1">Sudah di-SPJ-kan {MONTHS[viewMonth-1]}</p>
               <h3 className={`text-lg font-bold ${monthStats.totalRealized > 0 ? 'text-green-600' : 'text-gray-400'}`}>
                 {formatRupiah(monthStats.totalRealized)}
               </h3>
@@ -479,19 +483,19 @@ const SPJRealization: React.FC<SPJRealizationProps> = ({ data, onUpdate }) => {
 
          <div className="bg-white border border-gray-200 p-4 rounded-xl flex flex-col justify-center">
              <div className="flex justify-between items-center text-xs mb-1">
-               <span className="font-bold text-gray-500">Serapan Bulan Ini</span>
+               <span className="font-bold text-gray-500">Persentase Serapan</span>
                <span className="font-bold text-blue-600">
-                 {monthStats.totalAvailableToSpend > 0 
-                    ? ((monthStats.totalRealized / monthStats.totalAvailableToSpend) * 100).toFixed(0) 
+                 {monthStats.totalBudgetPool > 0 
+                    ? ((monthStats.totalRealized / monthStats.totalBudgetPool) * 100).toFixed(0) 
                     : 0}%
                </span>
              </div>
              <div className="w-full bg-gray-100 rounded-full h-2">
                 <div 
                   className={`h-2 rounded-full transition-all duration-500 ${
-                    monthStats.totalRealized >= monthStats.totalAvailableToSpend ? 'bg-green-500' : 'bg-blue-500'
+                    monthStats.totalRealized >= monthStats.totalBudgetPool ? 'bg-green-500' : 'bg-blue-500'
                   }`}
-                  style={{ width: `${monthStats.totalAvailableToSpend > 0 ? Math.min((monthStats.totalRealized / monthStats.totalAvailableToSpend) * 100, 100) : 0}%` }}
+                  style={{ width: `${monthStats.totalBudgetPool > 0 ? Math.min((monthStats.totalRealized / monthStats.totalBudgetPool) * 100, 100) : 0}%` }}
                 ></div>
              </div>
          </div>
