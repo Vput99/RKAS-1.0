@@ -1,5 +1,4 @@
 
-
 import { supabase } from './supabase';
 import { Budget, TransactionType, SNPStandard, BOSPComponent, SchoolProfile, BankStatement, RaporIndicator, WithdrawalHistory, AccountCodes } from '../types';
 
@@ -203,7 +202,7 @@ export const saveSchoolProfile = async (profile: SchoolProfile): Promise<SchoolP
           updated_at: new Date().toISOString(),
           city: profile.city,
           district: profile.district,
-          postal_code: profile.postalCode, // Correct mapping from UI
+          postal_code: profile.postalCode,
           bank_name: profile.bankName,
           bank_branch: profile.bankBranch,
           bank_address: profile.bankAddress,
@@ -212,7 +211,7 @@ export const saveSchoolProfile = async (profile: SchoolProfile): Promise<SchoolP
         };
         
         // Manual Upsert Logic (Check -> Update/Insert) to avoid constraint errors
-        const { data: existing, error: fetchError } = await supabase
+        const { data: existing } = await supabase
             .from('school_profiles')
             .select('id')
             .eq('user_id', userId)
@@ -282,8 +281,6 @@ export const saveRaporData = async (indicators: RaporIndicator[], year: string):
     }));
 
     // CRITICAL FIX: onConflict strategy matching the UNIQUE INDEX
-    // Ideally use onConflict: 'user_id,year,indicator_id' if index exists.
-    // If not, fallback to manual delete-insert.
     const { error } = await supabase
         .from('rapor_pendidikan')
         .upsert(upsertData, { onConflict: 'user_id,year,indicator_id' });
@@ -292,7 +289,6 @@ export const saveRaporData = async (indicators: RaporIndicator[], year: string):
         console.error("Error saving rapor (Upsert):", error);
         
         // Fallback: Delete old data and Insert new (Manual Upsert)
-        // This handles cases where index names mismatch or don't exist yet
         try {
             await supabase.from('rapor_pendidikan').delete().eq('user_id', userId).eq('year', year);
             const { error: insertError } = await supabase.from('rapor_pendidikan').insert(upsertData);
@@ -355,18 +351,19 @@ export const getBankStatements = async (): Promise<BankStatement[]> => {
 export const saveBankStatement = async (statement: BankStatement): Promise<BankStatement> => {
   if (supabase) {
      const userId = await getCurrentUserId();
-     // Ensure user_id is present
-     const { error } = await supabase.from('bank_statements').upsert({
-         ...statement,
-         user_id: userId
-     });
-     if (error) {
-         // Fallback for missing ID constraint
-         if (statement.id) {
-             await supabase.from('bank_statements').update(statement).eq('id', statement.id);
-         } else {
-             await supabase.from('bank_statements').insert([statement]);
-         }
+     const payload = { ...statement, user_id: userId };
+     
+     // Robust Manual Upsert Logic
+     const { data: existing } = await supabase
+        .from('bank_statements')
+        .select('id')
+        .eq('id', statement.id)
+        .maybeSingle();
+
+     if (existing) {
+         await supabase.from('bank_statements').update(payload).eq('id', statement.id);
+     } else {
+         await supabase.from('bank_statements').insert([payload]);
      }
   }
 
@@ -528,10 +525,17 @@ export const bulkSaveCustomAccounts = async (accounts: Record<string, string>): 
     if (supabase) {
         const userId = await getCurrentUserId();
         const rows = Object.entries(accounts).map(([code, name]) => ({ code, name, user_id: userId }));
-        for (let i = 0; i < rows.length; i += 100) {
-            const chunk = rows.slice(i, i + 100);
+        
+        // Chunking
+        for (let i = 0; i < rows.length; i += 50) {
+            const chunk = rows.slice(i, i + 50);
             const { error } = await supabase.from('account_codes').upsert(chunk);
-            if (error) console.error("Error bulk upserting accounts", error);
+            if (error) {
+                 // Retry with delete-insert for this chunk
+                 const codes = chunk.map(c => c.code);
+                 await supabase.from('account_codes').delete().in('code', codes).eq('user_id', userId);
+                 await supabase.from('account_codes').insert(chunk);
+            }
         }
     }
 
