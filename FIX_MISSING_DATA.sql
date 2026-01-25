@@ -5,7 +5,7 @@
 
 DO $$
 DECLARE
-    -- Email sesuai screenshot Anda
+    -- Email sesuai screenshot Anda (GANTI JIKA PERLU)
     target_email TEXT := 'vput99@gmail.com'; 
     
     target_user_id UUID;
