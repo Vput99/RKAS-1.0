@@ -1,12 +1,17 @@
+
 -- =========================================================
 -- SKRIP SETUP DATABASE RKAS PINTAR (MULTI-SCHOOL / SAAS VERSION)
 -- Jalankan di: Supabase Dashboard > SQL Editor > Run
 -- =========================================================
 
--- 1. Aktifkan Ekstensi
+-- 1. Aktifkan Ekstensi untuk UUID
 CREATE EXTENSION IF NOT EXISTS "pgcrypto";
 
--- 2. Buat Table Budgets (Dengan User ID)
+-- =========================================================
+-- A. TABEL UTAMA
+-- =========================================================
+
+-- 1. Tabel Budgets (Anggaran & SPJ)
 CREATE TABLE IF NOT EXISTS public.budgets (
     id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
     user_id UUID REFERENCES auth.users(id) ON DELETE CASCADE, -- Link ke User Login
@@ -34,22 +39,17 @@ CREATE TABLE IF NOT EXISTS public.budgets (
     realizations JSONB DEFAULT '[]'::jsonb,
     transfer_details JSONB DEFAULT '{}'::jsonb
 );
+-- Pastikan kolom user_id ada (migrasi jika tabel sudah ada)
+DO $$ BEGIN ALTER TABLE public.budgets ADD COLUMN IF NOT EXISTS user_id UUID REFERENCES auth.users(id) ON DELETE CASCADE; EXCEPTION WHEN duplicate_column THEN NULL; END $$;
 
--- Update kolom jika tabel sudah ada
-DO $$
-BEGIN
-    ALTER TABLE public.budgets ADD COLUMN IF NOT EXISTS user_id UUID REFERENCES auth.users(id) ON DELETE CASCADE;
-EXCEPTION
-    WHEN duplicate_column THEN RAISE NOTICE 'Kolom user_id sudah ada.';
-END $$;
 
--- 3. Buat Table Profil Sekolah (Multi-User)
+-- 2. Tabel Profil Sekolah
 -- HAPUS CONSTRAINT LAMA (id=1) agar bisa banyak sekolah
 ALTER TABLE public.school_profiles DROP CONSTRAINT IF EXISTS single_row_check;
 
 CREATE TABLE IF NOT EXISTS public.school_profiles (
     id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
-    user_id UUID REFERENCES auth.users(id) ON DELETE CASCADE UNIQUE, -- 1 User = 1 Profil Sekolah
+    user_id UUID REFERENCES auth.users(id) ON DELETE CASCADE,
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL,
     
     name TEXT,
@@ -74,23 +74,14 @@ CREATE TABLE IF NOT EXISTS public.school_profiles (
     bank_address TEXT,
     account_no TEXT,
 
-    header_image TEXT
+    header_image TEXT,
+    
+    CONSTRAINT school_profiles_user_id_key UNIQUE (user_id) -- 1 User = 1 Profil
 );
+DO $$ BEGIN ALTER TABLE public.school_profiles ADD COLUMN IF NOT EXISTS user_id UUID REFERENCES auth.users(id) ON DELETE CASCADE; EXCEPTION WHEN duplicate_column THEN NULL; END $$;
 
-DO $$
-BEGIN
-    ALTER TABLE public.school_profiles ADD COLUMN IF NOT EXISTS user_id UUID REFERENCES auth.users(id) ON DELETE CASCADE;
-    -- Pastikan user_id unique agar 1 user cuma punya 1 profil
-    IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'school_profiles_user_id_key') THEN
-        ALTER TABLE public.school_profiles ADD CONSTRAINT school_profiles_user_id_key UNIQUE (user_id);
-    END IF;
-EXCEPTION
-    WHEN duplicate_column THEN RAISE NOTICE 'Kolom sudah ada.';
-END $$;
 
--- 4. Table Pendukung Lainnya (Tambahkan User ID)
-
--- Bank Statements
+-- 3. Tabel Bank Statements (Rekening Koran)
 CREATE TABLE IF NOT EXISTS public.bank_statements (
     id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
     user_id UUID REFERENCES auth.users(id) ON DELETE CASCADE,
@@ -106,7 +97,8 @@ CREATE TABLE IF NOT EXISTS public.bank_statements (
 );
 DO $$ BEGIN ALTER TABLE public.bank_statements ADD COLUMN IF NOT EXISTS user_id UUID REFERENCES auth.users(id) ON DELETE CASCADE; EXCEPTION WHEN duplicate_column THEN NULL; END $$;
 
--- Rapor Pendidikan
+
+-- 4. Tabel Rapor Pendidikan
 CREATE TABLE IF NOT EXISTS public.rapor_pendidikan (
     id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
     user_id UUID REFERENCES auth.users(id) ON DELETE CASCADE,
@@ -117,11 +109,12 @@ CREATE TABLE IF NOT EXISTS public.rapor_pendidikan (
     label TEXT NOT NULL,
     score NUMERIC DEFAULT 0,
     category TEXT,
-    UNIQUE(user_id, year, indicator_id) -- Unik per User
+    UNIQUE(user_id, year, indicator_id) -- Unik per User + Tahun + Indikator
 );
 DO $$ BEGIN ALTER TABLE public.rapor_pendidikan ADD COLUMN IF NOT EXISTS user_id UUID REFERENCES auth.users(id) ON DELETE CASCADE; EXCEPTION WHEN duplicate_column THEN NULL; END $$;
 
--- Withdrawal History
+
+-- 5. Tabel Riwayat Pencairan (Withdrawal History)
 CREATE TABLE IF NOT EXISTS public.withdrawal_history (
     id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
     user_id UUID REFERENCES auth.users(id) ON DELETE CASCADE,
@@ -139,76 +132,115 @@ CREATE TABLE IF NOT EXISTS public.withdrawal_history (
 );
 DO $$ BEGIN ALTER TABLE public.withdrawal_history ADD COLUMN IF NOT EXISTS user_id UUID REFERENCES auth.users(id) ON DELETE CASCADE; EXCEPTION WHEN duplicate_column THEN NULL; END $$;
 
--- Account Codes (Kode Rekening)
--- User bisa punya akun custom sendiri, tapi akun default sistem (user_id NULL) bisa dibaca semua
+
+-- 6. Account Codes (Kode Rekening Custom)
 CREATE TABLE IF NOT EXISTS public.account_codes (
-    code TEXT,
-    user_id UUID REFERENCES auth.users(id) ON DELETE CASCADE, -- NULL means Global/System Default
+    id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+    code TEXT NOT NULL,
+    user_id UUID REFERENCES auth.users(id) ON DELETE CASCADE, -- NULL = Akun Standar Sistem
     name TEXT NOT NULL,
-    created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()),
-    PRIMARY KEY (code, user_id) -- Kode boleh sama jika beda user
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now())
 );
--- Hapus Primary Key lama jika cuma 'code'
-ALTER TABLE public.account_codes DROP CONSTRAINT IF EXISTS account_codes_pkey;
--- Buat Composite Primary Key baru agar user bisa punya kode custom yang sama dengan sistem tapi beda nama
--- Note: Supabase UI mungkin butuh satu kolom PK, tapi ini logic SQL standar.
+-- Index untuk mempercepat pencarian akun
+CREATE INDEX IF NOT EXISTS idx_account_codes_user ON public.account_codes(user_id);
+CREATE INDEX IF NOT EXISTS idx_account_codes_code ON public.account_codes(code);
+
 
 -- =========================================================
--- SECURITY POLICIES (ROW LEVEL SECURITY - RLS)
--- INI BAGIAN TERPENTING AGAR DATA ANTAR SEKOLAH TIDAK BOCOR
+-- B. SECURITY POLICIES (ROW LEVEL SECURITY - RLS)
 -- =========================================================
 
--- 1. Budgets
+-- Aktifkan RLS pada semua tabel
 ALTER TABLE public.budgets ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.school_profiles ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.bank_statements ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.rapor_pendidikan ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.withdrawal_history ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.account_codes ENABLE ROW LEVEL SECURITY;
+
+-- 1. Budgets Policy
 DROP POLICY IF EXISTS "User Access Budgets" ON public.budgets;
 CREATE POLICY "User Access Budgets" ON public.budgets
     USING (auth.uid() = user_id)
     WITH CHECK (auth.uid() = user_id);
 
--- 2. School Profiles
-ALTER TABLE public.school_profiles ENABLE ROW LEVEL SECURITY;
+-- 2. Profiles Policy
 DROP POLICY IF EXISTS "User Access Profiles" ON public.school_profiles;
 CREATE POLICY "User Access Profiles" ON public.school_profiles
     USING (auth.uid() = user_id)
     WITH CHECK (auth.uid() = user_id);
 
--- 3. Bank Statements
-ALTER TABLE public.bank_statements ENABLE ROW LEVEL SECURITY;
+-- 3. Bank Statements Policy
 DROP POLICY IF EXISTS "User Access Bank Statements" ON public.bank_statements;
 CREATE POLICY "User Access Bank Statements" ON public.bank_statements
     USING (auth.uid() = user_id)
     WITH CHECK (auth.uid() = user_id);
 
--- 4. Rapor Pendidikan
-ALTER TABLE public.rapor_pendidikan ENABLE ROW LEVEL SECURITY;
+-- 4. Rapor Policy
 DROP POLICY IF EXISTS "User Access Rapor" ON public.rapor_pendidikan;
 CREATE POLICY "User Access Rapor" ON public.rapor_pendidikan
     USING (auth.uid() = user_id)
     WITH CHECK (auth.uid() = user_id);
 
--- 5. Withdrawal History
-ALTER TABLE public.withdrawal_history ENABLE ROW LEVEL SECURITY;
+-- 5. Withdrawal History Policy
 DROP POLICY IF EXISTS "User Access History" ON public.withdrawal_history;
 CREATE POLICY "User Access History" ON public.withdrawal_history
     USING (auth.uid() = user_id)
     WITH CHECK (auth.uid() = user_id);
 
--- 6. Account Codes (Spesial: User bisa lihat punya sendiri ATAU punya sistem/null)
-ALTER TABLE public.account_codes ENABLE ROW LEVEL SECURITY;
+-- 6. Account Codes Policy (Spesial)
+-- User bisa LIHAT akun sendiri ATAU akun sistem (user_id IS NULL)
+-- User hanya bisa EDIT akun miliknya sendiri
 DROP POLICY IF EXISTS "User Access Accounts" ON public.account_codes;
 CREATE POLICY "User Access Accounts" ON public.account_codes
-    USING (user_id = auth.uid() OR user_id IS NULL) -- Lihat punya sendiri atau global
-    WITH CHECK (user_id = auth.uid()); -- Cuma bisa edit/tambah punya sendiri
+    USING (user_id = auth.uid() OR user_id IS NULL) 
+    WITH CHECK (user_id = auth.uid()); 
 
--- 7. Storage Bucket (User folder isolation)
--- Kita ubah policy storage agar user hanya bisa akses file di folder miliknya (opsional, tapi bagus untuk keamanan)
+
+-- =========================================================
+-- C. STORAGE SETUP (OTOMATIS)
+-- =========================================================
+
+-- 1. Buat Bucket 'rkas_storage' (Public Access)
+INSERT INTO storage.buckets (id, name, public)
+VALUES ('rkas_storage', 'rkas_storage', true)
+ON CONFLICT (id) DO NOTHING;
+
+-- 2. Reset Policy Lama
+DROP POLICY IF EXISTS "Public Access" ON storage.objects;
+DROP POLICY IF EXISTS "Authenticated Upload" ON storage.objects;
+DROP POLICY IF EXISTS "Owner Delete" ON storage.objects;
 DROP POLICY IF EXISTS "Authenticated Access RKAS Storage" ON storage.objects;
-CREATE POLICY "Authenticated Access RKAS Storage"
-ON storage.objects FOR ALL TO authenticated
-USING ( bucket_id = 'rkas_storage' AND (auth.uid() = owner) ) 
-WITH CHECK ( bucket_id = 'rkas_storage' AND (auth.uid() = owner) );
+DROP POLICY IF EXISTS "Public Download" ON storage.objects;
+DROP POLICY IF EXISTS "Owner Manage" ON storage.objects;
+DROP POLICY IF EXISTS "Owner Update" ON storage.objects;
 
--- Aktifkan Realtime
+-- 3. Buat Policy Baru
+-- A. Semua orang boleh DOWNLOAD (karena bucket public untuk generate PDF)
+CREATE POLICY "Public Download"
+ON storage.objects FOR SELECT
+USING ( bucket_id = 'rkas_storage' );
+
+-- B. User login boleh UPLOAD ke bucket ini (Owner otomatis diisi Supabase)
+CREATE POLICY "Authenticated Upload"
+ON storage.objects FOR INSERT
+TO authenticated
+WITH CHECK ( bucket_id = 'rkas_storage' AND auth.uid() = owner );
+
+-- C. User login boleh UPDATE/DELETE filenya sendiri
+CREATE POLICY "Owner Manage"
+ON storage.objects FOR DELETE
+TO authenticated
+USING ( bucket_id = 'rkas_storage' AND auth.uid() = owner );
+
+CREATE POLICY "Owner Update"
+ON storage.objects FOR UPDATE
+TO authenticated
+USING ( bucket_id = 'rkas_storage' AND auth.uid() = owner );
+
+
+-- =========================================================
+-- D. REALTIME SETUP
+-- =========================================================
+-- Agar update di satu perangkat langsung muncul di perangkat lain (jika login akun sama)
 ALTER PUBLICATION supabase_realtime ADD TABLE budgets, school_profiles, bank_statements, rapor_pendidikan, withdrawal_history, account_codes;
-
--- Selesai. Data sekolah A aman dari sekolah B.

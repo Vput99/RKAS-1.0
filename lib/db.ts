@@ -43,6 +43,16 @@ const getCurrentUserId = async () => {
     return data.session?.user?.id || null;
 };
 
+// Security: Clear all local data on logout to prevent leakage between schools
+export const clearLocalData = () => {
+    localStorage.removeItem(LOCAL_KEY);
+    localStorage.removeItem(SCHOOL_PROFILE_KEY);
+    localStorage.removeItem(BANK_STATEMENT_KEY);
+    localStorage.removeItem(HISTORY_KEY);
+    localStorage.removeItem(CUSTOM_ACCOUNTS_KEY);
+    localStorage.removeItem('rkas_active_tab');
+};
+
 export const checkDatabaseConnection = async (): Promise<boolean> => {
   if (!supabase) return false;
   try {

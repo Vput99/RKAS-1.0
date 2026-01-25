@@ -11,7 +11,7 @@ import ChatAssistant from './components/ChatAssistant';
 import RaporPendidikan from './components/RaporPendidikan';
 import BankWithdrawal from './components/BankWithdrawal';
 import Auth from './components/Auth';
-import { getBudgets, addBudget, updateBudget, deleteBudget, getSchoolProfile, checkDatabaseConnection } from './lib/db';
+import { getBudgets, addBudget, updateBudget, deleteBudget, getSchoolProfile, checkDatabaseConnection, clearLocalData } from './lib/db';
 import { supabase } from './lib/supabase'; // Import supabase client
 import { Budget, TransactionType, SchoolProfile } from './types';
 
@@ -187,12 +187,19 @@ function App() {
   };
 
   const handleLogout = async () => {
+      // 1. Clear Local Data to prevent leakage
+      clearLocalData();
+      
+      // 2. Sign Out Supabase
       if (supabase) {
           await supabase.auth.signOut();
       }
-      localStorage.removeItem('rkas_active_tab'); // Clear saved tab on logout
+      
+      // 3. Reset State
       setActiveTab('dashboard');
       setSession(null);
+      setData([]);
+      setSchoolProfile(null);
   };
 
   // Mobile responsiveness
