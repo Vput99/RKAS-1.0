@@ -30,7 +30,6 @@ const RaporPendidikan: React.FC<RaporPendidikanProps> = ({ onAddBudget, budgetDa
   const [targetYear, setTargetYear] = useState('2027');
   
   // File Upload State
-  const fileInputRef = useRef<HTMLInputElement>(null);
   const [isUploading, setIsUploading] = useState(false);
   const [pdfFile, setPdfFile] = useState<File | null>(null);
   
@@ -114,7 +113,8 @@ const RaporPendidikan: React.FC<RaporPendidikanProps> = ({ onAddBudget, budgetDa
       }
       
       setPdfFile(file);
-      e.target.value = ''; // Reset input to allow re-selecting same file
+      // We don't strictly need to clear value if we replace the element content, but good practice
+      e.target.value = ''; 
   };
 
   const handleProcessPdf = async () => {
@@ -169,15 +169,19 @@ const RaporPendidikan: React.FC<RaporPendidikanProps> = ({ onAddBudget, budgetDa
                   setPdfFile(null);
 
               } else {
-                  alert("AI gagal membaca PDF. Kemungkinan file terlalu besar atau format tidak terbaca. Coba gunakan manual input.");
+                  alert("AI gagal membaca PDF. Pastikan file Rapor Pendidikan valid dan tidak terproteksi password. Coba gunakan manual input jika masih gagal.");
               }
+              setIsUploading(false);
+          };
+          reader.onerror = () => {
+              alert("Gagal membaca file lokal.");
               setIsUploading(false);
           };
           reader.readAsDataURL(pdfFile);
       } catch (error) {
           console.error("Upload handler error:", error);
           setIsUploading(false);
-          alert("Terjadi kesalahan sistem saat upload.");
+          alert("Terjadi kesalahan sistem saat upload: " + (error as Error).message);
       }
   };
 
@@ -306,22 +310,21 @@ const RaporPendidikan: React.FC<RaporPendidikanProps> = ({ onAddBudget, budgetDa
                                 <p className="text-sm text-gray-500">Upload file PDF Rapor Pendidikan, AI akan membaca nilai dan memberikan rekomendasi.</p>
                             </div>
 
-                            <div 
-                                onClick={() => fileInputRef.current?.click()}
-                                className={`border-2 border-dashed rounded-xl p-8 text-center cursor-pointer transition-all duration-300 group ${
+                            {/* Use label for native click behavior - Robustness fix */}
+                            <label 
+                                className={`border-2 border-dashed rounded-xl p-8 text-center cursor-pointer transition-all duration-300 group block w-full relative ${
                                     pdfFile ? 'border-blue-300 bg-blue-50/50' : 'border-gray-300 hover:border-blue-400 hover:bg-gray-50'
                                 }`}
                             >
                                 <input 
                                     type="file" 
                                     accept="application/pdf"
-                                    ref={fileInputRef}
                                     onChange={handleFileSelect}
                                     className="hidden"
                                 />
                                 
                                 {!pdfFile ? (
-                                    <div className="flex flex-col items-center gap-3 py-6">
+                                    <div className="flex flex-col items-center gap-3 py-6 pointer-events-none">
                                         <div className="w-16 h-16 bg-blue-100 text-blue-600 rounded-full flex items-center justify-center mb-2 group-hover:scale-110 transition-transform">
                                             <Upload size={32} />
                                         </div>
@@ -337,15 +340,19 @@ const RaporPendidikan: React.FC<RaporPendidikanProps> = ({ onAddBudget, budgetDa
                                             <p className="font-bold text-gray-800 text-lg">{pdfFile.name}</p>
                                             <p className="text-xs text-gray-500">{(pdfFile.size / 1024).toFixed(0)} KB</p>
                                         </div>
-                                        <button 
-                                            onClick={(e) => { e.stopPropagation(); setPdfFile(null); }}
-                                            className="text-red-500 hover:text-red-700 text-sm underline z-10"
+                                        <div 
+                                            onClick={(e) => { 
+                                                e.preventDefault(); 
+                                                e.stopPropagation(); 
+                                                setPdfFile(null); 
+                                            }}
+                                            className="text-red-500 hover:text-red-700 text-sm underline z-10 cursor-pointer"
                                         >
                                             Ganti File
-                                        </button>
+                                        </div>
                                     </div>
                                 )}
-                            </div>
+                            </label>
 
                             {pdfFile && (
                                 <button 
