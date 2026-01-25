@@ -122,21 +122,24 @@ const RaporPendidikan: React.FC<RaporPendidikanProps> = ({ onAddBudget, budgetDa
           const reader = new FileReader();
           reader.onload = async () => {
               const base64String = (reader.result as string).split(',')[1];
+              console.log("Mengirim PDF ke AI untuk analisis...");
+              
               const result = await analyzeRaporPDF(base64String, targetYear);
 
               if (result) {
-                  // 1. Update Indicators
+                  console.log("Hasil Analisis AI:", result);
+                  
+                  // 1. Update Indicators Logic
+                  let updatedIndicators = [...indicators];
                   if (result.indicators && result.indicators.length > 0) {
-                      setIndicators(prev => {
-                          // Merge AI result with existing structure to maintain IDs
-                          return prev.map(p => {
-                              const found = result.indicators.find(r => r.id === p.id);
-                              return found ? { ...p, score: found.score, category: found.category as any } : p;
-                          });
+                      updatedIndicators = indicators.map(p => {
+                          const found = result.indicators.find(r => r.id === p.id);
+                          return found ? { ...p, score: found.score, category: found.category as any } : p;
                       });
+                      setIndicators(updatedIndicators);
                   }
 
-                  // 2. Update Recommendations
+                  // 2. Update Recommendations Logic
                   if (result.recommendations && result.recommendations.length > 0) {
                       setRecommendations(result.recommendations);
                       setActiveView('analysis');
@@ -144,20 +147,26 @@ const RaporPendidikan: React.FC<RaporPendidikanProps> = ({ onAddBudget, budgetDa
                       alert("AI berhasil membaca nilai, namun tidak menemukan rekomendasi kegiatan spesifik.");
                   }
                   
-                  // Auto save the new scores
-                  const dataYear = (parseInt(targetYear) - 1).toString();
-                  // Note: We need to use the Updated indicators here, but state update is async.
-                  // For simplicity, we trust the user will click save or the state will settle.
+                  // 3. Try Auto Save (Background) - Even if this fails, UI stays updated
+                  try {
+                      const dataYear = (parseInt(targetYear) - 1).toString();
+                      saveRaporData(updatedIndicators, dataYear).then(success => {
+                          if(!success) console.warn("Background save failed, but UI updated.");
+                      });
+                  } catch(e) {
+                      console.warn("DB save error ignored:", e);
+                  }
+
               } else {
-                  alert("Gagal membaca PDF. Pastikan format Rapor Pendidikan valid.");
+                  alert("AI gagal membaca PDF. Kemungkinan file terlalu besar atau format tidak terbaca. Coba gunakan manual input.");
               }
               setIsUploading(false);
           };
           reader.readAsDataURL(file);
       } catch (error) {
-          console.error(error);
+          console.error("Upload handler error:", error);
           setIsUploading(false);
-          alert("Terjadi kesalahan saat upload.");
+          alert("Terjadi kesalahan sistem saat upload.");
       }
   };
 

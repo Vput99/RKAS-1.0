@@ -145,7 +145,7 @@ const filterRelevantAccounts = (query: string, accounts: Record<string, string>)
 export const analyzeBudgetEntry = async (description: string, availableAccounts: Record<string, string> = AccountCodes): Promise<{ 
   bosp_component: string, 
   snp_standard: string, 
-  account_code: string,
+  account_code: string, 
   quantity_estimate: number,
   unit_estimate: string,
   price_estimate: number,
@@ -360,24 +360,7 @@ export const analyzeRaporQuality = async (indicators: RaporIndicator[], targetYe
         }
     };
 
-    // ATTEMPT 1: Try Pro Model (Best Quality)
-    try {
-        const response = await ai.models.generateContent({
-            model: 'gemini-3-pro-preview', 
-            contents: prompt,
-            config: {
-                responseMimeType: "application/json",
-                responseSchema: schema
-            }
-        });
-
-        const result = parseAIResponse(response.text);
-        if (Array.isArray(result) && result.length > 0) return result;
-    } catch (error) {
-        console.warn("Gemini Pro failed, attempting fallback...", error);
-    }
-
-    // ATTEMPT 2: Fallback to Flash Model (Higher Availability)
+    // Use Gemini 3 Flash for stability
     try {
         const response = await ai.models.generateContent({
             model: 'gemini-3-flash-preview',
@@ -391,7 +374,7 @@ export const analyzeRaporQuality = async (indicators: RaporIndicator[], targetYe
         const result = parseAIResponse(response.text);
         if (Array.isArray(result)) return result;
     } catch (error) {
-        console.error("Gemini Flash also failed:", error);
+        console.error("Gemini analysis failed:", error);
     }
 
     return null;
@@ -479,9 +462,9 @@ export const analyzeRaporPDF = async (pdfBase64: string, targetYear: string): Pr
       }
     };
 
-    // Use Gemini 1.5 Flash or Pro which supports PDF understanding
+    // UPDATED: Use gemini-3-flash-preview for PDF/Multimodal analysis
     const response = await ai.models.generateContent({
-      model: 'gemini-2.0-flash-exp', // Or 1.5 Pro if available, using Flash for speed/cost
+      model: 'gemini-3-flash-preview', 
       contents: {
         parts: [
           { text: prompt },
