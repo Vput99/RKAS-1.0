@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { LayoutDashboard, Wallet, FileCheck, Settings as SettingsIcon, Menu, User, BookOpen, FileBarChart, Wifi, LogOut, Download, Share, PlusSquare, X, School, TrendingUp, Landmark } from 'lucide-react';
 import Dashboard from './components/Dashboard';
@@ -24,13 +25,25 @@ function App() {
   const [showIOSPrompt, setShowIOSPrompt] = useState(false);
   const [isStandalone, setIsStandalone] = useState(false);
 
-  // App State
-  const [activeTab, setActiveTab] = useState<'dashboard' | 'income' | 'planning' | 'spj' | 'reports' | 'rapor' | 'settings' | 'withdrawal'>('dashboard');
+  // App State - Initialize from LocalStorage to persist state on reload
+  const [activeTab, setActiveTab] = useState<'dashboard' | 'income' | 'planning' | 'spj' | 'reports' | 'rapor' | 'settings' | 'withdrawal'>(() => {
+      const savedTab = localStorage.getItem('rkas_active_tab');
+      // Validate if saved tab is valid, otherwise default to dashboard
+      const validTabs = ['dashboard', 'income', 'planning', 'spj', 'reports', 'rapor', 'settings', 'withdrawal'];
+      return (savedTab && validTabs.includes(savedTab)) ? (savedTab as any) : 'dashboard';
+  });
+
   const [isSidebarOpen, setSidebarOpen] = useState(true);
   const [data, setData] = useState<Budget[]>([]);
   const [schoolProfile, setSchoolProfile] = useState<SchoolProfile | null>(null);
   const [loading, setLoading] = useState(true);
   const [isOnline, setIsOnline] = useState(false);
+
+  // --- PERSIST ACTIVE TAB ---
+  // Whenever activeTab changes, save it to localStorage
+  useEffect(() => {
+      localStorage.setItem('rkas_active_tab', activeTab);
+  }, [activeTab]);
 
   // --- PWA INSTALL LISTENER ---
   useEffect(() => {
@@ -177,6 +190,8 @@ function App() {
       if (supabase) {
           await supabase.auth.signOut();
       }
+      localStorage.removeItem('rkas_active_tab'); // Clear saved tab on logout
+      setActiveTab('dashboard');
       setSession(null);
   };
 
