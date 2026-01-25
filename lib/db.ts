@@ -603,3 +603,30 @@ export const bulkSaveCustomAccounts = async (accounts: Record<string, string>): 
     
     return await getStoredAccounts();
 }
+
+// --- DANGER ZONE: Reset Data ---
+
+export const resetAllData = async (): Promise<boolean> => {
+  if (supabase) {
+    try {
+        const userId = await getCurrentUserId();
+        if (!userId) return false;
+
+        // Parallel deletion of data tables (FKs should be handled by cascade if configured, but explicit is safer)
+        await Promise.all([
+            supabase.from('budgets').delete().eq('user_id', userId),
+            supabase.from('bank_statements').delete().eq('user_id', userId),
+            supabase.from('rapor_pendidikan').delete().eq('user_id', userId),
+            supabase.from('withdrawal_history').delete().eq('user_id', userId)
+        ]);
+        
+        return true;
+    } catch (e) {
+        console.error("Reset Error:", e);
+        return false;
+    }
+  }
+  
+  clearLocalData();
+  return true;
+};

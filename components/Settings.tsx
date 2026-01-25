@@ -1,7 +1,8 @@
+
 import React, { useState, useEffect } from 'react';
 import { SchoolProfile, AccountCodes } from '../types';
-import { Save, School, Users, Wallet, Calendar, Database, Wifi, WifiOff, CheckCircle2, CreditCard, Image as ImageIcon, Upload, Edit3, Plus, Trash2, List, FileSpreadsheet, RefreshCcw, UserCircle, LogOut, FileText } from 'lucide-react';
-import { getSchoolProfile, saveSchoolProfile, checkDatabaseConnection, getStoredAccounts, saveCustomAccount, deleteCustomAccount, bulkSaveCustomAccounts } from '../lib/db';
+import { Save, School, Users, Wallet, Calendar, Database, Wifi, WifiOff, CheckCircle2, CreditCard, Image as ImageIcon, Upload, Edit3, Plus, Trash2, List, FileSpreadsheet, RefreshCcw, UserCircle, LogOut, FileText, AlertTriangle } from 'lucide-react';
+import { getSchoolProfile, saveSchoolProfile, checkDatabaseConnection, getStoredAccounts, saveCustomAccount, deleteCustomAccount, bulkSaveCustomAccounts, resetAllData } from '../lib/db';
 import { supabase } from '../lib/supabase';
 
 interface SettingsProps {
@@ -186,6 +187,20 @@ const Settings: React.FC<SettingsProps> = ({ onProfileUpdate }) => {
       setIsAccountLoading(false);
       alert(`Berhasil menambahkan ${previewData.length} rekening baru.`);
   };
+  
+  const handleResetData = async () => {
+      if (confirm("PERINGATAN: Apakah Anda yakin ingin menghapus SEMUA data Transaksi, Rapor, dan Riwayat? \n\nData Profil Sekolah dan Akun Belanja Custom TIDAK akan dihapus.\n\nTindakan ini tidak dapat dibatalkan!")) {
+          setLoading(true);
+          const success = await resetAllData();
+          setLoading(false);
+          if (success) {
+              alert("Data berhasil di-reset. Aplikasi akan dimuat ulang.");
+              window.location.reload();
+          } else {
+              alert("Gagal melakukan reset data.");
+          }
+      }
+  }
 
   const formatRupiah = (num: number) => {
     return new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', maximumFractionDigits: 0 }).format(num);
@@ -674,6 +689,23 @@ const Settings: React.FC<SettingsProps> = ({ onProfileUpdate }) => {
                 />
               </div>
            </div>
+        </div>
+        
+        {/* DANGER ZONE */}
+        <div className="bg-red-50 rounded-xl shadow-sm border border-red-100 p-6">
+           <h3 className="text-md font-bold text-red-800 mb-2 flex items-center gap-2">
+             <AlertTriangle size={18} /> Zona Bahaya (Reset Data)
+           </h3>
+           <p className="text-sm text-red-600 mb-4">
+             Jika Anda ingin memulai dari awal (misalnya tahun anggaran baru), Anda dapat menghapus semua data transaksi, rapor, dan riwayat pencairan. Data Profil Sekolah tidak akan dihapus.
+           </p>
+           <button 
+              type="button"
+              onClick={handleResetData}
+              className="bg-white border border-red-200 text-red-600 hover:bg-red-600 hover:text-white px-4 py-2 rounded-lg font-bold text-sm transition flex items-center gap-2"
+           >
+              <Trash2 size={16} /> Hapus Semua Data Transaksi
+           </button>
         </div>
 
         <div className="flex justify-end gap-3 pt-4">
