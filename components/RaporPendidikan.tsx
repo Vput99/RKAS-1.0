@@ -80,7 +80,9 @@ const RaporPendidikan: React.FC<RaporPendidikanProps> = ({ onAddBudget, budgetDa
     ));
   };
 
-  const handleAnalyze = async () => {
+  const handleAnalyze = async (e?: React.MouseEvent) => {
+    if (e) e.preventDefault();
+    
     if (!isAiConfigured()) {
         alert("API Key AI belum dikonfigurasi. Silakan cek Pengaturan.");
         return;
@@ -117,7 +119,9 @@ const RaporPendidikan: React.FC<RaporPendidikanProps> = ({ onAddBudget, budgetDa
       e.target.value = ''; 
   };
 
-  const handleProcessPdf = async () => {
+  const handleProcessPdf = async (e?: React.MouseEvent) => {
+      if (e) e.preventDefault();
+
       if (!pdfFile) return;
 
       if (!isAiConfigured()) {
@@ -130,7 +134,14 @@ const RaporPendidikan: React.FC<RaporPendidikanProps> = ({ onAddBudget, budgetDa
       try {
           const reader = new FileReader();
           reader.onload = async () => {
-              const base64String = (reader.result as string).split(',')[1];
+              const resultStr = reader.result as string;
+              if (!resultStr) {
+                  alert("Gagal membaca file.");
+                  setIsUploading(false);
+                  return;
+              }
+              
+              const base64String = resultStr.split(',')[1];
               console.log("Mengirim PDF ke AI untuk analisis...");
               
               const result = await analyzeRaporPDF(base64String, targetYear);
@@ -356,6 +367,7 @@ const RaporPendidikan: React.FC<RaporPendidikanProps> = ({ onAddBudget, budgetDa
 
                             {pdfFile && (
                                 <button 
+                                    type="button"
                                     onClick={handleProcessPdf}
                                     disabled={isUploading}
                                     className="mt-6 w-full bg-blue-600 hover:bg-blue-700 text-white py-4 rounded-xl font-bold text-lg shadow-lg shadow-blue-200 flex items-center justify-center gap-3 transition-all transform hover:scale-[1.02]"
@@ -413,6 +425,7 @@ const RaporPendidikan: React.FC<RaporPendidikanProps> = ({ onAddBudget, budgetDa
                             ))}
 
                             <button 
+                                type="button"
                                 onClick={handleAnalyze}
                                 disabled={loading}
                                 className="w-full mt-4 bg-white border-2 border-indigo-100 text-indigo-600 hover:bg-indigo-50 py-3 rounded-xl font-bold flex items-center justify-center gap-2 transition"
