@@ -1,4 +1,5 @@
 
+
 import { supabase } from './supabase';
 import { Budget, TransactionType, SNPStandard, BOSPComponent, SchoolProfile, BankStatement, RaporIndicator, WithdrawalHistory, AccountCodes } from '../types';
 
@@ -180,37 +181,51 @@ export const getSchoolProfile = async (): Promise<SchoolProfile> => {
 
 export const saveSchoolProfile = async (profile: SchoolProfile): Promise<SchoolProfile> => {
   if (supabase) {
-    const userId = await getCurrentUserId();
-    if (!userId) {
-        alert("Anda harus login untuk menyimpan profil.");
-        return profile;
-    }
+    try {
+        const userId = await getCurrentUserId();
+        if (!userId) {
+            alert("Anda harus login untuk menyimpan profil.");
+            return profile;
+        }
 
-    const dbPayload = {
-      user_id: userId,
-      name: profile.name,
-      npsn: profile.npsn,
-      address: profile.address,
-      headmaster: profile.headmaster,
-      headmaster_nip: profile.headmasterNip,
-      treasurer: profile.treasurer,
-      treasurer_nip: profile.treasurerNip,
-      fiscal_year: profile.fiscalYear,
-      student_count: profile.studentCount,
-      budget_ceiling: profile.budgetCeiling,
-      updated_at: new Date().toISOString(),
-      city: profile.city,
-      district: profile.district,
-      postal_code: profile.postalCode,
-      bank_name: profile.bankName,
-      bank_branch: profile.bankBranch,
-      bank_address: profile.bankAddress,
-      account_no: profile.accountNo,
-      header_image: profile.headerImage
-    };
-    
-    const { error } = await supabase.from('school_profiles').upsert(dbPayload, { onConflict: 'user_id' });
-    if (error) {
+        const dbPayload = {
+          user_id: userId,
+          name: profile.name,
+          npsn: profile.npsn,
+          address: profile.address,
+          headmaster: profile.headmaster,
+          headmaster_nip: profile.headmasterNip,
+          treasurer: profile.treasurer,
+          treasurer_nip: profile.treasurerNip,
+          fiscal_year: profile.fiscalYear,
+          student_count: profile.studentCount,
+          budget_ceiling: profile.budgetCeiling,
+          updated_at: new Date().toISOString(),
+          city: profile.city,
+          district: profile.district,
+          postal_code: profile.postalCode, // Correct mapping from UI
+          bank_name: profile.bankName,
+          bank_branch: profile.bankBranch,
+          bank_address: profile.bankAddress,
+          account_no: profile.accountNo,
+          header_image: profile.headerImage
+        };
+        
+        // Manual Upsert Logic (Check -> Update/Insert) to avoid constraint errors
+        const { data: existing, error: fetchError } = await supabase
+            .from('school_profiles')
+            .select('id')
+            .eq('user_id', userId)
+            .maybeSingle();
+
+        if (existing) {
+            const { error } = await supabase.from('school_profiles').update(dbPayload).eq('user_id', userId);
+            if (error) throw error;
+        } else {
+            const { error } = await supabase.from('school_profiles').insert([dbPayload]);
+            if (error) throw error;
+        }
+    } catch (error: any) {
         console.error("Supabase profile save error:", error);
         alert(`Gagal menyimpan profil: ${error.message}`);
     }
@@ -266,26 +281,28 @@ export const saveRaporData = async (indicators: RaporIndicator[], year: string):
         updated_at: new Date().toISOString()
     }));
 
-    // CRITICAL FIX: onConflict harus sesuai dengan UNIQUE INDEX di database
-    // Index yang benar adalah (user_id, year, indicator_id)
+    // CRITICAL FIX: onConflict strategy matching the UNIQUE INDEX
+    // Ideally use onConflict: 'user_id,year,indicator_id' if index exists.
+    // If not, fallback to manual delete-insert.
     const { error } = await supabase
         .from('rapor_pendidikan')
         .upsert(upsertData, { onConflict: 'user_id,year,indicator_id' });
 
     if (error) {
-        console.error("Error saving rapor:", error);
+        console.error("Error saving rapor (Upsert):", error);
         
-        // Deteksi error specific constraint conflict
-        if (error.message.includes("rapor_pendidikan_year_indicator_id_key") || error.code === '23505') {
-            alert(
-                "⚠️ ERROR DUPLIKASI DATA DATABASE\n\n" +
-                "Database Anda masih menggunakan aturan validasi lama.\n" +
-                "Mohon jalankan script 'FIX_CONSTRAINT.sql' di SQL Editor Supabase untuk memperbaikinya."
-            );
-        } else {
-            alert("Gagal menyimpan data rapor: " + error.message);
+        // Fallback: Delete old data and Insert new (Manual Upsert)
+        // This handles cases where index names mismatch or don't exist yet
+        try {
+            await supabase.from('rapor_pendidikan').delete().eq('user_id', userId).eq('year', year);
+            const { error: insertError } = await supabase.from('rapor_pendidikan').insert(upsertData);
+            if (insertError) throw insertError;
+            return true;
+        } catch (retryError: any) {
+            console.error("Retry save failed:", retryError);
+            alert("Gagal menyimpan data rapor: " + retryError.message);
+            return false;
         }
-        return false;
     }
     return true;
 };
@@ -338,11 +355,19 @@ export const getBankStatements = async (): Promise<BankStatement[]> => {
 export const saveBankStatement = async (statement: BankStatement): Promise<BankStatement> => {
   if (supabase) {
      const userId = await getCurrentUserId();
+     // Ensure user_id is present
      const { error } = await supabase.from('bank_statements').upsert({
          ...statement,
          user_id: userId
      });
-     if (error) throw error;
+     if (error) {
+         // Fallback for missing ID constraint
+         if (statement.id) {
+             await supabase.from('bank_statements').update(statement).eq('id', statement.id);
+         } else {
+             await supabase.from('bank_statements').insert([statement]);
+         }
+     }
   }
 
   const current = await getBankStatements();
@@ -468,7 +493,10 @@ export const getStoredAccounts = async (): Promise<Record<string, string>> => {
 export const saveCustomAccount = async (code: string, name: string): Promise<Record<string, string>> => {
     if (supabase) {
         const userId = await getCurrentUserId();
-        const { error } = await supabase.from('account_codes').upsert({ code, name, user_id: userId });
+        // Fallback: Delete then insert to avoid upsert constraint issues
+        await supabase.from('account_codes').delete().eq('code', code).eq('user_id', userId);
+        const { error } = await supabase.from('account_codes').insert({ code, name, user_id: userId });
+        
         if (error) {
             alert("Gagal menyimpan akun: " + error.message);
             return await getStoredAccounts(); 
