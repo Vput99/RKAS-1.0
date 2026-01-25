@@ -396,3 +396,109 @@ export const analyzeRaporQuality = async (indicators: RaporIndicator[], targetYe
 
     return null;
 }
+
+export const analyzeRaporPDF = async (pdfBase64: string, targetYear: string): Promise<{ indicators: RaporIndicator[], recommendations: PBDRecommendation[] } | null> => {
+  if (!ai) return null;
+
+  const accountContext = Object.entries(AccountCodes)
+      .slice(0, 100) 
+      .map(([c, n]) => `- ${c}: ${n}`)
+      .join('\n');
+
+  try {
+    const prompt = `Role: Expert School Data Analyst (BOSP Indonesia).
+
+    Task:
+    1. READ and ANALYZE the attached "Rapor Pendidikan" PDF.
+    2. EXTRACT scores for key indicators:
+       - A.1 Kemampuan Literasi
+       - A.2 Kemampuan Numerasi
+       - A.3 Karakter
+       - D.1 Kualitas Pembelajaran
+       - D.4 Iklim Keamanan Sekolah
+       - D.8 Iklim Kebinekaan
+    3. Categorize each score: >=70 (Baik), 50-69 (Sedang), <50 (Kurang).
+    4. Based on the WEAKEST indicators (Kurang/Sedang), GENERATE specific RKAS budget recommendations for FY ${targetYear}.
+    
+    Guidelines for Recommendations:
+    - Focus on 'Benahi' activities.
+    - Provide concrete budget items (e.g., "Workshop Guru", "Pengadaan Buku Non-Teks", "Honor Narasumber").
+    - Select valid Account Codes from:
+      ${accountContext}
+
+    Output JSON Format:
+    {
+      "indicators": [{ "id": "A.1", "label": "Kemampuan Literasi", "score": 80, "category": "Baik" }, ...],
+      "recommendations": [{ "indicatorId": "A.2", "activityName": "...", "items": [...] }]
+    }`;
+
+    // Schema for complex output
+    const schema = {
+      type: Type.OBJECT,
+      properties: {
+        indicators: {
+          type: Type.ARRAY,
+          items: {
+             type: Type.OBJECT,
+             properties: {
+               id: { type: Type.STRING },
+               label: { type: Type.STRING },
+               score: { type: Type.NUMBER },
+               category: { type: Type.STRING }
+             }
+          }
+        },
+        recommendations: {
+          type: Type.ARRAY,
+          items: {
+            type: Type.OBJECT,
+            properties: {
+                indicatorId: { type: Type.STRING },
+                activityName: { type: Type.STRING },
+                description: { type: Type.STRING },
+                bospComponent: { type: Type.STRING }, 
+                snpStandard: { type: Type.STRING },
+                estimatedCost: { type: Type.NUMBER },
+                priority: { type: Type.STRING },
+                items: {
+                    type: Type.ARRAY,
+                    items: {
+                        type: Type.OBJECT,
+                        properties: {
+                            name: { type: Type.STRING },
+                            quantity: { type: Type.NUMBER },
+                            unit: { type: Type.STRING },
+                            price: { type: Type.NUMBER },
+                            accountCode: { type: Type.STRING }
+                        }
+                    }
+                }
+            }
+          }
+        }
+      }
+    };
+
+    // Use Gemini 1.5 Flash or Pro which supports PDF understanding
+    const response = await ai.models.generateContent({
+      model: 'gemini-2.0-flash-exp', // Or 1.5 Pro if available, using Flash for speed/cost
+      contents: {
+        parts: [
+          { text: prompt },
+          { inlineData: { mimeType: 'application/pdf', data: pdfBase64 } }
+        ]
+      },
+      config: {
+        responseMimeType: "application/json",
+        responseSchema: schema
+      }
+    });
+
+    const result = parseAIResponse(response.text);
+    return result;
+
+  } catch (error) {
+    console.error("PDF Analysis Error:", error);
+    return null;
+  }
+};

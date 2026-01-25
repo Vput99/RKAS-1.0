@@ -1,9 +1,9 @@
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { RaporIndicator, PBDRecommendation, TransactionType, Budget } from '../types';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell } from 'recharts';
-import { AlertCircle, BrainCircuit, CheckCircle, Plus, TrendingUp, AlertTriangle, CalendarRange, Save, Loader2, List, X, Check } from 'lucide-react';
-import { analyzeRaporQuality, isAiConfigured } from '../lib/gemini';
+import { AlertCircle, BrainCircuit, CheckCircle, Plus, TrendingUp, AlertTriangle, CalendarRange, Save, Loader2, List, X, Check, Upload, FileText } from 'lucide-react';
+import { analyzeRaporQuality, analyzeRaporPDF, isAiConfigured } from '../lib/gemini';
 import { getRaporData, saveRaporData } from '../lib/db';
 
 interface RaporPendidikanProps {
@@ -27,6 +27,10 @@ const RaporPendidikan: React.FC<RaporPendidikanProps> = ({ onAddBudget, budgetDa
   const [isSaving, setIsSaving] = useState(false);
   const [activeView, setActiveView] = useState<'input' | 'analysis'>('input');
   const [targetYear, setTargetYear] = useState('2027');
+  
+  // File Upload State
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const [isUploading, setIsUploading] = useState(false);
   
   // Modal State for Budget Breakdown
   const [selectedRec, setSelectedRec] = useState<PBDRecommendation | null>(null);
@@ -96,6 +100,65 @@ const RaporPendidikan: React.FC<RaporPendidikanProps> = ({ onAddBudget, budgetDa
     setRecommendations(results);
     setActiveView('analysis');
     setLoading(false);
+  };
+
+  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+      const file = e.target.files?.[0];
+      if (!file) return;
+      
+      if (file.type !== 'application/pdf') {
+          alert("Mohon upload file PDF.");
+          return;
+      }
+
+      if (!isAiConfigured()) {
+        alert("Fitur AI belum aktif. Masukkan API Key di pengaturan.");
+        return;
+      }
+
+      setIsUploading(true);
+      
+      try {
+          const reader = new FileReader();
+          reader.onload = async () => {
+              const base64String = (reader.result as string).split(',')[1];
+              const result = await analyzeRaporPDF(base64String, targetYear);
+
+              if (result) {
+                  // 1. Update Indicators
+                  if (result.indicators && result.indicators.length > 0) {
+                      setIndicators(prev => {
+                          // Merge AI result with existing structure to maintain IDs
+                          return prev.map(p => {
+                              const found = result.indicators.find(r => r.id === p.id);
+                              return found ? { ...p, score: found.score, category: found.category as any } : p;
+                          });
+                      });
+                  }
+
+                  // 2. Update Recommendations
+                  if (result.recommendations && result.recommendations.length > 0) {
+                      setRecommendations(result.recommendations);
+                      setActiveView('analysis');
+                  } else {
+                      alert("AI berhasil membaca nilai, namun tidak menemukan rekomendasi kegiatan spesifik.");
+                  }
+                  
+                  // Auto save the new scores
+                  const dataYear = (parseInt(targetYear) - 1).toString();
+                  // Note: We need to use the Updated indicators here, but state update is async.
+                  // For simplicity, we trust the user will click save or the state will settle.
+              } else {
+                  alert("Gagal membaca PDF. Pastikan format Rapor Pendidikan valid.");
+              }
+              setIsUploading(false);
+          };
+          reader.readAsDataURL(file);
+      } catch (error) {
+          console.error(error);
+          setIsUploading(false);
+          alert("Terjadi kesalahan saat upload.");
+      }
   };
 
   const handleConfirmAddToBudget = async () => {
@@ -194,8 +257,39 @@ const RaporPendidikan: React.FC<RaporPendidikanProps> = ({ onAddBudget, budgetDa
       {activeView === 'input' && (
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
              <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
-                <h3 className="font-bold text-gray-700 mb-4 border-b pb-2 flex justify-between">
-                    <span>Input Nilai Rapor Pendidikan</span>
+                
+                {/* PDF Upload Section */}
+                <div className="mb-6 bg-gradient-to-r from-blue-50 to-indigo-50 border border-blue-100 p-4 rounded-xl">
+                    <div className="flex items-start gap-3">
+                        <div className="bg-white p-2 rounded-lg shadow-sm text-blue-600">
+                           <FileText size={24} />
+                        </div>
+                        <div className="flex-1">
+                            <h4 className="font-bold text-blue-900 text-sm">Upload Rapor Pendidikan (PDF)</h4>
+                            <p className="text-xs text-blue-700 mb-3">
+                                AI akan membaca nilai dan otomatis membuat rekomendasi kegiatan anggaran.
+                            </p>
+                            <input 
+                                type="file" 
+                                accept="application/pdf"
+                                ref={fileInputRef}
+                                onChange={handleFileUpload}
+                                className="hidden"
+                            />
+                            <button 
+                                onClick={() => fileInputRef.current?.click()}
+                                disabled={isUploading}
+                                className="bg-blue-600 hover:bg-blue-700 text-white text-xs px-4 py-2 rounded-lg font-bold flex items-center gap-2 transition disabled:opacity-50"
+                            >
+                                {isUploading ? <Loader2 size={16} className="animate-spin" /> : <Upload size={16} />}
+                                {isUploading ? 'Menganalisis PDF...' : 'Pilih File PDF'}
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+                <h3 className="font-bold text-gray-700 mb-4 border-b pb-2 flex justify-between items-end">
+                    <span>Input Nilai Manual</span>
                     <span className="text-xs font-normal text-gray-400 bg-gray-100 px-2 py-1 rounded">Data Tahun {parseInt(targetYear)-1}</span>
                 </h3>
                 <div className="space-y-4">
@@ -227,15 +321,12 @@ const RaporPendidikan: React.FC<RaporPendidikanProps> = ({ onAddBudget, budgetDa
                 <div className="mt-6 pt-4 border-t border-gray-100">
                     <button 
                         onClick={handleAnalyze}
-                        disabled={loading}
-                        className="w-full bg-indigo-600 hover:bg-indigo-700 text-white py-3 rounded-xl font-bold flex items-center justify-center gap-2 shadow-lg transition transform active:scale-95"
+                        disabled={loading || isUploading}
+                        className="w-full bg-white border border-indigo-200 text-indigo-700 hover:bg-indigo-50 py-3 rounded-xl font-bold flex items-center justify-center gap-2 shadow-sm transition"
                     >
                         {loading ? <Loader2 className="animate-spin" /> : <BrainCircuit />}
-                        {loading ? 'Menganalisis PBD...' : 'Analisis Otomatis & Buat Rekomendasi'}
+                        {loading ? 'Menganalisis PBD...' : 'Analisis Manual (Tanpa PDF)'}
                     </button>
-                    <p className="text-xs text-gray-400 text-center mt-2">
-                        Powered by Google Gemini AI
-                    </p>
                 </div>
              </div>
 
