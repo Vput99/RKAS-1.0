@@ -1,7 +1,9 @@
-import React, { useState } from 'react';
-import { Budget, SNPStandard, BOSPComponent, TransactionType } from '../types';
+
+import React, { useState, useEffect } from 'react';
+import { Budget, SNPStandard, BOSPComponent, TransactionType, AccountCodes } from '../types';
 import { Plus, Trash2, Sparkles, Search, Loader2, AlertTriangle, CheckCircle } from 'lucide-react';
 import { analyzeBudgetEntry } from '../lib/gemini';
+import { getStoredAccounts } from '../lib/db';
 
 interface TransactionTableProps {
   type: TransactionType;
@@ -22,6 +24,14 @@ const TransactionTable: React.FC<TransactionTableProps> = ({ type, data, onAdd, 
   const [isEligible, setIsEligible] = useState<boolean | null>(null);
   const [warningMessage, setWarningMessage] = useState('');
 
+  // Store Accounts
+  const [allAccounts, setAllAccounts] = useState<Record<string, string>>(AccountCodes);
+
+  useEffect(() => {
+      // Load accounts once to provide AI with full context (including custom accounts)
+      getStoredAccounts().then(setAllAccounts);
+  }, []);
+
   const filteredData = data.filter(d => d.type === type);
 
   const handleAIAnalysis = async () => {
@@ -30,7 +40,8 @@ const TransactionTable: React.FC<TransactionTableProps> = ({ type, data, onAdd, 
     setWarningMessage('');
     setIsEligible(null);
 
-    const result = await analyzeBudgetEntry(description);
+    // Pass allAccounts (custom + default) to AI for better matching
+    const result = await analyzeBudgetEntry(description, allAccounts);
     
     if (result) {
       setCategory(result.snp_standard);

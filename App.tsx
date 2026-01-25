@@ -346,7 +346,7 @@ function App() {
               </div>
             ) : (
               <>
-                {activeTab === 'dashboard' && <Dashboard data={data} />}
+                {activeTab === 'dashboard' && <Dashboard data={data} profile={schoolProfile} />}
                 {activeTab === 'rapor' && (
                   <RaporPendidikan onAddBudget={handleAdd} budgetData={data} />
                 )}

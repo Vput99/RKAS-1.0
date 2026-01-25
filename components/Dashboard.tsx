@@ -1,16 +1,17 @@
 
 import React, { useMemo } from 'react';
 import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip as RechartsTooltip, XAxis, YAxis, CartesianGrid, Legend, AreaChart, Area } from 'recharts';
-import { Budget, TransactionType } from '../types';
+import { Budget, TransactionType, SchoolProfile } from '../types';
 import { ArrowUpRight, ArrowDownRight, Wallet, Target, TrendingUp, PieChart as PieChartIcon, Activity } from 'lucide-react';
 
 interface DashboardProps {
   data: Budget[];
+  profile: SchoolProfile | null;
 }
 
 const COLORS = ['#3B82F6', '#10B981', '#F59E0B', '#EF4444', '#8B5CF6', '#EC4899', '#6366F1', '#14B8A6'];
 
-const Dashboard: React.FC<DashboardProps> = ({ data }) => {
+const Dashboard: React.FC<DashboardProps> = ({ data, profile }) => {
   
   const stats = useMemo(() => {
     // Pendapatan Total
@@ -115,12 +116,12 @@ const Dashboard: React.FC<DashboardProps> = ({ data }) => {
             <div>
                <h1 className="text-3xl font-bold mb-2">Dashboard Keuangan</h1>
                <p className="text-blue-100 text-sm md:text-base max-w-xl">
-                 Pantau kesehatan finansial sekolah secara real-time. Kelola dana BOSP, realisasi SPJ, dan pelaporan dengan lebih efisien.
+                 Pantau kesehatan finansial {profile?.name || 'sekolah'} secara real-time. Kelola dana BOSP, realisasi SPJ, dan pelaporan dengan lebih efisien.
                </p>
             </div>
             <div className="bg-white/10 backdrop-blur-sm px-4 py-2 rounded-lg border border-white/20">
                <p className="text-xs text-blue-100 uppercase font-bold tracking-wider">Tahun Anggaran</p>
-               <p className="text-xl font-bold">2026</p>
+               <p className="text-xl font-bold">{profile?.fiscalYear || new Date().getFullYear()}</p>
             </div>
          </div>
       </div>
