@@ -172,9 +172,9 @@ export const analyzeBudgetEntry = async (description: string, availableAccounts:
   try {
     const relevantAccountsList = filterRelevantAccounts(description, availableAccounts);
 
-    // Default use flash for speed, unless very complex
+    // Using gemini-2.0-flash-exp for better reliability
     const response = await ai.models.generateContent({
-      model: 'gemini-3-flash-preview', 
+      model: 'gemini-2.0-flash-exp', 
       contents: `
       Role: BOSP Auditor & Budget Planner (Indonesia).
       
@@ -251,7 +251,7 @@ export const suggestEvidenceList = async (description: string, accountCode: stri
 
   try {
     const response = await ai.models.generateContent({
-      model: 'gemini-3-flash-preview',
+      model: 'gemini-2.0-flash-exp',
       contents: `Task: List physical evidence (Bukti Fisik SPJ) for BOSP 2026.
       Expense: "${description}"
       Code: "${accountCode}"
@@ -291,7 +291,7 @@ export const chatWithFinancialAdvisor = async (query: string, context: string, a
     }
 
     const response = await ai.models.generateContent({
-      model: 'gemini-3-flash-preview',
+      model: 'gemini-2.0-flash-exp',
       contents: { parts },
     });
     return response.text;
@@ -360,10 +360,9 @@ export const analyzeRaporQuality = async (indicators: RaporIndicator[], targetYe
         }
     };
 
-    // Use Gemini 3 Flash for stability
     try {
         const response = await ai.models.generateContent({
-            model: 'gemini-3-flash-preview',
+            model: 'gemini-2.0-flash-exp',
             contents: prompt,
             config: {
                 responseMimeType: "application/json",
@@ -462,9 +461,9 @@ export const analyzeRaporPDF = async (pdfBase64: string, targetYear: string): Pr
       }
     };
 
-    // UPDATED: Use gemini-3-flash-preview for PDF/Multimodal analysis
+    // UPDATED: Use gemini-2.0-flash-exp for PDF/Multimodal analysis to fix PERMISSION_DENIED on preview models
     const response = await ai.models.generateContent({
-      model: 'gemini-3-flash-preview', 
+      model: 'gemini-2.0-flash-exp', 
       contents: {
         parts: [
           { text: prompt },
