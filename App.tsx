@@ -195,11 +195,9 @@ function App() {
           await supabase.auth.signOut();
       }
       
-      // 3. Reset State
-      setActiveTab('dashboard');
-      setSession(null);
-      setData([]);
-      setSchoolProfile(null);
+      // 3. Force Reload to ensure complete state clearance
+      // This is crucial to prevent "stale" data from being visible
+      window.location.reload(); 
   };
 
   // Mobile responsiveness

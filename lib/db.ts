@@ -66,7 +66,14 @@ export const checkDatabaseConnection = async (): Promise<boolean> => {
 
 export const getBudgets = async (): Promise<Budget[]> => {
   if (supabase) {
-    const { data, error } = await supabase.from('budgets').select('*').order('date', { ascending: false });
+    const userId = await getCurrentUserId();
+    if (!userId) return []; // Security guard
+
+    const { data, error } = await supabase.from('budgets')
+        .select('*')
+        .eq('user_id', userId) // Explicit Filter
+        .order('date', { ascending: false });
+        
     if (error) {
         console.error("Error fetching budgets:", error);
         return []; 
@@ -154,7 +161,13 @@ export const deleteBudget = async (id: string): Promise<boolean> => {
 export const getSchoolProfile = async (): Promise<SchoolProfile> => {
   if (supabase) {
     try {
-      const { data, error } = await supabase.from('school_profiles').select('*').single();
+      const userId = await getCurrentUserId();
+      if (!userId) return DEFAULT_PROFILE;
+
+      const { data, error } = await supabase.from('school_profiles')
+        .select('*')
+        .eq('user_id', userId) // Explicit Filter
+        .single();
       
       if (data) {
         return {
@@ -193,12 +206,21 @@ export const saveSchoolProfile = async (profile: SchoolProfile): Promise<SchoolP
     try {
         const userId = await getCurrentUserId();
         if (!userId) {
-            alert("Anda harus login untuk menyimpan profil.");
-            return profile;
+            // Check if we are in signup flow (session might be setting up)
+             // Retry once after 500ms
+             await new Promise(r => setTimeout(r, 500));
+             const retryUser = await getCurrentUserId();
+             if (!retryUser) {
+                 console.warn("User not authenticated to save profile");
+                 return profile;
+             }
         }
+        
+        // Re-get user id to be sure
+        const confirmedUserId = await getCurrentUserId();
 
         const dbPayload = {
-          user_id: userId,
+          user_id: confirmedUserId,
           name: profile.name,
           npsn: profile.npsn,
           address: profile.address,
@@ -220,15 +242,15 @@ export const saveSchoolProfile = async (profile: SchoolProfile): Promise<SchoolP
           header_image: profile.headerImage
         };
         
-        // Manual Upsert Logic (Check -> Update/Insert) to avoid constraint errors
+        // Manual Upsert Logic
         const { data: existing } = await supabase
             .from('school_profiles')
             .select('id')
-            .eq('user_id', userId)
+            .eq('user_id', confirmedUserId)
             .maybeSingle();
 
         if (existing) {
-            const { error } = await supabase.from('school_profiles').update(dbPayload).eq('user_id', userId);
+            const { error } = await supabase.from('school_profiles').update(dbPayload).eq('user_id', confirmedUserId);
             if (error) throw error;
         } else {
             const { error } = await supabase.from('school_profiles').insert([dbPayload]);
@@ -248,9 +270,13 @@ export const saveSchoolProfile = async (profile: SchoolProfile): Promise<SchoolP
 
 export const getRaporData = async (year: string): Promise<RaporIndicator[] | null> => {
   if (supabase) {
+      const userId = await getCurrentUserId();
+      if (!userId) return null;
+
       const { data, error } = await supabase
           .from('rapor_pendidikan')
           .select('*')
+          .eq('user_id', userId) // Explicit Filter
           .eq('year', year);
       
       if (error) {
@@ -348,7 +374,14 @@ export const uploadBankStatementFile = async (file: File): Promise<{ url: string
 export const getBankStatements = async (): Promise<BankStatement[]> => {
   if (supabase) {
     try {
-      const { data, error } = await supabase.from('bank_statements').select('*').order('month', { ascending: true });
+      const userId = await getCurrentUserId();
+      if (!userId) return [];
+
+      const { data, error } = await supabase.from('bank_statements')
+        .select('*')
+        .eq('user_id', userId) // Explicit Filter
+        .order('month', { ascending: true });
+
       if (!error && data) return data as BankStatement[];
     } catch (e) {
       console.warn("Bank statement table fetch error");
@@ -405,7 +438,14 @@ export const deleteBankStatement = async (id: string): Promise<void> => {
 export const getWithdrawalHistory = async (): Promise<WithdrawalHistory[]> => {
     if (supabase) {
         try {
-            const { data, error } = await supabase.from('withdrawal_history').select('*').order('created_at', { ascending: false });
+            const userId = await getCurrentUserId();
+            if (!userId) return [];
+
+            const { data, error } = await supabase.from('withdrawal_history')
+                .select('*')
+                .eq('user_id', userId) // Explicit Filter
+                .order('created_at', { ascending: false });
+
             if (!error && data) return data as WithdrawalHistory[];
         } catch (e) { console.error(e); }
     }
@@ -474,11 +514,19 @@ export const deleteWithdrawalHistory = async (id: string): Promise<boolean> => {
 export const getStoredAccounts = async (): Promise<Record<string, string>> => {
     if (supabase) {
         try {
-            const { data, error } = await supabase
+            const userId = await getCurrentUserId();
+            let query = supabase
                 .from('account_codes')
                 .select('*')
-                .or(`user_id.is.null,user_id.eq.${await getCurrentUserId()}`)
                 .order('code', { ascending: true });
+
+            if (userId) {
+                query = query.or(`user_id.is.null,user_id.eq.${userId}`); // Allow system OR user specific
+            } else {
+                query = query.is('user_id', null);
+            }
+
+            const { data, error } = await query;
 
             if (data && !error) {
                 const dbMap: Record<string, string> = {};
