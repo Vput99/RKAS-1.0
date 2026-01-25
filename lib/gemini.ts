@@ -379,8 +379,13 @@ export const analyzeRaporQuality = async (indicators: RaporIndicator[], targetYe
     return null;
 }
 
-export const analyzeRaporPDF = async (pdfBase64: string, targetYear: string): Promise<{ indicators: RaporIndicator[], recommendations: PBDRecommendation[] } | null> => {
-  if (!ai) return null;
+// Updated return type to include error message
+export const analyzeRaporPDF = async (pdfBase64: string, targetYear: string): Promise<{ 
+    success: boolean; 
+    data?: { indicators: RaporIndicator[], recommendations: PBDRecommendation[] };
+    error?: string;
+}> => {
+  if (!ai) return { success: false, error: "API Key belum dikonfigurasi di Settings." };
 
   const accountContext = Object.entries(AccountCodes)
       .slice(0, 100) 
@@ -461,7 +466,6 @@ export const analyzeRaporPDF = async (pdfBase64: string, targetYear: string): Pr
       }
     };
 
-    // Updated: Use gemini-3-flash-preview
     const response = await ai.models.generateContent({
       model: 'gemini-3-flash-preview', 
       contents: {
@@ -477,10 +481,22 @@ export const analyzeRaporPDF = async (pdfBase64: string, targetYear: string): Pr
     });
 
     const result = parseAIResponse(response.text);
-    return result;
+    
+    if (!result) {
+        return { success: false, error: "AI tidak mengembalikan format JSON yang valid. Mungkin file PDF tidak terbaca atau kosong." };
+    }
 
-  } catch (error) {
+    return { success: true, data: result };
+
+  } catch (error: any) {
     console.error("PDF Analysis Error:", error);
-    return null;
+    let errorMessage = "Terjadi kesalahan saat menghubungi Google Gemini.";
+    
+    if (error.message?.includes('API_KEY')) errorMessage = "API Key Invalid atau Hilang.";
+    if (error.message?.includes('429')) errorMessage = "Limit Kuota API Habis (429).";
+    if (error.message?.includes('400')) errorMessage = "Format Request Salah atau File PDF Rusak (400).";
+    if (error.message?.includes('500')) errorMessage = "Server Google Sedang Sibuk (500).";
+
+    return { success: false, error: `${errorMessage} Detail: ${error.message}` };
   }
 };

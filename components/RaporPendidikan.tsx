@@ -163,24 +163,25 @@ const RaporPendidikan: React.FC<RaporPendidikanProps> = ({ onAddBudget, budgetDa
               const base64String = resultStr.split(',')[1];
               console.log("Mengirim PDF ke AI untuk analisis...");
               
+              // New: returns object with { success, data, error }
               const result = await analyzeRaporPDF(base64String, targetYear);
 
-              if (result) {
-                  console.log("Hasil Analisis AI:", result);
+              if (result.success && result.data) {
+                  console.log("Hasil Analisis AI:", result.data);
                   
                   // 1. Update Indicators Logic
                   let updatedIndicators = [...indicators];
-                  if (result.indicators && result.indicators.length > 0) {
+                  if (result.data.indicators && result.data.indicators.length > 0) {
                       updatedIndicators = indicators.map(p => {
-                          const found = result.indicators.find(r => r.id === p.id);
+                          const found = result.data!.indicators.find(r => r.id === p.id);
                           return found ? { ...p, score: found.score, category: found.category as any } : p;
                       });
                       setIndicators(updatedIndicators);
                   }
 
                   // 2. Update Recommendations Logic
-                  if (result.recommendations && result.recommendations.length > 0) {
-                      setRecommendations(result.recommendations);
+                  if (result.data.recommendations && result.data.recommendations.length > 0) {
+                      setRecommendations(result.data.recommendations);
                       setActiveView('analysis'); // Switch to results view directly
                   } else {
                       alert("AI berhasil membaca nilai, namun tidak menemukan rekomendasi kegiatan spesifik.");
@@ -199,7 +200,8 @@ const RaporPendidikan: React.FC<RaporPendidikanProps> = ({ onAddBudget, budgetDa
                   setPdfFile(null);
 
               } else {
-                  alert("AI gagal membaca PDF. Pastikan file Rapor Pendidikan valid dan tidak terproteksi password. Coba gunakan manual input jika masih gagal.");
+                  // Explicitly show error from Gemini
+                  alert(`Gagal: ${result.error}`);
               }
               setIsUploading(false);
           };
