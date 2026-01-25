@@ -172,9 +172,9 @@ export const analyzeBudgetEntry = async (description: string, availableAccounts:
   try {
     const relevantAccountsList = filterRelevantAccounts(description, availableAccounts);
 
-    // Using gemini-2.0-flash-exp for better reliability
+    // Use gemini-3-flash-preview
     const response = await ai.models.generateContent({
-      model: 'gemini-2.0-flash-exp', 
+      model: 'gemini-3-flash-preview', 
       contents: `
       Role: BOSP Auditor & Budget Planner (Indonesia).
       
@@ -251,7 +251,7 @@ export const suggestEvidenceList = async (description: string, accountCode: stri
 
   try {
     const response = await ai.models.generateContent({
-      model: 'gemini-2.0-flash-exp',
+      model: 'gemini-3-flash-preview',
       contents: `Task: List physical evidence (Bukti Fisik SPJ) for BOSP 2026.
       Expense: "${description}"
       Code: "${accountCode}"
@@ -291,7 +291,7 @@ export const chatWithFinancialAdvisor = async (query: string, context: string, a
     }
 
     const response = await ai.models.generateContent({
-      model: 'gemini-2.0-flash-exp',
+      model: 'gemini-3-flash-preview',
       contents: { parts },
     });
     return response.text;
@@ -362,7 +362,7 @@ export const analyzeRaporQuality = async (indicators: RaporIndicator[], targetYe
 
     try {
         const response = await ai.models.generateContent({
-            model: 'gemini-2.0-flash-exp',
+            model: 'gemini-3-flash-preview',
             contents: prompt,
             config: {
                 responseMimeType: "application/json",
@@ -461,9 +461,9 @@ export const analyzeRaporPDF = async (pdfBase64: string, targetYear: string): Pr
       }
     };
 
-    // UPDATED: Use gemini-2.0-flash-exp for PDF/Multimodal analysis to fix PERMISSION_DENIED on preview models
+    // Updated: Use gemini-3-flash-preview
     const response = await ai.models.generateContent({
-      model: 'gemini-2.0-flash-exp', 
+      model: 'gemini-3-flash-preview', 
       contents: {
         parts: [
           { text: prompt },
