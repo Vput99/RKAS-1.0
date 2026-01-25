@@ -2,7 +2,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { RaporIndicator, PBDRecommendation, TransactionType, Budget } from '../types';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell } from 'recharts';
-import { AlertCircle, BrainCircuit, CheckCircle, Plus, TrendingUp, AlertTriangle, CalendarRange, Save, Loader2, List, X, Check, Upload, FileText } from 'lucide-react';
+import { AlertCircle, BrainCircuit, CheckCircle, Plus, TrendingUp, AlertTriangle, CalendarRange, Save, Loader2, List, X, Check, Upload, FileText, Trash2 } from 'lucide-react';
 import { analyzeRaporQuality, analyzeRaporPDF, isAiConfigured } from '../lib/gemini';
 import { getRaporData, saveRaporData } from '../lib/db';
 
@@ -31,6 +31,7 @@ const RaporPendidikan: React.FC<RaporPendidikanProps> = ({ onAddBudget, budgetDa
   // File Upload State
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [isUploading, setIsUploading] = useState(false);
+  const [pdfFile, setPdfFile] = useState<File | null>(null);
   
   // Modal State for Budget Breakdown
   const [selectedRec, setSelectedRec] = useState<PBDRecommendation | null>(null);
@@ -102,7 +103,7 @@ const RaporPendidikan: React.FC<RaporPendidikanProps> = ({ onAddBudget, budgetDa
     setLoading(false);
   };
 
-  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
       const file = e.target.files?.[0];
       if (!file) return;
       
@@ -110,6 +111,13 @@ const RaporPendidikan: React.FC<RaporPendidikanProps> = ({ onAddBudget, budgetDa
           alert("Mohon upload file PDF.");
           return;
       }
+      
+      setPdfFile(file);
+      e.target.value = ''; // Reset input to allow re-selecting same file
+  };
+
+  const handleProcessPdf = async () => {
+      if (!pdfFile) return;
 
       if (!isAiConfigured()) {
         alert("Fitur AI belum aktif. Masukkan API Key di pengaturan.");
@@ -156,13 +164,16 @@ const RaporPendidikan: React.FC<RaporPendidikanProps> = ({ onAddBudget, budgetDa
                   } catch(e) {
                       console.warn("DB save error ignored:", e);
                   }
+                  
+                  // Clear PDF selection on success (optional, but cleaner)
+                  setPdfFile(null);
 
               } else {
                   alert("AI gagal membaca PDF. Kemungkinan file terlalu besar atau format tidak terbaca. Coba gunakan manual input.");
               }
               setIsUploading(false);
           };
-          reader.readAsDataURL(file);
+          reader.readAsDataURL(pdfFile);
       } catch (error) {
           console.error("Upload handler error:", error);
           setIsUploading(false);
@@ -282,17 +293,48 @@ const RaporPendidikan: React.FC<RaporPendidikanProps> = ({ onAddBudget, budgetDa
                                 type="file" 
                                 accept="application/pdf"
                                 ref={fileInputRef}
-                                onChange={handleFileUpload}
+                                onChange={handleFileSelect}
                                 className="hidden"
                             />
-                            <button 
-                                onClick={() => fileInputRef.current?.click()}
-                                disabled={isUploading}
-                                className="w-full sm:w-auto bg-blue-600 hover:bg-blue-700 text-white text-sm px-6 py-3 rounded-xl font-bold flex items-center justify-center gap-3 transition disabled:opacity-50 shadow-lg shadow-blue-200"
-                            >
-                                {isUploading ? <Loader2 size={20} className="animate-spin" /> : <Upload size={20} />}
-                                {isUploading ? 'Sedang Menganalisis...' : 'Pilih File PDF Rapor'}
-                            </button>
+                            
+                            {!pdfFile ? (
+                                <button 
+                                    onClick={() => fileInputRef.current?.click()}
+                                    className="w-full sm:w-auto bg-white border border-blue-300 text-blue-700 hover:bg-blue-50 px-6 py-3 rounded-xl font-bold flex items-center justify-center gap-3 transition shadow-sm"
+                                >
+                                    <Upload size={20} />
+                                    Pilih File PDF Rapor
+                                </button>
+                            ) : (
+                                <div className="space-y-3">
+                                    <div className="flex items-center gap-3 bg-white p-3 rounded-lg border border-blue-200">
+                                        <div className="bg-red-100 p-2 rounded text-red-600 flex-shrink-0">
+                                            <FileText size={24} />
+                                        </div>
+                                        <div className="flex-1 overflow-hidden">
+                                            <p className="text-sm font-bold text-gray-800 truncate">{pdfFile.name}</p>
+                                            <p className="text-xs text-gray-500">{(pdfFile.size / 1024).toFixed(0)} KB • Siap dianalisis</p>
+                                        </div>
+                                        <button 
+                                            onClick={() => setPdfFile(null)}
+                                            className="text-gray-400 hover:text-red-500 p-2 hover:bg-red-50 rounded-full transition"
+                                            disabled={isUploading}
+                                            title="Hapus / Ganti File"
+                                        >
+                                            <Trash2 size={20} />
+                                        </button>
+                                    </div>
+                                    
+                                    <button 
+                                        onClick={handleProcessPdf}
+                                        disabled={isUploading}
+                                        className="w-full bg-blue-600 hover:bg-blue-700 text-white px-6 py-3 rounded-xl font-bold flex items-center justify-center gap-2 transition shadow-lg shadow-blue-200 disabled:opacity-70 disabled:cursor-not-allowed"
+                                    >
+                                        {isUploading ? <Loader2 size={20} className="animate-spin" /> : <BrainCircuit size={20} />}
+                                        {isUploading ? 'Sedang Menganalisis PDF...' : 'Baca & Analisa dengan AI'}
+                                    </button>
+                                </div>
+                            )}
                         </div>
                     </div>
                 </div>
