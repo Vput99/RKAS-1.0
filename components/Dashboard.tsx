@@ -1,13 +1,14 @@
+
 import React, { useMemo } from 'react';
-import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip as RechartsTooltip, BarChart, Bar, XAxis, YAxis, CartesianGrid, Legend } from 'recharts';
+import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip as RechartsTooltip, XAxis, YAxis, CartesianGrid, Legend, AreaChart, Area } from 'recharts';
 import { Budget, TransactionType } from '../types';
-import { ArrowUpCircle, CheckCircle2, Wallet, AlertCircle } from 'lucide-react';
+import { ArrowUpRight, ArrowDownRight, Wallet, Target, TrendingUp, PieChart as PieChartIcon, Activity } from 'lucide-react';
 
 interface DashboardProps {
   data: Budget[];
 }
 
-const COLORS = ['#0088FE', '#00C49F', '#FFBB28', '#FF8042', '#8884d8', '#82ca9d', '#ffc658', '#8dd1e1', '#a4de6c', '#d0ed57'];
+const COLORS = ['#3B82F6', '#10B981', '#F59E0B', '#EF4444', '#8B5CF6', '#EC4899', '#6366F1', '#14B8A6'];
 
 const Dashboard: React.FC<DashboardProps> = ({ data }) => {
   
@@ -18,7 +19,7 @@ const Dashboard: React.FC<DashboardProps> = ({ data }) => {
     // Rencana Belanja (Pagu)
     const plannedExpense = data.filter(d => d.type === TransactionType.EXPENSE).reduce((acc, curr) => acc + curr.amount, 0);
     
-    // Realisasi Belanja (SPJ) - Sum all detail items in realizations array
+    // Realisasi Belanja (SPJ)
     const realizedExpense = data.filter(d => d.type === TransactionType.EXPENSE)
       .reduce((acc, curr) => {
         const itemTotal = curr.realizations?.reduce((rAcc, r) => rAcc + r.amount, 0) || 0;
@@ -28,10 +29,10 @@ const Dashboard: React.FC<DashboardProps> = ({ data }) => {
     // Saldo Kas = Pendapatan - Realisasi
     const cashBalance = income - realizedExpense;
 
-    // SILPA (Sisa dari kegiatan yang SUDAH direalisasikan sebagian atau seluruhnya)
-    const totalSilpa = plannedExpense - realizedExpense;
+    // Persentase Serapan
+    const absorptionRate = plannedExpense > 0 ? (realizedExpense / plannedExpense) * 100 : 0;
 
-    return { income, plannedExpense, realizedExpense, cashBalance, totalSilpa };
+    return { income, plannedExpense, realizedExpense, cashBalance, absorptionRate };
   }, [data]);
 
   const expenseByComponent = useMemo(() => {
@@ -42,52 +43,41 @@ const Dashboard: React.FC<DashboardProps> = ({ data }) => {
       const itemRealized = item.realizations?.reduce((rAcc, r) => rAcc + r.amount, 0) || 0;
       if (itemRealized > 0) {
         const rawKey = item.bosp_component || item.category;
+        // Simplify name: remove numbering "1. "
         const key = rawKey.includes('.') ? rawKey.split('.').slice(1).join('.').trim() : rawKey;
         grouped[key] = (grouped[key] || 0) + itemRealized;
       }
     });
-    return Object.entries(grouped).map(([name, value]) => ({ name, value }));
-  }, [data]);
-
-  const silpaByComponent = useMemo(() => {
-    const expenses = data.filter(d => d.type === TransactionType.EXPENSE);
-    const grouped: Record<string, number> = {};
-    
-    expenses.forEach(item => {
-      const itemRealized = item.realizations?.reduce((rAcc, r) => rAcc + r.amount, 0) || 0;
-      const itemBalance = item.amount - itemRealized;
-      
-      if (itemBalance > 0) {
-        const rawKey = item.bosp_component || item.category;
-        const key = rawKey.includes('.') ? rawKey.split('.').slice(1).join('.').trim() : rawKey;
-        grouped[key] = (grouped[key] || 0) + itemBalance;
-      }
-    });
-    return Object.entries(grouped).map(([name, value]) => ({ name, value }));
+    // Sort big to small
+    return Object.entries(grouped)
+      .map(([name, value]) => ({ name, value }))
+      .sort((a,b) => b.value - a.value);
   }, [data]);
 
   const monthlyTrend = useMemo(() => {
     const grouped: Record<string, { income: number, expense: number }> = {};
     
+    // Init all months to 0
+    const ORDER = ['Jan', 'Feb', 'Mar', 'Apr', 'Mei', 'Jun', 'Jul', 'Agu', 'Sep', 'Okt', 'Nov', 'Des'];
+    ORDER.forEach(m => grouped[m] = { income: 0, expense: 0 });
+
     data.forEach(item => {
       if (item.type === TransactionType.INCOME) {
-        const month = new Date(item.date).toLocaleString('id-ID', { month: 'short' });
-        if (!grouped[month]) grouped[month] = { income: 0, expense: 0 };
-        grouped[month].income += item.amount;
+        const dateObj = new Date(item.date);
+        const month = dateObj.toLocaleString('id-ID', { month: 'short' });
+        if (grouped[month]) grouped[month].income += item.amount;
       } else {
-        // Expense: Iterate realizations to place them in correct months
+        // Expense: Iterate realizations
         if (item.realizations) {
           item.realizations.forEach(r => {
              const dateObj = new Date(r.date);
              const month = dateObj.toLocaleString('id-ID', { month: 'short' });
-             if (!grouped[month]) grouped[month] = { income: 0, expense: 0 };
-             grouped[month].expense += r.amount;
+             if (grouped[month]) grouped[month].expense += r.amount;
           });
         }
       }
     });
     
-    const ORDER = ['Jan', 'Feb', 'Mar', 'Apr', 'Mei', 'Jun', 'Jul', 'Agu', 'Sep', 'Okt', 'Nov', 'Des'];
     return Object.entries(grouped)
       .map(([name, val]) => ({ name, ...val }))
       .sort((a, b) => ORDER.indexOf(a.name) - ORDER.indexOf(b.name));
@@ -97,154 +87,199 @@ const Dashboard: React.FC<DashboardProps> = ({ data }) => {
     return new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', maximumFractionDigits: 0 }).format(num);
   };
 
+  const CustomTooltip = ({ active, payload, label }: any) => {
+    if (active && payload && payload.length) {
+      return (
+        <div className="bg-white p-3 border border-gray-100 shadow-xl rounded-xl">
+          <p className="font-bold text-gray-700 mb-2">{label}</p>
+          {payload.map((entry: any, index: number) => (
+            <p key={index} style={{ color: entry.color }} className="text-sm font-medium">
+              {entry.name === 'income' ? 'Pemasukan' : entry.name === 'expense' ? 'Pengeluaran' : entry.name}: {formatRupiah(entry.value)}
+            </p>
+          ))}
+        </div>
+      );
+    }
+    return null;
+  };
+
   return (
-    <div className="space-y-6 animate-fade-in">
-      <div className="bg-blue-50 border border-blue-100 p-4 rounded-xl text-blue-800 text-sm flex gap-3 items-start">
-        <AlertCircle className="flex-shrink-0 mt-0.5" size={18} />
-        <div>
-          <strong>Informasi Keuangan:</strong> Dashboard menampilkan data berdasarkan <b>Realisasi (SPJ)</b> yang telah diinput per bulan beserta bukti fisiknya.
-        </div>
+    <div className="space-y-8 animate-fade-in pb-10">
+      
+      {/* 1. Modern Header */}
+      <div className="relative overflow-hidden bg-gradient-to-r from-blue-600 to-indigo-700 rounded-2xl p-6 md:p-10 text-white shadow-lg">
+         <div className="absolute top-0 right-0 -mt-10 -mr-10 w-64 h-64 bg-white opacity-5 rounded-full blur-3xl"></div>
+         <div className="absolute bottom-0 left-0 -mb-10 -ml-10 w-40 h-40 bg-indigo-400 opacity-10 rounded-full blur-2xl"></div>
+         
+         <div className="relative z-10 flex flex-col md:flex-row justify-between items-start md:items-end gap-4">
+            <div>
+               <h1 className="text-3xl font-bold mb-2">Dashboard Keuangan</h1>
+               <p className="text-blue-100 text-sm md:text-base max-w-xl">
+                 Pantau kesehatan finansial sekolah secara real-time. Kelola dana BOSP, realisasi SPJ, dan pelaporan dengan lebih efisien.
+               </p>
+            </div>
+            <div className="bg-white/10 backdrop-blur-sm px-4 py-2 rounded-lg border border-white/20">
+               <p className="text-xs text-blue-100 uppercase font-bold tracking-wider">Tahun Anggaran</p>
+               <p className="text-xl font-bold">2026</p>
+            </div>
+         </div>
       </div>
 
-      {/* Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-        <div className="bg-white p-5 rounded-xl shadow-sm border border-gray-100 flex flex-col">
-          <div className="flex items-center gap-3 mb-2">
-            <div className="p-2 bg-green-100 rounded-lg text-green-600">
-              <ArrowUpCircle size={20} />
-            </div>
-            <p className="text-xs text-gray-500 font-bold uppercase tracking-wider">Total Pendapatan</p>
-          </div>
-          <h3 className="text-xl font-bold text-gray-800">{formatRupiah(stats.income)}</h3>
-          <p className="text-xs text-gray-400 mt-1">Dana Masuk</p>
-        </div>
-
-        <div className="bg-white p-5 rounded-xl shadow-sm border border-gray-100 flex flex-col">
-          <div className="flex items-center gap-3 mb-2">
-            <div className="p-2 bg-blue-100 rounded-lg text-blue-600">
-              <CheckCircle2 size={20} />
-            </div>
-            <p className="text-xs text-gray-500 font-bold uppercase tracking-wider">Total Realisasi (SPJ)</p>
-          </div>
-          <h3 className="text-xl font-bold text-gray-800">{formatRupiah(stats.realizedExpense)}</h3>
-          <div className="w-full bg-gray-200 rounded-full h-1.5 mt-2">
-             <div 
-               className="bg-blue-600 h-1.5 rounded-full" 
-               style={{ width: `${stats.plannedExpense > 0 ? (stats.realizedExpense / stats.plannedExpense) * 100 : 0}%` }}
-             ></div>
-          </div>
-          <p className="text-xs text-gray-400 mt-1">
-            {stats.plannedExpense > 0 ? ((stats.realizedExpense / stats.plannedExpense) * 100).toFixed(1) : 0}% dari Pagu
-          </p>
-        </div>
-
-        <div className="bg-white p-5 rounded-xl shadow-sm border border-gray-100 flex flex-col">
-          <div className="flex items-center gap-3 mb-2">
-            <div className="p-2 bg-purple-100 rounded-lg text-purple-600">
-              <Wallet size={20} />
-            </div>
-            <p className="text-xs text-gray-500 font-bold uppercase tracking-wider">Saldo Kas Tunai</p>
-          </div>
-          <h3 className="text-xl font-bold text-gray-800">{formatRupiah(stats.cashBalance)}</h3>
-          <p className="text-xs text-gray-400 mt-1">Pendapatan - Realisasi</p>
-        </div>
-
-        <div className="bg-white p-5 rounded-xl shadow-sm border border-gray-100 flex flex-col">
-           <div className="flex items-center gap-3 mb-2">
-            <div className="p-2 bg-yellow-100 rounded-lg text-yellow-600">
-              <Wallet size={20} />
-            </div>
-            <p className="text-xs text-gray-500 font-bold uppercase tracking-wider">Sisa Anggaran</p>
-          </div>
-          <h3 className="text-xl font-bold text-gray-800">{formatRupiah(stats.totalSilpa)}</h3>
-          <p className="text-xs text-gray-400 mt-1">Belum di-SPJ-kan</p>
-        </div>
-      </div>
-
-      {/* Charts */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+      {/* 2. Premium Stats Cards */}
+      <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-6">
         
-        {/* Expense Breakdown (Realisasi) */}
-        <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-100">
-          <h4 className="text-lg font-bold text-gray-800 mb-4">Realisasi per Komponen BOSP</h4>
-          {expenseByComponent.length > 0 ? (
-            <div className="h-64">
-              <ResponsiveContainer width="100%" height="100%">
-                <PieChart>
-                  <Pie
-                    data={expenseByComponent}
-                    cx="50%"
-                    cy="50%"
-                    labelLine={false}
-                    outerRadius={80}
-                    fill="#8884d8"
-                    dataKey="value"
-                  >
-                    {expenseByComponent.map((entry, index) => (
-                      <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
-                    ))}
-                  </Pie>
-                  <RechartsTooltip formatter={(value: number) => formatRupiah(value)} />
-                  <Legend layout="horizontal" verticalAlign="bottom" align="center" wrapperStyle={{ fontSize: '10px', paddingTop: '10px' }} />
-                </PieChart>
-              </ResponsiveContainer>
-            </div>
-          ) : (
-             <div className="h-64 flex items-center justify-center text-gray-400 text-sm">
-               Belum ada data realisasi (SPJ).
-             </div>
-          )}
+        {/* Income Card */}
+        <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100 hover:shadow-md transition-shadow group">
+           <div className="flex justify-between items-start mb-4">
+              <div className="p-3 bg-green-50 rounded-xl text-green-600 group-hover:bg-green-600 group-hover:text-white transition-colors">
+                 <ArrowDownRight size={24} />
+              </div>
+              <span className="bg-green-100 text-green-700 text-[10px] font-bold px-2 py-1 rounded-full">+100% Valid</span>
+           </div>
+           <p className="text-sm text-gray-500 font-medium">Total Pendapatan</p>
+           <h3 className="text-2xl font-bold text-gray-800 mt-1">{formatRupiah(stats.income)}</h3>
         </div>
 
-        {/* SILPA Breakdown (Sisa Anggaran) */}
-        <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-100">
-          <h4 className="text-lg font-bold text-gray-800 mb-4">Sisa Anggaran per Komponen</h4>
-          {silpaByComponent.length > 0 ? (
-            <div className="h-64">
-              <ResponsiveContainer width="100%" height="100%">
-                <PieChart>
-                  <Pie
-                    data={silpaByComponent}
-                    cx="50%"
-                    cy="50%"
-                    labelLine={false}
-                    outerRadius={80}
-                    fill="#FF8042"
-                    dataKey="value"
-                  >
-                    {silpaByComponent.map((entry, index) => (
-                      <Cell key={`cell-silpa-${index}`} fill={COLORS[index % COLORS.length]} />
-                    ))}
-                  </Pie>
-                  <RechartsTooltip formatter={(value: number) => formatRupiah(value)} />
-                  <Legend layout="horizontal" verticalAlign="bottom" align="center" wrapperStyle={{ fontSize: '10px', paddingTop: '10px' }} />
-                </PieChart>
-              </ResponsiveContainer>
-            </div>
-          ) : (
-             <div className="h-64 flex items-center justify-center text-gray-400 text-sm">
-               Tidak ada sisa anggaran (Semua terealisasi).
-             </div>
-          )}
+        {/* Realization Card */}
+        <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100 hover:shadow-md transition-shadow group">
+           <div className="flex justify-between items-start mb-4">
+              <div className="p-3 bg-blue-50 rounded-xl text-blue-600 group-hover:bg-blue-600 group-hover:text-white transition-colors">
+                 <ArrowUpRight size={24} />
+              </div>
+              <span className={`text-[10px] font-bold px-2 py-1 rounded-full ${stats.absorptionRate > 80 ? 'bg-orange-100 text-orange-700' : 'bg-blue-100 text-blue-700'}`}>
+                 {stats.absorptionRate.toFixed(1)}% Serapan
+              </span>
+           </div>
+           <p className="text-sm text-gray-500 font-medium">Total Realisasi (SPJ)</p>
+           <h3 className="text-2xl font-bold text-gray-800 mt-1">{formatRupiah(stats.realizedExpense)}</h3>
+           <div className="w-full bg-gray-100 rounded-full h-1.5 mt-3 overflow-hidden">
+              <div 
+                 className="bg-blue-600 h-1.5 rounded-full transition-all duration-1000" 
+                 style={{ width: `${Math.min(stats.absorptionRate, 100)}%` }}
+              ></div>
+           </div>
         </div>
 
-        {/* Monthly Trend */}
-        <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-100 lg:col-span-2">
-          <h4 className="text-lg font-bold text-gray-800 mb-4">Arus Kas Realisasi (Income vs SPJ)</h4>
-          <div className="h-64">
+        {/* Cash Balance Card */}
+        <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100 hover:shadow-md transition-shadow group">
+           <div className="flex justify-between items-start mb-4">
+              <div className="p-3 bg-indigo-50 rounded-xl text-indigo-600 group-hover:bg-indigo-600 group-hover:text-white transition-colors">
+                 <Wallet size={24} />
+              </div>
+           </div>
+           <p className="text-sm text-gray-500 font-medium">Saldo Kas Tunai/Bank</p>
+           <h3 className="text-2xl font-bold text-gray-800 mt-1">{formatRupiah(stats.cashBalance)}</h3>
+           <p className="text-xs text-gray-400 mt-2">Dana Tersedia</p>
+        </div>
+
+        {/* Remaining Budget Card */}
+        <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100 hover:shadow-md transition-shadow group">
+           <div className="flex justify-between items-start mb-4">
+              <div className="p-3 bg-orange-50 rounded-xl text-orange-600 group-hover:bg-orange-600 group-hover:text-white transition-colors">
+                 <Target size={24} />
+              </div>
+           </div>
+           <p className="text-sm text-gray-500 font-medium">Sisa Pagu Anggaran</p>
+           <h3 className="text-2xl font-bold text-gray-800 mt-1">{formatRupiah(stats.plannedExpense - stats.realizedExpense)}</h3>
+           <p className="text-xs text-gray-400 mt-2">Belum dibelanjakan</p>
+        </div>
+      </div>
+
+      {/* 3. Charts Section */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 h-full">
+        
+        {/* Left: Area Chart (Trends) */}
+        <div className="lg:col-span-2 bg-white p-6 rounded-2xl shadow-sm border border-gray-100">
+          <div className="flex items-center justify-between mb-6">
+             <h4 className="text-lg font-bold text-gray-800 flex items-center gap-2">
+                <Activity className="text-blue-500" size={20} /> Arus Kas Bulanan
+             </h4>
+             <div className="flex items-center gap-2 text-xs">
+                <div className="flex items-center gap-1">
+                   <span className="w-3 h-3 rounded-full bg-green-500"></span> Pendapatan
+                </div>
+                <div className="flex items-center gap-1">
+                   <span className="w-3 h-3 rounded-full bg-red-500"></span> Belanja
+                </div>
+             </div>
+          </div>
+          
+          <div className="h-[300px]">
             <ResponsiveContainer width="100%" height="100%">
-              <BarChart data={monthlyTrend}>
-                <CartesianGrid strokeDasharray="3 3" vertical={false} />
-                <XAxis dataKey="name" />
+              <AreaChart data={monthlyTrend} margin={{ top: 10, right: 10, left: 0, bottom: 0 }}>
+                <defs>
+                  <linearGradient id="colorIncome" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="5%" stopColor="#10B981" stopOpacity={0.1}/>
+                    <stop offset="95%" stopColor="#10B981" stopOpacity={0}/>
+                  </linearGradient>
+                  <linearGradient id="colorExpense" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="5%" stopColor="#EF4444" stopOpacity={0.1}/>
+                    <stop offset="95%" stopColor="#EF4444" stopOpacity={0}/>
+                  </linearGradient>
+                </defs>
+                <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f3f4f6" />
+                <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{fontSize: 12, fill: '#9ca3af'}} dy={10} />
                 <YAxis hide />
-                <RechartsTooltip formatter={(value: number) => formatRupiah(value)} />
-                <Legend />
-                <Bar dataKey="income" name="Masuk" fill="#10B981" radius={[4, 4, 0, 0]} />
-                <Bar dataKey="expense" name="SPJ Keluar" fill="#EF4444" radius={[4, 4, 0, 0]} />
-              </BarChart>
+                <RechartsTooltip content={<CustomTooltip />} />
+                <Area type="monotone" dataKey="income" stroke="#10B981" strokeWidth={2} fillOpacity={1} fill="url(#colorIncome)" />
+                <Area type="monotone" dataKey="expense" stroke="#EF4444" strokeWidth={2} fillOpacity={1} fill="url(#colorExpense)" />
+              </AreaChart>
             </ResponsiveContainer>
           </div>
         </div>
+
+        {/* Right: Donut Chart (Breakdown) */}
+        <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100 flex flex-col">
+          <h4 className="text-lg font-bold text-gray-800 mb-2 flex items-center gap-2">
+             <PieChartIcon className="text-purple-500" size={20} /> Komposisi Belanja
+          </h4>
+          <p className="text-xs text-gray-500 mb-6">Distribusi realisasi berdasarkan komponen BOSP.</p>
+          
+          <div className="flex-1 min-h-[250px] relative">
+            {expenseByComponent.length > 0 ? (
+                <ResponsiveContainer width="100%" height="100%">
+                <PieChart>
+                    <Pie
+                    data={expenseByComponent}
+                    cx="50%"
+                    cy="50%"
+                    innerRadius={60}
+                    outerRadius={80}
+                    paddingAngle={5}
+                    dataKey="value"
+                    stroke="none"
+                    >
+                    {expenseByComponent.map((entry, index) => (
+                        <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                    ))}
+                    </Pie>
+                    <RechartsTooltip content={<CustomTooltip />} />
+                    <Legend 
+                        layout="horizontal" 
+                        verticalAlign="bottom" 
+                        align="center"
+                        iconType="circle"
+                        wrapperStyle={{ fontSize: '10px', paddingTop: '20px' }} 
+                    />
+                </PieChart>
+                </ResponsiveContainer>
+            ) : (
+                <div className="absolute inset-0 flex flex-col items-center justify-center text-gray-400">
+                    <PieChartIcon size={40} className="mb-2 opacity-20" />
+                    <span className="text-xs">Belum ada data realisasi</span>
+                </div>
+            )}
+            
+            {/* Center Label for Donut */}
+            {expenseByComponent.length > 0 && (
+                <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none pb-8">
+                    <span className="text-2xl font-bold text-gray-800">{expenseByComponent.length}</span>
+                    <span className="text-[10px] text-gray-400 uppercase tracking-wider">Komponen</span>
+                </div>
+            )}
+          </div>
+        </div>
+
       </div>
     </div>
   );
