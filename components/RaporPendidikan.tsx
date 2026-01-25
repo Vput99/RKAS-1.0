@@ -268,15 +268,15 @@ const RaporPendidikan: React.FC<RaporPendidikanProps> = ({ onAddBudget, budgetDa
              <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
                 
                 {/* PDF Upload Section */}
-                <div className="mb-6 bg-gradient-to-r from-blue-50 to-indigo-50 border border-blue-100 p-4 rounded-xl">
-                    <div className="flex items-start gap-3">
-                        <div className="bg-white p-2 rounded-lg shadow-sm text-blue-600">
-                           <FileText size={24} />
+                <div className="mb-6 bg-gradient-to-r from-blue-50 to-indigo-50 border border-blue-100 p-6 rounded-xl shadow-sm">
+                    <div className="flex items-start gap-4">
+                        <div className="bg-white p-3 rounded-xl shadow-sm text-blue-600 border border-blue-100">
+                           <FileText size={28} />
                         </div>
                         <div className="flex-1">
-                            <h4 className="font-bold text-blue-900 text-sm">Upload Rapor Pendidikan (PDF)</h4>
-                            <p className="text-xs text-blue-700 mb-3">
-                                AI akan membaca nilai dan otomatis membuat rekomendasi kegiatan anggaran.
+                            <h4 className="font-bold text-blue-900 text-base mb-1">Upload Rapor Pendidikan (PDF)</h4>
+                            <p className="text-sm text-blue-700 mb-4 leading-relaxed">
+                                AI akan membaca nilai dan otomatis membuat rekomendasi kegiatan anggaran (PBD).
                             </p>
                             <input 
                                 type="file" 
@@ -288,10 +288,10 @@ const RaporPendidikan: React.FC<RaporPendidikanProps> = ({ onAddBudget, budgetDa
                             <button 
                                 onClick={() => fileInputRef.current?.click()}
                                 disabled={isUploading}
-                                className="bg-blue-600 hover:bg-blue-700 text-white text-xs px-4 py-2 rounded-lg font-bold flex items-center gap-2 transition disabled:opacity-50"
+                                className="w-full sm:w-auto bg-blue-600 hover:bg-blue-700 text-white text-sm px-6 py-3 rounded-xl font-bold flex items-center justify-center gap-3 transition disabled:opacity-50 shadow-lg shadow-blue-200"
                             >
-                                {isUploading ? <Loader2 size={16} className="animate-spin" /> : <Upload size={16} />}
-                                {isUploading ? 'Menganalisis PDF...' : 'Pilih File PDF'}
+                                {isUploading ? <Loader2 size={20} className="animate-spin" /> : <Upload size={20} />}
+                                {isUploading ? 'Sedang Menganalisis...' : 'Pilih File PDF Rapor'}
                             </button>
                         </div>
                     </div>
