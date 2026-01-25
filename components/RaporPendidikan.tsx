@@ -2,7 +2,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { RaporIndicator, PBDRecommendation, TransactionType, Budget } from '../types';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell } from 'recharts';
-import { AlertCircle, BrainCircuit, CheckCircle, Plus, TrendingUp, AlertTriangle, CalendarRange, Save, Loader2, List, X, Check, Upload, FileText, Trash2 } from 'lucide-react';
+import { AlertCircle, BrainCircuit, CheckCircle, Plus, TrendingUp, AlertTriangle, CalendarRange, Save, Loader2, List, X, Check, Upload, FileText, Trash2, SlidersHorizontal, MousePointerClick } from 'lucide-react';
 import { analyzeRaporQuality, analyzeRaporPDF, isAiConfigured } from '../lib/gemini';
 import { getRaporData, saveRaporData } from '../lib/db';
 
@@ -26,6 +26,7 @@ const RaporPendidikan: React.FC<RaporPendidikanProps> = ({ onAddBudget, budgetDa
   const [loading, setLoading] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [activeView, setActiveView] = useState<'input' | 'analysis'>('input');
+  const [inputMethod, setInputMethod] = useState<'upload' | 'manual'>('upload');
   const [targetYear, setTargetYear] = useState('2027');
   
   // File Upload State
@@ -150,12 +151,12 @@ const RaporPendidikan: React.FC<RaporPendidikanProps> = ({ onAddBudget, budgetDa
                   // 2. Update Recommendations Logic
                   if (result.recommendations && result.recommendations.length > 0) {
                       setRecommendations(result.recommendations);
-                      setActiveView('analysis');
+                      setActiveView('analysis'); // Switch to results view directly
                   } else {
                       alert("AI berhasil membaca nilai, namun tidak menemukan rekomendasi kegiatan spesifik.");
                   }
                   
-                  // 3. Try Auto Save (Background) - Even if this fails, UI stays updated
+                  // 3. Try Auto Save (Background)
                   try {
                       const dataYear = (parseInt(targetYear) - 1).toString();
                       saveRaporData(updatedIndicators, dataYear).then(success => {
@@ -165,7 +166,6 @@ const RaporPendidikan: React.FC<RaporPendidikanProps> = ({ onAddBudget, budgetDa
                       console.warn("DB save error ignored:", e);
                   }
                   
-                  // Clear PDF selection on success (optional, but cleaner)
                   setPdfFile(null);
 
               } else {
@@ -259,166 +259,208 @@ const RaporPendidikan: React.FC<RaporPendidikanProps> = ({ onAddBudget, budgetDa
                     <option value="2026">Tahun 2026 (Rapor 2025)</option>
                 </select>
             </div>
-            
-            {activeView === 'input' && (
-                <button
-                    onClick={handleSaveRapor}
-                    disabled={isSaving}
-                    className="bg-white border border-gray-200 text-gray-700 hover:bg-gray-50 px-3 py-2 rounded-lg shadow-sm flex items-center gap-2 transition"
-                    title="Simpan Nilai Manual"
-                >
-                    {isSaving ? <Loader2 size={18} className="animate-spin" /> : <Save size={18} />}
-                    <span className="hidden sm:inline text-sm font-bold">Simpan</span>
-                </button>
-            )}
         </div>
       </div>
 
       {activeView === 'input' && (
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-             <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
-                
-                {/* PDF Upload Section */}
-                <div className="mb-6 bg-gradient-to-r from-blue-50 to-indigo-50 border border-blue-100 p-6 rounded-xl shadow-sm">
-                    <div className="flex items-start gap-4">
-                        <div className="bg-white p-3 rounded-xl shadow-sm text-blue-600 border border-blue-100">
-                           <FileText size={28} />
-                        </div>
-                        <div className="flex-1">
-                            <h4 className="font-bold text-blue-900 text-base mb-1">Upload Rapor Pendidikan (PDF)</h4>
-                            <p className="text-sm text-blue-700 mb-4 leading-relaxed">
-                                AI akan membaca nilai dan otomatis membuat rekomendasi kegiatan anggaran (PBD).
-                            </p>
-                            <input 
-                                type="file" 
-                                accept="application/pdf"
-                                ref={fileInputRef}
-                                onChange={handleFileSelect}
-                                className="hidden"
-                            />
-                            
-                            {!pdfFile ? (
-                                <button 
-                                    onClick={() => fileInputRef.current?.click()}
-                                    className="w-full sm:w-auto bg-white border border-blue-300 text-blue-700 hover:bg-blue-50 px-6 py-3 rounded-xl font-bold flex items-center justify-center gap-3 transition shadow-sm"
-                                >
-                                    <Upload size={20} />
-                                    Pilih File PDF Rapor
-                                </button>
-                            ) : (
-                                <div className="space-y-3">
-                                    <div className="flex items-center gap-3 bg-white p-3 rounded-lg border border-blue-200">
-                                        <div className="bg-red-100 p-2 rounded text-red-600 flex-shrink-0">
-                                            <FileText size={24} />
+          <div className="space-y-6">
+             
+             {/* Tab Switcher */}
+             <div className="flex justify-center">
+                 <div className="bg-gray-100 p-1 rounded-xl inline-flex shadow-inner">
+                     <button
+                        onClick={() => setInputMethod('upload')}
+                        className={`px-6 py-2.5 rounded-lg text-sm font-bold flex items-center gap-2 transition-all ${
+                            inputMethod === 'upload' 
+                            ? 'bg-white text-blue-600 shadow-sm' 
+                            : 'text-gray-500 hover:text-gray-700'
+                        }`}
+                     >
+                        <BrainCircuit size={18} />
+                        Otomatis (Upload PDF)
+                     </button>
+                     <button
+                        onClick={() => setInputMethod('manual')}
+                        className={`px-6 py-2.5 rounded-lg text-sm font-bold flex items-center gap-2 transition-all ${
+                            inputMethod === 'manual' 
+                            ? 'bg-white text-blue-600 shadow-sm' 
+                            : 'text-gray-500 hover:text-gray-700'
+                        }`}
+                     >
+                        <SlidersHorizontal size={18} />
+                        Input Manual
+                     </button>
+                 </div>
+             </div>
+
+             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 items-start">
+                 
+                 {/* LEFT COLUMN: Input Area */}
+                 <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
+                    
+                    {/* OPTION 1: PDF UPLOAD (DEFAULT) */}
+                    {inputMethod === 'upload' && (
+                        <div className="flex flex-col h-full justify-center">
+                            <div className="text-center mb-6">
+                                <h3 className="text-lg font-bold text-gray-800">Analisis Otomatis AI</h3>
+                                <p className="text-sm text-gray-500">Upload file PDF Rapor Pendidikan, AI akan membaca nilai dan memberikan rekomendasi.</p>
+                            </div>
+
+                            <div 
+                                onClick={() => fileInputRef.current?.click()}
+                                className={`border-2 border-dashed rounded-xl p-8 text-center cursor-pointer transition-all duration-300 group ${
+                                    pdfFile ? 'border-blue-300 bg-blue-50/50' : 'border-gray-300 hover:border-blue-400 hover:bg-gray-50'
+                                }`}
+                            >
+                                <input 
+                                    type="file" 
+                                    accept="application/pdf"
+                                    ref={fileInputRef}
+                                    onChange={handleFileSelect}
+                                    className="hidden"
+                                />
+                                
+                                {!pdfFile ? (
+                                    <div className="flex flex-col items-center gap-3 py-6">
+                                        <div className="w-16 h-16 bg-blue-100 text-blue-600 rounded-full flex items-center justify-center mb-2 group-hover:scale-110 transition-transform">
+                                            <Upload size={32} />
                                         </div>
-                                        <div className="flex-1 overflow-hidden">
-                                            <p className="text-sm font-bold text-gray-800 truncate">{pdfFile.name}</p>
-                                            <p className="text-xs text-gray-500">{(pdfFile.size / 1024).toFixed(0)} KB • Siap dianalisis</p>
+                                        <div>
+                                            <p className="font-bold text-gray-700">Klik untuk upload PDF</p>
+                                            <p className="text-xs text-gray-400 mt-1">Maksimal 10MB</p>
+                                        </div>
+                                    </div>
+                                ) : (
+                                    <div className="flex flex-col items-center gap-4 py-4">
+                                        <FileText size={48} className="text-red-500" />
+                                        <div>
+                                            <p className="font-bold text-gray-800 text-lg">{pdfFile.name}</p>
+                                            <p className="text-xs text-gray-500">{(pdfFile.size / 1024).toFixed(0)} KB</p>
                                         </div>
                                         <button 
-                                            onClick={() => setPdfFile(null)}
-                                            className="text-gray-400 hover:text-red-500 p-2 hover:bg-red-50 rounded-full transition"
-                                            disabled={isUploading}
-                                            title="Hapus / Ganti File"
+                                            onClick={(e) => { e.stopPropagation(); setPdfFile(null); }}
+                                            className="text-red-500 hover:text-red-700 text-sm underline z-10"
                                         >
-                                            <Trash2 size={20} />
+                                            Ganti File
                                         </button>
                                     </div>
-                                    
-                                    <button 
-                                        onClick={handleProcessPdf}
-                                        disabled={isUploading}
-                                        className="w-full bg-blue-600 hover:bg-blue-700 text-white px-6 py-3 rounded-xl font-bold flex items-center justify-center gap-2 transition shadow-lg shadow-blue-200 disabled:opacity-70 disabled:cursor-not-allowed"
-                                    >
-                                        {isUploading ? <Loader2 size={20} className="animate-spin" /> : <BrainCircuit size={20} />}
-                                        {isUploading ? 'Sedang Menganalisis PDF...' : 'Baca & Analisa dengan AI'}
-                                    </button>
+                                )}
+                            </div>
+
+                            {pdfFile && (
+                                <button 
+                                    onClick={handleProcessPdf}
+                                    disabled={isUploading}
+                                    className="mt-6 w-full bg-blue-600 hover:bg-blue-700 text-white py-4 rounded-xl font-bold text-lg shadow-lg shadow-blue-200 flex items-center justify-center gap-3 transition-all transform hover:scale-[1.02]"
+                                >
+                                    {isUploading ? <Loader2 size={24} className="animate-spin" /> : <BrainCircuit size={24} />}
+                                    {isUploading ? 'Sedang Menganalisis...' : 'Mulai Analisis AI'}
+                                </button>
+                            )}
+                            
+                            {!isAiConfigured() && (
+                                <div className="mt-4 p-3 bg-red-50 border border-red-100 rounded-lg text-xs text-red-600 flex gap-2">
+                                    <AlertTriangle size={16} />
+                                    <span>API Key belum diatur. Masuk ke menu Pengaturan untuk mengaktifkan AI.</span>
                                 </div>
                             )}
                         </div>
-                    </div>
-                </div>
+                    )}
 
-                <h3 className="font-bold text-gray-700 mb-4 border-b pb-2 flex justify-between items-end">
-                    <span>Input Nilai Manual</span>
-                    <span className="text-xs font-normal text-gray-400 bg-gray-100 px-2 py-1 rounded">Data Tahun {parseInt(targetYear)-1}</span>
-                </h3>
-                <div className="space-y-4">
-                    {indicators.map((ind) => (
-                        <div key={ind.id} className="flex items-center gap-4">
-                            <div className="w-10 text-xs font-bold text-gray-500">{ind.id}</div>
-                            <div className="flex-1">
-                                <label className="block text-sm font-medium text-gray-700">{ind.label}</label>
-                                <input 
-                                   type="range" 
-                                   min="0" 
-                                   max="100" 
-                                   value={ind.score}
-                                   onChange={(e) => handleScoreChange(ind.id, e.target.value)}
-                                   className="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-blue-600"
-                                />
+                    {/* OPTION 2: MANUAL INPUT */}
+                    {inputMethod === 'manual' && (
+                        <div className="space-y-5 animate-fade-in">
+                            <div className="flex items-center justify-between border-b pb-3 mb-4">
+                                <h3 className="font-bold text-gray-800">Input Nilai Rapor</h3>
+                                <button
+                                    onClick={handleSaveRapor}
+                                    disabled={isSaving}
+                                    className="text-blue-600 text-xs hover:underline flex items-center gap-1"
+                                >
+                                    <Save size={14} /> Simpan Draft
+                                </button>
                             </div>
-                            <div className="w-12 text-right font-bold text-blue-600">{ind.score}</div>
-                            <div className={`text-xs px-2 py-1 rounded font-bold w-16 text-center ${
-                                ind.category === 'Baik' ? 'bg-green-100 text-green-700' : 
-                                ind.category === 'Sedang' ? 'bg-yellow-100 text-yellow-700' : 'bg-red-100 text-red-700'
-                            }`}>
-                                {ind.category}
-                            </div>
+                            
+                            {indicators.map((ind) => (
+                                <div key={ind.id} className="flex items-center gap-4">
+                                    <div className="w-10 text-xs font-bold text-gray-500">{ind.id}</div>
+                                    <div className="flex-1">
+                                        <label className="block text-sm font-medium text-gray-700 mb-1">{ind.label}</label>
+                                        <input 
+                                        type="range" 
+                                        min="0" 
+                                        max="100" 
+                                        value={ind.score}
+                                        onChange={(e) => handleScoreChange(ind.id, e.target.value)}
+                                        className="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-blue-600"
+                                        />
+                                    </div>
+                                    <div className="w-12 text-right font-bold text-blue-600">{ind.score}</div>
+                                    <div className={`text-xs px-2 py-1 rounded font-bold w-16 text-center ${
+                                        ind.category === 'Baik' ? 'bg-green-100 text-green-700' : 
+                                        ind.category === 'Sedang' ? 'bg-yellow-100 text-yellow-700' : 'bg-red-100 text-red-700'
+                                    }`}>
+                                        {ind.category}
+                                    </div>
+                                </div>
+                            ))}
+
+                            <button 
+                                onClick={handleAnalyze}
+                                disabled={loading}
+                                className="w-full mt-4 bg-white border-2 border-indigo-100 text-indigo-600 hover:bg-indigo-50 py-3 rounded-xl font-bold flex items-center justify-center gap-2 transition"
+                            >
+                                {loading ? <Loader2 className="animate-spin" /> : <MousePointerClick size={20} />}
+                                {loading ? 'Menganalisis...' : 'Analisis Data Manual'}
+                            </button>
                         </div>
-                    ))}
-                </div>
+                    )}
 
-                <div className="mt-6 pt-4 border-t border-gray-100">
-                    <button 
-                        onClick={handleAnalyze}
-                        disabled={loading || isUploading}
-                        className="w-full bg-white border border-indigo-200 text-indigo-700 hover:bg-indigo-50 py-3 rounded-xl font-bold flex items-center justify-center gap-2 shadow-sm transition"
-                    >
-                        {loading ? <Loader2 className="animate-spin" /> : <BrainCircuit />}
-                        {loading ? 'Menganalisis PBD...' : 'Analisis Manual (Tanpa PDF)'}
-                    </button>
-                </div>
-             </div>
+                 </div>
 
-             <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6 flex flex-col items-center justify-center text-center">
-                 <h3 className="font-bold text-gray-700 mb-6">Visualisasi Mutu Sekolah</h3>
-                 <div className="w-full h-64">
-                    <ResponsiveContainer width="100%" height="100%">
-                        <BarChart data={indicators}>
-                            <CartesianGrid strokeDasharray="3 3" vertical={false} />
-                            <XAxis dataKey="id" tick={{fontSize: 12}} />
-                            <YAxis domain={[0, 100]} />
-                            <Tooltip 
-                                contentStyle={{ borderRadius: '8px', border: 'none', boxShadow: '0 4px 12px rgba(0,0,0,0.1)' }}
-                                cursor={{fill: '#f3f4f6'}}
-                            />
-                            <Bar dataKey="score" radius={[4, 4, 0, 0]}>
-                                {indicators.map((entry, index) => (
-                                    <Cell key={`cell-${index}`} fill={getColor(entry.category)} />
-                                ))}
-                            </Bar>
-                        </BarChart>
-                    </ResponsiveContainer>
+                 {/* RIGHT COLUMN: PREVIEW CHART */}
+                 <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6 flex flex-col items-center justify-center text-center h-full min-h-[400px]">
+                     <h3 className="font-bold text-gray-700 mb-6">Visualisasi Mutu Sekolah</h3>
+                     <div className="w-full h-64">
+                        <ResponsiveContainer width="100%" height="100%">
+                            <BarChart data={indicators}>
+                                <CartesianGrid strokeDasharray="3 3" vertical={false} />
+                                <XAxis dataKey="id" tick={{fontSize: 12}} />
+                                <YAxis domain={[0, 100]} />
+                                <Tooltip 
+                                    contentStyle={{ borderRadius: '8px', border: 'none', boxShadow: '0 4px 12px rgba(0,0,0,0.1)' }}
+                                    cursor={{fill: '#f3f4f6'}}
+                                />
+                                <Bar dataKey="score" radius={[4, 4, 0, 0]}>
+                                    {indicators.map((entry, index) => (
+                                        <Cell key={`cell-${index}`} fill={getColor(entry.category)} />
+                                    ))}
+                                </Bar>
+                            </BarChart>
+                        </ResponsiveContainer>
+                     </div>
+                     <div className="flex gap-4 mt-4 text-xs font-medium text-gray-500">
+                        <div className="flex items-center gap-1"><span className="w-3 h-3 bg-red-500 rounded-full"></span> Kurang (&lt;50)</div>
+                        <div className="flex items-center gap-1"><span className="w-3 h-3 bg-yellow-500 rounded-full"></span> Sedang (50-70)</div>
+                        <div className="flex items-center gap-1"><span className="w-3 h-3 bg-green-500 rounded-full"></span> Baik (&gt;70)</div>
+                     </div>
                  </div>
-                 <div className="flex gap-4 mt-4 text-xs font-medium text-gray-500">
-                    <div className="flex items-center gap-1"><span className="w-3 h-3 bg-red-500 rounded-full"></span> Kurang (&lt;50)</div>
-                    <div className="flex items-center gap-1"><span className="w-3 h-3 bg-yellow-500 rounded-full"></span> Sedang (50-70)</div>
-                    <div className="flex items-center gap-1"><span className="w-3 h-3 bg-green-500 rounded-full"></span> Baik (&gt;70)</div>
-                 </div>
+
              </div>
           </div>
       )}
 
       {activeView === 'analysis' && (
-          <div className="space-y-6">
+          <div className="space-y-6 animate-fade-in">
               <div className="flex items-center justify-between">
-                  <h3 className="font-bold text-gray-800 text-lg">Rekomendasi Kegiatan (PBD)</h3>
+                  <h3 className="font-bold text-gray-800 text-lg flex items-center gap-2">
+                     <BrainCircuit className="text-indigo-600" /> Hasil Rekomendasi PBD
+                  </h3>
                   <button 
                     onClick={() => setActiveView('input')}
-                    className="text-sm text-blue-600 hover:underline"
+                    className="text-sm bg-white border border-gray-300 hover:bg-gray-50 px-3 py-1.5 rounded-lg text-gray-600 font-medium transition"
                   >
-                    Kembali ke Input
+                    &larr; Upload Ulang / Edit
                   </button>
               </div>
 
