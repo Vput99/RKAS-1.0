@@ -2,7 +2,7 @@
 import React, { useMemo } from 'react';
 import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip as RechartsTooltip, XAxis, YAxis, CartesianGrid, Legend, AreaChart, Area } from 'recharts';
 import { Budget, TransactionType, SchoolProfile } from '../types';
-import { ArrowUpRight, ArrowDownRight, Wallet, Target, TrendingUp, PieChart as PieChartIcon, Activity } from 'lucide-react';
+import { ArrowUpRight, ArrowDownRight, Wallet, Target, TrendingUp, PieChart as PieChartIcon, Activity, AlertTriangle, XCircle } from 'lucide-react';
 
 interface DashboardProps {
   data: Budget[];
@@ -10,6 +10,24 @@ interface DashboardProps {
 }
 
 const COLORS = ['#3B82F6', '#10B981', '#F59E0B', '#EF4444', '#8B5CF6', '#EC4899', '#6366F1', '#14B8A6'];
+
+const BOS_LARANGAN = [
+  "Disimpan dengan maksud dibungakan.",
+  "Dipinjamkan kepada pihak lain.",
+  "Membeli software/perangkat lunak untuk pelaporan keuangan BOS atau software sejenis.",
+  "Membiayai kegiatan yang tidak menjadi prioritas sekolah (studi banding, tur studi/karya wisata, dan sejenisnya).",
+  "Membayar iuran kegiatan yang diselenggarakan oleh UPTD kecamatan/kabupaten/kota/provinsi/pusat, atau pihak lainnya.",
+  "Membayar bonus dan transportasi rutin untuk guru.",
+  "Membiayai akomodasi untuk kegiatan yang diselenggarakan oleh pihak lain.",
+  "Membeli pakaian/seragam/sepatu bagi guru/peserta didik untuk kepentingan pribadi (bukan inventaris sekolah).",
+  "Digunakan untuk rehabilitasi sedang dan berat.",
+  "Membangun gedung/ruangan baru (kecuali SD/SMP yang belum punya jamban/WC/kantin sehat).",
+  "Membeli Lembar Kerja Siswa (LKS) dan bahan/peralatan yang tidak mendukung proses pembelajaran.",
+  "Menanamkan saham.",
+  "Membiayai kegiatan yang telah dibiayai dari sumber dana pemerintah pusat/daerah atau sumber lainnya.",
+  "Membiayai iuran dalam rangka upacara peringatan hari besar nasional atau upacara/acara keagamaan.",
+  "Membiayai kegiatan pelatihan/sosialisasi terkait program BOS yang diselenggarakan lembaga di luar dinas pendidikan resmi."
+];
 
 const Dashboard: React.FC<DashboardProps> = ({ data, profile }) => {
   
@@ -280,8 +298,35 @@ const Dashboard: React.FC<DashboardProps> = ({ data, profile }) => {
             )}
           </div>
         </div>
-
       </div>
+
+      {/* 4. LARANGAN PENGGUNAAN DANA BOSP (NEW SECTION) */}
+      <div className="bg-red-50 border border-red-100 rounded-2xl p-6 shadow-sm">
+         <div className="flex flex-col md:flex-row items-start md:items-center gap-4 mb-6 border-b border-red-100 pb-4">
+             <div className="bg-red-100 p-3 rounded-full text-red-600">
+                 <AlertTriangle size={24} />
+             </div>
+             <div>
+                 <h3 className="text-lg font-bold text-red-800">Larangan Penggunaan Dana BOSP</h3>
+                 <p className="text-sm text-red-600">
+                    Dana BOSP yang diterima oleh sekolah tidak boleh digunakan untuk kegiatan-kegiatan berikut:
+                 </p>
+             </div>
+         </div>
+         
+         <div className="grid grid-cols-1 md:grid-cols-2 gap-x-8 gap-y-3">
+             {BOS_LARANGAN.map((item, idx) => (
+                 <div key={idx} className="flex items-start gap-3">
+                     <XCircle size={16} className="text-red-500 mt-0.5 flex-shrink-0" />
+                     <p className="text-sm text-red-700 leading-snug">{item}</p>
+                 </div>
+             ))}
+         </div>
+         <div className="mt-6 text-xs text-red-500 italic border-t border-red-100 pt-2">
+             * Referensi: Juknis BOSP Tahun Berjalan.
+         </div>
+      </div>
+
     </div>
   );
 };
