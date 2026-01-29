@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect } from 'react';
-import { LayoutDashboard, Wallet, FileCheck, Settings as SettingsIcon, Menu, User, BookOpen, FileBarChart, Wifi, LogOut, Download, Share, PlusSquare, X, School, TrendingUp, Landmark } from 'lucide-react';
+import { LayoutDashboard, Wallet, FileCheck, Settings as SettingsIcon, Menu, User, BookOpen, FileBarChart, Wifi, LogOut, Download, Share, PlusSquare, X, School, TrendingUp, Landmark, FileText } from 'lucide-react';
 import Dashboard from './components/Dashboard';
 import TransactionTable from './components/TransactionTable';
 import BudgetPlanning from './components/BudgetPlanning';
@@ -10,6 +10,7 @@ import Settings from './components/Settings';
 import ChatAssistant from './components/ChatAssistant';
 import RaporPendidikan from './components/RaporPendidikan';
 import BankWithdrawal from './components/BankWithdrawal';
+import EvidenceTemplates from './components/EvidenceTemplates'; // Import new component
 import Auth from './components/Auth';
 import { getBudgets, addBudget, updateBudget, deleteBudget, getSchoolProfile, checkDatabaseConnection, clearLocalData } from './lib/db';
 import { supabase } from './lib/supabase'; // Import supabase client
@@ -26,10 +27,10 @@ function App() {
   const [isStandalone, setIsStandalone] = useState(false);
 
   // App State - Initialize from LocalStorage to persist state on reload
-  const [activeTab, setActiveTab] = useState<'dashboard' | 'income' | 'planning' | 'spj' | 'reports' | 'rapor' | 'settings' | 'withdrawal'>(() => {
+  const [activeTab, setActiveTab] = useState<'dashboard' | 'income' | 'planning' | 'spj' | 'reports' | 'rapor' | 'settings' | 'withdrawal' | 'evidence'>(() => {
       const savedTab = localStorage.getItem('rkas_active_tab');
       // Validate if saved tab is valid, otherwise default to dashboard
-      const validTabs = ['dashboard', 'income', 'planning', 'spj', 'reports', 'rapor', 'settings', 'withdrawal'];
+      const validTabs = ['dashboard', 'income', 'planning', 'spj', 'reports', 'rapor', 'settings', 'withdrawal', 'evidence'];
       return (savedTab && validTabs.includes(savedTab)) ? (savedTab as any) : 'dashboard';
   });
 
@@ -267,6 +268,7 @@ function App() {
             <NavItem id="planning" label="Penganggaran" icon={BookOpen} />
             <NavItem id="withdrawal" label="Pencairan Bank" icon={Landmark} />
             <NavItem id="spj" label="Peng-SPJ-an" icon={FileCheck} />
+            <NavItem id="evidence" label="Bukti Fisik" icon={FileText} />
             <NavItem id="reports" label="Laporan" icon={FileBarChart} />
           </div>
           
@@ -383,6 +385,9 @@ function App() {
                     data={data}
                     onUpdate={handleUpdate}
                   />
+                )}
+                {activeTab === 'evidence' && (
+                  <EvidenceTemplates />
                 )}
                 {activeTab === 'reports' && (
                   <Reports data={data} />
