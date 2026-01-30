@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect } from 'react';
-import { FileText, Download, CheckCircle2, ChevronRight, BookOpen, Printer, Users, Coffee, Wrench, Bus, ShoppingBag, FileSignature, Handshake, ClipboardList, Receipt, Truck, FileCheck, HardHat, Hammer, X, Save, Calendar, MapPin, User, DollarSign } from 'lucide-react';
+import { FileText, Download, CheckCircle2, ChevronRight, BookOpen, Printer, Users, Coffee, Wrench, Bus, ShoppingBag, FileSignature, Handshake, ClipboardList, Receipt, Truck, FileCheck, HardHat, Hammer, X, Save, Calendar, MapPin, User, DollarSign, Plus, Trash2 } from 'lucide-react';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import { getSchoolProfile } from '../lib/db';
@@ -53,6 +53,7 @@ const TEMPLATE_CATEGORIES = [
       'Surat Tugas (Ditandatangani KS)',
       'SPPD (Surat Perintah Perjalanan Dinas) - Cap Instansi Tujuan',
       'Laporan Hasil Perjalanan Dinas',
+      'Daftar Penerimaan Uang Transport',
       'Tiket / Bukti Transportasi Riil',
       'Nota BBM (Jika kendaraan pribadi/sewa)',
       'Kuitansi / Bill Hotel (Jika Menginap)',
@@ -145,7 +146,7 @@ const EvidenceTemplates = () => {
           amount: '',
           terbilang: '',
           receiver: '',
-          receiverNip: '', // For official letters
+          receiverNip: '', 
           description: '',
           activityName: '',
           projectLocation: schoolProfile?.name || '',
@@ -155,6 +156,33 @@ const EvidenceTemplates = () => {
           spkNumber: `027 / ... / ... / ${year}`,
           skNumber: `800 / ... / ... / ${year}`,
           mouNumber: `421.2 / ... / ... / ${year}`,
+          
+          // Peradin Specifics
+          suratTugasNumber: `800 / ... / ... / ${year}`,
+          sppdNumber: `090 / ... / ... / ${year}`,
+          transportMode: 'Kendaraan Umum / Pribadi',
+          destination: '',
+          departureDate: today,
+          returnDate: today,
+          reportResult: 'Kegiatan berjalan dengan lancar dan materi yang disampaikan dapat diterapkan di sekolah.', // Default result
+          officials: [
+              { name: '....................................', nip: '....................................', rank: '-', role: 'Guru / Pendamping' }
+          ],
+
+          // SK Specific
+          skConsiderations: 'a. Bahwa untuk menjamin kelancaran proses kegiatan sekolah dipandang perlu menetapkan pembagian tugas.\nb. Bahwa nama-nama yang tercantum dalam lampiran surat keputusan ini dipandang cakap dan mampu melaksanakan tugas.',
+          skAppointees: [
+              { name: '....................................', role: 'Ketua / Koordinator' },
+              { name: '....................................', role: 'Anggota / Pelaksana' },
+              { name: '....................................', role: 'Anggota / Pelaksana' }
+          ],
+
+          // Workers List (For Absensi & Upah)
+          workers: [
+              { name: '.....................', role: 'Kepala Tukang' },
+              { name: '.....................', role: 'Tukang' },
+              { name: '.....................', role: 'Tukang' }
+          ]
       });
       setIsPrintModalOpen(true);
   };
@@ -175,7 +203,32 @@ const EvidenceTemplates = () => {
       }
   };
 
-  // --- PDF GENERATORS (Updated to use Dynamic Data) ---
+  // --- Dynamic List Handlers ---
+  const handleListChange = (index: number, field: string, value: string, listKey: 'workers' | 'skAppointees' | 'officials') => {
+      const newList = [...formData[listKey]];
+      newList[index] = { ...newList[index], [field]: value };
+      setFormData((prev: any) => ({ ...prev, [listKey]: newList }));
+  };
+
+  const addListItem = (listKey: 'workers' | 'skAppointees' | 'officials') => {
+      let defaultItem: any = { name: '', role: 'Anggota' };
+      if (listKey === 'officials') defaultItem = { name: '', nip: '', rank: '-', role: 'Guru' };
+      
+      setFormData((prev: any) => ({
+          ...prev,
+          [listKey]: [...prev[listKey], defaultItem]
+      }));
+  };
+
+  const removeListItem = (index: number, listKey: 'workers' | 'skAppointees' | 'officials') => {
+      const newList = [...formData[listKey]];
+      if (newList.length > 1) {
+          newList.splice(index, 1);
+          setFormData((prev: any) => ({ ...prev, [listKey]: newList }));
+      }
+  };
+
+  // --- PDF GENERATORS ---
 
   const generateKuitansi = (data: any) => {
     const doc = new jsPDF('l', 'mm', 'a5');
@@ -239,36 +292,295 @@ const EvidenceTemplates = () => {
 
   const generateDaftarHadir = (data: any) => {
     const doc = new jsPDF();
+    const margin = 20;
+
+    doc.setFont('times', 'bold');
+    doc.setFontSize(14);
+    doc.text('DAFTAR HADIR KEGIATAN', 105, margin, { align: 'center' });
     doc.setFontSize(12);
-    doc.setFont('helvetica', 'bold');
-    doc.text('DAFTAR HADIR KEGIATAN', 105, 20, { align: 'center' });
+    doc.text(data.activityName || '........................................', 105, margin + 6, { align: 'center' });
     
-    doc.setFontSize(10);
-    doc.setFont('helvetica', 'normal');
-    doc.text(`Nama Kegiatan : ${data.activityName || '....................................................................'}`, 20, 35);
-    doc.text(`Hari / Tanggal  : ${data.date}`, 20, 42);
-    doc.text(`Tempat             : ${data.projectLocation || '....................................................................'}`, 20, 49);
+    doc.setFontSize(11);
+    doc.setFont('times', 'normal');
+    doc.text(`Hari/Tanggal : ${data.date}`, margin, margin + 20);
+    doc.text(`Tempat       : ${data.projectLocation || data.schoolName}`, margin, margin + 26);
+    
+    // Use officials list if populated, otherwise create empty rows
+    const participants = (data.officials && data.officials.length > 0 && data.officials[0].name !== '') 
+        ? data.officials 
+        : Array(15).fill({ name: '', role: '' });
+
+    const body = participants.map((p: any, i: number) => [
+        i + 1, p.name, p.role, '', ''
+    ]);
 
     autoTable(doc, {
-        startY: 55,
-        head: [['No', 'Nama Lengkap', 'Jabatan / Unsur', 'Tanda Tangan']],
-        body: Array(10).fill(['', '', '', '']),
+        startY: margin + 35,
+        head: [['No', 'Nama Lengkap', 'Jabatan / Unsur', 'Tanda Tangan', 'Ket']],
+        body: body,
         theme: 'grid',
-        columnStyles: { 0: { cellWidth: 10, halign: 'center' }, 3: { cellWidth: 50 } },
-        didParseCell: (hookData) => {
-            if (hookData.section === 'body' && hookData.column.index === 0) {
-                hookData.cell.text = [(hookData.row.index + 1).toString()];
-            }
+        styles: { font: 'times', fontSize: 11, cellPadding: 3, lineWidth: 0.1, lineColor: 0 },
+        columnStyles: {
+            0: { cellWidth: 10, halign: 'center' },
+            1: { cellWidth: 60 },
+            2: { cellWidth: 40 },
+            3: { cellWidth: 40 },
+            4: { cellWidth: 20 }
         }
     });
+
+    const finalY = (doc as any).lastAutoTable.finalY + 15;
+    doc.text(`${data.city}, ${data.date}`, 140, finalY);
+    doc.text('Mengetahui,', 140, finalY + 6);
+    doc.text('Kepala Sekolah', 140, finalY + 12);
+    doc.setFont('times', 'bold');
+    doc.text(`( ${data.ksName} )`, 140, finalY + 35);
+    doc.setFont('times', 'normal');
+    doc.text(`NIP. ${data.ksNip}`, 140, finalY + 40);
+
     doc.save('Daftar_Hadir.pdf');
   };
 
   const generateSK = (data: any) => {
     const doc = new jsPDF();
     const margin = 20;
+
+    doc.setFont('times', 'bold');
+    doc.setFontSize(12);
+    doc.text(`PEMERINTAH KABUPATEN/KOTA`, 105, margin, { align: 'center' });
+    doc.text('DINAS PENDIDIKAN', 105, margin + 5, { align: 'center' });
+    doc.setFontSize(14);
+    doc.text(data.schoolName.toUpperCase(), 105, margin + 12, { align: 'center' });
+    doc.setLineWidth(0.5);
+    doc.line(margin, margin + 18, 190, margin + 18);
+
+    const titleY = margin + 30;
+    doc.setFontSize(12);
+    doc.text('KEPUTUSAN KEPALA SEKOLAH', 105, titleY, { align: 'center' });
+    doc.text(`NOMOR : ${data.skNumber}`, 105, titleY + 6, { align: 'center' });
+    doc.text('TENTANG', 105, titleY + 14, { align: 'center' });
+    const titleText = (data.description || 'PENETAPAN ...').toUpperCase();
+    const splitTitle = doc.splitTextToSize(titleText, 150);
+    doc.text(splitTitle, 105, titleY + 20, { align: 'center' });
+
+    let currentY = titleY + 20 + (splitTitle.length * 6) + 10;
+    doc.setFont('times', 'normal');
     
-    // Header Mockup
+    // Menimbang
+    doc.text('Menimbang', margin, currentY);
+    doc.text(':', margin + 30, currentY);
+    const considerations = data.skConsiderations || 'a. Bahwa...';
+    const splitCons = doc.splitTextToSize(considerations, 130);
+    doc.text(splitCons, margin + 35, currentY);
+    currentY += (splitCons.length * 6) + 6;
+
+    // Mengingat
+    doc.text('Mengingat', margin, currentY);
+    doc.text(':', margin + 30, currentY);
+    const remembering = "1. Undang-Undang Nomor 20 Tahun 2003;\n2. Permendikbud tentang Juknis BOSP;\n3. RKAS Tahun " + data.year;
+    const splitRem = doc.splitTextToSize(remembering, 130);
+    doc.text(splitRem, margin + 35, currentY);
+    currentY += (splitRem.length * 6) + 10;
+
+    // Memutuskan
+    doc.setFont('times', 'bold');
+    doc.text('MEMUTUSKAN', 105, currentY, { align: 'center' });
+    currentY += 10;
+    
+    doc.setFont('times', 'normal');
+    doc.text('Menetapkan', margin, currentY);
+    doc.text(':', margin + 30, currentY);
+    doc.text('PERTAMA', margin + 35, currentY);
+    doc.text(`: Menetapkan nama-nama yang tercantum dalam lampiran keputusan ini.`, margin + 60, currentY, { maxWidth: 100, align: 'justify' });
+    
+    currentY += 10; 
+    doc.text('KEDUA', margin + 35, currentY);
+    doc.text(`: Biaya dibebankan pada Anggaran BOSP Tahun ${data.year}.`, margin + 60, currentY, { maxWidth: 100, align: 'justify' });
+
+    currentY += 10;
+    doc.text('KETIGA', margin + 35, currentY);
+    doc.text(`: Keputusan ini berlaku sejak tanggal ditetapkan.`, margin + 60, currentY);
+
+    const signY = currentY + 20;
+    doc.text(`Ditetapkan di : ${data.city}`, 130, signY);
+    doc.text(`Pada Tanggal  : ${data.date}`, 130, signY + 6);
+    doc.text('Kepala Sekolah,', 130, signY + 12);
+    doc.setFont('times', 'bold');
+    doc.text(`( ${data.ksName} )`, 130, signY + 35);
+    doc.setFont('times', 'normal');
+    doc.text(`NIP. ${data.ksNip}`, 130, signY + 40);
+
+    // Lampiran
+    doc.addPage();
+    doc.setFont('times', 'bold');
+    doc.text('LAMPIRAN KEPUTUSAN KEPALA SEKOLAH', margin, margin);
+    doc.text(`Nomor : ${data.skNumber}`, margin, margin + 6);
+    
+    const body = (data.skAppointees || []).map((p: any, i: number) => [i+1, p.name, p.role, '']);
+    
+    autoTable(doc, {
+        startY: margin + 20,
+        head: [['No', 'Nama', 'Jabatan / Tugas', 'Keterangan']],
+        body: body,
+        theme: 'grid',
+        styles: { font: 'times' }
+    });
+
+    doc.save('SK_Penetapan.pdf');
+  };
+
+  const generateSPK = (data: any) => {
+    const doc = new jsPDF();
+    const margin = 20;
+
+    doc.setFont('times', 'bold');
+    doc.setFontSize(14);
+    doc.text('SURAT PERINTAH KERJA (SPK)', 105, margin, { align: 'center' });
+    doc.setFontSize(12);
+    doc.text(`NOMOR : ${data.spkNumber}`, 105, margin + 6, { align: 'center' });
+
+    doc.setFont('times', 'normal');
+    doc.setFontSize(11);
+    
+    let y = margin + 20;
+    doc.text('Yang bertanda tangan di bawah ini:', margin, y);
+    y += 8;
+    doc.text('1. Nama', margin, y); doc.text(`: ${data.ksName}`, margin + 40, y);
+    y += 6;
+    doc.text('   Jabatan', margin, y); doc.text(`: Kepala Sekolah`, margin + 40, y);
+    y += 6;
+    doc.text('   Selanjutnya disebut PIHAK PERTAMA.', margin, y);
+
+    y += 10;
+    doc.text('2. Nama', margin, y); doc.text(`: ${data.contractorName}`, margin + 40, y);
+    y += 6;
+    doc.text('   Pekerjaan', margin, y); doc.text(`: ${data.contractorRole}`, margin + 40, y);
+    y += 6;
+    doc.text('   Selanjutnya disebut PIHAK KEDUA.', margin, y);
+
+    y += 10;
+    const content = `PIHAK PERTAMA memerintahkan PIHAK KEDUA untuk melaksanakan pekerjaan: ${data.description || '.........................'} di ${data.projectLocation}.`;
+    const splitContent = doc.splitTextToSize(content, 170);
+    doc.text(splitContent, margin, y);
+    y += (splitContent.length * 6) + 4;
+
+    doc.text(`Nilai Pekerjaan : ${data.amount ? new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR' }).format(Number(data.amount)) : 'Rp ....................'}`, margin, y);
+    
+    y += 20;
+    doc.text('PIHAK KEDUA', margin + 20, y, { align: 'center' });
+    doc.text('PIHAK PERTAMA', 150, y, { align: 'center' });
+    
+    y += 25;
+    doc.setFont('times', 'bold');
+    doc.text(`( ${data.contractorName} )`, margin + 20, y, { align: 'center' });
+    doc.text(`( ${data.ksName} )`, 150, y, { align: 'center' });
+
+    doc.save('SPK.pdf');
+  };
+
+  const generateMOU = (data: any) => {
+    const doc = new jsPDF();
+    const margin = 20;
+
+    doc.setFont('times', 'bold');
+    doc.setFontSize(14);
+    doc.text('PERJANJIAN KERJASAMA', 105, margin, { align: 'center' });
+    doc.setFontSize(12);
+    doc.text(`NOMOR : ${data.mouNumber}`, 105, margin + 6, { align: 'center' });
+    
+    doc.setFont('times', 'normal');
+    doc.setFontSize(11);
+    
+    let y = margin + 20;
+    doc.text('Antara:', margin, y);
+    y += 8;
+    doc.text(`1. ${data.ksName} (Kepala Sekolah) sebagai PIHAK PERTAMA.`, margin, y);
+    y += 8;
+    doc.text(`2. ${data.contractorName} (${data.contractorRole}) sebagai PIHAK KEDUA.`, margin, y);
+
+    y += 10;
+    const content = `Kedua belah pihak sepakat bekerjasama dalam: ${data.description || '.........................'}.`;
+    doc.text(doc.splitTextToSize(content, 170), margin, y);
+    
+    y += 30;
+    doc.text('PIHAK KEDUA', margin + 20, y, { align: 'center' });
+    doc.text('PIHAK PERTAMA', 150, y, { align: 'center' });
+    
+    y += 25;
+    doc.setFont('times', 'bold');
+    doc.text(`( ${data.contractorName} )`, margin + 20, y, { align: 'center' });
+    doc.text(`( ${data.ksName} )`, 150, y, { align: 'center' });
+
+    doc.save('MOU.pdf');
+  };
+
+  const generateAbsensiTukang = (data: any) => {
+    const doc = new jsPDF();
+    const margin = 20;
+
+    doc.setFont('times', 'bold');
+    doc.setFontSize(14);
+    doc.text('DAFTAR HADIR PEKERJA', 105, margin, { align: 'center' });
+    doc.setFontSize(12);
+    doc.text(`KEGIATAN: ${data.activityName || '..........................'}`, 105, margin + 6, { align: 'center' });
+    
+    const body = (data.workers || []).map((w: any, i: number) => [
+        i + 1, w.name, w.role, '', '', '', ''
+    ]);
+
+    autoTable(doc, {
+        startY: margin + 20,
+        head: [['No', 'Nama', 'Jabatan', 'H1', 'H2', 'H3', 'Total']],
+        body: body,
+        theme: 'grid',
+        styles: { font: 'times', fontSize: 10, cellPadding: 3, lineWidth: 0.1 }
+    });
+
+    const finalY = (doc as any).lastAutoTable.finalY + 10;
+    doc.text(`${data.city}, ${data.date}`, 140, finalY);
+    doc.text('Kepala Sekolah', 140, finalY + 6);
+    doc.text(`( ${data.ksName} )`, 140, finalY + 30);
+
+    doc.save('Absensi_Tukang.pdf');
+  };
+
+  const generateUpahTukang = (data: any) => {
+    const doc = new jsPDF('l');
+    const margin = 20;
+
+    doc.setFont('times', 'bold');
+    doc.setFontSize(14);
+    doc.text('DAFTAR PENERIMAAN UPAH', 148, margin, { align: 'center' });
+    doc.setFontSize(12);
+    doc.text(`KEGIATAN: ${data.activityName || '..........................'}`, 148, margin + 6, { align: 'center' });
+
+    const body = (data.workers || []).map((w: any, i: number) => [
+        i + 1, w.name, w.role, '... Hari', 'Rp ...', 'Rp ...', 'Rp ...', ''
+    ]);
+
+    autoTable(doc, {
+        startY: margin + 20,
+        head: [['No', 'Nama', 'Jabatan', 'Jml Hari', 'Upah', 'Bruto', 'Pajak', 'Tanda Tangan']],
+        body: body,
+        theme: 'grid',
+        styles: { font: 'times', fontSize: 10 }
+    });
+
+    const finalY = (doc as any).lastAutoTable.finalY + 10;
+    doc.text(`Lunas Dibayar, Bendahara`, 50, finalY);
+    doc.text(`( ${data.trName} )`, 50, finalY + 25);
+    
+    doc.text(`Setuju Dibayar, Kepala Sekolah`, 200, finalY);
+    doc.text(`( ${data.ksName} )`, 200, finalY + 25);
+
+    doc.save('Upah_Tukang.pdf');
+  };
+
+  const generateSuratTugas = (data: any) => {
+    const doc = new jsPDF();
+    const margin = 20;
+    
+    // Header
     doc.setFont('times', 'bold');
     doc.setFontSize(14);
     doc.text(`PEMERINTAH KABUPATEN/KOTA`, 105, margin, { align: 'center' });
@@ -278,224 +590,284 @@ const EvidenceTemplates = () => {
     doc.line(margin, margin + 22, 190, margin + 22);
 
     const titleY = margin + 35;
-    doc.setFont('times', 'bold');
     doc.setFontSize(12);
-    doc.text('KEPUTUSAN KEPALA SEKOLAH', 105, titleY, { align: 'center' });
-    doc.text(`NOMOR : ${data.skNumber}`, 105, titleY + 6, { align: 'center' });
-    doc.text('TENTANG', 105, titleY + 14, { align: 'center' });
-    doc.text((data.description || 'PENETAPAN PETUGAS KEGIATAN').toUpperCase(), 105, titleY + 20, { align: 'center' });
-
+    doc.text('SURAT TUGAS', 105, titleY, { align: 'center' });
     doc.setFont('times', 'normal');
-    doc.setFontSize(11);
-    let currentY = titleY + 40;
-    
-    const contentX = margin + 32;
-    doc.text('Menimbang', margin, currentY);
-    doc.text(':', margin + 28, currentY);
-    doc.text('a. Bahwa untuk memperlancar kegiatan sekolah dipandang perlu menetapkan surat keputusan;', contentX, currentY);
-    
-    currentY += 20;
-    doc.text('Mengingat', margin, currentY);
-    doc.text(':', margin + 28, currentY);
-    doc.text('1. Undang-Undang Nomor 20 Tahun 2003;', contentX, currentY);
-    doc.text('2. RKAS Tahun Anggaran ' + data.year, contentX, currentY + 6);
+    doc.text(`NOMOR : ${data.suratTugasNumber}`, 105, titleY + 6, { align: 'center' });
 
-    currentY += 20;
+    let currentY = titleY + 20;
+    doc.text('Dasar', margin, currentY);
+    doc.text(':', margin + 25, currentY);
+    const dasar = 'Dokumen Pelaksanaan Anggaran (DPA) / RKAS Sekolah Tahun Anggaran ' + data.year;
+    doc.text(dasar, margin + 30, currentY);
+
+    currentY += 15;
     doc.setFont('times', 'bold');
-    doc.text('MEMUTUSKAN', 105, currentY, { align: 'center' });
+    doc.text('MEMERINTAHKAN :', 105, currentY, { align: 'center' });
     
     currentY += 10;
     doc.setFont('times', 'normal');
-    doc.text('Menetapkan', margin, currentY);
-    doc.text(':', margin + 28, currentY);
-    doc.text('KESATU : Menetapkan nama yang tercantum dalam lampiran sebagai petugas.', contentX, currentY);
-    doc.text(`KEDUA  : Segala biaya dibebankan pada Anggaran ${data.year}.`, contentX, currentY + 10);
-    doc.text('KETIGA : Keputusan ini berlaku sejak tanggal ditetapkan.', contentX, currentY + 20);
+    doc.text('Kepada', margin, currentY);
+    doc.text(':', margin + 25, currentY);
 
-    const ttdY = currentY + 40;
-    doc.text(`Ditetapkan di : ${data.city}`, 130, ttdY);
-    doc.text(`Pada Tanggal  : ${data.date}`, 130, ttdY + 6);
-    doc.text('Kepala Sekolah,', 130, ttdY + 12);
+    // List Officials
+    let officialY = currentY;
+    data.officials.forEach((off: any, idx: number) => {
+        doc.text(`${idx + 1}.`, margin + 30, officialY);
+        doc.text(`Nama`, margin + 38, officialY);
+        doc.text(`: ${off.name}`, margin + 70, officialY);
+        officialY += 6;
+        doc.text(`NIP`, margin + 38, officialY);
+        doc.text(`: ${off.nip}`, margin + 70, officialY);
+        officialY += 6;
+        doc.text(`Pangkat/Gol`, margin + 38, officialY);
+        doc.text(`: ${off.rank}`, margin + 70, officialY);
+        officialY += 6;
+        doc.text(`Jabatan`, margin + 38, officialY);
+        doc.text(`: ${off.role}`, margin + 70, officialY);
+        officialY += 10;
+    });
+
+    currentY = officialY;
+    doc.text('Untuk', margin, currentY);
+    doc.text(':', margin + 25, currentY);
+    const desc = `Melaksanakan perjalanan dinas dalam rangka ${data.description || '...........................................'} ke ${data.destination || '...........'} pada tanggal ${data.departureDate} s/d ${data.returnDate}.`;
+    const splitDesc = doc.splitTextToSize(desc, 135);
+    doc.text(splitDesc, margin + 30, currentY);
+
+    const closingY = currentY + (splitDesc.length * 6) + 10;
+    doc.text('Demikian surat tugas ini dibuat untuk dilaksanakan dengan penuh tanggung jawab.', margin, closingY);
+
+    const signY = closingY + 20;
+    doc.text(`Ditetapkan di : ${data.city}`, 140, signY);
+    doc.text(`Pada Tanggal  : ${data.date}`, 140, signY + 6);
+    doc.text('Kepala Sekolah,', 140, signY + 12);
     doc.setFont('times', 'bold');
-    doc.text(`( ${data.ksName} )`, 130, ttdY + 35);
+    doc.text(`( ${data.ksName} )`, 140, signY + 35);
     doc.setFont('times', 'normal');
-    doc.text(`NIP. ${data.ksNip}`, 130, ttdY + 40);
+    doc.text(`NIP. ${data.ksNip}`, 140, signY + 40);
 
-    doc.save('SK_Penetapan.pdf');
+    doc.save('Surat_Tugas.pdf');
   };
 
-  const generateSPK = (data: any) => {
+  const generateSPPD = (data: any) => {
+    // Generate one SPPD page per Official
+    const doc = new jsPDF();
+    
+    data.officials.forEach((official: any, index: number) => {
+        if (index > 0) doc.addPage();
+
+        const margin = 20;
+        
+        // Header SPPD (Small)
+        doc.setFont('times', 'bold');
+        doc.setFontSize(10);
+        doc.text(`PEMERINTAH KABUPATEN/KOTA`, margin, 15);
+        doc.text('DINAS PENDIDIKAN', margin, 20);
+        doc.text(data.schoolName.toUpperCase(), margin, 25);
+        
+        doc.setFontSize(9);
+        doc.text('Lembar ke : ............', 140, 15);
+        doc.text('Kode No   : ............', 140, 20);
+        doc.text('Nomor     : ' + data.sppdNumber, 140, 25);
+
+        const titleY = 40;
+        doc.setFontSize(12);
+        doc.text('SURAT PERINTAH PERJALANAN DINAS', 105, titleY, { align: 'center' });
+        doc.text('(SPPD)', 105, titleY + 6, { align: 'center' });
+
+        // Table Content
+        const tableBody = [
+            ['1.', 'Pejabat berwenang yang memberi perintah', `Kepala ${data.schoolName}`],
+            ['2.', 'Nama Pegawai yang diperintah', official.name],
+            ['3.', 'a. Pangkat dan Golongan\nb. Jabatan / Instansi\nc. Tingkat Biaya Perjalanan Dinas', `a. ${official.rank}\nb. ${official.role}\nc. C`],
+            ['4.', 'Maksud Perjalanan Dinas', data.description || '...........................................'],
+            ['5.', 'Alat Angkutan yang dipergunakan', data.transportMode || 'Kendaraan Umum'],
+            ['6.', 'a. Tempat Berangkat\nb. Tempat Tujuan', `a. ${data.schoolName}\nb. ${data.destination}`],
+            ['7.', 'a. Lamanya Perjalanan Dinas\nb. Tanggal Berangkat\nc. Tanggal Harus Kembali', `a. 1 (Satu) Hari\nb. ${data.departureDate}\nc. ${data.returnDate}`],
+            ['8.', 'Pembebanan Anggaran\na. Instansi\nb. Mata Anggaran', `\na. Dinas Pendidikan\nb. BOSP ${data.year}`],
+            ['9.', 'Keterangan Lain-lain', 'Lihat Sebelah']
+        ];
+
+        autoTable(doc, {
+            startY: 55,
+            head: [['No', 'Uraian', 'Keterangan']],
+            body: tableBody,
+            theme: 'grid',
+            styles: { font: 'times', fontSize: 10, cellPadding: 2, lineColor: 0, lineWidth: 0.1 },
+            columnStyles: {
+                0: { cellWidth: 10, halign: 'center' },
+                1: { cellWidth: 80 },
+                2: { cellWidth: 80 }
+            }
+        });
+
+        const finalY = (doc as any).lastAutoTable.finalY + 10;
+        doc.setFont('times', 'normal');
+        doc.text(`Ditetapkan di : ${data.city}`, 130, finalY);
+        doc.text(`Pada Tanggal  : ${data.date}`, 130, finalY + 5);
+        doc.text('Kepala Sekolah,', 130, finalY + 15);
+        doc.setFont('times', 'bold');
+        doc.text(`( ${data.ksName} )`, 130, finalY + 35);
+        doc.setFont('times', 'normal');
+        doc.text(`NIP. ${data.ksNip}`, 130, finalY + 40);
+    });
+
+    doc.save('SPPD_Perjalanan_Dinas.pdf');
+  };
+
+  const generateDaftarTransport = (data: any) => {
     const doc = new jsPDF();
     const margin = 20;
-    let currentY = margin + 15;
 
     doc.setFont('times', 'bold');
     doc.setFontSize(14);
-    doc.text('SURAT PERINTAH KERJA (SPK)', 105, currentY, { align: 'center' });
-    currentY += 6;
-    doc.setFontSize(12);
-    doc.setFont('times', 'normal');
-    doc.text(`Nomor: ${data.spkNumber}`, 105, currentY, { align: 'center' });
-    
-    currentY += 15;
-    doc.text('Yang bertanda tangan di bawah ini:', margin, currentY);
-    currentY += 8;
-
-    const labelX = margin + 5; const valX = margin + 40;
-    doc.text('Nama', labelX, currentY); doc.text(`: ${data.ksName}`, valX, currentY); currentY += 6;
-    doc.text('Jabatan', labelX, currentY); doc.text(`: Kepala Sekolah (Pihak Pertama)`, valX, currentY); currentY += 10;
-
-    doc.text('Memberikan perintah kerja kepada:', margin, currentY); currentY += 8;
-    doc.text('Nama', labelX, currentY); doc.text(`: ${data.contractorName || '................................'}`, valX, currentY); currentY += 6;
-    doc.text('Pekerjaan', labelX, currentY); doc.text(`: ${data.contractorRole || '................................'}`, valX, currentY); currentY += 6;
-    doc.text('Alamat', labelX, currentY); doc.text(`: ${data.contractorAddress || '................................'}`, valX, currentY); currentY += 12;
-
-    doc.text('Untuk melaksanakan pekerjaan:', margin, currentY); currentY += 8;
-    doc.setFont('times', 'bold');
-    doc.text(data.description || 'REHABILITASI / PERBAIKAN .....................................', margin, currentY);
-    doc.setFont('times', 'normal');
-    
-    currentY += 10;
-    doc.text('Ketentuan:', margin, currentY);
-    currentY += 6;
-    doc.text(`1. Biaya pekerjaan sebesar Rp ${data.amount ? new Intl.NumberFormat('id-ID').format(Number(data.amount)) : '................'}.`, margin, currentY);
-    doc.text(`2. Pekerjaan dilaksanakan di ${data.projectLocation}.`, margin, currentY + 6);
-    doc.text('3. Hasil pekerjaan harus baik dan rapi.', margin, currentY + 12);
-
-    currentY += 25;
-    doc.text(`${data.city}, ${data.date}`, 140, currentY, { align: 'center' });
-    
-    const leftSignX = 40;
-    const rightSignX = 150;
-
-    doc.text('Pihak Kedua', leftSignX, currentY + 6, { align: 'center' });
-    doc.text('Pihak Pertama', rightSignX, currentY + 6, { align: 'center' });
-    
-    doc.setFont('times', 'bold underline');
-    doc.text(`( ${data.contractorName || '....................'} )`, leftSignX, currentY + 35, { align: 'center' });
-    doc.text(`( ${data.ksName} )`, rightSignX, currentY + 35, { align: 'center' });
+    doc.text('DAFTAR PENERIMAAN UANG TRANSPORT', 105, margin, { align: 'center' });
+    doc.text('PERJALANAN DINAS', 105, margin + 6, { align: 'center' });
     
     doc.setFont('times', 'normal');
-    doc.text(`NIP. ${data.ksNip}`, rightSignX, currentY + 40, { align: 'center' });
-
-    doc.save('SPK_Pekerjaan.pdf');
-  };
-
-  const generateAbsensiTukang = (data: any) => {
-    const doc = new jsPDF();
-    doc.setFontSize(12);
-    doc.setFont('times', 'bold');
-    doc.text('DAFTAR HADIR PEKERJA / TUKANG', 105, 20, { align: 'center' });
-    
     doc.setFontSize(11);
-    doc.setFont('times', 'normal');
-    doc.text(`Jenis Pekerjaan : ${data.activityName || '...................................................'}`, 20, 35);
-    doc.text(`Lokasi          : ${data.projectLocation}`, 20, 42);
-    doc.text(`Bulan           : ........................... ${data.year}`, 20, 49);
+    doc.text(`Kegiatan        : ${data.description || '...........................................'}`, margin, margin + 20);
+    doc.text(`Hari/Tanggal : ${data.date}`, margin, margin + 26);
+    doc.text(`Tempat          : ${data.destination || '...........................................'}`, margin, margin + 32);
+
+    const transportPerPerson = data.amount ? Number(data.amount) : 0;
+    
+    const body = (data.officials || []).map((off: any, i: number) => [
+        i + 1, off.name, `${data.schoolName} - ${data.destination}`, new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR' }).format(transportPerPerson), ''
+    ]);
+
+    // Total Row
+    const totalAmount = transportPerPerson * (data.officials ? data.officials.length : 0);
+    body.push(['', 'TOTAL', '', new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR' }).format(totalAmount), '']);
 
     autoTable(doc, {
-        startY: 55,
-        head: [['No', 'Nama Pekerja', 'Jabatan', 'H 1', 'H 2', 'H 3', 'H 4', 'H 5', 'Ket']],
-        body: Array(5).fill(['', '', '', '', '', '', '', '', '']),
+        startY: margin + 40,
+        head: [['No', 'Nama Pegawai', 'Rute Perjalanan', 'Uang Transport', 'Tanda Tangan']],
+        body: body,
         theme: 'grid',
-        didParseCell: (hookData) => {
-            if (hookData.section === 'body' && hookData.column.index === 0) {
-                hookData.cell.text = [(hookData.row.index + 1).toString()];
+        styles: { font: 'times', fontSize: 11, cellPadding: 3, lineWidth: 0.1, lineColor: 0 },
+        columnStyles: {
+            0: { cellWidth: 10, halign: 'center' },
+            3: { halign: 'right' }
+        },
+        didParseCell: (data) => {
+            if (data.row.index === body.length - 1) {
+                data.cell.styles.fontStyle = 'bold';
             }
         }
     });
 
     const finalY = (doc as any).lastAutoTable.finalY + 15;
-    doc.text('Mengetahui,', 20, finalY);
-    doc.text(`${data.city}, ${data.date}`, 140, finalY - 5);
-    doc.text('Kepala Sekolah', 20, finalY + 5);
-    doc.text('Koordinator Pekerja', 140, finalY + 5);
     
-    doc.text(`( ${data.ksName} )`, 20, finalY + 25);
-    doc.text(`( ................................. )`, 140, finalY + 25);
-
-    doc.save('Absensi_Tukang.pdf');
-  };
-
-  const generateUpahTukang = (data: any) => {
-    const doc = new jsPDF();
-    doc.setFontSize(12);
-    doc.setFont('times', 'bold');
-    doc.text('DAFTAR PENERIMAAN UPAH KERJA', 105, 20, { align: 'center' });
-    
-    doc.setFontSize(11);
-    doc.setFont('times', 'normal');
-    doc.text(`Pekerjaan      : ${data.activityName || '...................................................'}`, 20, 35);
-    doc.text(`Sumber Dana    : BOSP Tahun Anggaran ${data.year}`, 20, 42);
-
-    autoTable(doc, {
-        startY: 50,
-        head: [['No', 'Nama Pekerja', 'Status', 'Hari', 'Upah (Rp)', 'Total (Rp)', 'Tanda Tangan']],
-        body: Array(5).fill(['', '', '', '', '', '', '..........']),
-        theme: 'grid',
-        didParseCell: (hookData) => {
-            if (hookData.section === 'body' && hookData.column.index === 0) {
-                hookData.cell.text = [(hookData.row.index + 1).toString()];
-            }
-        }
-    });
-
-    const finalY = (doc as any).lastAutoTable.finalY + 15;
     doc.text('Setuju Dibayar,', 20, finalY);
-    doc.text('Lunas Dibayar,', 140, finalY);
-    doc.text('Kepala Sekolah', 20, finalY + 5);
-    doc.text('Bendahara', 140, finalY + 5);
+    doc.text('Lunas Dibayar,', 85, finalY);
+    doc.text('Mengetahui,', 150, finalY); // Changed position logic
     
-    doc.text(`( ${data.ksName} )`, 20, finalY + 25);
-    doc.text(`( ${data.trName} )`, 140, finalY + 25);
+    doc.text('Kepala Sekolah', 20, finalY + 5);
+    doc.text('Bendahara', 85, finalY + 5);
+    doc.text('Kepala Sekolah', 150, finalY + 5); // Usually KS signs twice or just once
 
-    doc.save('Daftar_Upah.pdf');
+    doc.setFont('times', 'bold');
+    doc.text(`( ${data.ksName} )`, 20, finalY + 25);
+    doc.text(`( ${data.trName} )`, 85, finalY + 25);
+    doc.text(`( ${data.ksName} )`, 150, finalY + 25);
+    
+    doc.setFont('times', 'normal');
+    doc.text(`NIP. ${data.ksNip}`, 20, finalY + 30);
+    doc.text(`NIP. ${data.trNip}`, 85, finalY + 30);
+    doc.text(`NIP. ${data.ksNip}`, 150, finalY + 30);
+
+    doc.save('Daftar_Transport.pdf');
   };
 
-  const generateMOU = (data: any) => {
-      // Reusing logic from previous but with dynamic data filling
-      const doc = new jsPDF();
-      const margin = 20;
-      let currentY = margin + 15;
+  const generateLaporanSPPD = (data: any) => {
+    const doc = new jsPDF();
+    const margin = 20;
 
-      doc.setFont('times', 'bold');
-      doc.setFontSize(14);
-      doc.text('SURAT PERJANJIAN KERJASAMA', 105, currentY, { align: 'center' });
-      currentY += 8;
-      doc.setFontSize(12);
-      doc.setFont('times', 'normal');
-      doc.text(`NOMOR: ${data.mouNumber}`, 105, currentY, { align: 'center' });
-      
-      currentY += 15;
-      doc.setFont('times', 'bold');
-      doc.text('PIHAK PERTAMA', margin, currentY);
-      doc.setFont('times', 'normal');
-      doc.text(`Nama: ${data.ksName}`, margin, currentY + 6);
-      doc.text(`Jabatan: Kepala Sekolah`, margin, currentY + 12);
-      
-      currentY += 25;
-      doc.setFont('times', 'bold');
-      doc.text('PIHAK KEDUA', margin, currentY);
-      doc.setFont('times', 'normal');
-      doc.text(`Nama: ${data.contractorName || '..............................'}`, margin, currentY + 6);
-      doc.text(`Pekerjaan: ${data.contractorRole}`, margin, currentY + 12);
-      
-      currentY += 25;
-      doc.text('Sepakat menjalin kerjasama untuk kegiatan:', margin, currentY);
-      doc.setFont('times', 'bold');
-      doc.text(data.description || '......................................................', margin, currentY + 6);
-      
-      // ... (Keep simpler for dynamic demo)
-      
-      currentY += 40;
-      doc.text(`Pihak Kedua`, 40, currentY, {align: 'center'});
-      doc.text(`Pihak Pertama`, 150, currentY, {align: 'center'});
-      
-      currentY += 25;
-      doc.text(`( ${data.contractorName || '................'} )`, 40, currentY, {align: 'center'});
-      doc.text(`( ${data.ksName} )`, 150, currentY, {align: 'center'});
+    // Header
+    doc.setFont('times', 'bold');
+    doc.setFontSize(14);
+    doc.text(`PEMERINTAH KABUPATEN/KOTA`, 105, margin, { align: 'center' });
+    doc.text('DINAS PENDIDIKAN', 105, margin + 6, { align: 'center' });
+    doc.text(data.schoolName.toUpperCase(), 105, margin + 12, { align: 'center' });
+    doc.setLineWidth(0.5);
+    doc.line(margin, margin + 22, 190, margin + 22);
 
-      doc.save('MOU_Kerjasama.pdf');
+    const titleY = margin + 35;
+    doc.setFontSize(12);
+    doc.text('LAPORAN PERJALANAN DINAS', 105, titleY, { align: 'center' });
+    
+    doc.setFont('times', 'normal');
+    doc.setFontSize(11);
+    let y = titleY + 15;
+
+    // I. Pendahuluan
+    doc.setFont('times', 'bold');
+    doc.text('I. DASAR', margin, y);
+    doc.setFont('times', 'normal');
+    y += 6;
+    doc.text(`Surat Tugas Kepala Sekolah Nomor: ${data.suratTugasNumber} Tanggal ${data.date}`, margin + 5, y);
+    
+    y += 10;
+    doc.setFont('times', 'bold');
+    doc.text('II. MAKSUD DAN TUJUAN', margin, y);
+    doc.setFont('times', 'normal');
+    y += 6;
+    const splitTujuan = doc.splitTextToSize(data.description || 'Melaksanakan tugas dinas...', 165);
+    doc.text(splitTujuan, margin + 5, y);
+    y += (splitTujuan.length * 5) + 5;
+
+    // III. Pelaksanaan
+    doc.setFont('times', 'bold');
+    doc.text('III. WAKTU DAN TEMPAT', margin, y);
+    doc.setFont('times', 'normal');
+    y += 6;
+    doc.text(`Hari / Tanggal : ${data.date}`, margin + 5, y);
+    y += 6;
+    doc.text(`Tempat            : ${data.destination}`, margin + 5, y);
+    
+    y += 10;
+    doc.setFont('times', 'bold');
+    doc.text('IV. PETUGAS', margin, y);
+    doc.setFont('times', 'normal');
+    y += 6;
+    data.officials.forEach((off: any, i: number) => {
+        doc.text(`${i + 1}. ${off.name} (${off.role})`, margin + 5, y);
+        y += 6;
+    });
+
+    y += 5;
+    doc.setFont('times', 'bold');
+    doc.text('V. HASIL KEGIATAN', margin, y);
+    doc.setFont('times', 'normal');
+    y += 6;
+    const resultText = data.reportResult || 'Kegiatan telah dilaksanakan dengan baik.';
+    const splitResult = doc.splitTextToSize(resultText, 165);
+    doc.text(splitResult, margin + 5, y);
+    y += (splitResult.length * 5) + 5;
+
+    // VI. Penutup
+    doc.setFont('times', 'bold');
+    doc.text('VI. PENUTUP', margin, y);
+    doc.setFont('times', 'normal');
+    y += 6;
+    doc.text('Demikian laporan ini dibuat untuk dipergunakan sebagaimana mestinya.', margin + 5, y);
+
+    // Signatures
+    y += 20;
+    doc.text(`${data.city}, ${data.date}`, 140, y);
+    y += 6;
+    doc.text('Pelapor / Petugas,', 140, y);
+    
+    y += 25;
+    doc.setFont('times', 'bold');
+    // Assuming the first official is the main reporter
+    doc.text(`( ${data.officials[0]?.name || '.......................'} )`, 140, y);
+    doc.setFont('times', 'normal');
+    doc.text(`NIP. ${data.officials[0]?.nip || '.......................'}`, 140, y + 5);
+
+    doc.save('Laporan_SPPD.pdf');
   };
 
   const handlePrint = (e: React.FormEvent) => {
@@ -508,6 +880,11 @@ const EvidenceTemplates = () => {
           case 'absensi_tukang': generateAbsensiTukang(formData); break;
           case 'upah_tukang': generateUpahTukang(formData); break;
           case 'mou': generateMOU(formData); break;
+          case 'surat_tugas': generateSuratTugas(formData); break;
+          case 'sppd': generateSPPD(formData); break;
+          // New Cases
+          case 'daftar_transport': generateDaftarTransport(formData); break;
+          case 'laporan_sppd': generateLaporanSPPD(formData); break;
           default: alert('Template belum didukung sepenuhnya dalam mode dinamis.');
       }
       setIsPrintModalOpen(false);
@@ -561,6 +938,142 @@ const EvidenceTemplates = () => {
                         <label className="block text-xs font-bold text-gray-500">Tentang / Judul SK</label>
                         <input type="text" name="description" value={formData.description} onChange={handleInputChange} className="w-full border rounded px-2 py-1 text-sm" placeholder="PENETAPAN PANITIA..." />
                     </div>
+                    <div>
+                        <label className="block text-xs font-bold text-gray-500">Menimbang (Konsideran)</label>
+                        <textarea 
+                            name="skConsiderations" 
+                            value={formData.skConsiderations} 
+                            onChange={handleInputChange} 
+                            className="w-full border rounded px-2 py-1 text-sm h-24" 
+                            placeholder="a. Bahwa..." 
+                        />
+                    </div>
+                    <div className="mt-2">
+                        <label className="block text-xs font-bold text-gray-500 mb-1">Daftar Nama yang Ditetapkan (Lampiran)</label>
+                        {formData.skAppointees && formData.skAppointees.map((person: any, idx: number) => (
+                            <div key={idx} className="flex gap-2 mb-2">
+                                <input 
+                                    type="text" 
+                                    value={person.name} 
+                                    onChange={(e) => handleListChange(idx, 'name', e.target.value, 'skAppointees')}
+                                    className="flex-1 border rounded px-2 py-1 text-xs" 
+                                    placeholder="Nama Lengkap" 
+                                />
+                                <input 
+                                    type="text" 
+                                    value={person.role} 
+                                    onChange={(e) => handleListChange(idx, 'role', e.target.value, 'skAppointees')}
+                                    className="flex-1 border rounded px-2 py-1 text-xs" 
+                                    placeholder="Jabatan" 
+                                />
+                                <button type="button" onClick={() => removeListItem(idx, 'skAppointees')} className="text-red-500"><Trash2 size={16}/></button>
+                            </div>
+                        ))}
+                        <button type="button" onClick={() => addListItem('skAppointees')} className="text-xs text-blue-600 flex items-center gap-1 font-bold mt-1">
+                            <Plus size={14}/> Tambah Nama
+                        </button>
+                    </div>
+                  </>
+              )}
+
+              {/* Peradin Group */}
+              {(currentTemplateType === 'surat_tugas' || currentTemplateType === 'sppd' || currentTemplateType === 'daftar_transport' || currentTemplateType === 'laporan_sppd') && (
+                  <>
+                    <div className="grid grid-cols-2 gap-3">
+                        <div>
+                            <label className="block text-xs font-bold text-gray-500">Nomor {currentTemplateType === 'surat_tugas' ? 'Surat Tugas' : 'SPPD'}</label>
+                            <input 
+                                type="text" 
+                                name={currentTemplateType === 'surat_tugas' ? 'suratTugasNumber' : 'sppdNumber'} 
+                                value={currentTemplateType === 'surat_tugas' ? formData.suratTugasNumber : formData.sppdNumber} 
+                                onChange={handleInputChange} 
+                                className="w-full border rounded px-2 py-1 text-sm" 
+                            />
+                        </div>
+                        <div>
+                            <label className="block text-xs font-bold text-gray-500">Tujuan Perjalanan</label>
+                            <input type="text" name="destination" value={formData.destination} onChange={handleInputChange} className="w-full border rounded px-2 py-1 text-sm" placeholder="Contoh: Dinas Pendidikan" />
+                        </div>
+                    </div>
+                    <div className="grid grid-cols-2 gap-3">
+                        <div>
+                            <label className="block text-xs font-bold text-gray-500">Tgl Berangkat</label>
+                            <input type="text" name="departureDate" value={formData.departureDate} onChange={handleInputChange} className="w-full border rounded px-2 py-1 text-sm" />
+                        </div>
+                        <div>
+                            <label className="block text-xs font-bold text-gray-500">Tgl Kembali</label>
+                            <input type="text" name="returnDate" value={formData.returnDate} onChange={handleInputChange} className="w-full border rounded px-2 py-1 text-sm" />
+                        </div>
+                    </div>
+                    <div>
+                        <label className="block text-xs font-bold text-gray-500">Maksud / Keperluan</label>
+                        <textarea name="description" value={formData.description} onChange={handleInputChange} className="w-full border rounded px-2 py-1 text-sm" rows={2} placeholder="Mengikuti Workshop..." />
+                    </div>
+                    
+                    {currentTemplateType === 'sppd' && (
+                        <div>
+                            <label className="block text-xs font-bold text-gray-500">Alat Angkut</label>
+                            <input type="text" name="transportMode" value={formData.transportMode} onChange={handleInputChange} className="w-full border rounded px-2 py-1 text-sm" />
+                        </div>
+                    )}
+
+                    {currentTemplateType === 'daftar_transport' && (
+                        <div>
+                            <label className="block text-xs font-bold text-gray-500">Besaran Transport (Per Orang)</label>
+                            <input type="number" name="amount" value={formData.amount} onChange={handleInputChange} className="w-full border rounded px-2 py-1 text-sm font-bold" />
+                        </div>
+                    )}
+
+                    {currentTemplateType === 'laporan_sppd' && (
+                        <div>
+                            <label className="block text-xs font-bold text-gray-500">Hasil Kegiatan (Laporan)</label>
+                            <textarea name="reportResult" value={formData.reportResult} onChange={handleInputChange} className="w-full border rounded px-2 py-1 text-sm h-24" placeholder="Hasil kegiatan..." />
+                        </div>
+                    )}
+
+                    <div className="mt-2">
+                        <label className="block text-xs font-bold text-gray-500 mb-1">Daftar Pegawai yang Ditugaskan</label>
+                        {formData.officials && formData.officials.map((person: any, idx: number) => (
+                            <div key={idx} className="mb-2 p-2 bg-gray-50 rounded border border-gray-200">
+                                <div className="flex gap-2 mb-1">
+                                    <input 
+                                        type="text" 
+                                        value={person.name} 
+                                        onChange={(e) => handleListChange(idx, 'name', e.target.value, 'officials')}
+                                        className="flex-1 border rounded px-2 py-1 text-xs" 
+                                        placeholder="Nama Lengkap" 
+                                    />
+                                    <input 
+                                        type="text" 
+                                        value={person.nip} 
+                                        onChange={(e) => handleListChange(idx, 'nip', e.target.value, 'officials')}
+                                        className="flex-1 border rounded px-2 py-1 text-xs" 
+                                        placeholder="NIP" 
+                                    />
+                                </div>
+                                <div className="flex gap-2">
+                                    <input 
+                                        type="text" 
+                                        value={person.rank} 
+                                        onChange={(e) => handleListChange(idx, 'rank', e.target.value, 'officials')}
+                                        className="flex-1 border rounded px-2 py-1 text-xs" 
+                                        placeholder="Pangkat/Golongan" 
+                                    />
+                                    <input 
+                                        type="text" 
+                                        value={person.role} 
+                                        onChange={(e) => handleListChange(idx, 'role', e.target.value, 'officials')}
+                                        className="flex-1 border rounded px-2 py-1 text-xs" 
+                                        placeholder="Jabatan" 
+                                    />
+                                    <button type="button" onClick={() => removeListItem(idx, 'officials')} className="text-red-500 p-1"><Trash2 size={14}/></button>
+                                </div>
+                            </div>
+                        ))}
+                        <button type="button" onClick={() => addListItem('officials')} className="text-xs text-blue-600 flex items-center gap-1 font-bold mt-1">
+                            <Plus size={14}/> Tambah Pegawai
+                        </button>
+                    </div>
                   </>
               )}
 
@@ -610,10 +1123,37 @@ const EvidenceTemplates = () => {
                         <input type="text" name="activityName" value={formData.activityName} onChange={handleInputChange} className="w-full border rounded px-2 py-1 text-sm" placeholder="Contoh: Rehab Ruang Kelas" />
                     </div>
                     {currentTemplateType !== 'daftar_hadir' && (
-                        <div>
-                            <label className="block text-xs font-bold text-gray-500">Lokasi</label>
-                            <input type="text" name="projectLocation" value={formData.projectLocation} onChange={handleInputChange} className="w-full border rounded px-2 py-1 text-sm" />
-                        </div>
+                        <>
+                            <div>
+                                <label className="block text-xs font-bold text-gray-500">Lokasi</label>
+                                <input type="text" name="projectLocation" value={formData.projectLocation} onChange={handleInputChange} className="w-full border rounded px-2 py-1 text-sm" />
+                            </div>
+                            <div className="mt-2">
+                                <label className="block text-xs font-bold text-gray-500 mb-1">Daftar Pekerja</label>
+                                {formData.workers && formData.workers.map((worker: any, idx: number) => (
+                                    <div key={idx} className="flex gap-2 mb-2">
+                                        <input 
+                                            type="text" 
+                                            value={worker.name} 
+                                            onChange={(e) => handleListChange(idx, 'name', e.target.value, 'workers')}
+                                            className="flex-1 border rounded px-2 py-1 text-xs" 
+                                            placeholder="Nama Pekerja" 
+                                        />
+                                        <input 
+                                            type="text" 
+                                            value={worker.role} 
+                                            onChange={(e) => handleListChange(idx, 'role', e.target.value, 'workers')}
+                                            className="flex-1 border rounded px-2 py-1 text-xs" 
+                                            placeholder="Jabatan (Tukang/Pekerja)" 
+                                        />
+                                        <button type="button" onClick={() => removeListItem(idx, 'workers')} className="text-red-500"><Trash2 size={16}/></button>
+                                    </div>
+                                ))}
+                                <button type="button" onClick={() => addListItem('workers')} className="text-xs text-blue-600 flex items-center gap-1 font-bold mt-1">
+                                    <Plus size={14}/> Tambah Pekerja
+                                </button>
+                            </div>
+                        </>
                     )}
                   </>
               )}
@@ -641,6 +1181,16 @@ const EvidenceTemplates = () => {
                     <button onClick={() => openPrintModal('absensi_tukang')} className="btn-template"><ClipboardList size={14} className="text-orange-500"/> Absensi Tukang</button>
                     <button onClick={() => openPrintModal('upah_tukang')} className="btn-template"><Hammer size={14} className="text-blue-500"/> Daftar Penerimaan Upah</button>
                     <button onClick={() => openPrintModal('kuitansi')} className="btn-template"><Receipt size={14} className="text-red-500"/> Kuitansi Pembayaran</button>
+                  </>
+              );
+          case 'peradin':
+              return (
+                  <>
+                    <button onClick={() => openPrintModal('surat_tugas')} className="btn-template"><FileSignature size={14} className="text-blue-500"/> Surat Tugas</button>
+                    <button onClick={() => openPrintModal('sppd')} className="btn-template"><Bus size={14} className="text-green-500"/> SPPD</button>
+                    <button onClick={() => openPrintModal('daftar_transport')} className="btn-template"><DollarSign size={14} className="text-teal-600"/> Daftar Transport</button>
+                    <button onClick={() => openPrintModal('laporan_sppd')} className="btn-template"><FileCheck size={14} className="text-orange-500"/> Laporan Perjalanan</button>
+                    <button onClick={() => openPrintModal('kuitansi')} className="btn-template"><Receipt size={14} className="text-purple-500"/> Kuitansi Transport</button>
                   </>
               );
           default:
@@ -761,7 +1311,7 @@ const EvidenceTemplates = () => {
       {/* MODAL INPUT DATA */}
       {isPrintModalOpen && (
           <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
-              <div className="bg-white rounded-xl shadow-xl w-full max-w-lg overflow-hidden animate-fade-in-up">
+              <div className="bg-white rounded-xl shadow-xl w-full max-w-lg overflow-hidden animate-fade-in-up flex flex-col max-h-[90vh]">
                   <div className="px-6 py-4 border-b border-gray-100 flex justify-between items-center bg-gray-50">
                       <h3 className="font-bold text-gray-800 flex items-center gap-2">
                           <Printer size={18} className="text-blue-600" /> Isi Data Dokumen
@@ -769,16 +1319,20 @@ const EvidenceTemplates = () => {
                       <button onClick={() => setIsPrintModalOpen(false)} className="text-gray-400 hover:text-gray-600"><X size={20}/></button>
                   </div>
                   
-                  <form onSubmit={handlePrint} className="p-6">
-                      {renderFormFields()}
-                      
-                      <div className="mt-6 flex gap-3">
+                  <div className="flex-1 overflow-y-auto p-6">
+                      <form id="printForm" onSubmit={handlePrint}>
+                          {renderFormFields()}
+                      </form>
+                  </div>
+                  
+                  <div className="p-6 border-t border-gray-100 bg-white">
+                      <div className="flex gap-3">
                           <button type="button" onClick={() => setIsPrintModalOpen(false)} className="flex-1 py-2 border border-gray-300 rounded-lg text-gray-600 font-bold hover:bg-gray-50">Batal</button>
-                          <button type="submit" className="flex-1 py-2 bg-blue-600 text-white rounded-lg font-bold hover:bg-blue-700 flex items-center justify-center gap-2">
+                          <button type="submit" form="printForm" className="flex-1 py-2 bg-blue-600 text-white rounded-lg font-bold hover:bg-blue-700 flex items-center justify-center gap-2">
                               <Download size={18} /> Generate PDF
                           </button>
                       </div>
-                  </form>
+                  </div>
               </div>
           </div>
       )}
