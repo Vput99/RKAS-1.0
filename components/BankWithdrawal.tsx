@@ -1,6 +1,6 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import { Budget, TransactionType, SchoolProfile, TransferDetail, WithdrawalHistory } from '../types';
-import { FileText, Printer, Landmark, CheckSquare, Square, DollarSign, Calendar, User, CreditCard, Edit3, List, X, Coins, Users, Save, Loader2, Archive, History, RefreshCcw, Trash2, Download, Filter, Settings, Info, Calculator, Percent } from 'lucide-react';
+import { FileText, Printer, Landmark, CheckSquare, Square, DollarSign, Calendar, User, CreditCard, Edit3, List, X, Coins, Users, Loader2, Archive, History, RefreshCcw, Trash2, Info, Calculator, Percent } from 'lucide-react';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import { getWithdrawalHistory, saveWithdrawalHistory, deleteWithdrawalHistory, uploadWithdrawalFile } from '../lib/db';
@@ -110,28 +110,35 @@ const BankWithdrawal: React.FC<BankWithdrawalProps> = ({ data, profile, onUpdate
   const filteredRealizations = useMemo(() => {
     const expenses = data.filter(d => d.type === TransactionType.EXPENSE && d.status !== 'rejected');
     const aggregatedMap: Record<string, {
-        id: string; 
+        id: string; // Composite ID: item.id + '_' + targetMonth
+        budgetId: string;
         description: string;
         account_code: string;
         amount: number;
         date: string;
+        targetMonth: number;
         original: Budget;
     }> = {};
 
     expenses.forEach(item => {
         item.realizations?.forEach(realization => {
             if (realization.amount > 0 && realization.month >= startMonth && realization.month <= endMonth) {
-                if (!aggregatedMap[item.id]) {
-                    aggregatedMap[item.id] = {
-                        id: item.id,
-                        description: item.description,
+                const tMonth = realization.target_month !== undefined ? realization.target_month : realization.month;
+                const key = `${item.id}_${tMonth}`;
+                
+                if (!aggregatedMap[key]) {
+                    aggregatedMap[key] = {
+                        id: key,
+                        budgetId: item.id,
+                        description: `${item.description} (${MONTHS[tMonth-1]})`,
                         account_code: item.account_code || '',
                         amount: 0,
-                        date: realization.date, // Use the first realization date found
+                        date: realization.date,
+                        targetMonth: tMonth,
                         original: item
                     };
                 }
-                aggregatedMap[item.id].amount += realization.amount;
+                aggregatedMap[key].amount += realization.amount;
             }
         });
     });
@@ -174,7 +181,7 @@ const BankWithdrawal: React.FC<BankWithdrawalProps> = ({ data, profile, onUpdate
       }> = {};
 
       selectedItems.forEach(item => {
-          const detail = recipientDetails[item.id] || { name: '', account: '', ppn: 0, pph21: 0, pph22: 0, pph23: 0, pajakDaerah: 0 };
+          const detail = recipientDetails[item.budgetId] || { name: '', account: '', ppn: 0, pph21: 0, pph22: 0, pph23: 0, pajakDaerah: 0 };
           const cleanName = detail.name?.trim() || '';
           const cleanAccount = detail.account?.trim() || '';
 
@@ -234,15 +241,16 @@ const BankWithdrawal: React.FC<BankWithdrawalProps> = ({ data, profile, onUpdate
       setRecipientDetails(prev => {
           const newState = { ...prev };
           selectedBudgetIds.forEach(id => {
-              newState[id] = { 
-                  ...newState[id], 
+              const budgetId = id.split('_')[0];
+              newState[budgetId] = { 
+                  ...newState[budgetId], 
                   name: bulkName, 
                   account: bulkAccount,
-                  ppn: newState[id]?.ppn || 0,
-                  pph21: newState[id]?.pph21 || 0,
-                  pph22: newState[id]?.pph22 || 0,
-                  pph23: newState[id]?.pph23 || 0,
-                  pajakDaerah: newState[id]?.pajakDaerah || 0
+                  ppn: newState[budgetId]?.ppn || 0,
+                  pph21: newState[budgetId]?.pph21 || 0,
+                  pph22: newState[budgetId]?.pph22 || 0,
+                  pph23: newState[budgetId]?.pph23 || 0,
+                  pajakDaerah: newState[budgetId]?.pajakDaerah || 0
               };
           });
           return newState;
@@ -261,6 +269,7 @@ const BankWithdrawal: React.FC<BankWithdrawalProps> = ({ data, profile, onUpdate
               const item = filteredRealizations.find(r => r.id === id);
               if (!item) return;
 
+              const budgetId = item.budgetId;
               const amount = item.amount; // Gross amount
               let newTax = { ppn: 0, pph21: 0, pph22: 0, pph23: 0, pajakDaerah: 0 };
 
@@ -314,8 +323,8 @@ const BankWithdrawal: React.FC<BankWithdrawalProps> = ({ data, profile, onUpdate
               }
 
               // Preserve name and account, update taxes
-              newState[id] = {
-                  ...newState[id],
+              newState[budgetId] = {
+                  ...newState[budgetId],
                   ...newTax
               };
           });
@@ -327,12 +336,20 @@ const BankWithdrawal: React.FC<BankWithdrawalProps> = ({ data, profile, onUpdate
   };
 
 
-  // --- CORE ARCHIVE LOGIC ---
+  // CORE ARCHIVE LOGIC
   const performArchiving = async (fileBlob?: Blob, fileName?: string) => {
       // 1. Update Recipient Details in Budget Items
-      const idsToUpdate = Object.keys(recipientDetails).filter(id => selectedBudgetIds.includes(id));
-      const updatePromises = idsToUpdate.map(id => {
-          return onUpdate(id, { transfer_details: recipientDetails[id] });
+      const budgetIdsToUpdate = new Set<string>();
+      selectedBudgetIds.forEach(id => {
+          const budgetId = id.split('_')[0];
+          budgetIdsToUpdate.add(budgetId);
+      });
+
+      const updatePromises = Array.from(budgetIdsToUpdate).map(budgetId => {
+          if (recipientDetails[budgetId]) {
+              return onUpdate(budgetId, { transfer_details: recipientDetails[budgetId] });
+          }
+          return Promise.resolve();
       });
       await Promise.all(updatePromises);
 
@@ -909,7 +926,7 @@ const BankWithdrawal: React.FC<BankWithdrawalProps> = ({ data, profile, onUpdate
                     <tr><td colSpan={10} className="text-center py-8 text-gray-400">Tidak ada realisasi pada periode {startMonth === endMonth ? MONTHS[startMonth-1] : `${MONTHS[startMonth-1]} - ${MONTHS[endMonth-1]}`}. Silakan input SPJ terlebih dahulu.</td></tr>
                 ) : (
                     filteredRealizations.map(item => {
-                        const detail = recipientDetails[item.id] || { name: '', account: '', ppn: 0, pph21: 0, pph22: 0, pph23: 0, pajakDaerah: 0 };
+                        const detail = recipientDetails[item.budgetId] || { name: '', account: '', ppn: 0, pph21: 0, pph22: 0, pph23: 0, pajakDaerah: 0 };
                         const totalPotongan = (detail.ppn || 0) + (detail.pph21 || 0) + (detail.pph22 || 0) + (detail.pph23 || 0) + (detail.pajakDaerah || 0);
                         const jumlahBersih = item.amount - totalPotongan;
 
@@ -929,7 +946,7 @@ const BankWithdrawal: React.FC<BankWithdrawalProps> = ({ data, profile, onUpdate
                                     className="w-full border border-blue-300 rounded px-2 py-1 text-xs focus:ring-1 focus:ring-blue-500 outline-none"
                                     placeholder="Nama..."
                                     value={detail.name}
-                                    onChange={(e) => handleRecipientChange(item.id, 'name', e.target.value)}
+                                    onChange={(e) => handleRecipientChange(item.budgetId, 'name', e.target.value)}
                                     />
                                 ) : (
                                     <span className="text-xs text-gray-400">-</span>
@@ -942,7 +959,7 @@ const BankWithdrawal: React.FC<BankWithdrawalProps> = ({ data, profile, onUpdate
                                     className="w-full border border-blue-300 rounded px-2 py-1 text-xs focus:ring-1 focus:ring-blue-500 outline-none"
                                     placeholder="No Rek..."
                                     value={detail.account}
-                                    onChange={(e) => handleRecipientChange(item.id, 'account', e.target.value)}
+                                    onChange={(e) => handleRecipientChange(item.budgetId, 'account', e.target.value)}
                                     />
                                 ) : (
                                     <span className="text-xs text-gray-400">-</span>
@@ -957,7 +974,7 @@ const BankWithdrawal: React.FC<BankWithdrawalProps> = ({ data, profile, onUpdate
                                     className="w-full border border-gray-300 rounded px-1 py-1 text-[10px] text-right focus:ring-1 focus:ring-blue-500 outline-none"
                                     placeholder="0"
                                     value={detail.pph21 || ''}
-                                    onChange={(e) => handleRecipientChange(item.id, 'pph21', Number(e.target.value))}
+                                    onChange={(e) => handleRecipientChange(item.budgetId, 'pph21', Number(e.target.value))}
                                     />
                                 )}
                             </td>
@@ -968,7 +985,7 @@ const BankWithdrawal: React.FC<BankWithdrawalProps> = ({ data, profile, onUpdate
                                     className="w-full border border-gray-300 rounded px-1 py-1 text-[10px] text-right focus:ring-1 focus:ring-blue-500 outline-none"
                                     placeholder="0"
                                     value={detail.pph22 || ''}
-                                    onChange={(e) => handleRecipientChange(item.id, 'pph22', Number(e.target.value))}
+                                    onChange={(e) => handleRecipientChange(item.budgetId, 'pph22', Number(e.target.value))}
                                     />
                                 )}
                             </td>
@@ -979,7 +996,7 @@ const BankWithdrawal: React.FC<BankWithdrawalProps> = ({ data, profile, onUpdate
                                     className="w-full border border-gray-300 rounded px-1 py-1 text-[10px] text-right focus:ring-1 focus:ring-blue-500 outline-none"
                                     placeholder="0"
                                     value={detail.pph23 || ''}
-                                    onChange={(e) => handleRecipientChange(item.id, 'pph23', Number(e.target.value))}
+                                    onChange={(e) => handleRecipientChange(item.budgetId, 'pph23', Number(e.target.value))}
                                     />
                                 )}
                             </td>
@@ -990,7 +1007,7 @@ const BankWithdrawal: React.FC<BankWithdrawalProps> = ({ data, profile, onUpdate
                                     className="w-full border border-gray-300 rounded px-1 py-1 text-[10px] text-right focus:ring-1 focus:ring-blue-500 outline-none"
                                     placeholder="0"
                                     value={detail.pajakDaerah || ''}
-                                    onChange={(e) => handleRecipientChange(item.id, 'pajakDaerah', Number(e.target.value))}
+                                    onChange={(e) => handleRecipientChange(item.budgetId, 'pajakDaerah', Number(e.target.value))}
                                     />
                                 )}
                             </td>
