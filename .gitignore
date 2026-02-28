@@ -34,3 +34,6 @@ supabase/types.ts
 
 # OS generated files
 Thumbs.db
+
+# AI Studio History
+migrated_prompt_history/

@@ -24,7 +24,10 @@ const BankWithdrawal: React.FC<BankWithdrawalProps> = ({ data, profile, onUpdate
   const [isSaving, setIsSaving] = useState(false);
   
   // Withdrawal Month State
-  const [withdrawalMonth, setWithdrawalMonth] = useState<number>(new Date().getMonth() + 1);
+  const [startMonth, setStartMonth] = useState<number>(1); // Default to January
+  const [endMonth, setEndMonth] = useState<number>(new Date().getMonth() + 1); // Default to current month
+  const [accountCodeFilter, setAccountCodeFilter] = useState<string>(''); // New state for account code filter
+  const [searchTerm, setSearchTerm] = useState<string>(''); // New state for description search
 
   // History State
   const [historyList, setHistoryList] = useState<WithdrawalHistory[]>([]);
@@ -103,49 +106,64 @@ const BankWithdrawal: React.FC<BankWithdrawalProps> = ({ data, profile, onUpdate
       });
   }, [data]);
 
-  // CHANGED: Filter expenses based on REALIZATION (SPJ) in the selected Month
-  const monthlyRealizations = useMemo(() => {
+  // Filter expenses based on REALIZATION (SPJ) in the selected Month range and account code
+  const filteredRealizations = useMemo(() => {
     const expenses = data.filter(d => d.type === TransactionType.EXPENSE && d.status !== 'rejected');
-    const realizedItems: Array<{
+    const aggregatedMap: Record<string, {
         id: string; 
         description: string;
         account_code: string;
         amount: number;
         date: string;
         original: Budget;
-    }> = [];
+    }> = {};
 
     expenses.forEach(item => {
-        const realization = item.realizations?.find(r => r.month === withdrawalMonth);
-        if (realization && realization.amount > 0) {
-            realizedItems.push({
-                id: item.id,
-                description: item.description,
-                account_code: item.account_code || '',
-                amount: realization.amount,
-                date: realization.date,
-                original: item
-            });
-        }
+        item.realizations?.forEach(realization => {
+            if (realization.amount > 0 && realization.month >= startMonth && realization.month <= endMonth) {
+                if (!aggregatedMap[item.id]) {
+                    aggregatedMap[item.id] = {
+                        id: item.id,
+                        description: item.description,
+                        account_code: item.account_code || '',
+                        amount: 0,
+                        date: realization.date, // Use the first realization date found
+                        original: item
+                    };
+                }
+                aggregatedMap[item.id].amount += realization.amount;
+            }
+        });
     });
 
-    return realizedItems.sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
-  }, [data, withdrawalMonth]);
+    let finalItems = Object.values(aggregatedMap);
+    if (accountCodeFilter) {
+        finalItems = finalItems.filter(item => item.account_code.startsWith(accountCodeFilter));
+    }
+    if (searchTerm) {
+        finalItems = finalItems.filter(item => 
+            item.description.toLowerCase().includes(searchTerm.toLowerCase()) ||
+            item.account_code.includes(searchTerm)
+        );
+    }
+
+    return finalItems.sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
+  }, [data, startMonth, endMonth, accountCodeFilter, searchTerm]);
 
   const totalSelectedAmount = useMemo(() => {
-    return monthlyRealizations
+    return filteredRealizations
       .filter(d => selectedBudgetIds.includes(d.id))
       .reduce((acc, curr) => acc + curr.amount, 0);
-  }, [monthlyRealizations, selectedBudgetIds]);
+  }, [filteredRealizations, selectedBudgetIds]);
 
-  // Clear selection when month changes
+  // Clear selection when filter criteria changes
   useEffect(() => {
       setSelectedBudgetIds([]);
-  }, [withdrawalMonth]);
+  }, [startMonth, endMonth, accountCodeFilter, searchTerm]);
 
   // --- LOGIC PENGELOMPOKAN (GROUPING) ---
   const getGroupedData = () => {
-      const selectedItems = monthlyRealizations.filter(d => selectedBudgetIds.includes(d.id));
+      const selectedItems = filteredRealizations.filter(d => selectedBudgetIds.includes(d.id));
       
       const groups: Record<string, { 
           name: string, 
@@ -192,13 +210,13 @@ const BankWithdrawal: React.FC<BankWithdrawalProps> = ({ data, profile, onUpdate
     );
   };
 
-  const isAllSelected = monthlyRealizations.length > 0 && selectedBudgetIds.length === monthlyRealizations.length;
+  const isAllSelected = filteredRealizations.length > 0 && selectedBudgetIds.length === filteredRealizations.length;
   
   const toggleSelectAll = () => {
       if (isAllSelected) {
           setSelectedBudgetIds([]);
       } else {
-          setSelectedBudgetIds(monthlyRealizations.map(d => d.id));
+          setSelectedBudgetIds(filteredRealizations.map(d => d.id));
       }
   };
 
@@ -240,7 +258,7 @@ const BankWithdrawal: React.FC<BankWithdrawalProps> = ({ data, profile, onUpdate
           const newState = { ...prev };
           
           selectedBudgetIds.forEach(id => {
-              const item = monthlyRealizations.find(r => r.id === id);
+              const item = filteredRealizations.find(r => r.id === id);
               if (!item) return;
 
               const amount = item.amount; // Gross amount
@@ -333,7 +351,7 @@ const BankWithdrawal: React.FC<BankWithdrawalProps> = ({ data, profile, onUpdate
           recipientDetails: recipientDetails,
           ksName, ksTitle, ksNip,
           trName, trTitle, trNip,
-          month: withdrawalMonth
+          startMonth, endMonth,
       };
 
       await saveWithdrawalHistory({
@@ -344,7 +362,7 @@ const BankWithdrawal: React.FC<BankWithdrawalProps> = ({ data, profile, onUpdate
           total_amount: totalSelectedAmount,
           item_count: selectedBudgetIds.length,
           snapshot_data: snapshot,
-          notes: `Pencairan ${MONTHS[withdrawalMonth-1]} - ${formatRupiah(totalSelectedAmount)}`,
+          notes: `Pencairan ${startMonth === endMonth ? MONTHS[startMonth-1] : `${MONTHS[startMonth-1]} - ${MONTHS[endMonth-1]}`} - ${formatRupiah(totalSelectedAmount)}`,
           file_url: uploadedUrl || undefined,
           file_path: uploadedPath || undefined
       });
@@ -384,7 +402,8 @@ const BankWithdrawal: React.FC<BankWithdrawalProps> = ({ data, profile, onUpdate
           const doc = createRincianDoc();
           if (doc) {
             const pdfBlob = doc.output('blob');
-            const fileName = `Rincian_Transfer_${MONTHS[withdrawalMonth-1]}_${new Date().getTime()}.pdf`;
+            const monthLabel = startMonth === endMonth ? MONTHS[startMonth-1] : `${MONTHS[startMonth-1]}_${MONTHS[endMonth-1]}`;
+            const fileName = `Rincian_Transfer_${monthLabel}_${new Date().getTime()}.pdf`;
 
             await performArchiving(pdfBlob, fileName);
             doc.save('Daftar_Rincian_Transfer.pdf');
@@ -409,7 +428,8 @@ const BankWithdrawal: React.FC<BankWithdrawalProps> = ({ data, profile, onUpdate
           setWithdrawDate(item.letter_date);
           
           if (snap) {
-              if (snap.month) setWithdrawalMonth(snap.month);
+              if (snap.startMonth) setStartMonth(snap.startMonth);
+              if (snap.endMonth) setEndMonth(snap.endMonth);
               if (snap.recipientDetails) setRecipientDetails(prev => ({ ...prev, ...snap.recipientDetails }));
               if (snap.selectedIds && Array.isArray(snap.selectedIds)) setSelectedBudgetIds(snap.selectedIds);
               if (snap.ksName) setKsName(snap.ksName);
@@ -697,10 +717,10 @@ const BankWithdrawal: React.FC<BankWithdrawalProps> = ({ data, profile, onUpdate
     doc.text('DAFTAR RINCIAN TRANSFER', 148, 15, { align: 'center' });
     doc.text(`${(profile?.name || 'SEKOLAH').toUpperCase()}`, 148, 20, { align: 'center' });
     doc.text((profile?.city || 'KOTA').toUpperCase(), 148, 25, { align: 'center' });
-    const d = new Date(withdrawDate);
+    const monthLabel = startMonth === endMonth ? `Bulan ${MONTHS[startMonth-1]}` : `Bulan ${MONTHS[startMonth-1]} - ${MONTHS[endMonth-1]}`;
     doc.setFont('helvetica', 'italic');
     doc.setFontSize(10);
-    doc.text(`Bulan ${MONTHS[d.getMonth()]} (Realisasi)`, 15, 35);
+    doc.text(`${monthLabel} (Realisasi)`, 15, 35);
 
     const groupedData = getGroupedData();
     let totalPph21 = 0; let totalPph22 = 0; let totalPph23 = 0; let totalPajakDaerah = 0; let totalPotonganAll = 0; let totalBersihAll = 0;
@@ -786,7 +806,58 @@ const BankWithdrawal: React.FC<BankWithdrawalProps> = ({ data, profile, onUpdate
 
   // CHANGED: Converted from Component inside Component to a Variable to prevent re-render focus loss
   const budgetTableContent = (
-     <div className="border border-gray-200 rounded-lg overflow-hidden max-h-[500px] overflow-y-auto relative">
+    <>
+      <div className="flex flex-wrap items-center gap-4 mb-4 p-4 bg-white rounded-lg shadow-sm">
+        <div className="flex items-center gap-2">
+          <label htmlFor="startMonth" className="text-sm font-medium text-gray-700">Dari Bulan:</label>
+          <select
+            id="startMonth"
+            className="p-2 border border-gray-300 rounded-md text-sm focus:ring-blue-500 focus:border-blue-500"
+            value={startMonth}
+            onChange={(e) => setStartMonth(Number(e.target.value))}
+          >
+            {MONTHS.map((month, index) => (
+              <option key={index + 1} value={index + 1}>{month}</option>
+            ))}
+          </select>
+        </div>
+        <div className="flex items-center gap-2">
+          <label htmlFor="endMonth" className="text-sm font-medium text-gray-700">Sampai Bulan:</label>
+          <select
+            id="endMonth"
+            className="p-2 border border-gray-300 rounded-md text-sm focus:ring-blue-500 focus:border-blue-500"
+            value={endMonth}
+            onChange={(e) => setEndMonth(Number(e.target.value))}
+          >
+            {MONTHS.map((month, index) => (
+              <option key={index + 1} value={index + 1}>{month}</option>
+            ))}
+          </select>
+        </div>
+        <div className="flex items-center gap-2">
+          <label htmlFor="accountCodeFilter" className="text-sm font-medium text-gray-700">Filter Rekening:</label>
+          <input
+            type="text"
+            id="accountCodeFilter"
+            className="p-2 border border-gray-300 rounded-md text-sm focus:ring-blue-500 focus:border-blue-500"
+            placeholder="Contoh: 5.2.2.01.01"
+            value={accountCodeFilter}
+            onChange={(e) => setAccountCodeFilter(e.target.value)}
+          />
+        </div>
+        <div className="flex items-center gap-2">
+          <label htmlFor="searchTerm" className="text-sm font-medium text-gray-700">Cari Uraian:</label>
+          <input
+            type="text"
+            id="searchTerm"
+            className="p-2 border border-gray-300 rounded-md text-sm focus:ring-blue-500 focus:border-blue-500"
+            placeholder="Contoh: Listrik"
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+          />
+        </div>
+      </div>
+      <div className="border border-gray-200 rounded-lg overflow-hidden max-h-[500px] overflow-y-auto relative">
         <table className="w-full text-sm text-left">
             <thead className="bg-gray-50 font-bold text-gray-700 sticky top-0 z-10 shadow-sm">
                 <tr>
@@ -834,10 +905,10 @@ const BankWithdrawal: React.FC<BankWithdrawalProps> = ({ data, profile, onUpdate
                 </tr>
             </thead>
             <tbody className="divide-y divide-gray-100 bg-white">
-                {monthlyRealizations.length === 0 ? (
-                    <tr><td colSpan={10} className="text-center py-8 text-gray-400">Tidak ada realisasi pada bulan {MONTHS[withdrawalMonth-1]}. Silakan input SPJ terlebih dahulu.</td></tr>
+                {filteredRealizations.length === 0 ? (
+                    <tr><td colSpan={10} className="text-center py-8 text-gray-400">Tidak ada realisasi pada periode {startMonth === endMonth ? MONTHS[startMonth-1] : `${MONTHS[startMonth-1]} - ${MONTHS[endMonth-1]}`}. Silakan input SPJ terlebih dahulu.</td></tr>
                 ) : (
-                    monthlyRealizations.map(item => {
+                    filteredRealizations.map(item => {
                         const detail = recipientDetails[item.id] || { name: '', account: '', ppn: 0, pph21: 0, pph22: 0, pph23: 0, pajakDaerah: 0 };
                         const totalPotongan = (detail.ppn || 0) + (detail.pph21 || 0) + (detail.pph22 || 0) + (detail.pph23 || 0) + (detail.pajakDaerah || 0);
                         const jumlahBersih = item.amount - totalPotongan;
@@ -937,6 +1008,7 @@ const BankWithdrawal: React.FC<BankWithdrawalProps> = ({ data, profile, onUpdate
             </tbody>
         </table>
     </div>
+    </>
   );
 
   return (
@@ -1042,24 +1114,10 @@ const BankWithdrawal: React.FC<BankWithdrawalProps> = ({ data, profile, onUpdate
                            <div>
                                <p className="text-sm font-bold text-gray-800">Daftar Item Transfer (Berdasarkan SPJ)</p>
                                <p className="text-xs text-gray-500">
-                                   Pilih item realisasi untuk bulan ini.
+                                   Pilih item realisasi untuk periode yang dipilih.
                                </p>
                            </div>
-                           
-                           {/* Month Filter */}
-                           <div className="flex items-center bg-gray-100 p-1 rounded-lg">
-                               <Filter size={14} className="text-gray-500 ml-2" />
-                               <select 
-                                  value={withdrawalMonth}
-                                  onChange={(e) => setWithdrawalMonth(Number(e.target.value))}
-                                  className="bg-transparent text-sm font-bold text-gray-700 py-1 px-2 outline-none cursor-pointer"
-                               >
-                                  {MONTHS.map((m, idx) => (
-                                     <option key={idx} value={idx + 1}>{m}</option>
-                                  ))}
-                               </select>
-                           </div>
-                        </div>
+                         </div>
                         
                         <div className="flex gap-2 justify-end mb-2">
                                <button 
