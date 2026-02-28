@@ -342,6 +342,34 @@ export const saveRaporData = async (indicators: RaporIndicator[], year: string):
 
 // --- Bank Statement Functions ---
 
+export const uploadEvidenceFile = async (file: File, budgetId: string): Promise<{ url: string | null, path: string | null }> => {
+    if (!supabase) return { url: null, path: null };
+
+    const userId = await getCurrentUserId();
+    const fileExt = file.name.split('.').pop();
+    const fileName = `${Math.random().toString(36).substring(2, 15)}_${Date.now()}.${fileExt}`;
+    const filePath = `${userId}/evidence/${budgetId}/${fileName}`; 
+
+    try {
+        const { error: uploadError } = await supabase.storage
+            .from('rkas_storage')
+            .upload(filePath, file);
+
+        if (uploadError) {
+            console.error('Upload error:', uploadError);
+            throw uploadError;
+        }
+
+        const { data } = supabase.storage
+            .from('rkas_storage')
+            .getPublicUrl(filePath);
+
+        return { url: data.publicUrl, path: filePath };
+    } catch (error) {
+        console.error("Error uploading evidence file:", error);
+        return { url: null, path: null };
+    }
+};
 export const uploadBankStatementFile = async (file: File): Promise<{ url: string | null, path: string | null }> => {
     if (!supabase) return { url: null, path: null };
 

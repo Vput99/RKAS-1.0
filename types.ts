@@ -111,13 +111,21 @@ export const AccountCodes = {
   '5.2.03.01.01.0001': 'Belanja Modal Bangunan Gedung Sekolah (Renovasi Berat/Penambahan Ruang)',
 } as const;
 
+export interface EvidenceFile {
+  type: string; // e.g., "Kuitansi", "Foto", "Daftar Hadir"
+  url: string;
+  path: string;
+  name: string;
+}
+
 export interface RealizationDetail {
   month: number; // Bulan pelaporan (kapan diinput)
   target_month?: number; // Bulan peruntukan (untuk bulan apa)
   amount: number;
   quantity?: number; // Volume realisasi
   date: string; // Tanggal Kuitansi/SPJ
-  evidence_file?: string; // Nama file bukti fisik
+  evidence_file?: string; // Deprecated: Nama file bukti fisik tunggal
+  evidence_files?: EvidenceFile[]; // List of multiple evidence files
   notes?: string; // Keterangan tambahan (misal: "Bayar Tunggakan Januari")
 }
 

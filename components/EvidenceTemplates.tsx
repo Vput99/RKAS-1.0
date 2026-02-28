@@ -1,10 +1,118 @@
 
 import React, { useState, useEffect } from 'react';
-import { FileText, Download, CheckCircle2, ChevronRight, BookOpen, Printer, Users, Coffee, Wrench, Bus, ShoppingBag, FileSignature, Handshake, ClipboardList, Receipt, Truck, FileCheck, HardHat, Hammer, X, Save, Calendar, MapPin, User, DollarSign, Plus, Trash2 } from 'lucide-react';
+import { FileText, Download, CheckCircle2, ChevronRight, BookOpen, Printer, Users, Coffee, Wrench, Bus, ShoppingBag, FileSignature, Handshake, ClipboardList, Receipt, FileCheck, HardHat, Hammer, X, DollarSign, Plus, Trash2, Search, Sparkles, Loader2, Upload, Eye, AlertCircle } from 'lucide-react';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
-import { getSchoolProfile } from '../lib/db';
-import { SchoolProfile } from '../types';
+import { getSchoolProfile, getBudgets, updateBudget, uploadEvidenceFile } from '../lib/db';
+import { SchoolProfile, Budget, EvidenceFile } from '../types';
+import { suggestEvidenceList } from '../lib/gemini';
+
+const MONTHS = [
+  'Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni', 
+  'Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember'
+];
+
+// Helper to determine evidence needed based on Juknis BOSP 2026 & SIPLah Context
+const getEvidenceList = (description: string, accountCode?: string): string[] => {
+  const text = (description + ' ' + (accountCode || '')).toLowerCase();
+  
+  if (text.includes('honor') || text.includes('gaji') || text.includes('jasa narasumber') || text.includes('instruktur') || text.includes('pembina')) {
+    return [
+      "SK Penetapan / Surat Tugas dari Kepala Sekolah (Tahun Berjalan)",
+      "Surat Perjanjian Kerja (SPK)",
+      "Daftar Hadir / Absensi Bulan Berjalan (Tanda Tangan Lengkap)",
+      "Laporan Pelaksanaan Tugas / Jurnal Kegiatan",
+      "Daftar Tanda Terima Honorarium (Bruto, Potongan Pajak, Netto)",
+      "Bukti Transfer Bank ke Rekening Penerima (CMS/Teller)",
+      "Bukti Setor Pajak PPh 21 (Kode Billing & NTPN)",
+      "Fotokopi KTP & NPWP Penerima"
+    ];
+  }
+
+  if (
+    text.includes('atk') || text.includes('bahan') || text.includes('alat tulis') || 
+    text.includes('kertas') || text.includes('kebersihan') || text.includes('spanduk') || 
+    text.includes('cetak') || text.includes('penggandaan') || 
+    text.includes('lampu') || text.includes('kabel') || text.includes('alat listrik') || text.includes('saklar')
+  ) {
+    return [
+      "Dokumen Cetak Pesanan SIPLah",
+      "Invoice / Faktur Penjualan (Dari SIPLah)",
+      "Berita Acara Serah Terima (BAST) Digital SIPLah",
+      "Bukti Transfer ke Rekening Marketplace (Bukan Rekening Penjual)",
+      "Bukti Setor / Pungut Pajak (Oleh Marketplace SIPLah)",
+      "Foto Dokumentasi Barang yang diterima",
+      "Kuitansi Manual (Hanya jika pembelian Non-SIPLah / Mendesak < Rp 200rb)"
+    ];
+  }
+
+  if (text.includes('makan') || text.includes('minum') || text.includes('konsumsi') || text.includes('rapat') || text.includes('snack')) {
+    return [
+      "Surat Undangan & Daftar Hadir Kegiatan",
+      "Notulen / Laporan Hasil Kegiatan",
+      "Nota / Bon Pembelian Konsumsi (Rincian Menu Jelas)",
+      "Kuitansi Pembayaran (Bermaterai jika > Rp 5 Juta)",
+      "Bukti Setor PPh 23 (Jasa Katering) atau Pajak Daerah (PB1)",
+      "Foto Dokumentasi Kegiatan (Open Camera)",
+      "Dokumen SIPLah (Jika memesan Katering via SIPLah)"
+    ];
+  }
+
+  if (text.includes('perjalanan') || text.includes('dinas') || text.includes('transport') || text.includes('sppd')) {
+    return [
+      "Surat Tugas (Ditandatangani KS)",
+      "SPPD (Surat Perintah Perjalanan Dinas) - Cap Instansi Tujuan",
+      "Laporan Hasil Perjalanan Dinas",
+      "Tiket / Bukti Transportasi Riil",
+      "Nota BBM (Jika kendaraan pribadi/sewa)",
+      "Kuitansi / Bill Hotel (Jika Menginap)",
+      "Daftar Pengeluaran Riil (Format Lampiran Juknis)"
+    ];
+  }
+
+  if (text.includes('modal') || text.includes('buku') || text.includes('laptop') || text.includes('komputer') || text.includes('printer') || text.includes('meja') || text.includes('kursi') || text.includes('aset') || text.includes('elektronik')) {
+    return [
+      "Dokumen Cetak Pesanan SIPLah (SPK Digital)",
+      "Invoice / Faktur Penjualan (Dari SIPLah)",
+      "Berita Acara Serah Terima (BAST) Digital SIPLah",
+      "Berita Acara Pemeriksaan Barang (Internal Sekolah)",
+      "Bukti Transfer ke Rekening Marketplace",
+      "Bukti Pungut/Setor Pajak (Oleh Marketplace SIPLah)",
+      "Foto Dokumentasi Barang (Fisik di Sekolah)",
+      "Fotokopi Pencatatan di Buku Inventaris Aset / KIB",
+      "Kartu Garansi Resmi"
+    ];
+  }
+
+  if (text.includes('pemeliharaan') || text.includes('servis') || text.includes('perbaikan') || text.includes('tukang') || text.includes('rehab')) {
+    return [
+      "Surat Perintah Kerja (SPK) Manual (Jika Jasa Perorangan)",
+      "RAB (Rincian Anggaran Biaya) Pekerjaan",
+      "Nota Belanja Bahan Material (Bisa SIPLah / Toko Bangunan)",
+      "Kuitansi Upah Tukang",
+      "Daftar Hadir Tukang",
+      "Berita Acara Penyelesaian Pekerjaan & BAST",
+      "Bukti Setor PPh 21 (Upah Tukang)",
+      "Foto Dokumentasi (0%, 50%, 100%)"
+    ];
+  }
+
+  if ((text.includes('listrik') && !text.includes('alat')) || text.includes('air') || text.includes('internet') || text.includes('langganan') || text.includes('telepon') || text.includes('wifi')) {
+    return [
+      "Invoice / Tagihan Resmi Penyedia (PLN/Telkom)",
+      "Bukti Pembayaran Valid (Struk Bank / NTPN / Bukti Transfer)",
+      "Bukti Transaksi Marketplace (Jika bayar via Tokopedia/Shopee/dll)"
+    ];
+  }
+
+  return [
+    "Dokumen SIPLah (Invoice, BAST, Bukti Pesanan)",
+    "Bukti Pembayaran Non-Tunai / Transfer",
+    "Bukti Pajak (Dipungut Marketplace/Setor Sendiri)",
+    "Dokumentasi Foto",
+    "Kuitansi / Nota (Jika Transaksi Manual)"
+  ];
+};
 
 const TEMPLATE_CATEGORIES = [
   {
@@ -115,17 +223,111 @@ const getTerbilang = (nilai: number): string => {
 };
 
 const EvidenceTemplates = () => {
+  const [activeTab, setActiveTab] = useState<'templates' | 'upload'>('templates');
   const [activeCategory, setActiveCategory] = useState<string | null>(null);
   const [schoolProfile, setSchoolProfile] = useState<SchoolProfile | null>(null);
+  const [budgets, setBudgets] = useState<Budget[]>([]);
+  const [isLoading, setIsLoading] = useState(false);
   
+  // Upload State
+  const [selectedBudget, setSelectedBudget] = useState<Budget | null>(null);
+  const [selectedRealizationIndex, setSelectedRealizationIndex] = useState<number>(-1);
+  const [suggestedEvidence, setSuggestedEvidence] = useState<string[]>([]);
+  const [isAiLoading, setIsAiLoading] = useState(false);
+  const [uploadProgress, setUploadProgress] = useState<Record<string, boolean>>({});
+  const [searchTerm, setSearchTerm] = useState('');
+
   // Modal State
   const [isPrintModalOpen, setIsPrintModalOpen] = useState(false);
   const [currentTemplateType, setCurrentTemplateType] = useState<string>('');
   const [formData, setFormData] = useState<any>({});
 
   useEffect(() => {
-      getSchoolProfile().then(setSchoolProfile);
+      setIsLoading(true);
+      Promise.all([
+          getSchoolProfile(),
+          getBudgets()
+      ]).then(([profile, allBudgets]) => {
+          setSchoolProfile(profile);
+          // Filter only budgets that have realizations
+          setBudgets(allBudgets.filter(b => b.realizations && b.realizations.length > 0));
+          setIsLoading(false);
+      });
   }, []);
+
+  const handleProcessAi = async (budget: Budget) => {
+    setIsAiLoading(true);
+    try {
+      const list = await suggestEvidenceList(budget.description);
+      setSuggestedEvidence(list);
+    } catch (error) {
+      // Fallback to local logic
+      setSuggestedEvidence(getEvidenceList(budget.description, budget.account_code));
+    } finally {
+      setIsAiLoading(false);
+    }
+  };
+
+  const handleSelectRealization = (budget: Budget, index: number) => {
+    setSelectedBudget(budget);
+    setSelectedRealizationIndex(index);
+    handleProcessAi(budget);
+  };
+
+  const handleFileUpload = async (evidenceType: string, file: File) => {
+    if (!selectedBudget || selectedRealizationIndex === -1) return;
+
+    setUploadProgress(prev => ({ ...prev, [evidenceType]: true }));
+    
+    try {
+      const result = await uploadEvidenceFile(file, selectedBudget.id);
+      
+      if (result.url && result.path) {
+        const newEvidence: EvidenceFile = {
+          type: evidenceType,
+          url: result.url,
+          path: result.path,
+          name: file.name
+        };
+
+        const updatedBudgets = [...budgets];
+        const budgetIdx = updatedBudgets.findIndex(b => b.id === selectedBudget.id);
+        
+        if (budgetIdx !== -1) {
+          const budget = { ...updatedBudgets[budgetIdx] };
+          if (budget.realizations) {
+            const realizations = [...budget.realizations];
+            const realization = { ...realizations[selectedRealizationIndex] };
+            
+            const currentFiles = realization.evidence_files || [];
+            // Remove existing of same type if any, or just add
+            const filteredFiles = currentFiles.filter(f => f.type !== evidenceType);
+            realization.evidence_files = [...filteredFiles, newEvidence];
+            
+            realizations[selectedRealizationIndex] = realization;
+            budget.realizations = realizations;
+            
+            const updated = await updateBudget(budget.id, { realizations: budget.realizations });
+            if (updated) {
+              updatedBudgets[budgetIdx] = updated;
+              setBudgets(updatedBudgets);
+              setSelectedBudget(updated);
+            }
+          }
+        }
+      }
+    } catch (error) {
+      console.error("Upload failed:", error);
+      alert("Gagal mengunggah file.");
+    } finally {
+      setUploadProgress(prev => ({ ...prev, [evidenceType]: false }));
+    }
+  };
+
+  const filteredBudgets = budgets.filter(b => 
+    b.description.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    (b.account_code && b.account_code.includes(searchTerm))
+  );
 
   const openPrintModal = (type: string) => {
       setCurrentTemplateType(type);
@@ -1216,97 +1418,322 @@ const EvidenceTemplates = () => {
              Buat dokumen pendukung SPJ secara otomatis. Data sekolah akan terisi sendiri.
            </p>
         </div>
+
+        <div className="flex bg-gray-100 p-1 rounded-lg self-start">
+          <button
+            onClick={() => setActiveTab('templates')}
+            className={`px-4 py-2 text-sm font-medium rounded-md transition-all ${
+              activeTab === 'templates' 
+                ? 'bg-white text-blue-600 shadow-sm' 
+                : 'text-gray-500 hover:text-gray-700'
+            }`}
+          >
+            Template Dokumen
+          </button>
+          <button
+            onClick={() => setActiveTab('upload')}
+            className={`px-4 py-2 text-sm font-medium rounded-md transition-all ${
+              activeTab === 'upload' 
+                ? 'bg-white text-blue-600 shadow-sm' 
+                : 'text-gray-500 hover:text-gray-700'
+            }`}
+          >
+            Upload Bukti Realisasi
+          </button>
+        </div>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-         {/* LEFT COLUMN: Categories */}
-         <div className="lg:col-span-1 space-y-3">
-            <p className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-2">Pilih Jenis Belanja</p>
-            {TEMPLATE_CATEGORIES.map((cat) => (
-                <button
-                   key={cat.id}
-                   onClick={() => setActiveCategory(cat.id)}
-                   className={`w-full text-left p-4 rounded-xl border transition-all flex items-center justify-between group ${
-                       activeCategory === cat.id 
-                       ? 'bg-blue-600 text-white border-blue-600 shadow-lg scale-[1.02]' 
-                       : 'bg-white border-gray-200 text-gray-700 hover:border-blue-300 hover:bg-blue-50'
-                   }`}
-                >
-                   <div className="flex items-center gap-3">
-                      <div className={`p-2 rounded-lg ${activeCategory === cat.id ? 'bg-white/20 text-white' : `${cat.bg} ${cat.color}`}`}>
-                         <cat.icon size={20} />
-                      </div>
-                      <div>
-                         <p className="font-bold text-sm">{cat.title}</p>
-                         <p className={`text-[10px] line-clamp-1 ${activeCategory === cat.id ? 'text-blue-100' : 'text-gray-400'}`}>
-                            {cat.description}
-                         </p>
-                      </div>
-                   </div>
-                   <ChevronRight size={16} className={`transition-transform ${activeCategory === cat.id ? 'text-white' : 'text-gray-300 group-hover:text-blue-400'}`} />
-                </button>
-            ))}
-            
-            {/* Quick Template Downloads */}
-            <div className="bg-white border border-gray-200 rounded-xl p-4 mt-6">
-                <h4 className="text-sm font-bold text-gray-700 mb-3 flex items-center gap-2">
-                    <Printer size={16} className="text-gray-500" /> Cetak Dokumen
-                </h4>
-                <div className="space-y-2">
-                    {renderTemplateButtons()}
-                </div>
-            </div>
-         </div>
-
-         {/* RIGHT COLUMN: Details & Preview */}
-         <div className="lg:col-span-2">
-            {activeCategory ? (
-                (() => {
-                    const cat = TEMPLATE_CATEGORIES.find(c => c.id === activeCategory);
-                    if (!cat) return null;
-                    return (
-                        <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden animate-fade-in-up">
-                            <div className={`p-6 border-b border-gray-100 ${cat.bg}`}>
-                                <div className="flex items-center gap-3 mb-2">
-                                    <cat.icon size={24} className={cat.color} />
-                                    <h3 className={`text-lg font-bold ${cat.color}`}>{cat.title}</h3>
-                                </div>
-                                <p className="text-sm text-gray-600">{cat.description}</p>
-                            </div>
-                            
-                            <div className="p-6">
-                                <h4 className="font-bold text-gray-800 mb-4 flex items-center gap-2">
-                                    <CheckCircle2 size={18} className="text-green-600" />
-                                    Kelengkapan Bukti Fisik SPJ
-                                </h4>
-                                
-                                <div className="space-y-0">
-                                    {cat.requirements.map((req, idx) => (
-                                        <div key={idx} className="flex items-start gap-3 p-3 hover:bg-gray-50 rounded-lg border-b border-gray-50 last:border-0">
-                                            <div className="min-w-[24px] h-6 flex items-center justify-center bg-gray-100 text-gray-500 rounded-full text-xs font-bold mt-0.5">
-                                                {idx + 1}
-                                            </div>
-                                            <p className="text-sm text-gray-700">{req}</p>
-                                        </div>
-                                    ))}
-                                </div>
-                            </div>
+      {activeTab === 'templates' ? (
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+           {/* LEFT COLUMN: Categories */}
+           <div className="lg:col-span-1 space-y-3">
+              <p className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-2">Pilih Jenis Belanja</p>
+              {TEMPLATE_CATEGORIES.map((cat) => (
+                  <button
+                     key={cat.id}
+                     onClick={() => setActiveCategory(cat.id)}
+                     className={`w-full text-left p-4 rounded-xl border transition-all flex items-center justify-between group ${
+                         activeCategory === cat.id 
+                         ? 'bg-blue-600 text-white border-blue-600 shadow-lg scale-[1.02]' 
+                         : 'bg-white border-gray-200 text-gray-700 hover:border-blue-300 hover:bg-blue-50'
+                     }`}
+                  >
+                     <div className="flex items-center gap-3">
+                        <div className={`p-2 rounded-lg ${activeCategory === cat.id ? 'bg-white/20 text-white' : `${cat.bg} ${cat.color}`}`}>
+                           <cat.icon size={20} />
                         </div>
-                    );
-                })()
-            ) : (
-                <div className="h-full min-h-[400px] flex flex-col items-center justify-center bg-gray-50 rounded-xl border-2 border-dashed border-gray-200 text-center p-8">
-                    <div className="bg-white p-4 rounded-full shadow-sm mb-4">
-                        <FileText size={40} className="text-gray-300" />
+                        <div>
+                           <p className="font-bold text-sm">{cat.title}</p>
+                           <p className={`text-[10px] line-clamp-1 ${activeCategory === cat.id ? 'text-blue-100' : 'text-gray-400'}`}>
+                              {cat.description}
+                           </p>
+                        </div>
+                     </div>
+                     <ChevronRight size={16} className={`transition-transform ${activeCategory === cat.id ? 'text-white' : 'text-gray-300 group-hover:text-blue-400'}`} />
+                  </button>
+              ))}
+              
+              {/* Quick Template Downloads */}
+              <div className="bg-white border border-gray-200 rounded-xl p-4 mt-6">
+                  <h4 className="text-sm font-bold text-gray-700 mb-3 flex items-center gap-2">
+                      <Printer size={16} className="text-gray-500" /> Cetak Dokumen
+                  </h4>
+                  <div className="space-y-2">
+                      {renderTemplateButtons()}
+                  </div>
+              </div>
+           </div>
+
+           {/* RIGHT COLUMN: Details & Preview */}
+           <div className="lg:col-span-2">
+              {activeCategory ? (
+                  (() => {
+                      const cat = TEMPLATE_CATEGORIES.find(c => c.id === activeCategory);
+                      if (!cat) return null;
+                      return (
+                          <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden animate-fade-in-up">
+                              <div className={`p-6 border-b border-gray-100 ${cat.bg}`}>
+                                  <div className="flex items-center gap-3 mb-2">
+                                      <cat.icon size={24} className={cat.color} />
+                                      <h3 className={`text-lg font-bold ${cat.color}`}>{cat.title}</h3>
+                                  </div>
+                                  <p className="text-sm text-gray-600">{cat.description}</p>
+                              </div>
+                              
+                              <div className="p-6">
+                                  <h4 className="font-bold text-gray-800 mb-4 flex items-center gap-2">
+                                      <CheckCircle2 size={18} className="text-green-600" />
+                                      Kelengkapan Bukti Fisik SPJ
+                                  </h4>
+                                  
+                                  <div className="space-y-0">
+                                      {cat.requirements.map((req, idx) => (
+                                          <div key={idx} className="flex items-start gap-3 p-3 hover:bg-gray-50 rounded-lg border-b border-gray-50 last:border-0">
+                                              <div className="min-w-[24px] h-6 flex items-center justify-center bg-gray-100 text-gray-500 rounded-full text-xs font-bold mt-0.5">
+                                                  {idx + 1}
+                                              </div>
+                                              <p className="text-sm text-gray-700">{req}</p>
+                                          </div>
+                                      ))}
+                                  </div>
+                              </div>
+                          </div>
+                      );
+                  })()
+              ) : (
+                  <div className="h-full min-h-[400px] flex flex-col items-center justify-center bg-gray-50 rounded-xl border-2 border-dashed border-gray-200 text-center p-8">
+                      <div className="bg-white p-4 rounded-full shadow-sm mb-4">
+                          <FileText size={40} className="text-gray-300" />
+                      </div>
+                      <h3 className="text-lg font-bold text-gray-600 mb-2">Pilih Kategori Belanja</h3>
+                      <p className="text-sm text-gray-400 max-w-xs">
+                          Klik salah satu jenis belanja di sebelah kiri untuk membuat dokumen pendukung.
+                      </p>
+                  </div>
+              )}
+           </div>
+        </div>
+      ) : (
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 animate-slide-up">
+          {/* Left: Budget List */}
+          <div className="lg:col-span-4 space-y-4">
+            <div className="bg-white p-4 rounded-xl border border-gray-200 shadow-sm">
+              <div className="relative mb-4">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={18} />
+                <input
+                  type="text"
+                  placeholder="Cari SPJ..."
+                  className="w-full pl-10 pr-4 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none text-sm"
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                />
+              </div>
+
+              <div className="space-y-2 max-h-[600px] overflow-y-auto pr-2 custom-scrollbar">
+                {isLoading ? (
+                  <div className="py-10 text-center">
+                    <Loader2 className="animate-spin text-blue-500 mx-auto mb-2" />
+                    <p className="text-xs text-gray-400">Memuat data SPJ...</p>
+                  </div>
+                ) : filteredBudgets.length === 0 ? (
+                  <div className="py-10 text-center border-2 border-dashed border-gray-100 rounded-lg">
+                    <p className="text-xs text-gray-400">Tidak ada data SPJ ditemukan.</p>
+                  </div>
+                ) : (
+                  filteredBudgets.map(budget => (
+                    <div key={budget.id} className="space-y-1">
+                      <div className="px-2 py-1 text-[10px] font-bold text-gray-400 uppercase tracking-wider">
+                        {budget.account_code || 'Tanpa Kode'}
+                      </div>
+                      {budget.realizations?.map((real, idx) => (
+                        <button
+                          key={`${budget.id}-${idx}`}
+                          onClick={() => handleSelectRealization(budget, idx)}
+                          className={`w-full text-left p-3 rounded-lg border transition-all ${
+                            selectedBudget?.id === budget.id && selectedRealizationIndex === idx
+                              ? 'border-blue-500 bg-blue-50 shadow-sm'
+                              : 'border-gray-100 hover:border-blue-200 hover:bg-gray-50'
+                          }`}
+                        >
+                          <div className="text-xs font-medium text-gray-800 line-clamp-1">{budget.description}</div>
+                          <div className="flex items-center justify-between mt-1">
+                            <span className="text-[10px] text-gray-500">
+                              {MONTHS[real.month - 1]} {real.target_month && `(Untuk ${MONTHS[real.target_month - 1]})`}
+                            </span>
+                            <span className="text-[10px] font-mono font-bold text-blue-600">
+                              {new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', maximumFractionDigits: 0 }).format(real.amount)}
+                            </span>
+                          </div>
+                        </button>
+                      ))}
                     </div>
-                    <h3 className="text-lg font-bold text-gray-600 mb-2">Pilih Kategori Belanja</h3>
-                    <p className="text-sm text-gray-400 max-w-xs">
-                        Klik salah satu jenis belanja di sebelah kiri untuk membuat dokumen pendukung.
+                  ))
+                )}
+              </div>
+            </div>
+          </div>
+
+          {/* Right: Upload Interface */}
+          <div className="lg:col-span-8">
+            {selectedBudget && selectedRealizationIndex !== -1 ? (
+              <div className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden min-h-[500px]">
+                <div className="bg-gray-50 px-6 py-4 border-b border-gray-200 flex items-center justify-between">
+                  <div>
+                    <h3 className="font-bold text-gray-800">{selectedBudget.description}</h3>
+                    <p className="text-xs text-gray-500">
+                      Realisasi Bulan {MONTHS[selectedBudget.realizations![selectedRealizationIndex].month - 1]} 
+                      {selectedBudget.realizations![selectedRealizationIndex].target_month && ` - Peruntukan ${MONTHS[selectedBudget.realizations![selectedRealizationIndex].target_month! - 1]}`}
                     </p>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <button 
+                      onClick={() => handleProcessAi(selectedBudget)}
+                      disabled={isAiLoading}
+                      className="flex items-center gap-2 px-3 py-1.5 bg-blue-50 text-blue-600 rounded-lg text-xs font-medium hover:bg-blue-100 transition-colors disabled:opacity-50"
+                    >
+                      {isAiLoading ? <Loader2 size={14} className="animate-spin" /> : <Sparkles size={14} />}
+                      Refresh Analisis AI
+                    </button>
+                  </div>
                 </div>
+
+                <div className="p-6">
+                  <div className="mb-6 p-4 bg-amber-50 border border-amber-100 rounded-lg">
+                    <h4 className="text-xs font-bold text-amber-800 flex items-center gap-2 mb-1">
+                      <AlertCircle size={14} /> Analisis Bukti Fisik Dibutuhkan:
+                    </h4>
+                    <p className="text-[11px] text-amber-700 leading-relaxed">
+                      Berdasarkan Juknis BOSP 2026, transaksi ini memerlukan dokumen berikut untuk dinyatakan sah dalam audit.
+                    </p>
+                  </div>
+
+                  <div className="space-y-4">
+                    {suggestedEvidence.map((evidence, idx) => {
+                      const existingFile = selectedBudget.realizations![selectedRealizationIndex].evidence_files?.find(f => f.type === evidence);
+                      const isUploading = uploadProgress[evidence];
+
+                      return (
+                        <div key={idx} className="flex flex-col md:flex-row md:items-center justify-between gap-4 p-4 rounded-xl border border-gray-100 bg-gray-50/50 hover:bg-white hover:border-blue-200 transition-all">
+                          <div className="flex items-start gap-3">
+                            <div className={`mt-0.5 p-1.5 rounded-lg ${existingFile ? 'bg-green-100 text-green-600' : 'bg-gray-100 text-gray-400'}`}>
+                              {existingFile ? <CheckCircle2 size={16} /> : <FileText size={16} />}
+                            </div>
+                            <div>
+                              <div className="text-sm font-medium text-gray-700">{evidence}</div>
+                              {existingFile ? (
+                                <div className="flex items-center gap-2 mt-1">
+                                  <span className="text-[10px] text-green-600 font-medium flex items-center gap-1">
+                                    <CheckCircle2 size={10} /> Terunggah
+                                  </span>
+                                  <span className="text-[10px] text-gray-400 truncate max-w-[150px]">{existingFile.name}</span>
+                                </div>
+                              ) : (
+                                <div className="text-[10px] text-gray-400 mt-1 italic">Belum ada file</div>
+                              )}
+                            </div>
+                          </div>
+
+                          <div className="flex items-center gap-2 self-end md:self-center">
+                            {existingFile && (
+                              <a 
+                                href={existingFile.url} 
+                                target="_blank" 
+                                rel="noopener noreferrer"
+                                className="p-2 text-gray-500 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
+                                title="Lihat File"
+                              >
+                                <Eye size={18} />
+                              </a>
+                            )}
+                            
+                            <label className={`flex items-center gap-2 px-4 py-2 rounded-lg text-xs font-medium cursor-pointer transition-all ${
+                              isUploading 
+                                ? 'bg-gray-100 text-gray-400 cursor-not-allowed' 
+                                : existingFile 
+                                  ? 'bg-white border border-gray-200 text-gray-600 hover:border-blue-300 hover:text-blue-600'
+                                  : 'bg-blue-600 text-white hover:bg-blue-700 shadow-sm'
+                            }`}>
+                              {isUploading ? (
+                                <>
+                                  <Loader2 size={14} className="animate-spin" />
+                                  Mengunggah...
+                                </>
+                              ) : (
+                                <>
+                                  <Upload size={14} />
+                                  {existingFile ? 'Ganti File' : 'Upload Bukti'}
+                                </>
+                              )}
+                              <input 
+                                type="file" 
+                                className="hidden" 
+                                accept="image/*,application/pdf"
+                                disabled={isUploading}
+                                onChange={(e) => {
+                                  if (e.target.files?.[0]) {
+                                    handleFileUpload(evidence, e.target.files[0]);
+                                  }
+                                }}
+                              />
+                            </label>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              </div>
+            ) : (
+              <div className="bg-white rounded-xl border border-gray-200 shadow-sm flex flex-col items-center justify-center p-12 text-center h-full min-h-[500px]">
+                <div className="w-20 h-20 bg-blue-50 rounded-full flex items-center justify-center mb-6">
+                  <Upload className="text-blue-200" size={40} />
+                </div>
+                <h3 className="text-lg font-bold text-gray-800 mb-2">Pilih Realisasi SPJ</h3>
+                <p className="text-sm text-gray-500 max-w-md mx-auto">
+                  Silakan pilih salah satu item realisasi dari daftar di sebelah kiri untuk mulai mengunggah bukti fisik pendukung.
+                </p>
+                <div className="mt-8 grid grid-cols-1 md:grid-cols-3 gap-4 w-full max-w-2xl">
+                  <div className="p-4 rounded-xl bg-gray-50 border border-gray-100">
+                    <div className="text-blue-600 font-bold text-lg mb-1">1</div>
+                    <div className="text-[10px] text-gray-500 uppercase tracking-wider font-bold">Pilih Item</div>
+                    <div className="text-xs text-gray-400 mt-1">Pilih belanja yang sudah direalisasikan</div>
+                  </div>
+                  <div className="p-4 rounded-xl bg-gray-50 border border-gray-100">
+                    <div className="text-blue-600 font-bold text-lg mb-1">2</div>
+                    <div className="text-[10px] text-gray-500 uppercase tracking-wider font-bold">Analisis AI</div>
+                    <div className="text-xs text-gray-400 mt-1">AI akan menentukan bukti fisik yang sah</div>
+                  </div>
+                  <div className="p-4 rounded-xl bg-gray-50 border border-gray-100">
+                    <div className="text-blue-600 font-bold text-lg mb-1">3</div>
+                    <div className="text-[10px] text-gray-500 uppercase tracking-wider font-bold">Upload & Simpan</div>
+                    <div className="text-xs text-gray-400 mt-1">Unggah foto/PDF bukti ke database</div>
+                  </div>
+                </div>
+              </div>
             )}
-         </div>
-      </div>
+          </div>
+        </div>
+      )}
 
       {/* MODAL INPUT DATA */}
       {isPrintModalOpen && (

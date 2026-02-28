@@ -1,6 +1,6 @@
 import React, { useState, useMemo } from 'react';
 import { Budget, TransactionType, RealizationDetail } from '../types';
-import { FileText, Save, X, Calendar, Search, CheckCircle2, FileCheck2, AlertCircle, CheckSquare, Square, Sparkles, Loader2, ShoppingCart, Filter, TrendingUp, Wallet, ListChecks, ArrowRightCircle, Trash2, Box } from 'lucide-react';
+import { FileText, Save, X, Calendar, Search, CheckCircle2, FileCheck2, AlertCircle, CheckSquare, Square, Sparkles, Loader2, ShoppingCart, Filter, TrendingUp, Wallet, ListChecks, ArrowRightCircle, Trash2, Box, Paperclip, ExternalLink } from 'lucide-react';
 import { suggestEvidenceList } from '../lib/gemini';
 
 interface SPJRealizationProps {
@@ -649,6 +649,26 @@ const SPJRealization: React.FC<SPJRealizationProps> = ({ data, onUpdate }) => {
                               <span className="text-[10px] text-gray-400 font-mono">{item.account_code || 'Kode Rekening -'}</span>
                               {r.notes && <span className="text-[10px] text-gray-500 italic">• {r.notes}</span>}
                            </div>
+                           
+                           {/* Evidence Files List */}
+                           {r.evidence_files && r.evidence_files.length > 0 && (
+                             <div className="flex flex-wrap gap-1.5 mt-2">
+                               {r.evidence_files.map((file, fIdx) => (
+                                 <a 
+                                   key={fIdx}
+                                   href={file.url}
+                                   target="_blank"
+                                   rel="noopener noreferrer"
+                                   className="inline-flex items-center gap-1 px-1.5 py-0.5 bg-blue-50 text-blue-600 rounded text-[9px] border border-blue-100 hover:bg-blue-100 transition-colors"
+                                   title={file.name}
+                                 >
+                                   <Paperclip size={10} />
+                                   <span className="max-w-[80px] truncate">{file.type}</span>
+                                   <ExternalLink size={8} />
+                                 </a>
+                               ))}
+                             </div>
+                           )}
                         </td>
                         <td className="px-4 py-4 text-right font-mono text-gray-400 text-xs">
                            {idx === 0 ? formatRupiah(monthlyAllocation) : '-'}
@@ -707,6 +727,26 @@ const SPJRealization: React.FC<SPJRealizationProps> = ({ data, onUpdate }) => {
                                <span className="text-[10px] text-gray-500 italic">• {realizationsThisMonth[0].notes}</span>
                             )}
                          </div>
+
+                         {/* Evidence Files List */}
+                         {realizationsThisMonth[0]?.evidence_files && realizationsThisMonth[0].evidence_files.length > 0 && (
+                           <div className="flex flex-wrap gap-1.5 mt-2">
+                             {realizationsThisMonth[0].evidence_files.map((file, fIdx) => (
+                               <a 
+                                 key={fIdx}
+                                 href={file.url}
+                                 target="_blank"
+                                 rel="noopener noreferrer"
+                                 className="inline-flex items-center gap-1 px-1.5 py-0.5 bg-blue-50 text-blue-600 rounded text-[9px] border border-blue-100 hover:bg-blue-100 transition-colors"
+                                 title={file.name}
+                               >
+                                 <Paperclip size={10} />
+                                 <span className="max-w-[80px] truncate">{file.type}</span>
+                                 <ExternalLink size={8} />
+                               </a>
+                             ))}
+                           </div>
+                         )}
                       </td>
                       <td className="px-4 py-4 text-right font-mono text-blue-700 font-bold">
                          {formatRupiah(monthlyAllocation)}
