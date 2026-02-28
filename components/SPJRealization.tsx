@@ -1,6 +1,6 @@
-import React, { useState, useEffect, useMemo } from 'react';
-import { Budget, TransactionType, AccountCodes, RealizationDetail } from '../types';
-import { FileText, Save, X, Calendar, Search, CheckCircle2, FileCheck2, AlertCircle, CheckSquare, Square, Sparkles, Loader2, ShoppingCart, Filter, TrendingUp, Wallet, Check, ListChecks, ArrowRightCircle, Trash2, Box } from 'lucide-react';
+import React, { useState, useMemo } from 'react';
+import { Budget, TransactionType, RealizationDetail } from '../types';
+import { FileText, Save, X, Calendar, Search, CheckCircle2, FileCheck2, AlertCircle, CheckSquare, Square, Sparkles, Loader2, ShoppingCart, Filter, TrendingUp, Wallet, ListChecks, ArrowRightCircle, Trash2, Box } from 'lucide-react';
 import { suggestEvidenceList } from '../lib/gemini';
 
 interface SPJRealizationProps {
@@ -136,6 +136,9 @@ const SPJRealization: React.FC<SPJRealizationProps> = ({ data, onUpdate }) => {
   const [activeMonthIndex, setActiveMonthIndex] = useState<number>(0); 
   const [formAmount, setFormAmount] = useState<string>('');
   const [formQuantity, setFormQuantity] = useState<string>(''); // New Quantity Form
+  const [formNotes, setFormNotes] = useState<string>(''); // New Notes Form
+  const [formTargetMonth, setFormTargetMonth] = useState<number | null>(null); // New Target Month
+  const [editingRealizationIndex, setEditingRealizationIndex] = useState<number>(-1); 
   const [batchAmounts, setBatchAmounts] = useState<Record<string, number>>({});
   const [batchQuantities, setBatchQuantities] = useState<Record<string, number>>({}); // New Batch Quantities
   const [formDate, setFormDate] = useState<string>('');
@@ -149,27 +152,32 @@ const SPJRealization: React.FC<SPJRealizationProps> = ({ data, onUpdate }) => {
   // --- HELPER UNTUK MENGHITUNG ALOKASI BULANAN ---
   const calculateMonthlyAllocation = (item: Budget, month: number) => {
       const plannedMonths = item.realization_months && item.realization_months.length > 0 
-          ? item.realization_months 
+          ? [...item.realization_months].sort((a, b) => a - b) 
           : [1];
       
-      const totalGlobalRealized = item.realizations?.reduce((s, r) => s + r.amount, 0) || 0;
       const totalAmount = item.amount;
+      const plannedAmountPerMonth = totalAmount / plannedMonths.length;
 
-      // KASUS 1: Item direncanakan di bulan ini
-      if (plannedMonths.includes(month)) {
-          // Bagi rata pagu berdasarkan jumlah bulan rencana
-          // Contoh: Listrik 12jt setahun (12 bulan) -> Bulan ini alokasi 1jt.
-          return Math.round(totalAmount / plannedMonths.length);
-      }
+      // 1. Hitung berapa banyak bulan rencana yang sudah terlewati (termasuk bulan ini)
+      const passedPlannedMonths = plannedMonths.filter(m => m <= month);
+      
+      if (passedPlannedMonths.length === 0) return 0;
 
-      // KASUS 2: Item luncuran (Tidak direncanakan bulan ini, tapi belum lunas dari bulan lalu)
-      // Contoh: Laptop direncakan Januari, tapi belum beli sampai Februari.
-      // Maka di Februari, alokasinya adalah sisa uangnya.
-      if (month > Math.min(...plannedMonths) && totalAmount > totalGlobalRealized) {
-          return totalAmount - totalGlobalRealized;
-      }
+      // 2. Total yang seharusnya sudah terealisasi sampai bulan ini (Jatah Akumulatif)
+      const totalPlannedUntilNow = plannedAmountPerMonth * passedPlannedMonths.length;
 
-      return 0; // Tidak ada alokasi bulan ini
+      // 3. Total yang benar-benar sudah terealisasi (semua bulan)
+      const totalRealizedUntilNow = item.realizations?.reduce((s, r) => s + r.amount, 0) || 0;
+
+      // 4. Sisa alokasi yang tersedia untuk dieksekusi di bulan ini
+      // Ini mencakup jatah bulan ini + tunggakan bulan lalu
+      const available = Math.max(0, totalPlannedUntilNow - totalRealizedUntilNow);
+
+      // Namun, jika bulan ini SUDAH ada realisasi, kita harus menambahkannya kembali ke 'available' 
+      // agar UI menunjukkan sisa yang bisa diinput PLUS yang sudah diinput bulan ini.
+      const realizedThisMonth = item.realizations?.filter(r => r.month === month).reduce((s, r) => s + r.amount, 0) || 0;
+
+      return Math.round(available + realizedThisMonth);
   };
 
   // --- LOGIKA UTAMA: FILTER ITEM & ROLLOVER (LUNCURAN) ---
@@ -180,7 +188,7 @@ const SPJRealization: React.FC<SPJRealizationProps> = ({ data, onUpdate }) => {
         if (!d.description.toLowerCase().includes(searchTerm.toLowerCase())) return false;
 
         // 2. Cek apakah ada Realisasi di bulan ini (Selalu tampilkan jika sudah di-SPJ)
-        const realizedThisView = d.realizations?.find(r => r.month === viewMonth)?.amount || 0;
+        const realizedThisView = d.realizations?.filter(r => r.month === viewMonth).reduce((s, r) => s + r.amount, 0) || 0;
         if (realizedThisView > 0) return true;
 
         // 3. Cek apakah ada Alokasi Rencana di bulan ini
@@ -209,10 +217,9 @@ const SPJRealization: React.FC<SPJRealizationProps> = ({ data, onUpdate }) => {
       const monthlyAllocation = calculateMonthlyAllocation(item, viewMonth);
       
       // 2. Ambil Realisasi Bulan Ini
-      const realizedInThisMonth = item.realizations?.find(r => r.month === viewMonth)?.amount || 0;
+      const realizedInThisMonth = item.realizations?.filter(r => r.month === viewMonth).reduce((s, r) => s + r.amount, 0) || 0;
       
       // 3. Hitung Sisa Potensi (Allocation - Realized)
-      // Jika realisasi melebihi alokasi (misal harga naik), sisa 0.
       const sisa = Math.max(0, monthlyAllocation - realizedInThisMonth);
 
       // Aggregates
@@ -222,7 +229,6 @@ const SPJRealization: React.FC<SPJRealizationProps> = ({ data, onUpdate }) => {
     });
 
     // Jika user menginput lebih besar dari rencana bulan ini, totalPaguBulanIni harus menyesuaikan agar bar chart tidak > 100% aneh
-    // Atau biarkan apa adanya untuk indikator over-budget
     const visualPaguBase = Math.max(totalPaguBulanIni, totalRealized);
 
     return { totalPotensiBulanIni, totalRealized, totalPaguBulanIni: visualPaguBase };
@@ -306,17 +312,25 @@ const SPJRealization: React.FC<SPJRealizationProps> = ({ data, onUpdate }) => {
 
   const selectMonthForEditing = (item: Budget, month: number) => {
     setActiveMonthIndex(month);
-    const existingRealization = item.realizations?.find(r => r.month === month);
+    setEditingRealizationIndex(-1); // Default to new entry
+    
+    // Find realizations for this month
+    const monthlyRealizations = item.realizations?.filter(r => r.month === month) || [];
     
     // Reset Checklist whenever changing month
     setCheckedEvidence([]); 
 
-    if (existingRealization) {
-      setFormAmount(existingRealization.amount.toString());
-      // Handle quantity, default to 1 or 0 if undefined
-      setFormQuantity((existingRealization.quantity || 0).toString());
-      setFormDate(existingRealization.date.split('T')[0]);
-      setExistingFileName(existingRealization.evidence_file || '');
+    if (monthlyRealizations.length > 0) {
+      // If there are existing ones, we can either edit the first one or start a new one
+      // For now, let's default to a new one if there's still budget, or the first one if not
+      const first = monthlyRealizations[0];
+      setFormAmount(first.amount.toString());
+      setFormQuantity((first.quantity || 0).toString());
+      setFormNotes(first.notes || '');
+      setFormTargetMonth(first.target_month ?? null);
+      setFormDate(first.date.split('T')[0]);
+      setExistingFileName(first.evidence_file || '');
+      setEditingRealizationIndex(item.realizations?.indexOf(first) ?? -1);
     } else {
       // SUGGESTION LOGIC: Suggest Monthly Allocation
       const monthlyAlloc = calculateMonthlyAllocation(item, month);
@@ -326,6 +340,8 @@ const SPJRealization: React.FC<SPJRealizationProps> = ({ data, onUpdate }) => {
 
       setFormAmount(monthlyAlloc > 0 ? monthlyAlloc.toString() : '0');
       setFormQuantity(remainingQuantity > 0 ? remainingQuantity.toString() : '0');
+      setFormNotes('');
+      setFormTargetMonth(month); // Default target month is the current view month
       
       const lastDay = new Date(2026, month, 0).getDate();
       setFormDate(`2026-${month.toString().padStart(2, '0')}-${lastDay}`);
@@ -376,49 +392,82 @@ const SPJRealization: React.FC<SPJRealizationProps> = ({ data, onUpdate }) => {
     e.preventDefault();
 
     // Handle Batch Save
-    if (selectedBatchIds.length > 0) {
+    if (selectedBatchIds.length > 0 && isBatchMode) {
        selectedBatchIds.forEach(id => {
           const item = data.find(d => d.id === id);
           if (!item) return;
 
-          // Determine amount & quantity
-          const amountToSave = selectedBudget ? Number(formAmount) : (batchAmounts[id] || 0);
-          const quantityToSave = selectedBudget ? Number(formQuantity) : (batchQuantities[id] || 1);
+          const amountToSave = batchAmounts[id] || 0;
+          const quantityToSave = batchQuantities[id] || 1;
 
           const newRealization: RealizationDetail = {
             month: activeMonthIndex,
+            target_month: formTargetMonth || activeMonthIndex,
             amount: amountToSave,
             quantity: quantityToSave,
             date: new Date(formDate).toISOString(),
-            evidence_file: existingFileName || 'Nota Kolektif'
+            evidence_file: existingFileName || 'Nota Kolektif',
+            notes: formNotes
           };
 
           const currentRealizations = item.realizations || [];
+          // In batch mode, we still replace for the month to keep it simple
           const otherRealizations = currentRealizations.filter(r => r.month !== activeMonthIndex);
           const updatedRealizations = [...otherRealizations, newRealization];
 
           onUpdate(id, { realizations: updatedRealizations });
        });
+    } else if (selectedBudget) {
+      // Single Mode Save
+      const newRealization: RealizationDetail = {
+        month: activeMonthIndex,
+        target_month: formTargetMonth || activeMonthIndex,
+        amount: Number(formAmount),
+        quantity: Number(formQuantity),
+        date: new Date(formDate).toISOString(),
+        evidence_file: existingFileName || 'Nota',
+        notes: formNotes
+      };
+
+      const currentRealizations = [...(selectedBudget.realizations || [])];
+      
+      if (editingRealizationIndex >= 0) {
+        currentRealizations[editingRealizationIndex] = newRealization;
+      } else {
+        currentRealizations.push(newRealization);
+      }
+
+      onUpdate(selectedBudget.id, { realizations: currentRealizations });
     }
 
     setIsModalOpen(false); 
     setSelectedBudget(null);
     setSelectedBatchIds([]); // Clear selection after save
+    setEditingRealizationIndex(-1);
   };
   
   const handleDeleteSPJ = () => {
     if (!selectedBudget) return;
-    if (!confirm(`Batalkan/Hapus SPJ untuk bulan ${MONTHS[activeMonthIndex-1]}? Data realisasi akan dihapus.`)) return;
+    if (!confirm(`Hapus data realisasi ini?`)) return;
 
-    const currentRealizations = selectedBudget.realizations || [];
-    // Remove the realization for the current active month
-    const updatedRealizations = currentRealizations.filter(r => r.month !== activeMonthIndex);
-    
-    onUpdate(selectedBudget.id, { realizations: updatedRealizations });
-    
-    setIsModalOpen(false);
-    setSelectedBudget(null);
-    setSelectedBatchIds([]);
+    const currentRealizations = [...(selectedBudget.realizations || [])];
+    if (editingRealizationIndex >= 0) {
+      currentRealizations.splice(editingRealizationIndex, 1);
+      onUpdate(selectedBudget.id, { realizations: currentRealizations });
+      
+      // If there are more realizations for this month, select the next one, otherwise reset
+      const remainingForMonth = currentRealizations.filter(r => r.month === activeMonthIndex);
+      if (remainingForMonth.length > 0) {
+        const first = remainingForMonth[0];
+        setFormAmount(first.amount.toString());
+        setFormQuantity((first.quantity || 0).toString());
+        setFormNotes(first.notes || '');
+        setFormDate(first.date.split('T')[0]);
+        setEditingRealizationIndex(currentRealizations.indexOf(first));
+      } else {
+        selectMonthForEditing(selectedBudget, activeMonthIndex);
+      }
+    }
   };
 
   const formatRupiah = (num: number) => {
@@ -428,8 +477,8 @@ const SPJRealization: React.FC<SPJRealizationProps> = ({ data, onUpdate }) => {
   // Check if we are in batch mode inside modal
   const isBatchMode = !selectedBudget && selectedBatchIds.length > 0;
   
-  // Logic to show delete button: only in single mode AND if there is already a realization for this month
-  const showDeleteButton = !isBatchMode && selectedBudget && selectedBudget.realizations?.some(r => r.month === activeMonthIndex);
+  // Logic to show delete button: only in single mode AND if editing an existing realization
+  const showDeleteButton = !isBatchMode && selectedBudget && editingRealizationIndex >= 0;
 
   return (
     <div className="space-y-6">
@@ -567,14 +616,66 @@ const SPJRealization: React.FC<SPJRealizationProps> = ({ data, onUpdate }) => {
                   </td>
                 </tr>
               ) : (
-                expensesInMonth.map((item) => {
+                expensesInMonth.flatMap((item) => {
                   const monthlyAllocation = calculateMonthlyAllocation(item, viewMonth);
-                  const realizedThisMonth = item.realizations?.find(r => r.month === viewMonth)?.amount || 0;
-                  const availableToSpend = Math.max(0, monthlyAllocation - realizedThisMonth);
+                  const realizationsThisMonth = item.realizations?.filter(r => r.month === viewMonth) || [];
+                  const totalRealizedThisMonth = realizationsThisMonth.reduce((s, r) => s + r.amount, 0);
+                  const availableToSpend = Math.max(0, monthlyAllocation - totalRealizedThisMonth);
                   
-                  const isDone = realizedThisMonth > 0 && availableToSpend <= 100; // Tolerance 100 rupiah
+                  const isDone = totalRealizedThisMonth > 0 && availableToSpend <= 100; // Tolerance 100 rupiah
                   const isSelected = selectedBatchIds.includes(item.id);
                   const isRollover = !item.realization_months?.includes(viewMonth) && monthlyAllocation > 0;
+                  
+                  // If there are multiple realizations, show them separately
+                  if (realizationsThisMonth.length > 1) {
+                    return realizationsThisMonth.map((r, idx) => (
+                      <tr key={`${item.id}-real-${idx}`} className={`transition-colors ${isSelected ? 'bg-indigo-50/60' : 'hover:bg-gray-50'}`}>
+                        <td className="px-4 py-4 text-center">
+                           <button 
+                             onClick={() => toggleRowSelection(item.id)}
+                             className={`transition ${isSelected ? 'text-indigo-600' : 'text-gray-300 hover:text-gray-400'}`}
+                           >
+                              {isSelected ? <CheckSquare size={18} /> : <Square size={18} />}
+                           </button>
+                        </td>
+                        <td className="px-4 py-4">
+                          <div className="font-medium text-gray-800">
+                            {item.description} 
+                            <span className="text-[10px] bg-blue-50 text-blue-600 px-1.5 py-0.5 rounded ml-2 font-bold">
+                              {r.target_month !== undefined ? MONTHS[r.target_month-1] : MONTHS[viewMonth-1]}
+                            </span>
+                          </div>
+                           <div className="flex items-center gap-2 mt-1">
+                              <span className="text-[10px] text-gray-400 font-mono">{item.account_code || 'Kode Rekening -'}</span>
+                              {r.notes && <span className="text-[10px] text-gray-500 italic">• {r.notes}</span>}
+                           </div>
+                        </td>
+                        <td className="px-4 py-4 text-right font-mono text-gray-400 text-xs">
+                           {idx === 0 ? formatRupiah(monthlyAllocation) : '-'}
+                        </td>
+                        <td className="px-4 py-4 text-right font-mono font-bold text-green-700">
+                           {formatRupiah(r.amount)}
+                        </td>
+                        <td className="px-4 py-4 text-center">
+                           <span className="inline-flex items-center gap-1 px-2 py-1 bg-green-50 text-green-700 rounded text-[10px] font-medium border border-green-100">
+                             <CheckCircle2 size={10} /> SPJ #{idx + 1}
+                           </span>
+                        </td>
+                        <td className="px-4 py-4 text-right">
+                          <button 
+                            onClick={() => handleOpenSPJ(item)}
+                            className="px-3 py-1.5 rounded text-[10px] font-medium transition shadow-sm bg-white border border-gray-200 text-gray-600 hover:bg-gray-50"
+                          >
+                            Edit
+                          </button>
+                        </td>
+                      </tr>
+                    ));
+                  }
+
+                  // Standard single row or no realization
+                  const realizedAmount = realizationsThisMonth[0]?.amount || 0;
+                  const targetMonth = realizationsThisMonth[0]?.target_month;
                   
                   return (
                     <tr key={item.id} className={`transition-colors ${isSelected ? 'bg-indigo-50/60' : 'hover:bg-gray-50'}`}>
@@ -587,13 +688,23 @@ const SPJRealization: React.FC<SPJRealizationProps> = ({ data, onUpdate }) => {
                          </button>
                       </td>
                       <td className="px-4 py-4">
-                        <div className="font-medium text-gray-800">{item.description}</div>
+                        <div className="font-medium text-gray-800">
+                          {item.description}
+                          {targetMonth !== undefined && targetMonth !== viewMonth && (
+                            <span className="text-[10px] bg-blue-50 text-blue-600 px-1.5 py-0.5 rounded ml-2 font-bold">
+                              {MONTHS[targetMonth-1]}
+                            </span>
+                          )}
+                        </div>
                          <div className="flex items-center gap-2 mt-1">
                             <span className="text-[10px] text-gray-400 font-mono">{item.account_code || 'Kode Rekening -'}</span>
                             {isRollover && !isDone && (
                                 <span className="text-[9px] bg-orange-100 text-orange-700 px-1.5 py-0.5 rounded flex items-center gap-1">
                                     <ArrowRightCircle size={10} /> Luncuran
                                 </span>
+                            )}
+                            {realizationsThisMonth[0]?.notes && (
+                               <span className="text-[10px] text-gray-500 italic">• {realizationsThisMonth[0].notes}</span>
                             )}
                          </div>
                       </td>
@@ -602,8 +713,8 @@ const SPJRealization: React.FC<SPJRealizationProps> = ({ data, onUpdate }) => {
                          <div className="text-[10px] text-gray-400 font-normal">Target Bulan Ini</div>
                       </td>
                       <td className="px-4 py-4 text-right font-mono font-medium">
-                         <span className={realizedThisMonth > 0 ? 'text-green-700' : 'text-gray-300'}>
-                            {formatRupiah(realizedThisMonth)}
+                         <span className={realizedAmount > 0 ? 'text-green-700' : 'text-gray-300'}>
+                            {formatRupiah(realizedAmount)}
                          </span>
                       </td>
                       <td className="px-4 py-4 text-center">
@@ -611,7 +722,7 @@ const SPJRealization: React.FC<SPJRealizationProps> = ({ data, onUpdate }) => {
                             <span className="inline-flex items-center gap-1 px-2 py-1 bg-green-50 text-green-700 rounded text-xs font-medium border border-green-100">
                                <CheckCircle2 size={12} /> SPJ OK
                             </span>
-                         ) : realizedThisMonth > 0 ? (
+                         ) : realizedAmount > 0 ? (
                             <span className="inline-flex items-center gap-1 px-2 py-1 bg-yellow-50 text-yellow-700 rounded text-xs font-medium border border-yellow-100">
                                <Square size={12} /> Parsial
                             </span>
@@ -717,8 +828,6 @@ const SPJRealization: React.FC<SPJRealizationProps> = ({ data, onUpdate }) => {
                                 
                                 // Calculate planned amount context
                                 const monthlyAlloc = calculateMonthlyAllocation(item, viewMonth);
-                                const realizedThisMonth = item.realizations?.find(r => r.month === viewMonth)?.amount || 0;
-                                const available = monthlyAlloc - realizedThisMonth;
 
                                 return (
                                   <div key={id} className="flex flex-col gap-2 bg-white p-2 rounded border border-gray-200">
@@ -793,7 +902,19 @@ const SPJRealization: React.FC<SPJRealizationProps> = ({ data, onUpdate }) => {
                              Sisa Volume: {(selectedBudget?.quantity || 1) - (selectedBudget?.realizations?.reduce((acc, r) => acc + (r.quantity || 0), 0) || 0) + (selectedBudget?.realizations?.find(r => r.month === activeMonthIndex)?.quantity || 0)} {selectedBudget?.unit || 'Paket'}
                            </p>
                          </div>
-                         <div className="col-span-2">
+                         <div className="col-span-2 md:col-span-1">
+                           <label className="block text-sm font-medium text-gray-700 mb-1">Bulan Peruntukan</label>
+                           <select 
+                             value={formTargetMonth || activeMonthIndex}
+                             onChange={(e) => setFormTargetMonth(Number(e.target.value))}
+                             className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none text-sm"
+                           >
+                             {selectedBudget?.realization_months?.sort((a,b)=>a-b).map(m => (
+                               <option key={m} value={m}>{MONTHS[m-1]}</option>
+                             ))}
+                           </select>
+                         </div>
+                         <div className="col-span-2 md:col-span-1">
                            <label className="block text-sm font-medium text-gray-700 mb-1">Tanggal Kuitansi/Nota</label>
                            <div className="relative">
                              <Calendar size={18} className="absolute left-3 top-2.5 text-gray-400" />
@@ -806,22 +927,44 @@ const SPJRealization: React.FC<SPJRealizationProps> = ({ data, onUpdate }) => {
                              />
                            </div>
                          </div>
+                         <div className="col-span-2">
+                           <label className="block text-sm font-medium text-gray-700 mb-1">Keterangan / Catatan</label>
+                           <input 
+                             type="text" 
+                             value={formNotes}
+                             onChange={(e) => setFormNotes(e.target.value)}
+                             className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none text-sm"
+                             placeholder="Contoh: Bayar Listrik Januari"
+                           />
+                         </div>
                        </div>
                     )}
                     
                     {/* Date Input for Batch Mode (Shown separately because layout differs) */}
                     {isBatchMode && (
-                        <div>
-                           <label className="block text-sm font-medium text-gray-700 mb-1">Tanggal Kuitansi/Nota (Satu untuk semua)</label>
-                           <div className="relative">
-                             <Calendar size={18} className="absolute left-3 top-2.5 text-gray-400" />
-                             <input 
-                                type="date" 
-                                required
-                                value={formDate}
-                                onChange={(e) => setFormDate(e.target.value)}
-                                className="w-full pl-10 pr-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none"
-                             />
+                        <div className="space-y-4">
+                           <div>
+                              <label className="block text-sm font-medium text-gray-700 mb-1">Keterangan / Catatan (Kolektif)</label>
+                              <input 
+                                type="text" 
+                                value={formNotes}
+                                onChange={(e) => setFormNotes(e.target.value)}
+                                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none text-sm"
+                                placeholder="Contoh: Pembayaran Listrik & Air Kolektif"
+                              />
+                           </div>
+                           <div>
+                              <label className="block text-sm font-medium text-gray-700 mb-1">Tanggal Kuitansi/Nota (Satu untuk semua)</label>
+                              <div className="relative">
+                                <Calendar size={18} className="absolute left-3 top-2.5 text-gray-400" />
+                                <input 
+                                   type="date" 
+                                   required
+                                   value={formDate}
+                                   onChange={(e) => setFormDate(e.target.value)}
+                                   className="w-full pl-10 pr-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none"
+                                />
+                              </div>
                            </div>
                         </div>
                     )}

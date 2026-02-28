@@ -112,11 +112,13 @@ export const AccountCodes = {
 } as const;
 
 export interface RealizationDetail {
-  month: number;
+  month: number; // Bulan pelaporan (kapan diinput)
+  target_month?: number; // Bulan peruntukan (untuk bulan apa)
   amount: number;
   quantity?: number; // Volume realisasi
   date: string; // Tanggal Kuitansi/SPJ
   evidence_file?: string; // Nama file bukti fisik
+  notes?: string; // Keterangan tambahan (misal: "Bayar Tunggakan Januari")
 }
 
 export interface TransferDetail {
