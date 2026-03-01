@@ -1,7 +1,7 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import { Budget, TransactionType, SchoolProfile, TransferDetail, WithdrawalHistory } from '../types';
 import { FileText, Printer, Landmark, CheckSquare, Square, DollarSign, Calendar, User, CreditCard, Edit3, List, X, Coins, Users, Loader2, Archive, History, RefreshCcw, Trash2, Info, Calculator, Percent } from 'lucide-react';
-import jsPDF from 'jspdf';
+import { jsPDF } from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import { getWithdrawalHistory, saveWithdrawalHistory, deleteWithdrawalHistory, uploadWithdrawalFile } from '../lib/db';
 
@@ -495,16 +495,8 @@ const BankWithdrawal: React.FC<BankWithdrawalProps> = ({ data, profile, onUpdate
   // Safe init jsPDF
   const initJsPDF = (options?: any) => {
     try {
-        // Safe check for constructor to handle different import behaviors (ESM/CJS)
-        if (typeof jsPDF === 'function') {
-            // @ts-ignore
-            return new jsPDF(options);
-        } else if ((jsPDF as any).default) {
-            // @ts-ignore
-            return new (jsPDF as any).default(options);
-        }
-        console.error("jsPDF is not a constructor", jsPDF);
-        return null;
+        // @ts-ignore
+        return new jsPDF(options);
     } catch (e) {
         console.error("Failed to initialize jsPDF", e);
         return null;
@@ -1350,7 +1342,19 @@ const BankWithdrawal: React.FC<BankWithdrawalProps> = ({ data, profile, onUpdate
                             
                             <div className="space-y-3">
                                 <button 
-                                    onClick={() => activeTab === 'surat_kuasa' ? createSuratKuasaDoc()?.save('Surat_Kuasa.pdf') : createPemindahbukuanDoc()?.save('Pemindahbukuan.pdf')} 
+                                    onClick={() => {
+                                        try {
+                                            const doc = activeTab === 'surat_kuasa' ? createSuratKuasaDoc() : createPemindahbukuanDoc();
+                                            if (doc) {
+                                                doc.save(activeTab === 'surat_kuasa' ? 'Surat_Kuasa.pdf' : 'Pemindahbukuan.pdf');
+                                            } else {
+                                                alert("Gagal membuat dokumen PDF. Periksa konsol untuk detail.");
+                                            }
+                                        } catch (err) {
+                                            console.error("PDF Download error:", err);
+                                            alert("Terjadi kesalahan saat mengunduh PDF.");
+                                        }
+                                    }} 
                                     className="w-full bg-blue-600 hover:bg-blue-700 text-white px-6 py-3 rounded-lg font-bold flex items-center justify-center gap-2 shadow-lg transition"
                                 >
                                     <Printer size={18} /> Download PDF
