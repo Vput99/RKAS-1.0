@@ -186,8 +186,8 @@ const BankWithdrawal: React.FC<BankWithdrawalProps> = ({ data, profile, onUpdate
           const cleanName = detail.name?.trim() || '';
           const cleanAccount = detail.account?.trim() || '';
 
-          const key = (isGroupingEnabled && cleanName && cleanAccount) 
-              ? `${cleanName.toLowerCase()}_${cleanAccount}` 
+          const key = (isGroupingEnabled && (cleanName || cleanAccount)) 
+              ? `${cleanName.toLowerCase()}_${cleanAccount.toLowerCase()}` 
               : `individual_${item.id}`;
 
           if (!groups[key]) {
@@ -1388,6 +1388,12 @@ const BankWithdrawal: React.FC<BankWithdrawalProps> = ({ data, profile, onUpdate
                   <p className="text-sm text-gray-600">
                      Data ini akan diterapkan ke <b>{selectedBudgetIds.length} item</b> yang sedang dicentang.
                   </p>
+                  <div className="bg-blue-50 p-3 rounded-lg border border-blue-100">
+                     <p className="text-[10px] text-blue-700 leading-relaxed">
+                        <Info size={12} className="inline mr-1 mb-0.5" />
+                        <b>Tips:</b> Item dengan Nama & Rekening yang sama akan otomatis digabung menjadi satu baris di dokumen cetak (PDF) jika tombol <b>Grup Nama & Rekening</b> aktif.
+                     </p>
+                  </div>
                   <div>
                      <label className="block text-xs font-bold text-gray-500 mb-1">Nama Penerima / Toko</label>
                      <input 
