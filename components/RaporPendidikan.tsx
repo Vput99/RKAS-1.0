@@ -2,7 +2,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { RaporIndicator, PBDRecommendation, TransactionType, Budget } from '../types';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell } from 'recharts';
-import { AlertCircle, BrainCircuit, CheckCircle, Plus, TrendingUp, AlertTriangle, CalendarRange, Save, Loader2, List, X, Check, Upload, FileText, Trash2, SlidersHorizontal, MousePointerClick } from 'lucide-react';
+import { BrainCircuit, CheckCircle, Plus, TrendingUp, AlertTriangle, CalendarRange, Save, Loader2, X, Check, Upload, FileText, SlidersHorizontal, MousePointerClick } from 'lucide-react';
 import { analyzeRaporQuality, analyzeRaporPDF, isAiConfigured } from '../lib/gemini';
 import { getRaporData, saveRaporData } from '../lib/db';
 

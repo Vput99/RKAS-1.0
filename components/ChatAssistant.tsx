@@ -1,6 +1,6 @@
 
 import React, { useState, useRef, useEffect } from 'react';
-import { MessageCircle, X, Send, User, Bot, Paperclip, FileText, Image as ImageIcon, Trash2 } from 'lucide-react';
+import { MessageCircle, X, Send, Bot, Paperclip, FileText, Image as ImageIcon, Trash2 } from 'lucide-react';
 import { chatWithFinancialAdvisor } from '../lib/gemini';
 import { Budget } from '../types';
 

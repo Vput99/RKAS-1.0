@@ -1,9 +1,9 @@
 
-import React, { useState, useEffect } from 'react';
-import { FileText, Download, CheckCircle2, ChevronRight, BookOpen, Printer, Users, Coffee, Wrench, Bus, ShoppingBag, FileSignature, Handshake, ClipboardList, Receipt, FileCheck, HardHat, Hammer, X, DollarSign, Plus, Trash2, Search, Sparkles, Loader2, Upload, Eye, AlertCircle } from 'lucide-react';
+import React, { useState, useEffect, useMemo } from 'react';
+import { FileText, Download, CheckCircle2, ChevronRight, BookOpen, Printer, Users, Coffee, Wrench, Bus, ShoppingBag, FileSignature, Handshake, ClipboardList, Receipt, FileCheck, HardHat, Hammer, X, DollarSign, Plus, Trash2, Search, Sparkles, Loader2, Upload, Eye, AlertCircle, ShoppingCart } from 'lucide-react';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
-import { getSchoolProfile, getBudgets, updateBudget, uploadEvidenceFile } from '../lib/db';
+import { getSchoolProfile, uploadEvidenceFile } from '../lib/db';
 import { SchoolProfile, Budget, EvidenceFile } from '../types';
 import { suggestEvidenceList } from '../lib/gemini';
 
@@ -222,65 +222,130 @@ const getTerbilang = (nilai: number): string => {
     return terbilang.trim() + " Rupiah";
 };
 
-const EvidenceTemplates = () => {
+interface EvidenceTemplatesProps {
+  budgets: Budget[];
+  onUpdate: (id: string, updates: Partial<Budget>) => void;
+}
+
+const EvidenceTemplates = ({ budgets: allBudgets, onUpdate }: EvidenceTemplatesProps) => {
   const [activeTab, setActiveTab] = useState<'templates' | 'upload'>('templates');
   const [activeCategory, setActiveCategory] = useState<string | null>(null);
   const [schoolProfile, setSchoolProfile] = useState<SchoolProfile | null>(null);
-  const [budgets, setBudgets] = useState<Budget[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   
   // Upload State
   const [selectedBudget, setSelectedBudget] = useState<Budget | null>(null);
-  const [selectedRealizationIndex, setSelectedRealizationIndex] = useState<number>(-1);
+  const [selectedGroup, setSelectedGroup] = useState<any>(null);
   const [suggestedEvidence, setSuggestedEvidence] = useState<string[]>([]);
   const [isAiLoading, setIsAiLoading] = useState(false);
   const [uploadProgress, setUploadProgress] = useState<Record<string, boolean>>({});
   const [searchTerm, setSearchTerm] = useState('');
+
+  // Grouped Realizations for the Upload Tab
+  const groupedRealizations = useMemo(() => {
+    const groups: any[] = [];
+    allBudgets.forEach(budget => {
+      budget.realizations?.forEach((real, idx) => {
+        // Grouping criteria: Vendor + Date + Month
+        // If vendor is missing, we fallback to description to keep it separate or grouped by date
+        const groupKey = `${real.vendor || 'Tanpa Vendor'}-${real.date.split('T')[0]}-${real.month}`;
+        
+        let group = groups.find(g => g.key === groupKey);
+        if (!group) {
+          group = {
+            key: groupKey,
+            vendor: real.vendor || 'Tanpa Toko/Vendor',
+            date: real.date,
+            month: real.month,
+            notes: real.notes,
+            items: [],
+            evidence_files: real.evidence_files || []
+          };
+          groups.push(group);
+        }
+        
+        group.items.push({ budgetId: budget.id, budgetDescription: budget.description, realizationIndex: idx });
+        
+        // Merge evidence files - if one item has files, the whole group shares them
+        if (real.evidence_files && real.evidence_files.length > group.evidence_files.length) {
+          group.evidence_files = real.evidence_files;
+        }
+      });
+    });
+    return groups.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+  }, [allBudgets]);
 
   // Modal State
   const [isPrintModalOpen, setIsPrintModalOpen] = useState(false);
   const [currentTemplateType, setCurrentTemplateType] = useState<string>('');
   const [formData, setFormData] = useState<any>({});
 
+  // Sync selectedBudget with updated allBudgets from props
+  useEffect(() => {
+    if (selectedBudget) {
+      const updated = allBudgets.find(b => b.id === selectedBudget.id);
+      if (updated) {
+        setSelectedBudget(updated);
+      }
+    }
+  }, [allBudgets, selectedBudget?.id]);
+
   useEffect(() => {
       setIsLoading(true);
-      Promise.all([
-          getSchoolProfile(),
-          getBudgets()
-      ]).then(([profile, allBudgets]) => {
+      getSchoolProfile().then((profile) => {
           setSchoolProfile(profile);
-          // Filter only budgets that have realizations
-          setBudgets(allBudgets.filter(b => b.realizations && b.realizations.length > 0));
           setIsLoading(false);
       });
   }, []);
 
-  const handleProcessAi = async (budget: Budget) => {
+  const [aiCache, setAiCache] = useState<Record<string, string[]>>(() => {
+    const saved = localStorage.getItem('rkas_ai_evidence_cache');
+    return saved ? JSON.parse(saved) : {};
+  });
+
+  useEffect(() => {
+    localStorage.setItem('rkas_ai_evidence_cache', JSON.stringify(aiCache));
+  }, [aiCache]);
+
+  const handleProcessAi = async (group: any) => {
+    // Combine descriptions for context
+    const combinedDescription = group.items.map((i: any) => i.budgetDescription).join(', ');
+    
+    // Check cache first
+    if (aiCache[combinedDescription]) {
+      setSuggestedEvidence(aiCache[combinedDescription]);
+      return;
+    }
+
     setIsAiLoading(true);
     try {
-      const list = await suggestEvidenceList(budget.description);
+      const list = await suggestEvidenceList(combinedDescription);
       setSuggestedEvidence(list);
+      // Update cache
+      setAiCache(prev => ({ ...prev, [combinedDescription]: list }));
     } catch (error) {
       // Fallback to local logic
-      setSuggestedEvidence(getEvidenceList(budget.description, budget.account_code));
+      const fallback = getEvidenceList(combinedDescription);
+      setSuggestedEvidence(fallback);
+      setAiCache(prev => ({ ...prev, [combinedDescription]: fallback }));
     } finally {
       setIsAiLoading(false);
     }
   };
 
-  const handleSelectRealization = (budget: Budget, index: number) => {
-    setSelectedBudget(budget);
-    setSelectedRealizationIndex(index);
-    handleProcessAi(budget);
+  const handleSelectGroup = (group: any) => {
+    setSelectedGroup(group);
+    handleProcessAi(group);
   };
 
   const handleFileUpload = async (evidenceType: string, file: File) => {
-    if (!selectedBudget || selectedRealizationIndex === -1) return;
+    if (!selectedGroup) return;
 
     setUploadProgress(prev => ({ ...prev, [evidenceType]: true }));
     
     try {
-      const result = await uploadEvidenceFile(file, selectedBudget.id);
+      // Upload once
+      const result = await uploadEvidenceFile(file, selectedGroup.items[0].budgetId);
       
       if (result.url && result.path) {
         const newEvidence: EvidenceFile = {
@@ -290,31 +355,32 @@ const EvidenceTemplates = () => {
           name: file.name
         };
 
-        const updatedBudgets = [...budgets];
-        const budgetIdx = updatedBudgets.findIndex(b => b.id === selectedBudget.id);
-        
-        if (budgetIdx !== -1) {
-          const budget = { ...updatedBudgets[budgetIdx] };
-          if (budget.realizations) {
-            const realizations = [...budget.realizations];
-            const realization = { ...realizations[selectedRealizationIndex] };
-            
-            const currentFiles = realization.evidence_files || [];
-            // Remove existing of same type if any, or just add
-            const filteredFiles = currentFiles.filter(f => f.type !== evidenceType);
-            realization.evidence_files = [...filteredFiles, newEvidence];
-            
-            realizations[selectedRealizationIndex] = realization;
-            budget.realizations = realizations;
-            
-            const updated = await updateBudget(budget.id, { realizations: budget.realizations });
-            if (updated) {
-              updatedBudgets[budgetIdx] = updated;
-              setBudgets(updatedBudgets);
-              setSelectedBudget(updated);
-            }
-          }
+        // Update ALL items in the group
+        for (const item of selectedGroup.items) {
+          const latestBudget = allBudgets.find(b => b.id === item.budgetId);
+          if (!latestBudget || !latestBudget.realizations) continue;
+
+          const budget = { ...latestBudget };
+          const realizations = [...(budget.realizations || [])];
+          const realization = { ...realizations[item.realizationIndex] };
+          
+          const currentFiles = realization.evidence_files || [];
+          const filteredFiles = currentFiles.filter((f: EvidenceFile) => f.type !== evidenceType);
+          realization.evidence_files = [...filteredFiles, newEvidence];
+          
+          realizations[item.realizationIndex] = realization;
+          budget.realizations = realizations;
+          
+          // Persist
+          onUpdate(budget.id, { realizations: budget.realizations });
         }
+        
+        // Update local group state to show immediate feedback
+        setSelectedGroup((prev: any) => {
+          if (!prev) return null;
+          const filtered = prev.evidence_files.filter((f: any) => f.type !== evidenceType);
+          return { ...prev, evidence_files: [...filtered, newEvidence] };
+        });
       }
     } catch (error) {
       console.error("Upload failed:", error);
@@ -324,9 +390,9 @@ const EvidenceTemplates = () => {
     }
   };
 
-  const filteredBudgets = budgets.filter(b => 
-    b.description.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    (b.account_code && b.account_code.includes(searchTerm))
+  const filteredGroups = groupedRealizations.filter(g => 
+    g.vendor.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    g.items.some((i: any) => i.budgetDescription.toLowerCase().includes(searchTerm.toLowerCase()))
   );
 
   const openPrintModal = (type: string) => {
@@ -1408,7 +1474,7 @@ const EvidenceTemplates = () => {
   };
 
   return (
-    <div className="space-y-6 animate-fade-in pb-10">
+    <div className="space-y-6 pb-10">
       <div className="flex flex-col md:flex-row justify-between items-end gap-4">
         <div>
            <h2 className="text-xl font-bold text-gray-800 flex items-center gap-2">
@@ -1555,38 +1621,41 @@ const EvidenceTemplates = () => {
                     <Loader2 className="animate-spin text-blue-500 mx-auto mb-2" />
                     <p className="text-xs text-gray-400">Memuat data SPJ...</p>
                   </div>
-                ) : filteredBudgets.length === 0 ? (
+                ) : filteredGroups.length === 0 ? (
                   <div className="py-10 text-center border-2 border-dashed border-gray-100 rounded-lg">
-                    <p className="text-xs text-gray-400">Tidak ada data SPJ ditemukan.</p>
+                    <p className="text-xs text-gray-400">Tidak ada data nota ditemukan.</p>
                   </div>
                 ) : (
-                  filteredBudgets.map(budget => (
-                    <div key={budget.id} className="space-y-1">
-                      <div className="px-2 py-1 text-[10px] font-bold text-gray-400 uppercase tracking-wider">
-                        {budget.account_code || 'Tanpa Kode'}
+                  filteredGroups.map(group => (
+                    <button
+                      key={group.key}
+                      onClick={() => handleSelectGroup(group)}
+                      className={`w-full text-left p-3 rounded-lg border transition-all ${
+                        selectedGroup?.key === group.key
+                          ? 'border-blue-500 bg-blue-50 shadow-sm'
+                          : 'border-gray-100 hover:border-blue-200 hover:bg-gray-50'
+                      }`}
+                    >
+                      <div className="flex items-center justify-between mb-1">
+                        <span className="text-[10px] font-bold text-blue-600 uppercase tracking-wider">
+                          {group.vendor}
+                        </span>
+                        <span className="text-[10px] text-gray-400">
+                          {new Date(group.date).toLocaleDateString('id-ID')}
+                        </span>
                       </div>
-                      {budget.realizations?.map((real, idx) => (
-                        <button
-                          key={`${budget.id}-${idx}`}
-                          onClick={() => handleSelectRealization(budget, idx)}
-                          className={`w-full text-left p-3 rounded-lg border transition-all ${
-                            selectedBudget?.id === budget.id && selectedRealizationIndex === idx
-                              ? 'border-blue-500 bg-blue-50 shadow-sm'
-                              : 'border-gray-100 hover:border-blue-200 hover:bg-gray-50'
-                          }`}
-                        >
-                          <div className="text-xs font-medium text-gray-800 line-clamp-1">{budget.description}</div>
-                          <div className="flex items-center justify-between mt-1">
-                            <span className="text-[10px] text-gray-500">
-                              {MONTHS[real.month - 1]} {real.target_month && `(Untuk ${MONTHS[real.target_month - 1]})`}
-                            </span>
-                            <span className="text-[10px] font-mono font-bold text-blue-600">
-                              {new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', maximumFractionDigits: 0 }).format(real.amount)}
-                            </span>
-                          </div>
-                        </button>
-                      ))}
-                    </div>
+                      <div className="text-xs font-medium text-gray-800 line-clamp-2">
+                        {group.items.map((i: any) => i.budgetDescription).join(', ')}
+                      </div>
+                      <div className="flex items-center justify-between mt-2">
+                        <span className="text-[10px] text-gray-500">
+                          {group.items.length} Item Belanja
+                        </span>
+                        <span className="text-[10px] font-bold text-gray-400">
+                          Bulan {MONTHS[group.month - 1]}
+                        </span>
+                      </div>
+                    </button>
                   ))
                 )}
               </div>
@@ -1595,19 +1664,18 @@ const EvidenceTemplates = () => {
 
           {/* Right: Upload Interface */}
           <div className="lg:col-span-8">
-            {selectedBudget && selectedRealizationIndex !== -1 ? (
+            {selectedGroup ? (
               <div className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden min-h-[500px]">
                 <div className="bg-gray-50 px-6 py-4 border-b border-gray-200 flex items-center justify-between">
                   <div>
-                    <h3 className="font-bold text-gray-800">{selectedBudget.description}</h3>
+                    <h3 className="font-bold text-gray-800">{selectedGroup.vendor}</h3>
                     <p className="text-xs text-gray-500">
-                      Realisasi Bulan {MONTHS[selectedBudget.realizations![selectedRealizationIndex].month - 1]} 
-                      {selectedBudget.realizations![selectedRealizationIndex].target_month && ` - Peruntukan ${MONTHS[selectedBudget.realizations![selectedRealizationIndex].target_month! - 1]}`}
+                      Nota Tanggal {new Date(selectedGroup.date).toLocaleDateString('id-ID')} • {selectedGroup.items.length} Item
                     </p>
                   </div>
                   <div className="flex items-center gap-2">
                     <button 
-                      onClick={() => handleProcessAi(selectedBudget)}
+                      onClick={() => handleProcessAi(selectedGroup)}
                       disabled={isAiLoading}
                       className="flex items-center gap-2 px-3 py-1.5 bg-blue-50 text-blue-600 rounded-lg text-xs font-medium hover:bg-blue-100 transition-colors disabled:opacity-50"
                     >
@@ -1618,6 +1686,17 @@ const EvidenceTemplates = () => {
                 </div>
 
                 <div className="p-6">
+                  <div className="mb-6 p-4 bg-blue-50 border border-blue-100 rounded-lg">
+                    <h4 className="text-xs font-bold text-blue-800 flex items-center gap-2 mb-1">
+                      <ShoppingCart size={14} /> Daftar Belanja dalam Nota:
+                    </h4>
+                    <ul className="text-[11px] text-blue-700 list-disc list-inside">
+                      {selectedGroup.items.map((item: any, idx: number) => (
+                        <li key={idx}>{item.budgetDescription}</li>
+                      ))}
+                    </ul>
+                  </div>
+
                   <div className="mb-6 p-4 bg-amber-50 border border-amber-100 rounded-lg">
                     <h4 className="text-xs font-bold text-amber-800 flex items-center gap-2 mb-1">
                       <AlertCircle size={14} /> Analisis Bukti Fisik Dibutuhkan:
@@ -1629,7 +1708,7 @@ const EvidenceTemplates = () => {
 
                   <div className="space-y-4">
                     {suggestedEvidence.map((evidence, idx) => {
-                      const existingFile = selectedBudget.realizations![selectedRealizationIndex].evidence_files?.find(f => f.type === evidence);
+                      const existingFile = selectedGroup.evidence_files?.find((f: any) => f.type === evidence);
                       const isUploading = uploadProgress[evidence];
 
                       return (

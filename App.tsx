@@ -1,6 +1,6 @@
 
-import React, { useState, useEffect } from 'react';
-import { LayoutDashboard, Wallet, FileCheck, Settings as SettingsIcon, Menu, User, BookOpen, FileBarChart, Wifi, LogOut, Download, Share, PlusSquare, X, School, TrendingUp, Landmark, FileText } from 'lucide-react';
+import { useState, useEffect } from 'react';
+import { LayoutDashboard, Wallet, FileCheck, Settings as SettingsIcon, Menu, User, BookOpen, FileBarChart, LogOut, Download, Share, PlusSquare, X, School, TrendingUp, Landmark, FileText } from 'lucide-react';
 import Dashboard from './components/Dashboard';
 import TransactionTable from './components/TransactionTable';
 import BudgetPlanning from './components/BudgetPlanning';
@@ -129,15 +129,14 @@ function App() {
       .on(
         'postgres_changes',
         { event: '*', schema: 'public', table: 'budgets' },
-        (payload) => {
-          console.log('Realtime update received (Budgets):', payload);
+        () => {
           getBudgets().then(setData);
         }
       )
       .on(
         'postgres_changes',
         { event: '*', schema: 'public', table: 'school_profiles' },
-        (payload) => {
+        () => {
           getSchoolProfile().then(setSchoolProfile);
         }
       )
@@ -155,15 +154,15 @@ function App() {
     setIsOnline(status);
   }
 
-  const fetchData = async () => {
-    setLoading(true);
+  const fetchData = async (silent = false) => {
+    if (!silent) setLoading(true);
     const [budgets, profile] = await Promise.all([
       getBudgets(),
       getSchoolProfile()
     ]);
     setData(budgets);
     setSchoolProfile(profile);
-    setLoading(false);
+    if (!silent) setLoading(false);
   };
 
   const handleAdd = async (item: Omit<Budget, 'id' | 'created_at'>) => {
@@ -177,9 +176,19 @@ function App() {
   };
 
   const handleUpdate = async (id: string, updates: Partial<Budget>) => {
+    // Optimistic Update
     setData(prev => prev.map(item => item.id === id ? { ...item, ...updates } : item));
-    const updatedItem = await updateBudget(id, updates);
-    if (!updatedItem) fetchData();
+    
+    try {
+      const updatedItem = await updateBudget(id, updates);
+      if (!updatedItem) {
+        // If update failed, revert silently
+        fetchData(true);
+      }
+    } catch (error) {
+      console.error("Update failed:", error);
+      fetchData(true);
+    }
   };
 
   const handleDelete = async (id: string) => {
@@ -389,7 +398,10 @@ function App() {
                   />
                 )}
                 {activeTab === 'evidence' && (
-                  <EvidenceTemplates />
+                  <EvidenceTemplates 
+                    budgets={data}
+                    onUpdate={handleUpdate}
+                  />
                 )}
                 {activeTab === 'reports' && (
                   <Reports data={data} />

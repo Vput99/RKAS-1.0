@@ -1,6 +1,6 @@
 import React, { useMemo, useState, useEffect } from 'react';
 import { Budget, TransactionType, AccountCodes, BankStatement } from '../types';
-import { FileDown, Printer, FileText, TrendingUp, Table2, List, Calendar, FilterX, Upload, Plus, Trash2, CheckCircle2, AlertCircle, AlertTriangle, Download, Loader2 } from 'lucide-react';
+import { FileDown, Printer, FileText, TrendingUp, Table2, List, Calendar, FilterX, Upload, Trash2, CheckCircle2, AlertTriangle, Download, Loader2 } from 'lucide-react';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import { getBankStatements, saveBankStatement, deleteBankStatement, uploadBankStatementFile, getStoredAccounts } from '../lib/db';

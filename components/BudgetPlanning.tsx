@@ -1,6 +1,6 @@
 import React, { useState, useMemo, useEffect, useRef } from 'react';
 import { Budget, TransactionType, BOSPComponent, SNPStandard, AccountCodes } from '../types';
-import { Plus, Search, Edit2, Trash2, X, Save, Calculator, Calendar, Sparkles, Loader2, AlertTriangle, CheckCircle, Filter, Info, ChevronDown, Check } from 'lucide-react';
+import { Plus, Search, Edit2, Trash2, X, Save, Calculator, Sparkles, Loader2, AlertTriangle, CheckCircle, Filter, ChevronDown, Check } from 'lucide-react';
 import { analyzeBudgetEntry } from '../lib/gemini';
 import { getStoredAccounts } from '../lib/db';
 

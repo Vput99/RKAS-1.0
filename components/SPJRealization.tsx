@@ -137,6 +137,7 @@ const SPJRealization: React.FC<SPJRealizationProps> = ({ data, onUpdate }) => {
   const [formAmount, setFormAmount] = useState<string>('');
   const [formQuantity, setFormQuantity] = useState<string>(''); // New Quantity Form
   const [formNotes, setFormNotes] = useState<string>(''); // New Notes Form
+  const [formVendor, setFormVendor] = useState<string>(''); // New Vendor Form
   const [formTargetMonth, setFormTargetMonth] = useState<number | null>(null); // New Target Month
   const [editingRealizationIndex, setEditingRealizationIndex] = useState<number>(-1); 
   const [batchAmounts, setBatchAmounts] = useState<Record<string, number>>({});
@@ -261,6 +262,7 @@ const SPJRealization: React.FC<SPJRealizationProps> = ({ data, onUpdate }) => {
     // Set default date
     const lastDay = new Date(2026, viewMonth, 0).getDate();
     setFormDate(`2026-${viewMonth.toString().padStart(2, '0')}-${lastDay}`);
+    setFormVendor('');
     setExistingFileName('');
     setCheckedEvidence([]);
 
@@ -327,6 +329,7 @@ const SPJRealization: React.FC<SPJRealizationProps> = ({ data, onUpdate }) => {
       setFormAmount(first.amount.toString());
       setFormQuantity((first.quantity || 0).toString());
       setFormNotes(first.notes || '');
+      setFormVendor(first.vendor || '');
       setFormTargetMonth(first.target_month ?? null);
       setFormDate(first.date.split('T')[0]);
       setExistingFileName(first.evidence_file || '');
@@ -341,6 +344,7 @@ const SPJRealization: React.FC<SPJRealizationProps> = ({ data, onUpdate }) => {
       setFormAmount(monthlyAlloc > 0 ? monthlyAlloc.toString() : '0');
       setFormQuantity(remainingQuantity > 0 ? remainingQuantity.toString() : '0');
       setFormNotes('');
+      setFormVendor('');
       setFormTargetMonth(month); // Default target month is the current view month
       
       const lastDay = new Date(2026, month, 0).getDate();
@@ -406,6 +410,7 @@ const SPJRealization: React.FC<SPJRealizationProps> = ({ data, onUpdate }) => {
             amount: amountToSave,
             quantity: quantityToSave,
             date: new Date(formDate).toISOString(),
+            vendor: formVendor,
             evidence_file: existingFileName || 'Nota Kolektif',
             notes: formNotes
           };
@@ -425,6 +430,7 @@ const SPJRealization: React.FC<SPJRealizationProps> = ({ data, onUpdate }) => {
         amount: Number(formAmount),
         quantity: Number(formQuantity),
         date: new Date(formDate).toISOString(),
+        vendor: formVendor,
         evidence_file: existingFileName || 'Nota',
         notes: formNotes
       };
@@ -462,6 +468,7 @@ const SPJRealization: React.FC<SPJRealizationProps> = ({ data, onUpdate }) => {
         setFormAmount(first.amount.toString());
         setFormQuantity((first.quantity || 0).toString());
         setFormNotes(first.notes || '');
+        setFormVendor(first.vendor || '');
         setFormDate(first.date.split('T')[0]);
         setEditingRealizationIndex(currentRealizations.indexOf(first));
       } else {
@@ -983,6 +990,16 @@ const SPJRealization: React.FC<SPJRealizationProps> = ({ data, onUpdate }) => {
                     {/* Date Input for Batch Mode (Shown separately because layout differs) */}
                     {isBatchMode && (
                         <div className="space-y-4">
+                           <div>
+                              <label className="block text-sm font-medium text-gray-700 mb-1">Nama Toko / Vendor / Penyedia (Kolektif)</label>
+                              <input 
+                                type="text" 
+                                value={formVendor}
+                                onChange={(e) => setFormVendor(e.target.value)}
+                                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none text-sm"
+                                placeholder="Contoh: SIPLah Pesona Edu"
+                              />
+                           </div>
                            <div>
                               <label className="block text-sm font-medium text-gray-700 mb-1">Keterangan / Catatan (Kolektif)</label>
                               <input 

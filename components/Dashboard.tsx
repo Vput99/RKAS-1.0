@@ -2,7 +2,7 @@
 import React, { useMemo } from 'react';
 import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip as RechartsTooltip, XAxis, YAxis, CartesianGrid, Legend, AreaChart, Area } from 'recharts';
 import { Budget, TransactionType, SchoolProfile } from '../types';
-import { ArrowUpRight, ArrowDownRight, Wallet, Target, TrendingUp, PieChart as PieChartIcon, Activity, AlertTriangle, XCircle } from 'lucide-react';
+import { ArrowUpRight, ArrowDownRight, Wallet, Target, PieChart as PieChartIcon, Activity, AlertTriangle, XCircle } from 'lucide-react';
 
 interface DashboardProps {
   data: Budget[];
@@ -268,7 +268,7 @@ const Dashboard: React.FC<DashboardProps> = ({ data, profile }) => {
                     dataKey="value"
                     stroke="none"
                     >
-                    {expenseByComponent.map((entry, index) => (
+                    {expenseByComponent.map((_, index) => (
                         <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
                     ))}
                     </Pie>

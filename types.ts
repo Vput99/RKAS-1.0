@@ -124,6 +124,7 @@ export interface RealizationDetail {
   amount: number;
   quantity?: number; // Volume realisasi
   date: string; // Tanggal Kuitansi/SPJ
+  vendor?: string; // Nama Toko / Vendor / Penyedia (SIPLah)
   evidence_file?: string; // Deprecated: Nama file bukti fisik tunggal
   evidence_files?: EvidenceFile[]; // List of multiple evidence files
   notes?: string; // Keterangan tambahan (misal: "Bayar Tunggakan Januari")

@@ -1,6 +1,6 @@
 
 import { supabase } from './supabase';
-import { Budget, TransactionType, SNPStandard, BOSPComponent, SchoolProfile, BankStatement, RaporIndicator, WithdrawalHistory, AccountCodes } from '../types';
+import { Budget, TransactionType, SchoolProfile, BankStatement, RaporIndicator, WithdrawalHistory, AccountCodes } from '../types';
 
 // Mock data for Offline Mode
 const MOCK_DATA: Budget[] = [
@@ -164,7 +164,7 @@ export const getSchoolProfile = async (): Promise<SchoolProfile> => {
       const userId = await getCurrentUserId();
       if (!userId) return DEFAULT_PROFILE;
 
-      const { data, error } = await supabase.from('school_profiles')
+      const { data } = await supabase.from('school_profiles')
         .select('*')
         .eq('user_id', userId) // Explicit Filter
         .single();
