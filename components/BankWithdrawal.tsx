@@ -22,6 +22,7 @@ const BankWithdrawal: React.FC<BankWithdrawalProps> = ({ data, profile, onUpdate
   const [isBulkEditOpen, setIsBulkEditOpen] = useState(false);
   const [isTaxModalOpen, setIsTaxModalOpen] = useState(false); // New Tax Modal
   const [isSaving, setIsSaving] = useState(false);
+  const [isGroupingEnabled, setIsGroupingEnabled] = useState(true); // New: Toggle for grouping
   
   // Withdrawal Month State
   const [startMonth, setStartMonth] = useState<number>(1); // Default to January
@@ -185,7 +186,7 @@ const BankWithdrawal: React.FC<BankWithdrawalProps> = ({ data, profile, onUpdate
           const cleanName = detail.name?.trim() || '';
           const cleanAccount = detail.account?.trim() || '';
 
-          const key = (cleanName && cleanAccount) 
+          const key = (isGroupingEnabled && cleanName && cleanAccount) 
               ? `${cleanName.toLowerCase()}_${cleanAccount}` 
               : `individual_${item.id}`;
 
@@ -369,6 +370,7 @@ const BankWithdrawal: React.FC<BankWithdrawalProps> = ({ data, profile, onUpdate
           ksName, ksTitle, ksNip,
           trName, trTitle, trNip,
           startMonth, endMonth,
+          isGroupingEnabled,
       };
 
       await saveWithdrawalHistory({
@@ -451,6 +453,7 @@ const BankWithdrawal: React.FC<BankWithdrawalProps> = ({ data, profile, onUpdate
               if (snap.selectedIds && Array.isArray(snap.selectedIds)) setSelectedBudgetIds(snap.selectedIds);
               if (snap.ksName) setKsName(snap.ksName);
               if (snap.trName) setTrName(snap.trName);
+              if (snap.isGroupingEnabled !== undefined) setIsGroupingEnabled(snap.isGroupingEnabled);
           }
 
           setActiveTab('rincian');
@@ -570,6 +573,16 @@ const BankWithdrawal: React.FC<BankWithdrawalProps> = ({ data, profile, onUpdate
     const bankBranch = profile?.bankBranch || 'CABANG';
     const bankAddress = profile?.bankAddress || 'ALAMAT BANK';
     const accountNo = profile?.accountNo || '...';
+
+    // Helper to format bank branch display
+    const formatBranch = (branch: string) => {
+        if (!branch) return 'CABANG';
+        const b = branch.toUpperCase();
+        if (b.includes('CABANG')) return b;
+        return `CABANG ${b}`;
+    };
+
+    const branchDisplay = formatBranch(bankBranch);
     
     const startY = topMargin + 15;
     doc.text("Yang bertanda tangan dibawah ini :", 20, startY);
@@ -595,7 +608,7 @@ const BankWithdrawal: React.FC<BankWithdrawalProps> = ({ data, profile, onUpdate
     
     const bankY = afterP2Y + (splitKuasa.length * 6) + 4;
     doc.setFont('times', 'bold');
-    doc.text(`${bankName} CABANG ${bankBranch}`, 105, bankY, { align: 'center' });
+    doc.text(`${bankName} ${branchDisplay}`, 105, bankY, { align: 'center' });
     doc.setFont('times', 'normal');
     doc.text(`Berkedudukan di ${bankAddress}`, 105, bankY + 5, { align: 'center' });
     
@@ -611,12 +624,12 @@ const BankWithdrawal: React.FC<BankWithdrawalProps> = ({ data, profile, onUpdate
     const nominalFormatted = formatRupiah(totalSelectedAmount).replace(',00', '').replace('Rp', 'Rp ');
     const nominalTerbilang = getTerbilang(totalSelectedAmount);
     
-    const mainContent = `Untuk memindahbukuan dari rekening Giro/ Tabungan kami yang ada di ${bankName} Cabang ${bankBranch} dengan nomor rekening ${accountNo} atas nama ${profile?.name} untuk dilimpahkan kepada rekening terlampir yang tidak terpisahkan dari surat kuasa ini sebanyak ${uniqueRecipientCount} ( ${itemCountText} ) rekening dengan total nominal ${nominalFormatted}- ( ${nominalTerbilang} Rupiah), Dengan data sesuai Lampiran.`;
+    const mainContent = `Untuk memindahbukuan dari rekening Giro/ Tabungan kami yang ada di ${bankName} ${branchDisplay} dengan nomor rekening ${accountNo} atas nama ${profile?.name} untuk dilimpahkan kepada rekening terlampir yang tidak terpisahkan dari surat kuasa ini sebanyak ${uniqueRecipientCount} ( ${itemCountText} ) rekening dengan total nominal ${nominalFormatted}- ( ${nominalTerbilang} Rupiah), Dengan data sesuai Lampiran.`;
     const splitMain = doc.splitTextToSize(mainContent, 170);
     doc.text(splitMain, 20, contentY);
     
     const closingY = contentY + (splitMain.length * 6) + 6;
-    const closingText = `Demikian surat kuasa ini dibuat untuk dipergunakan sebagaimana mestinya. Segala akibat yang timbul atas pemberian kuasa ini menajdi tanggung jawab pemberi kuasa sepenuhnya dengan membebaskan ${bankName} Cabang ${bankBranch} dari segala akibat tuntutan atau gugatan yang timbul dari transaksi rekening tersebut diatas.`;
+    const closingText = `Demikian surat kuasa ini dibuat untuk dipergunakan sebagaimana mestinya. Segala akibat yang timbul atas pemberian kuasa ini menajdi tanggung jawab pemberi kuasa sepenuhnya dengan membebaskan ${bankName} ${branchDisplay} dari segala akibat tuntutan atau gugatan yang timbul dari transaksi rekening tersebut diatas.`;
     const splitClosing = doc.splitTextToSize(closingText, 170);
     doc.text(splitClosing, 20, closingY);
     
@@ -633,10 +646,10 @@ const BankWithdrawal: React.FC<BankWithdrawalProps> = ({ data, profile, onUpdate
     doc.text(ksTitle, col2X, titleY, { align: 'center' });
     doc.text(trTitle, col3X, titleY, { align: 'center' });
     const subTitleY = titleY + 5;
-    doc.text("PT BPD JATIM", col1X + 15, subTitleY, { align: 'center' });
+    doc.text(bankName, col1X + 15, subTitleY, { align: 'center' });
     doc.text(profile?.name || 'Sekolah', col2X, subTitleY, { align: 'center' });
     const branchY = subTitleY + 5;
-    doc.text(`CABANG ${bankBranch}`, col1X + 15, branchY, { align: 'center' });
+    doc.text(branchDisplay, col1X + 15, branchY, { align: 'center' });
     const nameY = branchY + 30;
     doc.setFont('times', 'bold');
     doc.text(ksName, col2X, nameY, { align: 'center' });
@@ -661,6 +674,16 @@ const BankWithdrawal: React.FC<BankWithdrawalProps> = ({ data, profile, onUpdate
     const bankBranch = profile?.bankBranch || 'CABANG';
     const accountNo = profile?.accountNo || '...';
 
+    // Helper to format bank branch display
+    const formatBranch = (branch: string) => {
+        if (!branch) return 'CABANG';
+        const b = branch.toUpperCase();
+        if (b.includes('CABANG')) return b;
+        return `CABANG ${b}`;
+    };
+
+    const branchDisplay = formatBranch(bankBranch);
+
     doc.setFont('times', 'normal');
     doc.setFontSize(12);
     doc.text(`NOMOR : ${suratNo}`, 105, topMargin, { align: 'center' });
@@ -668,7 +691,7 @@ const BankWithdrawal: React.FC<BankWithdrawalProps> = ({ data, profile, onUpdate
     const leftMargin = 20;
     doc.text('Kepada Yth : Bapak Direktur', leftMargin, recipientY);
     const bankShort = bankName.replace('PT. ', '').replace('BANK PEMBANGUNAN DAERAH JAWA TIMUR', 'BANK JATIM');
-    doc.text(`${bankShort} CABANG ${bankBranch}`, leftMargin, recipientY + 5); 
+    doc.text(`${bankShort} ${branchDisplay}`, leftMargin, recipientY + 5); 
     doc.text('DI', leftMargin, recipientY + 10);
     const cityClean = (profile?.city || '').replace('KOTA ', '').replace('KABUPATEN ', '');
     doc.text(cityClean, leftMargin, recipientY + 15);
@@ -680,11 +703,11 @@ const BankWithdrawal: React.FC<BankWithdrawalProps> = ({ data, profile, onUpdate
     doc.setLineWidth(0.3);
     doc.line(leftMargin + 17, perihalY + 1, leftMargin + 17 + titleWidth, perihalY + 1);
     const bodyY = perihalY + 10;
-    const body1 = `Sehubungan dengan adanya rekening kami di ${bankShort} Cabang ${bankBranch} atas nama ${profile?.name} nomor rekening ${accountNo} bersama ini kami mengajukan kuasa pemindahbukuan. (Terlampir)`;
+    const body1 = `Sehubungan dengan adanya rekening kami di ${bankShort} ${branchDisplay} atas nama ${profile?.name} nomor rekening ${accountNo} bersama ini kami mengajukan kuasa pemindahbukuan. (Terlampir)`;
     const splitBody1 = doc.splitTextToSize(body1, 170);
     doc.text(splitBody1, leftMargin, bodyY);
     const body2Y = bodyY + (splitBody1.length * 5) + 5;
-    const body2 = `Kami harap dengan adanya kuasa tersebut dapat dilakukan pemindahbukuan secara otomatis dari rekening Giro kami yang ada di ${bankShort} Cabang ${bankBranch}`;
+    const body2 = `Kami harap dengan adanya kuasa tersebut dapat dilakukan pemindahbukuan secara otomatis dari rekening Giro kami yang ada di ${bankShort} ${branchDisplay}`;
     const splitBody2 = doc.splitTextToSize(body2, 170);
     doc.text(splitBody2, leftMargin, body2Y);
     const closingY = body2Y + (splitBody2.length * 5) + 5;
@@ -872,6 +895,19 @@ const BankWithdrawal: React.FC<BankWithdrawalProps> = ({ data, profile, onUpdate
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
           />
+        </div>
+        <div className="flex items-center gap-2 ml-auto">
+          <button 
+            onClick={() => setIsGroupingEnabled(!isGroupingEnabled)}
+            className={`flex items-center gap-2 px-3 py-2 rounded-md text-xs font-bold transition-all ${
+              isGroupingEnabled 
+              ? 'bg-blue-50 text-blue-700 border border-blue-200' 
+              : 'bg-orange-50 text-orange-700 border border-orange-200'
+            }`}
+          >
+            {isGroupingEnabled ? <Users size={14} /> : <List size={14} />}
+            {isGroupingEnabled ? 'Grup Nama & Rekening' : 'Pisahkan per Item/Bulan'}
+          </button>
         </div>
       </div>
       <div className="border border-gray-200 rounded-lg overflow-hidden max-h-[500px] overflow-y-auto relative">
@@ -1261,9 +1297,26 @@ const BankWithdrawal: React.FC<BankWithdrawalProps> = ({ data, profile, onUpdate
 
                             {activeTab === 'surat_kuasa' && (
                                 <div className="space-y-4">
-                                    <div className="md:col-span-2">
-                                        <label className="block text-xs font-bold text-gray-500 mb-1">Nomor Surat</label>
-                                        <input type="text" value={suratNo} onChange={e => setSuratNo(e.target.value)} className="w-full border rounded px-3 py-2 text-sm font-mono" placeholder="422 / ... / ..." />
+                                    <div className="flex justify-between items-center">
+                                        <div className="flex-1">
+                                            <label className="block text-xs font-bold text-gray-500 mb-1">Nomor Surat</label>
+                                            <input type="text" value={suratNo} onChange={e => setSuratNo(e.target.value)} className="w-full border rounded px-3 py-2 text-sm font-mono" placeholder="422 / ... / ..." />
+                                        </div>
+                                        <button 
+                                            onClick={() => {
+                                                if (profile) {
+                                                    setKsName(profile.headmaster || '');
+                                                    setKsNip(profile.headmasterNip || '');
+                                                    setTrName(profile.treasurer || '');
+                                                    setTrNip(profile.treasurerNip || '');
+                                                    alert("Data personel dimuat ulang dari profil!");
+                                                }
+                                            }}
+                                            className="ml-4 mt-5 text-[10px] bg-gray-100 text-gray-600 px-2 py-1.5 rounded hover:bg-gray-200 flex items-center gap-1 border border-gray-200"
+                                            title="Muat ulang nama KS & Bendahara dari Pengaturan Profil"
+                                        >
+                                            <RefreshCcw size={12} /> Muat dari Profil
+                                        </button>
                                     </div>
                                     <div className="bg-gray-50 p-3 rounded-lg border border-gray-100 space-y-2">
                                         <p className="text-xs font-bold text-gray-400 uppercase">Pihak I (Pemberi Kuasa - KS)</p>
@@ -1286,6 +1339,11 @@ const BankWithdrawal: React.FC<BankWithdrawalProps> = ({ data, profile, onUpdate
                                 <div className="space-y-4">
                                    <div className="bg-gray-50 p-3 rounded-lg border border-gray-100">
                                        <p className="text-xs text-gray-500 mb-2">Pastikan data Bank dan Rekening di panel kiri sudah benar.</p>
+                                       <p className="text-[10px] text-blue-600 italic">
+                                           {isGroupingEnabled 
+                                             ? "* Item dengan Nama & Rekening yang sama digabung menjadi satu baris transfer." 
+                                             : "* Setiap item/bulan ditampilkan sebagai baris transfer terpisah."}
+                                       </p>
                                    </div>
                                 </div>
                             )}
