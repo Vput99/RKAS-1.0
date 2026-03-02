@@ -1,13 +1,14 @@
 
 // Service Worker sederhana untuk memenuhi syarat PWA (Installable)
-const CACHE_NAME = 'rkas-cache-v2'; // Updated to v2 to force refresh
+const CACHE_NAME = 'rkas-cache-v3';
 
-// Saat install, cache file statis dasar
+// Saat install, JANGAN skipWaiting agar tidak memaksa reload halaman
 self.addEventListener('install', (event) => {
-  self.skipWaiting();
+  // Tidak pakai self.skipWaiting() agar tidak auto-refresh saat pindah tab
+  console.log('SW: Installed, waiting for activation...');
 });
 
-// Saat activate, claim clients dan hapus cache lama
+// Saat activate, hapus cache lama tapi JANGAN claim clients
 self.addEventListener('activate', (event) => {
   event.waitUntil(
     caches.keys().then((cacheNames) => {
@@ -19,7 +20,8 @@ self.addEventListener('activate', (event) => {
           }
         })
       );
-    }).then(() => clients.claim())
+    })
+    // Tidak pakai clients.claim() agar tidak memicu reload otomatis
   );
 });
 
