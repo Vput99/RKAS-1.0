@@ -615,13 +615,14 @@ const SPJRealization: React.FC<SPJRealizationProps> = ({ data, onUpdate }) => {
                 <th className="px-4 py-4 font-semibold text-right">Pagu Bulan Ini</th>
                 <th className="px-4 py-4 font-semibold text-right">Realisasi (SPJ)</th>
                 <th className="px-4 py-4 font-semibold text-center">Status</th>
+                <th className="px-4 py-4 font-semibold">Nama Toko</th>
                 <th className="px-4 py-4 font-semibold text-right">Aksi</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-100">
               {expensesInMonth.length === 0 ? (
                 <tr>
-                  <td colSpan={6} className="px-6 py-12 text-center text-gray-400">
+                  <td colSpan={7} className="px-6 py-12 text-center text-gray-400">
                     <div className="flex flex-col items-center gap-2">
                        <FileText size={32} className="opacity-20" />
                        <p>Tidak ada jadwal belanja di bulan ini.</p>
@@ -660,7 +661,6 @@ const SPJRealization: React.FC<SPJRealizationProps> = ({ data, onUpdate }) => {
                           </div>
                            <div className="flex items-center gap-2 mt-1">
                               <span className="text-[10px] text-gray-400 font-mono">{item.account_code || 'Kode Rekening -'}</span>
-                              {r.vendor && <span className="text-[10px] text-indigo-600 font-medium">• {r.vendor} {r.vendor_account ? `(${r.vendor_account})` : ''}</span>}
                               {r.notes && <span className="text-[10px] text-gray-500 italic">• {r.notes}</span>}
                            </div>
                            
@@ -691,9 +691,15 @@ const SPJRealization: React.FC<SPJRealizationProps> = ({ data, onUpdate }) => {
                            {formatRupiah(r.amount)}
                         </td>
                         <td className="px-4 py-4 text-center">
-                           <span className="inline-flex items-center gap-1 px-2 py-1 bg-green-50 text-green-700 rounded text-[10px] font-medium border border-green-100">
-                             <CheckCircle2 size={10} /> SPJ #{idx + 1}
-                           </span>
+                          <span className="inline-flex items-center gap-1 px-2 py-1 bg-green-50 text-green-700 rounded text-[10px] font-medium border border-green-100">
+                            <CheckCircle2 size={10} /> SPJ #{idx + 1}
+                          </span>
+                        </td>
+                        <td className="px-4 py-4">
+                           <div className="text-xs font-medium text-gray-700 truncate max-w-[150px]" title={r.vendor}>
+                              {r.vendor || '-'}
+                           </div>
+                           {r.vendor_account && <div className="text-[10px] text-gray-400 font-mono">{r.vendor_account}</div>}
                         </td>
                         <td className="px-4 py-4 text-right">
                           <button 
@@ -736,9 +742,6 @@ const SPJRealization: React.FC<SPJRealizationProps> = ({ data, onUpdate }) => {
                                 <span className="text-[9px] bg-orange-100 text-orange-700 px-1.5 py-0.5 rounded flex items-center gap-1">
                                     <ArrowRightCircle size={10} /> Luncuran
                                 </span>
-                            )}
-                            {realizationsThisMonth[0]?.vendor && (
-                               <span className="text-[10px] text-indigo-600 font-medium">• {realizationsThisMonth[0].vendor} {realizationsThisMonth[0].vendor_account ? `(${realizationsThisMonth[0].vendor_account})` : ''}</span>
                             )}
                             {realizationsThisMonth[0]?.notes && (
                                <span className="text-[10px] text-gray-500 italic">• {realizationsThisMonth[0].notes}</span>
@@ -787,6 +790,14 @@ const SPJRealization: React.FC<SPJRealizationProps> = ({ data, onUpdate }) => {
                             <span className="inline-flex items-center gap-1 px-2 py-1 bg-gray-100 text-gray-500 rounded text-xs border border-gray-200">
                                <Square size={12} /> Belum
                             </span>
+                         )}
+                      </td>
+                      <td className="px-4 py-4">
+                         <div className="text-xs font-medium text-gray-700 truncate max-w-[150px]" title={realizationsThisMonth[0]?.vendor}>
+                            {realizationsThisMonth[0]?.vendor || '-'}
+                         </div>
+                         {realizationsThisMonth[0]?.vendor_account && (
+                            <div className="text-[10px] text-gray-400 font-mono">{realizationsThisMonth[0].vendor_account}</div>
                          )}
                       </td>
                       <td className="px-4 py-4 text-right">
