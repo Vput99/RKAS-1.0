@@ -10,14 +10,14 @@ const getEnv = (key: string) => {
       // @ts-ignore
       return import.meta.env[key];
     }
-  } catch (e) {}
+  } catch (e) { }
 
   try {
     if (typeof process !== 'undefined' && process.env && process.env[key]) {
       return process.env[key];
     }
-  } catch (e) {}
-  
+  } catch (e) { }
+
   return '';
 };
 
@@ -37,7 +37,7 @@ const parseAIResponse = (text: string | undefined) => {
     if (match) {
       return JSON.parse(match[1]);
     }
-    
+
     // 2. Try parsing the raw text directly
     return JSON.parse(text.trim());
   } catch (e) {
@@ -49,34 +49,34 @@ const parseAIResponse = (text: string | undefined) => {
 // --- OPTIMIZATION: SMART FILTERING ---
 const filterRelevantAccounts = (query: string, accounts: Record<string, string>): string => {
   const entries = Object.entries(accounts);
-  
+
   // STRATEGY 1: Small Dataset (< 150 items)
   if (entries.length < 150) {
-      return entries.map(([c, n]) => `- ${c}: ${n}`).join('\n');
+    return entries.map(([c, n]) => `- ${c}: ${n}`).join('\n');
   }
 
   // STRATEGY 2: Large Dataset (Imported Excel)
   const queryLower = query.toLowerCase();
-  
+
   // Keywords triggering "Service/Labor" accounts
-  const isServiceQuery = 
-    queryLower.includes('honor') || 
-    queryLower.includes('gaji') || 
-    queryLower.includes('upah') || 
-    queryLower.includes('jasa') || 
-    queryLower.includes('pelatih') || 
+  const isServiceQuery =
+    queryLower.includes('honor') ||
+    queryLower.includes('gaji') ||
+    queryLower.includes('upah') ||
+    queryLower.includes('jasa') ||
+    queryLower.includes('pelatih') ||
     queryLower.includes('pembina') ||
     queryLower.includes('narasumber') ||
     queryLower.includes('tukang');
 
   // Keywords specific for Extracurricular/Experts
-  const isEskulQuery = 
-    queryLower.includes('pramuka') || 
-    queryLower.includes('ekskul') || 
-    queryLower.includes('ekstrakurikuler') || 
-    queryLower.includes('tari') || 
-    queryLower.includes('drumband') || 
-    queryLower.includes('basket') || 
+  const isEskulQuery =
+    queryLower.includes('pramuka') ||
+    queryLower.includes('ekskul') ||
+    queryLower.includes('ekstrakurikuler') ||
+    queryLower.includes('tari') ||
+    queryLower.includes('drumband') ||
+    queryLower.includes('basket') ||
     queryLower.includes('ahli') ||
     queryLower.includes('instruktur');
 
@@ -84,75 +84,75 @@ const filterRelevantAccounts = (query: string, accounts: Record<string, string>)
 
   // Score each account based on match relevance
   const scored = entries.map(([code, name]) => {
-      const nameLower = name.toLowerCase();
-      let score = 0;
-      
-      // Exact phrase match bonus
-      if (nameLower.includes(queryLower)) score += 100;
-      
-      // Keyword matching
-      queryWords.forEach(word => {
-          if (nameLower.includes(word)) score += 10;
-      });
+    const nameLower = name.toLowerCase();
+    let score = 0;
 
-      // CONTEXT AWARENESS:
-      // If user asks for Honor/Service, boost accounts starting with 5.1.02.02 (Belanja Jasa)
-      if (isServiceQuery && code.startsWith('5.1.02.02')) {
-          score += 50; 
-          // Boost specific types of services
-          if (nameLower.includes('narasumber') || nameLower.includes('instruktur')) score += 20;
-          if (nameLower.includes('tenaga')) score += 20;
+    // Exact phrase match bonus
+    if (nameLower.includes(queryLower)) score += 100;
+
+    // Keyword matching
+    queryWords.forEach(word => {
+      if (nameLower.includes(word)) score += 10;
+    });
+
+    // CONTEXT AWARENESS:
+    // If user asks for Honor/Service, boost accounts starting with 5.1.02.02 (Belanja Jasa)
+    if (isServiceQuery && code.startsWith('5.1.02.02')) {
+      score += 50;
+      // Boost specific types of services
+      if (nameLower.includes('narasumber') || nameLower.includes('instruktur')) score += 20;
+      if (nameLower.includes('tenaga')) score += 20;
+    }
+
+    // If user asks for Extracurricular/Scouts, Heavily Boost "Narasumber/Instruktur" or "Tenaga Ahli"
+    if (isEskulQuery) {
+      if (code === '5.1.02.02.01.0003' || nameLower.includes('narasumber') || nameLower.includes('instruktur') || nameLower.includes('ahli')) {
+        score += 300; // Massive boost to ensure visibility
       }
-
-      // If user asks for Extracurricular/Scouts, Heavily Boost "Narasumber/Instruktur" or "Tenaga Ahli"
-      if (isEskulQuery) {
-          if (code === '5.1.02.02.01.0003' || nameLower.includes('narasumber') || nameLower.includes('instruktur') || nameLower.includes('ahli')) {
-              score += 300; // Massive boost to ensure visibility
-          }
-          if (nameLower.includes('pendidikan') && code.startsWith('5.1.02.02')) {
-              score += 100;
-          }
+      if (nameLower.includes('pendidikan') && code.startsWith('5.1.02.02')) {
+        score += 100;
       }
+    }
 
-      // If user asks for Goods (Barang), boost 5.1.02.01 (Belanja Barang)
-      if (!isServiceQuery && !isEskulQuery && code.startsWith('5.1.02.01')) {
-          score += 5;
-      }
+    // If user asks for Goods (Barang), boost 5.1.02.01 (Belanja Barang)
+    if (!isServiceQuery && !isEskulQuery && code.startsWith('5.1.02.01')) {
+      score += 5;
+    }
 
-      // Prefer standard codes slightly if scores match
-      // @ts-ignore
-      if (AccountCodes[code]) score += 1;
+    // Prefer standard codes slightly if scores match
+    // @ts-ignore
+    if (AccountCodes[code]) score += 1;
 
-      return { code, name, score };
+    return { code, name, score };
   });
 
   // Filter items with score > 0, sort descending, take top 50 matches
   let candidates = scored
     .filter(s => s.score > 0)
-    .sort((a,b) => b.score - a.score)
+    .sort((a, b) => b.score - a.score)
     .slice(0, 50);
 
   // Fallback
   if (candidates.length === 0) {
-      candidates = entries
-        .slice(0, 30)
-        .map(([code, name]) => ({ code, name, score: 0 }));
+    candidates = entries
+      .slice(0, 30)
+      .map(([code, name]) => ({ code, name, score: 0 }));
   }
 
   return candidates.map(c => `- ${c.code}: ${c.name}`).join('\n');
 };
 
-export const analyzeBudgetEntry = async (description: string, availableAccounts: Record<string, string> = AccountCodes): Promise<{ 
-  bosp_component: string, 
-  snp_standard: string, 
-  account_code: string, 
+export const analyzeBudgetEntry = async (description: string, availableAccounts: Record<string, string> = AccountCodes): Promise<{
+  bosp_component: string,
+  snp_standard: string,
+  account_code: string,
   quantity_estimate: number,
   unit_estimate: string,
   price_estimate: number,
   realization_months_estimate: number[],
   suggestion: string,
   is_eligible: boolean,
-  warning: string 
+  warning: string
 }> => {
   if (!ai) {
     return {
@@ -174,7 +174,7 @@ export const analyzeBudgetEntry = async (description: string, availableAccounts:
 
     // Use gemini-3-flash-preview
     const response = await ai.models.generateContent({
-      model: 'gemini-3-flash-preview', 
+      model: 'gemini-3-flash-preview',
       contents: `
       Role: BOSP Auditor & Budget Planner (Indonesia).
       
@@ -217,13 +217,13 @@ export const analyzeBudgetEntry = async (description: string, availableAccounts:
     });
 
     const result = parseAIResponse(response.text);
-    return result || { 
-      bosp_component: BOSPComponent.LAINNYA, 
-      snp_standard: SNPStandard.LAINNYA, 
+    return result || {
+      bosp_component: BOSPComponent.LAINNYA,
+      snp_standard: SNPStandard.LAINNYA,
       account_code: '',
       quantity_estimate: 1,
       unit_estimate: 'Paket',
-      price_estimate: 0, 
+      price_estimate: 0,
       realization_months_estimate: [1],
       suggestion: description,
       is_eligible: true,
@@ -233,7 +233,7 @@ export const analyzeBudgetEntry = async (description: string, availableAccounts:
     console.error("Gemini Error:", error);
     return {
       bosp_component: BOSPComponent.LAINNYA,
-      snp_standard: SNPStandard.LAINNYA, 
+      snp_standard: SNPStandard.LAINNYA,
       account_code: '',
       quantity_estimate: 1,
       unit_estimate: 'Paket',
@@ -273,21 +273,21 @@ export const suggestEvidenceList = async (description: string, accountCode: stri
   }
 };
 
-export const chatWithFinancialAdvisor = async (query: string, context: string, attachment?: {data: string, mimeType: string}) => {
+export const chatWithFinancialAdvisor = async (query: string, context: string, attachment?: { data: string, mimeType: string }) => {
   if (!ai) return "Fitur AI belum aktif.";
 
   try {
     const parts: any[] = [
-        { text: `Role: Konsultan RKAS BOSP SD Profesional.\nContext Data Sekolah: ${context}\n\nUser Question: ${query}\n\nInstruksi: Jawab dalam Bahasa Indonesia yang formal namun ramah. Jika ada lampiran dokumen (PDF/Gambar), analisis isinya sesuai pertanyaan user.` }
+      { text: `Role: Konsultan RKAS BOSP SD Profesional.\nContext Data Sekolah: ${context}\n\nUser Question: ${query}\n\nInstruksi: Jawab dalam Bahasa Indonesia yang formal namun ramah. Jika ada lampiran dokumen (PDF/Gambar), analisis isinya sesuai pertanyaan user.` }
     ];
 
     if (attachment) {
-        parts.push({
-            inlineData: {
-                data: attachment.data,
-                mimeType: attachment.mimeType
-            }
-        });
+      parts.push({
+        inlineData: {
+          data: attachment.data,
+          mimeType: attachment.mimeType
+        }
+      });
     }
 
     const response = await ai.models.generateContent({
@@ -302,18 +302,18 @@ export const chatWithFinancialAdvisor = async (query: string, context: string, a
 }
 
 export const analyzeRaporQuality = async (indicators: RaporIndicator[], targetYear: string): Promise<PBDRecommendation[] | null> => {
-    if (!ai) return null;
-    
-    const weakIndicators = indicators.filter(i => i.category === 'Kurang' || i.category === 'Sedang');
-    if (weakIndicators.length === 0) return [];
+  if (!ai) return null;
 
-    // Reduce context slightly to ensure it fits and processes faster
-    const accountContext = Object.entries(AccountCodes)
-        .slice(0, 100) 
-        .map(([c, n]) => `- ${c}: ${n}`)
-        .join('\n');
+  const weakIndicators = indicators.filter(i => i.category === 'Kurang' || i.category === 'Sedang');
+  if (weakIndicators.length === 0) return [];
 
-    const prompt = `Role: Expert School Budget Consultant (BOSP Indonesia).
+  // Reduce context slightly to ensure it fits and processes faster
+  const accountContext = Object.entries(AccountCodes)
+    .slice(0, 100)
+    .map(([c, n]) => `- ${c}: ${n}`)
+    .join('\n');
+
+  const prompt = `Role: Expert School Budget Consultant (BOSP Indonesia).
             
     Task: Analyze the following "Weak" Rapor Pendidikan indicators and recommend specific, actionable RKAS budget activities to improve them for Fiscal Year ${targetYear}.
     
@@ -329,68 +329,68 @@ export const analyzeRaporQuality = async (indicators: RaporIndicator[], targetYe
 
     Output: JSON Array of PBDRecommendation objects.`;
 
-    const schema = {
-        type: Type.ARRAY,
+  const schema = {
+    type: Type.ARRAY,
+    items: {
+      type: Type.OBJECT,
+      properties: {
+        indicatorId: { type: Type.STRING },
+        activityName: { type: Type.STRING },
+        description: { type: Type.STRING },
+        bospComponent: { type: Type.STRING },
+        snpStandard: { type: Type.STRING },
+        estimatedCost: { type: Type.NUMBER },
+        priority: { type: Type.STRING },
         items: {
+          type: Type.ARRAY,
+          items: {
             type: Type.OBJECT,
             properties: {
-                indicatorId: { type: Type.STRING },
-                activityName: { type: Type.STRING },
-                description: { type: Type.STRING },
-                bospComponent: { type: Type.STRING }, 
-                snpStandard: { type: Type.STRING },
-                estimatedCost: { type: Type.NUMBER },
-                priority: { type: Type.STRING },
-                items: {
-                    type: Type.ARRAY,
-                    items: {
-                        type: Type.OBJECT,
-                        properties: {
-                            name: { type: Type.STRING },
-                            quantity: { type: Type.NUMBER },
-                            unit: { type: Type.STRING },
-                            price: { type: Type.NUMBER },
-                            accountCode: { type: Type.STRING }
-                        },
-                        required: ['name', 'quantity', 'unit', 'price', 'accountCode']
-                    }
-                }
+              name: { type: Type.STRING },
+              quantity: { type: Type.NUMBER },
+              unit: { type: Type.STRING },
+              price: { type: Type.NUMBER },
+              accountCode: { type: Type.STRING }
             },
-            required: ['indicatorId', 'activityName', 'description', 'bospComponent', 'snpStandard', 'estimatedCost', 'priority', 'items']
+            required: ['name', 'quantity', 'unit', 'price', 'accountCode']
+          }
         }
-    };
-
-    try {
-        const response = await ai.models.generateContent({
-            model: 'gemini-3-flash-preview',
-            contents: prompt,
-            config: {
-                responseMimeType: "application/json",
-                responseSchema: schema
-            }
-        });
-
-        const result = parseAIResponse(response.text);
-        if (Array.isArray(result)) return result;
-    } catch (error) {
-        console.error("Gemini analysis failed:", error);
+      },
+      required: ['indicatorId', 'activityName', 'description', 'bospComponent', 'snpStandard', 'estimatedCost', 'priority', 'items']
     }
+  };
 
-    return null;
+  try {
+    const response = await ai.models.generateContent({
+      model: 'gemini-3-flash-preview',
+      contents: prompt,
+      config: {
+        responseMimeType: "application/json",
+        responseSchema: schema
+      }
+    });
+
+    const result = parseAIResponse(response.text);
+    if (Array.isArray(result)) return result;
+  } catch (error) {
+    console.error("Gemini analysis failed:", error);
+  }
+
+  return null;
 }
 
 // Updated return type to include error message
-export const analyzeRaporPDF = async (pdfBase64: string, targetYear: string): Promise<{ 
-    success: boolean; 
-    data?: { indicators: RaporIndicator[], recommendations: PBDRecommendation[] };
-    error?: string;
+export const analyzeRaporPDF = async (pdfBase64: string, targetYear: string): Promise<{
+  success: boolean;
+  data?: { indicators: RaporIndicator[], recommendations: PBDRecommendation[] };
+  error?: string;
 }> => {
   if (!ai) return { success: false, error: "API Key belum dikonfigurasi di Settings." };
 
   const accountContext = Object.entries(AccountCodes)
-      .slice(0, 100) 
-      .map(([c, n]) => `- ${c}: ${n}`)
-      .join('\n');
+    .slice(0, 100)
+    .map(([c, n]) => `- ${c}: ${n}`)
+    .join('\n');
 
   try {
     const prompt = `Role: Expert School Data Analyst (BOSP Indonesia).
@@ -426,13 +426,13 @@ export const analyzeRaporPDF = async (pdfBase64: string, targetYear: string): Pr
         indicators: {
           type: Type.ARRAY,
           items: {
-             type: Type.OBJECT,
-             properties: {
-               id: { type: Type.STRING },
-               label: { type: Type.STRING },
-               score: { type: Type.NUMBER },
-               category: { type: Type.STRING }
-             }
+            type: Type.OBJECT,
+            properties: {
+              id: { type: Type.STRING },
+              label: { type: Type.STRING },
+              score: { type: Type.NUMBER },
+              category: { type: Type.STRING }
+            }
           }
         },
         recommendations: {
@@ -440,26 +440,26 @@ export const analyzeRaporPDF = async (pdfBase64: string, targetYear: string): Pr
           items: {
             type: Type.OBJECT,
             properties: {
-                indicatorId: { type: Type.STRING },
-                activityName: { type: Type.STRING },
-                description: { type: Type.STRING },
-                bospComponent: { type: Type.STRING }, 
-                snpStandard: { type: Type.STRING },
-                estimatedCost: { type: Type.NUMBER },
-                priority: { type: Type.STRING },
+              indicatorId: { type: Type.STRING },
+              activityName: { type: Type.STRING },
+              description: { type: Type.STRING },
+              bospComponent: { type: Type.STRING },
+              snpStandard: { type: Type.STRING },
+              estimatedCost: { type: Type.NUMBER },
+              priority: { type: Type.STRING },
+              items: {
+                type: Type.ARRAY,
                 items: {
-                    type: Type.ARRAY,
-                    items: {
-                        type: Type.OBJECT,
-                        properties: {
-                            name: { type: Type.STRING },
-                            quantity: { type: Type.NUMBER },
-                            unit: { type: Type.STRING },
-                            price: { type: Type.NUMBER },
-                            accountCode: { type: Type.STRING }
-                        }
-                    }
+                  type: Type.OBJECT,
+                  properties: {
+                    name: { type: Type.STRING },
+                    quantity: { type: Type.NUMBER },
+                    unit: { type: Type.STRING },
+                    price: { type: Type.NUMBER },
+                    accountCode: { type: Type.STRING }
+                  }
                 }
+              }
             }
           }
         }
@@ -467,7 +467,7 @@ export const analyzeRaporPDF = async (pdfBase64: string, targetYear: string): Pr
     };
 
     const response = await ai.models.generateContent({
-      model: 'gemini-3-flash-preview', 
+      model: 'gemini-3-flash-preview',
       contents: {
         parts: [
           { text: prompt },
@@ -481,9 +481,9 @@ export const analyzeRaporPDF = async (pdfBase64: string, targetYear: string): Pr
     });
 
     const result = parseAIResponse(response.text);
-    
+
     if (!result) {
-        return { success: false, error: "AI tidak mengembalikan format JSON yang valid. Mungkin file PDF tidak terbaca atau kosong." };
+      return { success: false, error: "AI tidak mengembalikan format JSON yang valid. Mungkin file PDF tidak terbaca atau kosong." };
     }
 
     return { success: true, data: result };
@@ -491,7 +491,7 @@ export const analyzeRaporPDF = async (pdfBase64: string, targetYear: string): Pr
   } catch (error: any) {
     console.error("PDF Analysis Error:", error);
     let errorMessage = "Terjadi kesalahan saat menghubungi Google Gemini.";
-    
+
     if (error.message?.includes('API_KEY')) errorMessage = "API Key Invalid atau Hilang.";
     if (error.message?.includes('429')) errorMessage = "Limit Kuota API Habis (429).";
     if (error.message?.includes('400')) errorMessage = "Format Request Salah atau File PDF Rusak (400).";
