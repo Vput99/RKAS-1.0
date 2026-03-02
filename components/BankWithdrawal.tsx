@@ -532,16 +532,17 @@ const BankWithdrawal: React.FC<BankWithdrawalProps> = ({ data, profile, onUpdate
     };
 
     // Helper for City formatting
-    const getCityName = () => {
+    const getCityName = (includePrefix = false) => {
         let c = profile?.city || '';
         if (!c) return 'Tempat';
 
-        // Remove KOTA/KABUPATEN prefix case insensitive
-        c = c.replace(/^(KOTA|KABUPATEN|KAB\.?)\s*/i, '');
+        // Title Case seluruh string (misal "KOTA KEDIRI" -> "Kota Kediri")
+        const titleCase = c.toLowerCase().replace(/(?:^|\s)\w/g, m => m.toUpperCase());
 
-        // Title Case
-        c = c.toLowerCase().replace(/(?:^|\s)\w/g, m => m.toUpperCase());
-        return c || 'Tempat';
+        if (includePrefix) return titleCase; // "Kota Kediri" atau "Kabupaten Kediri"
+
+        // Remove KOTA/KABUPATEN prefix
+        return titleCase.replace(/^(Kota|Kabupaten|Kab\.?)\s*/i, '') || 'Tempat';
     };
 
     const generateHeader = (doc: jsPDF) => {
@@ -562,7 +563,7 @@ const BankWithdrawal: React.FC<BankWithdrawalProps> = ({ data, profile, onUpdate
         doc.setFont('times', 'normal');
         doc.setFontSize(10);
         doc.text(profile?.address || '', 105, 32, { align: 'center' });
-        const detailLine = `${profile?.district ? 'Kecamatan ' + profile.district : ''} ${profile?.city || ''} ${profile?.postalCode ? 'Kode Pos : ' + profile.postalCode : ''}`.trim();
+        const detailLine = `${profile?.district ? 'Kecamatan ' + profile.district : ''} ${getCityName(true)} ${profile?.postalCode ? 'Kode Pos : ' + profile.postalCode : ''}`.trim();
         doc.text(detailLine, 105, 36, { align: 'center' });
         doc.text(`NPSN : ${profile?.npsn || '-'}`, 105, 40, { align: 'center' });
         doc.setLineWidth(0.5);
@@ -622,7 +623,7 @@ const BankWithdrawal: React.FC<BankWithdrawalProps> = ({ data, profile, onUpdate
         doc.text(trAddrLines, valueX, afterP1Y + (lineHeight * 2));
 
         const afterP2Y = afterP1Y + (lineHeight * 2) + (trAddrLines.length * 5) + 6;
-        const textKuasa = `Bertindak untuk dan atas nama ${profile?.name || 'Sekolah'} ${profile?.city || ''}. Dengan ini memberikan kuasa penuh yang tidak dapat di cabut kembali dengan substitusi kepada :`;
+        const textKuasa = `Bertindak untuk dan atas nama ${profile?.name || 'Sekolah'} ${getCityName(true)}. Dengan ini memberikan kuasa penuh yang tidak dapat di cabut kembali dengan substitusi kepada :`;
         const splitKuasa = doc.splitTextToSize(textKuasa, 170);
         doc.text(splitKuasa, 20, afterP2Y);
 
@@ -713,8 +714,7 @@ const BankWithdrawal: React.FC<BankWithdrawalProps> = ({ data, profile, onUpdate
         const bankShort = bankName.replace('PT. ', '').replace('BANK PEMBANGUNAN DAERAH JAWA TIMUR', 'BANK JATIM');
         doc.text(`${bankShort} ${branchDisplay}`, leftMargin, recipientY + 5);
         doc.text('DI', leftMargin, recipientY + 10);
-        const cityClean = (profile?.city || '').replace('KOTA ', '').replace('KABUPATEN ', '');
-        doc.text(cityClean, leftMargin, recipientY + 15);
+        doc.text(getCityName().toUpperCase(), leftMargin, recipientY + 15);
         const perihalY = recipientY + 25;
         doc.text('Perihal : ', leftMargin, perihalY);
         const perihalTitle = "Kuasa Pemindahbukuan";
@@ -920,8 +920,8 @@ const BankWithdrawal: React.FC<BankWithdrawalProps> = ({ data, profile, onUpdate
                     <button
                         onClick={() => setIsGroupingEnabled(!isGroupingEnabled)}
                         className={`flex items-center gap-2 px-3 py-2 rounded-md text-xs font-bold transition-all ${isGroupingEnabled
-                                ? 'bg-blue-50 text-blue-700 border border-blue-200'
-                                : 'bg-orange-50 text-orange-700 border border-orange-200'
+                            ? 'bg-blue-50 text-blue-700 border border-blue-200'
+                            : 'bg-orange-50 text-orange-700 border border-orange-200'
                             }`}
                     >
                         {isGroupingEnabled ? <Users size={14} /> : <List size={14} />}
@@ -932,8 +932,8 @@ const BankWithdrawal: React.FC<BankWithdrawalProps> = ({ data, profile, onUpdate
                         <button
                             onClick={() => setGroupByMonth(!groupByMonth)}
                             className={`flex items-center gap-2 px-3 py-2 rounded-md text-xs font-bold transition-all ${groupByMonth
-                                    ? 'bg-teal-50 text-teal-700 border border-teal-200'
-                                    : 'bg-gray-50 text-gray-700 border border-gray-200'
+                                ? 'bg-teal-50 text-teal-700 border border-teal-200'
+                                : 'bg-gray-50 text-gray-700 border border-gray-200'
                                 }`}
                             title={groupByMonth ? "Memisahkan item dengan nama sama jika bulannya berbeda" : "Menggabungkan semua item dengan nama sama meskipun beda bulan"}
                         >
