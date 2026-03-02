@@ -138,6 +138,7 @@ const SPJRealization: React.FC<SPJRealizationProps> = ({ data, onUpdate }) => {
   const [formQuantity, setFormQuantity] = useState<string>(''); // New Quantity Form
   const [formNotes, setFormNotes] = useState<string>(''); // New Notes Form
   const [formVendor, setFormVendor] = useState<string>(''); // New Vendor Form
+  const [formVendorAccount, setFormVendorAccount] = useState<string>(''); // New Vendor Account Form
   const [formTargetMonth, setFormTargetMonth] = useState<number | null>(null); // New Target Month
   const [editingRealizationIndex, setEditingRealizationIndex] = useState<number>(-1); 
   const [batchAmounts, setBatchAmounts] = useState<Record<string, number>>({});
@@ -330,6 +331,7 @@ const SPJRealization: React.FC<SPJRealizationProps> = ({ data, onUpdate }) => {
       setFormQuantity((first.quantity || 0).toString());
       setFormNotes(first.notes || '');
       setFormVendor(first.vendor || '');
+      setFormVendorAccount(first.vendor_account || '');
       setFormTargetMonth(first.target_month ?? null);
       setFormDate(first.date.split('T')[0]);
       setExistingFileName(first.evidence_file || '');
@@ -345,6 +347,7 @@ const SPJRealization: React.FC<SPJRealizationProps> = ({ data, onUpdate }) => {
       setFormQuantity(remainingQuantity > 0 ? remainingQuantity.toString() : '0');
       setFormNotes('');
       setFormVendor('');
+      setFormVendorAccount('');
       setFormTargetMonth(month); // Default target month is the current view month
       
       const lastDay = new Date(2026, month, 0).getDate();
@@ -411,6 +414,7 @@ const SPJRealization: React.FC<SPJRealizationProps> = ({ data, onUpdate }) => {
             quantity: quantityToSave,
             date: new Date(formDate).toISOString(),
             vendor: formVendor,
+            vendor_account: formVendorAccount,
             evidence_file: existingFileName || 'Nota Kolektif',
             notes: formNotes
           };
@@ -431,6 +435,7 @@ const SPJRealization: React.FC<SPJRealizationProps> = ({ data, onUpdate }) => {
         quantity: Number(formQuantity),
         date: new Date(formDate).toISOString(),
         vendor: formVendor,
+        vendor_account: formVendorAccount,
         evidence_file: existingFileName || 'Nota',
         notes: formNotes
       };
@@ -469,6 +474,7 @@ const SPJRealization: React.FC<SPJRealizationProps> = ({ data, onUpdate }) => {
         setFormQuantity((first.quantity || 0).toString());
         setFormNotes(first.notes || '');
         setFormVendor(first.vendor || '');
+        setFormVendorAccount(first.vendor_account || '');
         setFormDate(first.date.split('T')[0]);
         setEditingRealizationIndex(currentRealizations.indexOf(first));
       } else {
@@ -654,6 +660,7 @@ const SPJRealization: React.FC<SPJRealizationProps> = ({ data, onUpdate }) => {
                           </div>
                            <div className="flex items-center gap-2 mt-1">
                               <span className="text-[10px] text-gray-400 font-mono">{item.account_code || 'Kode Rekening -'}</span>
+                              {r.vendor && <span className="text-[10px] text-indigo-600 font-medium">• {r.vendor} {r.vendor_account ? `(${r.vendor_account})` : ''}</span>}
                               {r.notes && <span className="text-[10px] text-gray-500 italic">• {r.notes}</span>}
                            </div>
                            
@@ -729,6 +736,9 @@ const SPJRealization: React.FC<SPJRealizationProps> = ({ data, onUpdate }) => {
                                 <span className="text-[9px] bg-orange-100 text-orange-700 px-1.5 py-0.5 rounded flex items-center gap-1">
                                     <ArrowRightCircle size={10} /> Luncuran
                                 </span>
+                            )}
+                            {realizationsThisMonth[0]?.vendor && (
+                               <span className="text-[10px] text-indigo-600 font-medium">• {realizationsThisMonth[0].vendor} {realizationsThisMonth[0].vendor_account ? `(${realizationsThisMonth[0].vendor_account})` : ''}</span>
                             )}
                             {realizationsThisMonth[0]?.notes && (
                                <span className="text-[10px] text-gray-500 italic">• {realizationsThisMonth[0].notes}</span>
@@ -843,7 +853,7 @@ const SPJRealization: React.FC<SPJRealizationProps> = ({ data, onUpdate }) => {
                )}
 
                <div className="flex-1 overflow-y-auto p-6">
-                 <form onSubmit={handleSaveSPJ} className="space-y-6">
+                  <form onSubmit={handleSaveSPJ} className="space-y-6">
                     
                     {/* Header Info */}
                     <div>
@@ -974,6 +984,26 @@ const SPJRealization: React.FC<SPJRealizationProps> = ({ data, onUpdate }) => {
                              />
                            </div>
                          </div>
+                         <div className="col-span-2 md:col-span-1">
+                            <label className="block text-sm font-medium text-gray-700 mb-1">Nama Toko / Penerima</label>
+                            <input 
+                              type="text" 
+                              value={formVendor}
+                              onChange={(e) => setFormVendor(e.target.value)}
+                              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none text-sm"
+                              placeholder="Contoh: Toko Buku Jaya"
+                            />
+                          </div>
+                          <div className="col-span-2 md:col-span-1">
+                            <label className="block text-sm font-medium text-gray-700 mb-1">Nomor Rekening</label>
+                            <input 
+                              type="text" 
+                              value={formVendorAccount}
+                              onChange={(e) => setFormVendorAccount(e.target.value)}
+                              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none text-sm"
+                              placeholder="Contoh: 1234567890"
+                            />
+                          </div>
                          <div className="col-span-2">
                            <label className="block text-sm font-medium text-gray-700 mb-1">Keterangan / Catatan</label>
                            <input 
@@ -990,15 +1020,27 @@ const SPJRealization: React.FC<SPJRealizationProps> = ({ data, onUpdate }) => {
                     {/* Date Input for Batch Mode (Shown separately because layout differs) */}
                     {isBatchMode && (
                         <div className="space-y-4">
-                           <div>
-                              <label className="block text-sm font-medium text-gray-700 mb-1">Nama Toko / Vendor / Penyedia (Kolektif)</label>
-                              <input 
-                                type="text" 
-                                value={formVendor}
-                                onChange={(e) => setFormVendor(e.target.value)}
-                                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none text-sm"
-                                placeholder="Contoh: SIPLah Pesona Edu"
-                              />
+                           <div className="grid grid-cols-2 gap-4">
+                              <div className="col-span-2 md:col-span-1">
+                                 <label className="block text-sm font-medium text-gray-700 mb-1">Nama Toko / Vendor / Penyedia (Kolektif)</label>
+                                 <input 
+                                   type="text" 
+                                   value={formVendor}
+                                   onChange={(e) => setFormVendor(e.target.value)}
+                                   className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none text-sm"
+                                   placeholder="Contoh: SIPLah Pesona Edu"
+                                 />
+                              </div>
+                              <div className="col-span-2 md:col-span-1">
+                                 <label className="block text-sm font-medium text-gray-700 mb-1">Nomor Rekening (Kolektif)</label>
+                                 <input 
+                                   type="text" 
+                                   value={formVendorAccount}
+                                   onChange={(e) => setFormVendorAccount(e.target.value)}
+                                   className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none text-sm"
+                                   placeholder="Contoh: 1234567890"
+                                 />
+                              </div>
                            </div>
                            <div>
                               <label className="block text-sm font-medium text-gray-700 mb-1">Keterangan / Catatan (Kolektif)</label>

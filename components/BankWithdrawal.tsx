@@ -23,6 +23,7 @@ const BankWithdrawal: React.FC<BankWithdrawalProps> = ({ data, profile, onUpdate
   const [isTaxModalOpen, setIsTaxModalOpen] = useState(false); // New Tax Modal
   const [isSaving, setIsSaving] = useState(false);
   const [isGroupingEnabled, setIsGroupingEnabled] = useState(true); // New: Toggle for grouping
+  const [groupByMonth, setGroupByMonth] = useState(true); // New: Toggle for month separation
   
   // Withdrawal Month State
   const [startMonth, setStartMonth] = useState<number>(1); // Default to January
@@ -89,24 +90,6 @@ const BankWithdrawal: React.FC<BankWithdrawalProps> = ({ data, profile, onUpdate
       setIsLoadingHistory(false);
   };
 
-  // LOAD SAVED TRANSFER DETAILS FROM BUDGET DATA
-  useEffect(() => {
-      const savedDetails: Record<string, TransferDetail> = {};
-      data.forEach(item => {
-          if (item.transfer_details) {
-              savedDetails[item.id] = item.transfer_details;
-          }
-      });
-      setRecipientDetails(prev => {
-          if (Object.keys(prev).length === 0) return savedDetails;
-          const merged = { ...prev };
-          Object.keys(savedDetails).forEach(key => {
-              if (!merged[key]) merged[key] = savedDetails[key];
-          });
-          return merged;
-      });
-  }, [data]);
-
   // Filter expenses based on REALIZATION (SPJ) in the selected Month range and account code
   const filteredRealizations = useMemo(() => {
     const expenses = data.filter(d => d.type === TransactionType.EXPENSE && d.status !== 'rejected');
@@ -119,13 +102,16 @@ const BankWithdrawal: React.FC<BankWithdrawalProps> = ({ data, profile, onUpdate
         date: string;
         targetMonth: number;
         original: Budget;
+        vendor?: string;
+        vendor_account?: string;
     }> = {};
 
     expenses.forEach(item => {
-        item.realizations?.forEach(realization => {
+        item.realizations?.forEach((realization, index) => {
             if (realization.amount > 0 && realization.month >= startMonth && realization.month <= endMonth) {
                 const tMonth = realization.target_month !== undefined ? realization.target_month : realization.month;
-                const key = `${item.id}_${tMonth}`;
+                // Use index to keep realizations separate even for the same item/month
+                const key = `${item.id}_${tMonth}_${index}`;
                 
                 if (!aggregatedMap[key]) {
                     aggregatedMap[key] = {
@@ -136,7 +122,9 @@ const BankWithdrawal: React.FC<BankWithdrawalProps> = ({ data, profile, onUpdate
                         amount: 0,
                         date: realization.date,
                         targetMonth: tMonth,
-                        original: item
+                        original: item,
+                        vendor: realization.vendor,
+                        vendor_account: realization.vendor_account
                     };
                 }
                 aggregatedMap[key].amount += realization.amount;
@@ -157,6 +145,34 @@ const BankWithdrawal: React.FC<BankWithdrawalProps> = ({ data, profile, onUpdate
 
     return finalItems.sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
   }, [data, startMonth, endMonth, accountCodeFilter, searchTerm]);
+
+  // Auto-fill recipient details from realization vendor info
+  useEffect(() => {
+      const newDetails = { ...recipientDetails };
+      let changed = false;
+      
+      filteredRealizations.forEach(item => {
+          if (!newDetails[item.id]) {
+              // If no specific detail for this realization, try to use its vendor info
+              if (item.vendor || item.vendor_account) {
+                  newDetails[item.id] = {
+                      name: item.vendor || '',
+                      account: item.vendor_account || '',
+                      ppn: 0, pph21: 0, pph22: 0, pph23: 0, pajakDaerah: 0
+                  };
+                  changed = true;
+              } else if (item.original.transfer_details) {
+                  // Fallback to budget's transfer details
+                  newDetails[item.id] = { ...item.original.transfer_details };
+                  changed = true;
+              }
+          }
+      });
+      
+      if (changed) {
+          setRecipientDetails(newDetails);
+      }
+  }, [filteredRealizations]);
 
   const totalSelectedAmount = useMemo(() => {
     return filteredRealizations
@@ -182,12 +198,12 @@ const BankWithdrawal: React.FC<BankWithdrawalProps> = ({ data, profile, onUpdate
       }> = {};
 
       selectedItems.forEach(item => {
-          const detail = recipientDetails[item.budgetId] || { name: '', account: '', ppn: 0, pph21: 0, pph22: 0, pph23: 0, pajakDaerah: 0 };
+          const detail = recipientDetails[item.id] || { name: '', account: '', ppn: 0, pph21: 0, pph22: 0, pph23: 0, pajakDaerah: 0 };
           const cleanName = detail.name?.trim() || '';
           const cleanAccount = detail.account?.trim() || '';
 
           const key = (isGroupingEnabled && (cleanName || cleanAccount)) 
-              ? `${cleanName.toLowerCase()}_${cleanAccount.toLowerCase()}` 
+              ? `${cleanName.toLowerCase()}_${cleanAccount.toLowerCase()}${groupByMonth ? `_${item.targetMonth}` : ''}` 
               : `individual_${item.id}`;
 
           if (!groups[key]) {
@@ -242,16 +258,15 @@ const BankWithdrawal: React.FC<BankWithdrawalProps> = ({ data, profile, onUpdate
       setRecipientDetails(prev => {
           const newState = { ...prev };
           selectedBudgetIds.forEach(id => {
-              const budgetId = id.split('_')[0];
-              newState[budgetId] = { 
-                  ...newState[budgetId], 
+              newState[id] = { 
+                  ...newState[id], 
                   name: bulkName, 
                   account: bulkAccount,
-                  ppn: newState[budgetId]?.ppn || 0,
-                  pph21: newState[budgetId]?.pph21 || 0,
-                  pph22: newState[budgetId]?.pph22 || 0,
-                  pph23: newState[budgetId]?.pph23 || 0,
-                  pajakDaerah: newState[budgetId]?.pajakDaerah || 0
+                  ppn: newState[id]?.ppn || 0,
+                  pph21: newState[id]?.pph21 || 0,
+                  pph22: newState[id]?.pph22 || 0,
+                  pph23: newState[id]?.pph23 || 0,
+                  pajakDaerah: newState[id]?.pajakDaerah || 0
               };
           });
           return newState;
@@ -270,7 +285,6 @@ const BankWithdrawal: React.FC<BankWithdrawalProps> = ({ data, profile, onUpdate
               const item = filteredRealizations.find(r => r.id === id);
               if (!item) return;
 
-              const budgetId = item.budgetId;
               const amount = item.amount; // Gross amount
               let newTax = { ppn: 0, pph21: 0, pph22: 0, pph23: 0, pajakDaerah: 0 };
 
@@ -315,7 +329,7 @@ const BankWithdrawal: React.FC<BankWithdrawalProps> = ({ data, profile, onUpdate
 
                   case 'honor_6':
                       // PPh 21 Non NPWP (6%) - Biasanya Non ASN tanpa NPWP
-                      newTax.pph21 = Math.round(amount * 0.06);
+                      newTax.pph21 = Math.round(amount * 0.02);
                       break;
 
                   case 'clear':
@@ -324,8 +338,8 @@ const BankWithdrawal: React.FC<BankWithdrawalProps> = ({ data, profile, onUpdate
               }
 
               // Preserve name and account, update taxes
-              newState[budgetId] = {
-                  ...newState[budgetId],
+              newState[id] = {
+                  ...newState[id],
                   ...newTax
               };
           });
@@ -347,8 +361,10 @@ const BankWithdrawal: React.FC<BankWithdrawalProps> = ({ data, profile, onUpdate
       });
 
       const updatePromises = Array.from(budgetIdsToUpdate).map(budgetId => {
-          if (recipientDetails[budgetId]) {
-              return onUpdate(budgetId, { transfer_details: recipientDetails[budgetId] });
+          // Find the first realization ID for this budgetId that has recipientDetails
+          const realizationId = selectedBudgetIds.find(id => id.startsWith(budgetId) && recipientDetails[id]);
+          if (realizationId && recipientDetails[realizationId]) {
+              return onUpdate(budgetId, { transfer_details: recipientDetails[realizationId] });
           }
           return Promise.resolve();
       });
@@ -364,13 +380,16 @@ const BankWithdrawal: React.FC<BankWithdrawalProps> = ({ data, profile, onUpdate
       }
 
       // 3. Create History Record
+      const groupedRecipients = getGroupedData();
       const snapshot = {
           selectedIds: selectedBudgetIds,
           recipientDetails: recipientDetails,
+          groupedRecipients: groupedRecipients,
           ksName, ksTitle, ksNip,
           trName, trTitle, trNip,
           startMonth, endMonth,
           isGroupingEnabled,
+          groupByMonth,
       };
 
       await saveWithdrawalHistory({
@@ -900,6 +919,21 @@ const BankWithdrawal: React.FC<BankWithdrawalProps> = ({ data, profile, onUpdate
             {isGroupingEnabled ? <Users size={14} /> : <List size={14} />}
             {isGroupingEnabled ? 'Grup Nama & Rekening' : 'Pisahkan per Item/Bulan'}
           </button>
+
+          {isGroupingEnabled && (
+            <button 
+              onClick={() => setGroupByMonth(!groupByMonth)}
+              className={`flex items-center gap-2 px-3 py-2 rounded-md text-xs font-bold transition-all ${
+                groupByMonth 
+                ? 'bg-teal-50 text-teal-700 border border-teal-200' 
+                : 'bg-gray-50 text-gray-700 border border-gray-200'
+              }`}
+              title={groupByMonth ? "Memisahkan item dengan nama sama jika bulannya berbeda" : "Menggabungkan semua item dengan nama sama meskipun beda bulan"}
+            >
+              <Calendar size={14} />
+              {groupByMonth ? 'Pisah per Bulan' : 'Gabung Semua Bulan'}
+            </button>
+          )}
         </div>
       </div>
       <div className="border border-gray-200 rounded-lg overflow-hidden max-h-[500px] overflow-y-auto relative">
@@ -954,7 +988,7 @@ const BankWithdrawal: React.FC<BankWithdrawalProps> = ({ data, profile, onUpdate
                     <tr><td colSpan={10} className="text-center py-8 text-gray-400">Tidak ada realisasi pada periode {startMonth === endMonth ? MONTHS[startMonth-1] : `${MONTHS[startMonth-1]} - ${MONTHS[endMonth-1]}`}. Silakan input SPJ terlebih dahulu.</td></tr>
                 ) : (
                     filteredRealizations.map(item => {
-                        const detail = recipientDetails[item.budgetId] || { name: '', account: '', ppn: 0, pph21: 0, pph22: 0, pph23: 0, pajakDaerah: 0 };
+                        const detail = recipientDetails[item.id] || { name: '', account: '', ppn: 0, pph21: 0, pph22: 0, pph23: 0, pajakDaerah: 0 };
                         const totalPotongan = (detail.ppn || 0) + (detail.pph21 || 0) + (detail.pph22 || 0) + (detail.pph23 || 0) + (detail.pajakDaerah || 0);
                         const jumlahBersih = item.amount - totalPotongan;
 
@@ -974,7 +1008,7 @@ const BankWithdrawal: React.FC<BankWithdrawalProps> = ({ data, profile, onUpdate
                                     className="w-full border border-blue-300 rounded px-2 py-1 text-xs focus:ring-1 focus:ring-blue-500 outline-none"
                                     placeholder="Nama..."
                                     value={detail.name}
-                                    onChange={(e) => handleRecipientChange(item.budgetId, 'name', e.target.value)}
+                                    onChange={(e) => handleRecipientChange(item.id, 'name', e.target.value)}
                                     />
                                 ) : (
                                     <span className="text-xs text-gray-400">-</span>
@@ -987,7 +1021,7 @@ const BankWithdrawal: React.FC<BankWithdrawalProps> = ({ data, profile, onUpdate
                                     className="w-full border border-blue-300 rounded px-2 py-1 text-xs focus:ring-1 focus:ring-blue-500 outline-none"
                                     placeholder="No Rek..."
                                     value={detail.account}
-                                    onChange={(e) => handleRecipientChange(item.budgetId, 'account', e.target.value)}
+                                    onChange={(e) => handleRecipientChange(item.id, 'account', e.target.value)}
                                     />
                                 ) : (
                                     <span className="text-xs text-gray-400">-</span>
@@ -1002,7 +1036,7 @@ const BankWithdrawal: React.FC<BankWithdrawalProps> = ({ data, profile, onUpdate
                                     className="w-full border border-gray-300 rounded px-1 py-1 text-[10px] text-right focus:ring-1 focus:ring-blue-500 outline-none"
                                     placeholder="0"
                                     value={detail.pph21 || ''}
-                                    onChange={(e) => handleRecipientChange(item.budgetId, 'pph21', Number(e.target.value))}
+                                    onChange={(e) => handleRecipientChange(item.id, 'pph21', Number(e.target.value))}
                                     />
                                 )}
                             </td>
@@ -1013,7 +1047,7 @@ const BankWithdrawal: React.FC<BankWithdrawalProps> = ({ data, profile, onUpdate
                                     className="w-full border border-gray-300 rounded px-1 py-1 text-[10px] text-right focus:ring-1 focus:ring-blue-500 outline-none"
                                     placeholder="0"
                                     value={detail.pph22 || ''}
-                                    onChange={(e) => handleRecipientChange(item.budgetId, 'pph22', Number(e.target.value))}
+                                    onChange={(e) => handleRecipientChange(item.id, 'pph22', Number(e.target.value))}
                                     />
                                 )}
                             </td>
@@ -1024,7 +1058,7 @@ const BankWithdrawal: React.FC<BankWithdrawalProps> = ({ data, profile, onUpdate
                                     className="w-full border border-gray-300 rounded px-1 py-1 text-[10px] text-right focus:ring-1 focus:ring-blue-500 outline-none"
                                     placeholder="0"
                                     value={detail.pph23 || ''}
-                                    onChange={(e) => handleRecipientChange(item.budgetId, 'pph23', Number(e.target.value))}
+                                    onChange={(e) => handleRecipientChange(item.id, 'pph23', Number(e.target.value))}
                                     />
                                 )}
                             </td>
@@ -1035,7 +1069,7 @@ const BankWithdrawal: React.FC<BankWithdrawalProps> = ({ data, profile, onUpdate
                                     className="w-full border border-gray-300 rounded px-1 py-1 text-[10px] text-right focus:ring-1 focus:ring-blue-500 outline-none"
                                     placeholder="0"
                                     value={detail.pajakDaerah || ''}
-                                    onChange={(e) => handleRecipientChange(item.budgetId, 'pajakDaerah', Number(e.target.value))}
+                                    onChange={(e) => handleRecipientChange(item.id, 'pajakDaerah', Number(e.target.value))}
                                     />
                                 )}
                             </td>
@@ -1391,7 +1425,7 @@ const BankWithdrawal: React.FC<BankWithdrawalProps> = ({ data, profile, onUpdate
                   <div className="bg-blue-50 p-3 rounded-lg border border-blue-100">
                      <p className="text-[10px] text-blue-700 leading-relaxed">
                         <Info size={12} className="inline mr-1 mb-0.5" />
-                        <b>Tips:</b> Item dengan Nama & Rekening yang sama akan otomatis digabung menjadi satu baris di dokumen cetak (PDF) jika tombol <b>Grup Nama & Rekening</b> aktif.
+                        <b>Tips:</b> Item dengan Nama & Rekening yang sama {groupByMonth ? 'pada bulan yang sama ' : ''}akan otomatis digabung menjadi satu baris di dokumen cetak (PDF) jika tombol <b>Grup Nama & Rekening</b> aktif.
                      </p>
                   </div>
                   <div>

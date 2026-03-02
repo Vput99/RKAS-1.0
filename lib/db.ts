@@ -519,6 +519,17 @@ export const saveWithdrawalHistory = async (history: Omit<WithdrawalHistory, 'id
     return newItem as WithdrawalHistory;
 };
 
+export const updateWithdrawalHistory = async (id: string, updates: Partial<WithdrawalHistory>): Promise<boolean> => {
+    if (supabase) {
+        const { error } = await supabase.from('withdrawal_history').update(updates).eq('id', id);
+        return !error;
+    }
+    const current = await getWithdrawalHistory();
+    const updated = current.map(h => h.id === id ? { ...h, ...updates } : h);
+    localStorage.setItem(HISTORY_KEY, JSON.stringify(updated));
+    return true;
+};
+
 export const deleteWithdrawalHistory = async (id: string): Promise<boolean> => {
     const current = await getWithdrawalHistory();
     const itemToDelete = current.find(h => h.id === id);

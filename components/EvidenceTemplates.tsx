@@ -3,8 +3,8 @@ import React, { useState, useEffect, useMemo } from 'react';
 import { FileText, Download, CheckCircle2, ChevronRight, BookOpen, Printer, Users, Coffee, Wrench, Bus, ShoppingBag, FileSignature, Handshake, ClipboardList, Receipt, FileCheck, HardHat, Hammer, X, DollarSign, Plus, Trash2, Search, Sparkles, Loader2, Upload, Eye, AlertCircle, ShoppingCart } from 'lucide-react';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
-import { getSchoolProfile, uploadEvidenceFile } from '../lib/db';
-import { SchoolProfile, Budget, EvidenceFile } from '../types';
+import { getSchoolProfile, uploadEvidenceFile, getWithdrawalHistory, updateWithdrawalHistory } from '../lib/db';
+import { SchoolProfile, Budget, EvidenceFile, WithdrawalHistory } from '../types';
 import { suggestEvidenceList } from '../lib/gemini';
 
 const MONTHS = [
@@ -232,6 +232,8 @@ const EvidenceTemplates = ({ budgets: allBudgets, onUpdate }: EvidenceTemplatesP
   const [activeCategory, setActiveCategory] = useState<string | null>(null);
   const [schoolProfile, setSchoolProfile] = useState<SchoolProfile | null>(null);
   const [isLoading, setIsLoading] = useState(false);
+  const [dataSource, setDataSource] = useState<'realization' | 'history'>('realization');
+  const [history, setHistory] = useState<WithdrawalHistory[]>([]);
   
   // Upload State
   const [selectedBudget, setSelectedBudget] = useState<Budget | null>(null);
@@ -243,28 +245,92 @@ const EvidenceTemplates = ({ budgets: allBudgets, onUpdate }: EvidenceTemplatesP
 
   // Grouped Realizations for the Upload Tab
   const groupedRealizations = useMemo(() => {
+    if (dataSource === 'history') {
+      const historyGroups: any[] = [];
+      history.forEach(record => {
+        // Each record in history is a "Withdrawal" (one PDF)
+        // Its snapshot_data is an object containing selectedIds, recipientDetails, and now groupedRecipients
+        let snapshot: any = record.snapshot_data;
+        if (typeof snapshot === 'string') {
+          try { snapshot = JSON.parse(snapshot); } catch(e) { snapshot = {}; }
+        }
+        
+        if (!snapshot) return;
+
+        // If it's the new format with groupedRecipients, use it
+        if (snapshot.groupedRecipients && Array.isArray(snapshot.groupedRecipients)) {
+          snapshot.groupedRecipients.forEach((recipient: any, idx: number) => {
+            const groupKey = `history-${record.id}-${idx}`;
+            historyGroups.push({
+              key: groupKey,
+              vendor: recipient.name || 'Tanpa Nama',
+              date: record.letter_date,
+              month: new Date(record.letter_date).getMonth() + 1,
+              totalAmount: recipient.amount,
+              items: recipient.descriptions.map((desc: string) => ({
+                budgetDescription: desc,
+                amount: recipient.amount / recipient.descriptions.length // Rough estimate
+              })),
+              evidence_files: recipient.evidence_files || [],
+              isHistory: true,
+              historyId: record.id
+            });
+          });
+        } 
+        // Fallback for older snapshots that might be arrays (if any)
+        else if (Array.isArray(snapshot)) {
+          snapshot.forEach((recipient: any, idx: number) => {
+            const groupKey = `history-${record.id}-${idx}`;
+            historyGroups.push({
+              key: groupKey,
+              vendor: recipient.name || 'Tanpa Nama',
+              date: record.letter_date,
+              month: new Date(record.letter_date).getMonth() + 1,
+              totalAmount: recipient.amount,
+              items: recipient.descriptions?.map((desc: string) => ({
+                budgetDescription: desc,
+                amount: recipient.amount / (recipient.descriptions.length || 1)
+              })) || [],
+              evidence_files: recipient.evidence_files || [],
+              isHistory: true,
+              historyId: record.id
+            });
+          });
+        }
+      });
+      return historyGroups.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+    }
+
     const groups: any[] = [];
     allBudgets.forEach(budget => {
       budget.realizations?.forEach((real, idx) => {
         // Grouping criteria: Vendor + Date + Month
-        // If vendor is missing, we fallback to description to keep it separate or grouped by date
-        const groupKey = `${real.vendor || 'Tanpa Vendor'}-${real.date.split('T')[0]}-${real.month}`;
+        const vendorName = real.vendor || 'Tanpa Toko/Vendor';
+        const groupKey = `${vendorName}-${real.date.split('T')[0]}-${real.month}`;
         
         let group = groups.find(g => g.key === groupKey);
         if (!group) {
           group = {
             key: groupKey,
-            vendor: real.vendor || 'Tanpa Toko/Vendor',
+            vendor: vendorName,
             date: real.date,
             month: real.month,
             notes: real.notes,
+            totalAmount: 0,
             items: [],
             evidence_files: real.evidence_files || []
           };
           groups.push(group);
         }
         
-        group.items.push({ budgetId: budget.id, budgetDescription: budget.description, realizationIndex: idx });
+        group.totalAmount += real.amount;
+        group.items.push({ 
+          budgetId: budget.id, 
+          budgetDescription: budget.description, 
+          realizationIndex: idx,
+          amount: real.amount,
+          accountCode: budget.account_code
+        });
         
         // Merge evidence files - if one item has files, the whole group shares them
         if (real.evidence_files && real.evidence_files.length > group.evidence_files.length) {
@@ -273,7 +339,7 @@ const EvidenceTemplates = ({ budgets: allBudgets, onUpdate }: EvidenceTemplatesP
       });
     });
     return groups.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
-  }, [allBudgets]);
+  }, [allBudgets, dataSource, history]);
 
   // Modal State
   const [isPrintModalOpen, setIsPrintModalOpen] = useState(false);
@@ -292,8 +358,12 @@ const EvidenceTemplates = ({ budgets: allBudgets, onUpdate }: EvidenceTemplatesP
 
   useEffect(() => {
       setIsLoading(true);
-      getSchoolProfile().then((profile) => {
+      Promise.all([
+        getSchoolProfile(),
+        getWithdrawalHistory()
+      ]).then(([profile, hist]) => {
           setSchoolProfile(profile);
+          setHistory(hist);
           setIsLoading(false);
       });
   }, []);
@@ -310,22 +380,39 @@ const EvidenceTemplates = ({ budgets: allBudgets, onUpdate }: EvidenceTemplatesP
   const handleProcessAi = async (group: any) => {
     // Combine descriptions for context
     const combinedDescription = group.items.map((i: any) => i.budgetDescription).join(', ');
+    const isSiplah = group.vendor.toLowerCase().includes('siplah') || combinedDescription.toLowerCase().includes('siplah');
     
     // Check cache first
     if (aiCache[combinedDescription]) {
-      setSuggestedEvidence(aiCache[combinedDescription]);
+      let list = aiCache[combinedDescription];
+      if (isSiplah) {
+        // Ensure SIPLah specific items are present
+        const siplahItems = ["Surat Pesanan", "BAST", "Invoice", "Foto Barang"];
+        list = Array.from(new Set([...siplahItems, ...list]));
+      }
+      setSuggestedEvidence(list);
       return;
     }
 
     setIsAiLoading(true);
     try {
-      const list = await suggestEvidenceList(combinedDescription);
+      let list = await suggestEvidenceList(combinedDescription);
+      
+      if (isSiplah) {
+        const siplahItems = ["Surat Pesanan", "BAST", "Invoice", "Foto Barang"];
+        list = Array.from(new Set([...siplahItems, ...list]));
+      }
+
       setSuggestedEvidence(list);
       // Update cache
       setAiCache(prev => ({ ...prev, [combinedDescription]: list }));
     } catch (error) {
       // Fallback to local logic
-      const fallback = getEvidenceList(combinedDescription);
+      let fallback = getEvidenceList(combinedDescription);
+      if (isSiplah) {
+        const siplahItems = ["Surat Pesanan", "BAST", "Invoice", "Foto Barang"];
+        fallback = Array.from(new Set([...siplahItems, ...fallback]));
+      }
       setSuggestedEvidence(fallback);
       setAiCache(prev => ({ ...prev, [combinedDescription]: fallback }));
     } finally {
@@ -338,14 +425,15 @@ const EvidenceTemplates = ({ budgets: allBudgets, onUpdate }: EvidenceTemplatesP
     handleProcessAi(group);
   };
 
-  const handleFileUpload = async (evidenceType: string, file: File) => {
+   const handleFileUpload = async (evidenceType: string, file: File) => {
     if (!selectedGroup) return;
 
     setUploadProgress(prev => ({ ...prev, [evidenceType]: true }));
     
     try {
-      // Upload once
-      const result = await uploadEvidenceFile(file, selectedGroup.items[0].budgetId);
+      // Upload once - use a dummy ID if it's history, but ideally we should use a real budget ID if available
+      const budgetId = selectedGroup.isHistory ? 'history' : selectedGroup.items[0].budgetId;
+      const result = await uploadEvidenceFile(file, budgetId);
       
       if (result.url && result.path) {
         const newEvidence: EvidenceFile = {
@@ -355,24 +443,64 @@ const EvidenceTemplates = ({ budgets: allBudgets, onUpdate }: EvidenceTemplatesP
           name: file.name
         };
 
-        // Update ALL items in the group
-        for (const item of selectedGroup.items) {
-          const latestBudget = allBudgets.find(b => b.id === item.budgetId);
-          if (!latestBudget || !latestBudget.realizations) continue;
+        if (selectedGroup.isHistory) {
+          // Update History Record
+          const record = history.find(h => h.id === selectedGroup.historyId);
+          if (record) {
+            let snapshot: any = record.snapshot_data;
+            if (typeof snapshot === 'string') {
+              try { snapshot = JSON.parse(snapshot); } catch(e) { snapshot = {}; }
+            }
 
-          const budget = { ...latestBudget };
-          const realizations = [...(budget.realizations || [])];
-          const realization = { ...realizations[item.realizationIndex] };
-          
-          const currentFiles = realization.evidence_files || [];
-          const filteredFiles = currentFiles.filter((f: EvidenceFile) => f.type !== evidenceType);
-          realization.evidence_files = [...filteredFiles, newEvidence];
-          
-          realizations[item.realizationIndex] = realization;
-          budget.realizations = realizations;
-          
-          // Persist
-          onUpdate(budget.id, { realizations: budget.realizations });
+            if (snapshot.groupedRecipients && Array.isArray(snapshot.groupedRecipients)) {
+              const recipients = [...snapshot.groupedRecipients];
+              const recipientIdx = recipients.findIndex((r: any) => r.name === selectedGroup.vendor && r.amount === selectedGroup.totalAmount);
+              if (recipientIdx !== -1) {
+                const recipient = { ...recipients[recipientIdx] };
+                const currentFiles = recipient.evidence_files || [];
+                const filteredFiles = currentFiles.filter((f: EvidenceFile) => f.type !== evidenceType);
+                recipient.evidence_files = [...filteredFiles, newEvidence];
+                recipients[recipientIdx] = recipient;
+                
+                const updatedSnapshot = { ...snapshot, groupedRecipients: recipients };
+                await updateWithdrawalHistory(record.id, { snapshot_data: updatedSnapshot });
+                setHistory(prev => prev.map(h => h.id === record.id ? { ...h, snapshot_data: updatedSnapshot } : h));
+              }
+            } else if (Array.isArray(snapshot)) {
+              const recipients = [...snapshot];
+              const recipientIdx = recipients.findIndex((r: any) => r.name === selectedGroup.vendor && r.amount === selectedGroup.totalAmount);
+              if (recipientIdx !== -1) {
+                const recipient = { ...recipients[recipientIdx] };
+                const currentFiles = recipient.evidence_files || [];
+                const filteredFiles = currentFiles.filter((f: EvidenceFile) => f.type !== evidenceType);
+                recipient.evidence_files = [...filteredFiles, newEvidence];
+                recipients[recipientIdx] = recipient;
+                
+                await updateWithdrawalHistory(record.id, { snapshot_data: recipients });
+                setHistory(prev => prev.map(h => h.id === record.id ? { ...h, snapshot_data: recipients } : h));
+              }
+            }
+          }
+        } else {
+          // Update ALL items in the group (Realization mode)
+          for (const item of selectedGroup.items) {
+            const latestBudget = allBudgets.find(b => b.id === item.budgetId);
+            if (!latestBudget || !latestBudget.realizations) continue;
+
+            const budget = { ...latestBudget };
+            const realizations = [...(budget.realizations || [])];
+            const realization = { ...realizations[item.realizationIndex] };
+            
+            const currentFiles = realization.evidence_files || [];
+            const filteredFiles = currentFiles.filter((f: EvidenceFile) => f.type !== evidenceType);
+            realization.evidence_files = [...filteredFiles, newEvidence];
+            
+            realizations[item.realizationIndex] = realization;
+            budget.realizations = realizations;
+            
+            // Persist
+            onUpdate(budget.id, { realizations: budget.realizations });
+          }
         }
         
         // Update local group state to show immediate feedback
@@ -395,7 +523,7 @@ const EvidenceTemplates = ({ budgets: allBudgets, onUpdate }: EvidenceTemplatesP
     g.items.some((i: any) => i.budgetDescription.toLowerCase().includes(searchTerm.toLowerCase()))
   );
 
-  const openPrintModal = (type: string) => {
+  const openPrintModal = (type: string, group?: any) => {
       setCurrentTemplateType(type);
       // Initialize default values from profile
       const today = new Date().toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' });
@@ -411,12 +539,12 @@ const EvidenceTemplates = ({ budgets: allBudgets, onUpdate }: EvidenceTemplatesP
           schoolName: schoolProfile?.name || '',
           year: year,
           // Specific defaults
-          amount: '',
-          terbilang: '',
-          receiver: '',
+          amount: group ? group.totalAmount.toString() : '',
+          terbilang: group ? getTerbilang(group.totalAmount) : '',
+          receiver: group ? (group.vendor === 'Tanpa Toko/Vendor' ? '' : group.vendor) : '',
           receiverNip: '', 
-          description: '',
-          activityName: '',
+          description: group ? group.items.map((i: any) => i.budgetDescription).join(', ') : '',
+          activityName: group ? group.items[0].budgetDescription : '',
           projectLocation: schoolProfile?.name || '',
           contractorName: '',
           contractorAddress: '',
@@ -1604,6 +1732,29 @@ const EvidenceTemplates = ({ budgets: allBudgets, onUpdate }: EvidenceTemplatesP
           {/* Left: Budget List */}
           <div className="lg:col-span-4 space-y-4">
             <div className="bg-white p-4 rounded-xl border border-gray-200 shadow-sm">
+              <div className="flex bg-gray-100 p-1 rounded-lg mb-4">
+                <button
+                  onClick={() => setDataSource('realization')}
+                  className={`flex-1 py-1.5 text-[10px] font-bold rounded-md transition-all ${
+                    dataSource === 'realization' 
+                      ? 'bg-white text-blue-600 shadow-sm' 
+                      : 'text-gray-500 hover:text-gray-700'
+                  }`}
+                >
+                  Realisasi Langsung
+                </button>
+                <button
+                  onClick={() => setDataSource('history')}
+                  className={`flex-1 py-1.5 text-[10px] font-bold rounded-md transition-all ${
+                    dataSource === 'history' 
+                      ? 'bg-white text-blue-600 shadow-sm' 
+                      : 'text-gray-500 hover:text-gray-700'
+                  }`}
+                >
+                  Riwayat Pencairan
+                </button>
+              </div>
+
               <div className="relative mb-4">
                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={18} />
                 <input
@@ -1637,9 +1788,14 @@ const EvidenceTemplates = ({ budgets: allBudgets, onUpdate }: EvidenceTemplatesP
                       }`}
                     >
                       <div className="flex items-center justify-between mb-1">
-                        <span className="text-[10px] font-bold text-blue-600 uppercase tracking-wider">
-                          {group.vendor}
-                        </span>
+                        <div className="flex items-center gap-2">
+                            <span className="text-[10px] font-bold text-blue-600 uppercase tracking-wider">
+                              {group.vendor}
+                            </span>
+                            {(group.vendor.toLowerCase().includes('siplah') || group.items.some((i: any) => i.budgetDescription.toLowerCase().includes('siplah'))) && (
+                                <span className="bg-blue-100 text-blue-700 text-[8px] px-1.5 py-0.5 rounded font-bold uppercase">SIPLah</span>
+                            )}
+                        </div>
                         <span className="text-[10px] text-gray-400">
                           {new Date(group.date).toLocaleDateString('id-ID')}
                         </span>
@@ -1649,7 +1805,7 @@ const EvidenceTemplates = ({ budgets: allBudgets, onUpdate }: EvidenceTemplatesP
                       </div>
                       <div className="flex items-center justify-between mt-2">
                         <span className="text-[10px] text-gray-500">
-                          {group.items.length} Item Belanja
+                          {group.items.length} Item • {new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', maximumFractionDigits: 0 }).format(group.totalAmount)}
                         </span>
                         <span className="text-[10px] font-bold text-gray-400">
                           Bulan {MONTHS[group.month - 1]}
@@ -1686,15 +1842,42 @@ const EvidenceTemplates = ({ budgets: allBudgets, onUpdate }: EvidenceTemplatesP
                 </div>
 
                 <div className="p-6">
-                  <div className="mb-6 p-4 bg-blue-50 border border-blue-100 rounded-lg">
-                    <h4 className="text-xs font-bold text-blue-800 flex items-center gap-2 mb-1">
-                      <ShoppingCart size={14} /> Daftar Belanja dalam Nota:
+                  {/* Quick Document Generation */}
+                  <div className="mb-6 p-4 bg-indigo-50 border border-indigo-100 rounded-lg">
+                    <h4 className="text-xs font-bold text-indigo-800 flex items-center gap-2 mb-3">
+                      <Printer size={14} /> Buat Dokumen Pendukung (Otomatis):
                     </h4>
-                    <ul className="text-[11px] text-blue-700 list-disc list-inside">
+                    <div className="flex flex-wrap gap-2">
+                       <button onClick={() => openPrintModal('kuitansi', selectedGroup)} className="px-3 py-1.5 bg-white border border-indigo-200 text-indigo-600 rounded-lg text-[10px] font-bold hover:bg-indigo-100 transition-all flex items-center gap-1.5 shadow-sm">
+                          <Receipt size={12} /> Kuitansi
+                       </button>
+                       <button onClick={() => openPrintModal('daftar_hadir', selectedGroup)} className="px-3 py-1.5 bg-white border border-indigo-200 text-indigo-600 rounded-lg text-[10px] font-bold hover:bg-indigo-100 transition-all flex items-center gap-1.5 shadow-sm">
+                          <ClipboardList size={12} /> Daftar Hadir
+                       </button>
+                       <button onClick={() => openPrintModal('surat_tugas', selectedGroup)} className="px-3 py-1.5 bg-white border border-indigo-200 text-indigo-600 rounded-lg text-[10px] font-bold hover:bg-indigo-100 transition-all flex items-center gap-1.5 shadow-sm">
+                          <FileSignature size={12} /> Surat Tugas
+                       </button>
+                    </div>
+                    <p className="text-[9px] text-indigo-400 mt-2 italic">Data vendor, nominal, dan uraian akan terisi otomatis dari SPJ.</p>
+                  </div>
+
+                  <div className="mb-6 p-4 bg-blue-50 border border-blue-100 rounded-lg">
+                    <div className="flex justify-between items-start mb-2">
+                        <h4 className="text-xs font-bold text-blue-800 flex items-center gap-2">
+                            <ShoppingCart size={14} /> Daftar Belanja dalam Nota:
+                        </h4>
+                        <span className="text-xs font-bold text-blue-900">
+                            Total: {new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', maximumFractionDigits: 0 }).format(selectedGroup.totalAmount)}
+                        </span>
+                    </div>
+                    <div className="space-y-1">
                       {selectedGroup.items.map((item: any, idx: number) => (
-                        <li key={idx}>{item.budgetDescription}</li>
+                        <div key={idx} className="flex justify-between text-[11px] text-blue-700 border-b border-blue-100/50 pb-1 last:border-0">
+                            <span>{item.budgetDescription}</span>
+                            <span className="font-mono">{new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', maximumFractionDigits: 0 }).format(item.amount)}</span>
+                        </div>
                       ))}
-                    </ul>
+                    </div>
                   </div>
 
                   <div className="mb-6 p-4 bg-amber-50 border border-amber-100 rounded-lg">
@@ -1732,17 +1915,31 @@ const EvidenceTemplates = ({ budgets: allBudgets, onUpdate }: EvidenceTemplatesP
                             </div>
                           </div>
 
-                          <div className="flex items-center gap-2 self-end md:self-center">
+                  <div className="flex items-center gap-2 self-end md:self-center">
                             {existingFile && (
-                              <a 
-                                href={existingFile.url} 
-                                target="_blank" 
-                                rel="noopener noreferrer"
-                                className="p-2 text-gray-500 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
-                                title="Lihat File"
-                              >
-                                <Eye size={18} />
-                              </a>
+                              <>
+                                <a 
+                                  href={existingFile.url} 
+                                  target="_blank" 
+                                  rel="noopener noreferrer"
+                                  className="p-2 text-gray-500 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
+                                  title="Lihat File"
+                                >
+                                  <Eye size={18} />
+                                </a>
+                                <button 
+                                  onClick={() => {
+                                      const win = window.open(existingFile.url, '_blank');
+                                      if (win) {
+                                          win.onload = () => win.print();
+                                      }
+                                  }}
+                                  className="p-2 text-gray-500 hover:text-teal-600 hover:bg-teal-50 rounded-lg transition-colors"
+                                  title="Cetak File"
+                                >
+                                  <Printer size={18} />
+                                </button>
+                              </>
                             )}
                             
                             <label className={`flex items-center gap-2 px-4 py-2 rounded-lg text-xs font-medium cursor-pointer transition-all ${
