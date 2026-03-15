@@ -10,7 +10,8 @@ import Settings from './components/Settings';
 import ChatAssistant from './components/ChatAssistant';
 import RaporPendidikan from './components/RaporPendidikan';
 import BankWithdrawal from './components/BankWithdrawal';
-import EvidenceTemplates from './components/EvidenceTemplates'; // Import new component
+import EvidenceTemplates from './components/EvidenceTemplates';
+import InventoryReports from './components/InventoryReports'; // Import new component
 import Auth from './components/Auth';
 import { getBudgets, addBudget, updateBudget, deleteBudget, getSchoolProfile, checkDatabaseConnection, clearLocalData } from './lib/db';
 import { supabase } from './lib/supabase'; // Import supabase client
@@ -27,10 +28,10 @@ function App() {
   const [isStandalone, setIsStandalone] = useState(false);
 
   // App State - Initialize from LocalStorage to persist state on reload
-  const [activeTab, setActiveTab] = useState<'dashboard' | 'income' | 'planning' | 'spj' | 'reports' | 'rapor' | 'settings' | 'withdrawal' | 'evidence'>(() => {
+  const [activeTab, setActiveTab] = useState<'dashboard' | 'income' | 'planning' | 'spj' | 'reports' | 'rapor' | 'settings' | 'withdrawal' | 'evidence' | 'inventory'>(() => {
       const savedTab = localStorage.getItem('rkas_active_tab');
       // Validate if saved tab is valid, otherwise default to dashboard
-      const validTabs = ['dashboard', 'income', 'planning', 'spj', 'reports', 'rapor', 'settings', 'withdrawal', 'evidence'];
+      const validTabs = ['dashboard', 'income', 'planning', 'spj', 'reports', 'rapor', 'settings', 'withdrawal', 'evidence', 'inventory'];
       return (savedTab && validTabs.includes(savedTab)) ? (savedTab as any) : 'dashboard';
   });
 
@@ -280,6 +281,7 @@ function App() {
             <NavItem id="withdrawal" label="Pencairan Bank" icon={Landmark} />
             <NavItem id="spj" label="Peng-SPJ-an" icon={FileCheck} />
             <NavItem id="evidence" label="Bukti Fisik" icon={FileText} />
+            <NavItem id="inventory" label="Stok Opname" icon={ShoppingBag} />
             <NavItem id="reports" label="Laporan" icon={FileBarChart} />
           </div>
           
@@ -405,6 +407,9 @@ function App() {
                 )}
                 {activeTab === 'reports' && (
                   <Reports data={data} />
+                )}
+                {activeTab === 'inventory' && (
+                  <InventoryReports budgets={data} />
                 )}
                 {activeTab === 'settings' && (
                   <Settings 
