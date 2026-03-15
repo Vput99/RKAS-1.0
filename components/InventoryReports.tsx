@@ -1,4 +1,4 @@
-import * as React from 'react';
+import React, { useState, useEffect, useMemo, Fragment } from 'react';
 import { ShoppingBag, FileText, ClipboardList, RefreshCw, Calendar, ArrowRightLeft, Package, Download, Printer, Sparkles, Loader2 } from 'lucide-react';
 import { Budget } from '../types';
 import { analyzeInventoryItems, InventoryItem } from '../lib/gemini';
@@ -9,12 +9,12 @@ interface InventoryReportsProps {
 }
 
 const InventoryReports = ({ budgets }: InventoryReportsProps) => {
-  const [activeReport, setActiveReport] = React.useState<string>('pengadaan');
-  const [inventoryItems, setInventoryItems] = React.useState<InventoryItem[]>([]);
-  const [isAnalyzing, setIsAnalyzing] = React.useState(false);
-  const [schoolProfile, setSchoolProfile] = React.useState<any>(null);
+  const [activeReport, setActiveReport] = useState<string>('pengadaan');
+  const [inventoryItems, setInventoryItems] = useState<InventoryItem[]>([]);
+  const [isAnalyzing, setIsAnalyzing] = useState(false);
+  const [schoolProfile, setSchoolProfile] = useState<any>(null);
 
-  React.useEffect(() => {
+  useEffect(() => {
     getSchoolProfile().then(setSchoolProfile);
   }, []);
 
@@ -35,7 +35,17 @@ const InventoryReports = ({ budgets }: InventoryReportsProps) => {
     return new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', maximumFractionDigits: 0 }).format(num);
   };
 
-  const groupedItems = React.useMemo(() => {
+  const formatDate = (dateStr: string) => {
+    try {
+      const d = new Date(dateStr);
+      if (isNaN(d.getTime())) return dateStr || '-';
+      return d.toLocaleDateString('id-ID');
+    } catch (e) {
+      return dateStr || '-';
+    }
+  };
+
+  const groupedItems = useMemo(() => {
     const groups: Record<string, InventoryItem[]> = {
       'ATK': [],
       'Kebersihan': [],
@@ -45,6 +55,7 @@ const InventoryReports = ({ budgets }: InventoryReportsProps) => {
       'Lainnya': []
     };
     inventoryItems.forEach((item: InventoryItem) => {
+      if (!item) return;
       if (groups[item.category]) {
         groups[item.category].push(item);
       } else {
@@ -109,9 +120,14 @@ const InventoryReports = ({ budgets }: InventoryReportsProps) => {
                 : 'bg-white border-gray-100 hover:border-blue-200 hover:shadow-sm'
             }`}
           >
-            <div className={`p-3 rounded-xl bg-${report.color}-50 text-${report.color}-600`}>
-              <report.icon size={24} />
-            </div>
+            {(() => {
+              const Icon = report.icon;
+              return (
+                <div className={`p-3 rounded-xl bg-${report.color}-50 text-${report.color}-600`}>
+                  <Icon size={24} />
+                </div>
+              );
+            })()}
             <div className="flex-1">
               <div className="flex justify-between items-start">
                 <div>
@@ -223,7 +239,7 @@ const InventoryReports = ({ budgets }: InventoryReportsProps) => {
                       const categoryTotal = items.reduce((sum, item) => sum + item.total, 0);
                       
                       return (
-                        <React.Fragment key={category}>
+                        <Fragment key={category}>
                           {/* Category Header Row */}
                           <tr className="bg-blue-50/50 font-bold">
                             <td colSpan={6} className="border border-gray-300 p-2 text-blue-800 uppercase italic">
@@ -251,13 +267,13 @@ const InventoryReports = ({ budgets }: InventoryReportsProps) => {
                               <td className="border border-gray-300 p-2 text-[8px] text-center font-mono">{item.subActivityCode || '0.00.01'}</td>
                               <td className="border border-gray-300 p-2 text-[8px] leading-tight">{item.subActivityName || 'Administrasi Sekolah'}</td>
                               <td className="border border-gray-300 p-2 text-[8px] text-center font-mono">{item.accountCode}</td>
-                              <td className="border border-gray-300 p-2 text-center text-[8px]">{new Date(item.date).toLocaleDateString('id-ID')}</td>
+                              <td className="border border-gray-300 p-2 text-center text-[8px]">{formatDate(item.date)}</td>
                               <td className="border border-gray-300 p-2 text-center text-[8px]">{item.contractType || 'Kuitansi'}</td>
                               <td className="border border-gray-300 p-2 text-[8px] italic">{item.vendor}</td>
                               <td className="border border-gray-300 p-2 text-[8px] font-mono whitespace-nowrap overflow-hidden text-ellipsis max-w-[80px]">{item.docNumber}</td>
                             </tr>
                           ))}
-                        </React.Fragment>
+                        </Fragment>
                       );
                     })}
                   </tbody>
