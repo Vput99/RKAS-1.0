@@ -425,13 +425,12 @@ const EvidenceTemplates = ({ budgets: allBudgets, onUpdate }: EvidenceTemplatesP
     handleProcessAi(group);
   };
 
-   const handleFileUpload = async (evidenceType: string, file: File) => {
+  const handleFileUpload = async (evidenceType: string, file: File) => {
     if (!selectedGroup) return;
 
     setUploadProgress(prev => ({ ...prev, [evidenceType]: true }));
     
     try {
-      // Upload once - use a dummy ID if it's history, but ideally we should use a real budget ID if available
       const budgetId = selectedGroup.isHistory ? 'history' : selectedGroup.items[0].budgetId;
       const result = await uploadEvidenceFile(file, budgetId);
       
@@ -444,7 +443,6 @@ const EvidenceTemplates = ({ budgets: allBudgets, onUpdate }: EvidenceTemplatesP
         };
 
         if (selectedGroup.isHistory) {
-          // Update History Record
           const record = history.find(h => h.id === selectedGroup.historyId);
           if (record) {
             let snapshot: any = record.snapshot_data;
@@ -458,8 +456,7 @@ const EvidenceTemplates = ({ budgets: allBudgets, onUpdate }: EvidenceTemplatesP
               if (recipientIdx !== -1) {
                 const recipient = { ...recipients[recipientIdx] };
                 const currentFiles = recipient.evidence_files || [];
-                const filteredFiles = currentFiles.filter((f: EvidenceFile) => f.type !== evidenceType);
-                recipient.evidence_files = [...filteredFiles, newEvidence];
+                recipient.evidence_files = [...currentFiles, newEvidence];
                 recipients[recipientIdx] = recipient;
                 
                 const updatedSnapshot = { ...snapshot, groupedRecipients: recipients };
@@ -472,8 +469,7 @@ const EvidenceTemplates = ({ budgets: allBudgets, onUpdate }: EvidenceTemplatesP
               if (recipientIdx !== -1) {
                 const recipient = { ...recipients[recipientIdx] };
                 const currentFiles = recipient.evidence_files || [];
-                const filteredFiles = currentFiles.filter((f: EvidenceFile) => f.type !== evidenceType);
-                recipient.evidence_files = [...filteredFiles, newEvidence];
+                recipient.evidence_files = [...currentFiles, newEvidence];
                 recipients[recipientIdx] = recipient;
                 
                 await updateWithdrawalHistory(record.id, { snapshot_data: recipients });
@@ -482,7 +478,6 @@ const EvidenceTemplates = ({ budgets: allBudgets, onUpdate }: EvidenceTemplatesP
             }
           }
         } else {
-          // Update ALL items in the group (Realization mode)
           for (const item of selectedGroup.items) {
             const latestBudget = allBudgets.find(b => b.id === item.budgetId);
             if (!latestBudget || !latestBudget.realizations) continue;
@@ -492,22 +487,18 @@ const EvidenceTemplates = ({ budgets: allBudgets, onUpdate }: EvidenceTemplatesP
             const realization = { ...realizations[item.realizationIndex] };
             
             const currentFiles = realization.evidence_files || [];
-            const filteredFiles = currentFiles.filter((f: EvidenceFile) => f.type !== evidenceType);
-            realization.evidence_files = [...filteredFiles, newEvidence];
+            realization.evidence_files = [...currentFiles, newEvidence];
             
             realizations[item.realizationIndex] = realization;
             budget.realizations = realizations;
             
-            // Persist
             onUpdate(budget.id, { realizations: budget.realizations });
           }
         }
         
-        // Update local group state to show immediate feedback
         setSelectedGroup((prev: any) => {
           if (!prev) return null;
-          const filtered = prev.evidence_files.filter((f: any) => f.type !== evidenceType);
-          return { ...prev, evidence_files: [...filtered, newEvidence] };
+          return { ...prev, evidence_files: [...prev.evidence_files, newEvidence] };
         });
       }
     } catch (error) {
@@ -515,6 +506,73 @@ const EvidenceTemplates = ({ budgets: allBudgets, onUpdate }: EvidenceTemplatesP
       alert("Gagal mengunggah file.");
     } finally {
       setUploadProgress(prev => ({ ...prev, [evidenceType]: false }));
+    }
+  };
+
+  const handleDeleteFile = async (evidenceType: string, filePath: string) => {
+    if (!selectedGroup) return;
+
+    if (!confirm('Apakah Anda yakin ingin menghapus file ini?')) return;
+
+    try {
+      if (selectedGroup.isHistory) {
+        const record = history.find(h => h.id === selectedGroup.historyId);
+        if (record) {
+          let snapshot: any = record.snapshot_data;
+          if (typeof snapshot === 'string') {
+            try { snapshot = JSON.parse(snapshot); } catch(e) { snapshot = {}; }
+          }
+
+          if (snapshot.groupedRecipients && Array.isArray(snapshot.groupedRecipients)) {
+            const recipients = [...snapshot.groupedRecipients];
+            const recipientIdx = recipients.findIndex((r: any) => r.name === selectedGroup.vendor && r.amount === selectedGroup.totalAmount);
+            if (recipientIdx !== -1) {
+              const recipient = { ...recipients[recipientIdx] };
+              recipient.evidence_files = (recipient.evidence_files || []).filter((f: EvidenceFile) => f.path !== filePath);
+              recipients[recipientIdx] = recipient;
+              
+              const updatedSnapshot = { ...snapshot, groupedRecipients: recipients };
+              await updateWithdrawalHistory(record.id, { snapshot_data: updatedSnapshot });
+              setHistory(prev => prev.map(h => h.id === record.id ? { ...h, snapshot_data: updatedSnapshot } : h));
+            }
+          } else if (Array.isArray(snapshot)) {
+            const recipients = [...snapshot];
+            const recipientIdx = recipients.findIndex((r: any) => r.name === selectedGroup.vendor && r.amount === selectedGroup.totalAmount);
+            if (recipientIdx !== -1) {
+              const recipient = { ...recipients[recipientIdx] };
+              recipient.evidence_files = (recipient.evidence_files || []).filter((f: EvidenceFile) => f.path !== filePath);
+              recipients[recipientIdx] = recipient;
+              
+              await updateWithdrawalHistory(record.id, { snapshot_data: recipients });
+              setHistory(prev => prev.map(h => h.id === record.id ? { ...h, snapshot_data: recipients } : h));
+            }
+          }
+        }
+      } else {
+        for (const item of selectedGroup.items) {
+          const latestBudget = allBudgets.find(b => b.id === item.budgetId);
+          if (!latestBudget || !latestBudget.realizations) continue;
+
+          const budget = { ...latestBudget };
+          const realizations = [...(budget.realizations || [])];
+          const realization = { ...realizations[item.realizationIndex] };
+          
+          realization.evidence_files = (realization.evidence_files || []).filter((f: EvidenceFile) => f.path !== filePath);
+          
+          realizations[item.realizationIndex] = realization;
+          budget.realizations = realizations;
+          
+          onUpdate(budget.id, { realizations: budget.realizations });
+        }
+      }
+      
+      setSelectedGroup((prev: any) => {
+        if (!prev) return null;
+        return { ...prev, evidence_files: (prev.evidence_files || []).filter((f: EvidenceFile) => f.path !== filePath) };
+      });
+    } catch (error) {
+      console.error("Delete failed:", error);
+      alert("Gagal menghapus file.");
     }
   };
 
@@ -1891,63 +1949,34 @@ const EvidenceTemplates = ({ budgets: allBudgets, onUpdate }: EvidenceTemplatesP
 
                   <div className="space-y-4">
                     {suggestedEvidence.map((evidence, idx) => {
-                      const existingFile = selectedGroup.evidence_files?.find((f: any) => f.type === evidence);
+                      const files = (selectedGroup.evidence_files || []).filter((f: any) => f.type === evidence);
                       const isUploading = uploadProgress[evidence];
 
                       return (
-                        <div key={idx} className="flex flex-col md:flex-row md:items-center justify-between gap-4 p-4 rounded-xl border border-gray-100 bg-gray-50/50 hover:bg-white hover:border-blue-200 transition-all">
-                          <div className="flex items-start gap-3">
-                            <div className={`mt-0.5 p-1.5 rounded-lg ${existingFile ? 'bg-green-100 text-green-600' : 'bg-gray-100 text-gray-400'}`}>
-                              {existingFile ? <CheckCircle2 size={16} /> : <FileText size={16} />}
+                        <div key={idx} className="p-4 rounded-xl border border-gray-100 bg-gray-50/50 hover:bg-white hover:border-blue-200 transition-all">
+                          <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+                            <div className="flex items-start gap-3">
+                              <div className={`mt-0.5 p-1.5 rounded-lg ${files.length > 0 ? 'bg-green-100 text-green-600' : 'bg-gray-100 text-gray-400'}`}>
+                                {files.length > 0 ? <CheckCircle2 size={16} /> : <FileText size={16} />}
+                              </div>
+                              <div>
+                                <div className="text-sm font-bold text-gray-700">{evidence}</div>
+                                {files.length > 0 ? (
+                                  <div className="flex items-center gap-2 mt-1">
+                                    <span className="text-[10px] text-green-600 font-bold flex items-center gap-1">
+                                      <CheckCircle2 size={10} /> {files.length} File Terunggah
+                                    </span>
+                                  </div>
+                                ) : (
+                                  <div className="text-[10px] text-gray-400 mt-1 italic">Belum ada file</div>
+                                )}
+                              </div>
                             </div>
-                            <div>
-                              <div className="text-sm font-medium text-gray-700">{evidence}</div>
-                              {existingFile ? (
-                                <div className="flex items-center gap-2 mt-1">
-                                  <span className="text-[10px] text-green-600 font-medium flex items-center gap-1">
-                                    <CheckCircle2 size={10} /> Terunggah
-                                  </span>
-                                  <span className="text-[10px] text-gray-400 truncate max-w-[150px]">{existingFile.name}</span>
-                                </div>
-                              ) : (
-                                <div className="text-[10px] text-gray-400 mt-1 italic">Belum ada file</div>
-                              )}
-                            </div>
-                          </div>
 
-                  <div className="flex items-center gap-2 self-end md:self-center">
-                            {existingFile && (
-                              <>
-                                <a 
-                                  href={existingFile.url} 
-                                  target="_blank" 
-                                  rel="noopener noreferrer"
-                                  className="p-2 text-gray-500 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
-                                  title="Lihat File"
-                                >
-                                  <Eye size={18} />
-                                </a>
-                                <button 
-                                  onClick={() => {
-                                      const win = window.open(existingFile.url, '_blank');
-                                      if (win) {
-                                          win.onload = () => win.print();
-                                      }
-                                  }}
-                                  className="p-2 text-gray-500 hover:text-teal-600 hover:bg-teal-50 rounded-lg transition-colors"
-                                  title="Cetak File"
-                                >
-                                  <Printer size={18} />
-                                </button>
-                              </>
-                            )}
-                            
-                            <label className={`flex items-center gap-2 px-4 py-2 rounded-lg text-xs font-medium cursor-pointer transition-all ${
+                            <label className={`flex items-center gap-2 px-4 py-2 rounded-lg text-xs font-bold cursor-pointer transition-all w-fit self-end md:self-center ${
                               isUploading 
                                 ? 'bg-gray-100 text-gray-400 cursor-not-allowed' 
-                                : existingFile 
-                                  ? 'bg-white border border-gray-200 text-gray-600 hover:border-blue-300 hover:text-blue-600'
-                                  : 'bg-blue-600 text-white hover:bg-blue-700 shadow-sm'
+                                : 'bg-blue-600 text-white hover:bg-blue-700 shadow-sm'
                             }`}>
                               {isUploading ? (
                                 <>
@@ -1957,7 +1986,7 @@ const EvidenceTemplates = ({ budgets: allBudgets, onUpdate }: EvidenceTemplatesP
                               ) : (
                                 <>
                                   <Upload size={14} />
-                                  {existingFile ? 'Ganti File' : 'Upload Bukti'}
+                                  Upload Bukti
                                 </>
                               )}
                               <input 
@@ -1973,6 +2002,50 @@ const EvidenceTemplates = ({ budgets: allBudgets, onUpdate }: EvidenceTemplatesP
                               />
                             </label>
                           </div>
+
+                          {/* File List for this type */}
+                          {files.length > 0 && (
+                            <div className="mt-3 grid grid-cols-1 sm:grid-cols-2 gap-2 pl-10">
+                              {files.map((file: any, fIdx: number) => (
+                                <div key={fIdx} className="flex items-center justify-between p-2 bg-white border border-gray-100 rounded-lg group/file">
+                                  <div className="flex items-center gap-2 min-w-0">
+                                    <FileText size={14} className="text-blue-500 shrink-0" />
+                                    <span className="text-[10px] text-gray-600 truncate">{file.name}</span>
+                                  </div>
+                                  <div className="flex items-center gap-1 opacity-0 group-hover/file:opacity-100 transition-opacity">
+                                    <a 
+                                      href={file.url} 
+                                      target="_blank" 
+                                      rel="noopener noreferrer"
+                                      className="p-1 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded"
+                                      title="Lihat File"
+                                    >
+                                      <Eye size={14} />
+                                    </a>
+                                    <button 
+                                      onClick={() => {
+                                          const win = window.open(file.url, '_blank');
+                                          if (win) {
+                                              win.onload = () => win.print();
+                                          }
+                                      }}
+                                      className="p-1 text-gray-400 hover:text-teal-600 hover:bg-teal-50 rounded"
+                                      title="Cetak File"
+                                    >
+                                      <Printer size={14} />
+                                    </button>
+                                    <button 
+                                      onClick={() => handleDeleteFile(evidence, file.path)}
+                                      className="p-1 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded"
+                                      title="Hapus File"
+                                    >
+                                      <Trash2 size={14} />
+                                    </button>
+                                  </div>
+                                </div>
+                              ))}
+                            </div>
+                          )}
                         </div>
                       );
                     })}
