@@ -145,6 +145,7 @@ const SPJRealization: React.FC<SPJRealizationProps> = ({ data, onUpdate }) => {
   const [batchQuantities, setBatchQuantities] = useState<Record<string, number>>({}); // New Batch Quantities
   const [formDate, setFormDate] = useState<string>('');
   const [existingFileName, setExistingFileName] = useState<string>('');
+  const [formEvidenceFiles, setFormEvidenceFiles] = useState<EvidenceFile[]>([]);
 
   // Checklist State
   const [evidenceItems, setEvidenceItems] = useState<string[]>([]);
@@ -265,6 +266,7 @@ const SPJRealization: React.FC<SPJRealizationProps> = ({ data, onUpdate }) => {
     setFormDate(`2026-${viewMonth.toString().padStart(2, '0')}-${lastDay}`);
     setFormVendor('');
     setExistingFileName('');
+    setFormEvidenceFiles([]);
     setCheckedEvidence([]);
 
     // Initialize amounts & quantities for all selected items
@@ -322,6 +324,7 @@ const SPJRealization: React.FC<SPJRealizationProps> = ({ data, onUpdate }) => {
 
     // Reset Checklist whenever changing month
     setCheckedEvidence([]);
+    setFormEvidenceFiles([]);
 
     if (monthlyRealizations.length > 0) {
       // If there are existing ones, we can either edit the first one or start a new one
@@ -335,7 +338,15 @@ const SPJRealization: React.FC<SPJRealizationProps> = ({ data, onUpdate }) => {
       setFormTargetMonth(first.target_month ?? null);
       setFormDate(first.date.split('T')[0]);
       setExistingFileName(first.evidence_file || '');
+      setFormEvidenceFiles(first.evidence_files || []);
       setEditingRealizationIndex(item.realizations?.indexOf(first) ?? -1);
+      
+      // Update checked evidence based on files and manual checks
+      const checked = new Set<string>();
+      if (first.evidence_files) {
+        first.evidence_files.forEach(f => checked.add(f.type));
+      }
+      setCheckedEvidence(Array.from(checked));
     } else {
       // SUGGESTION LOGIC: Suggest Monthly Allocation
       const monthlyAlloc = calculateMonthlyAllocation(item, month);
@@ -353,6 +364,7 @@ const SPJRealization: React.FC<SPJRealizationProps> = ({ data, onUpdate }) => {
       const lastDay = new Date(2026, month, 0).getDate();
       setFormDate(`2026-${month.toString().padStart(2, '0')}-${lastDay}`);
       setExistingFileName('');
+      setFormEvidenceFiles([]);
     }
   };
 
@@ -389,6 +401,24 @@ const SPJRealization: React.FC<SPJRealizationProps> = ({ data, onUpdate }) => {
     );
   };
 
+  const addEvidenceFile = (type: string) => {
+    const fileName = `${type.replace(/\s+/g, '_')}_${Date.now()}.pdf`;
+    const newFile: EvidenceFile = {
+      type,
+      name: fileName,
+      url: '#', // Placeholder
+      path: `evidence/${fileName}`
+    };
+    setFormEvidenceFiles(prev => [...prev, newFile]);
+    if (!checkedEvidence.includes(type)) {
+      setCheckedEvidence(prev => [...prev, type]);
+    }
+  };
+
+  const removeEvidenceFile = (index: number) => {
+    setFormEvidenceFiles(prev => prev.filter((_, i) => i !== index));
+  };
+
   const toggleRowSelection = (id: string) => {
     setSelectedBatchIds(prev =>
       prev.includes(id) ? prev.filter(i => i !== id) : [...prev, id]
@@ -416,6 +446,7 @@ const SPJRealization: React.FC<SPJRealizationProps> = ({ data, onUpdate }) => {
           vendor: formVendor,
           vendor_account: formVendorAccount,
           evidence_file: existingFileName || 'Nota Kolektif',
+          evidence_files: formEvidenceFiles,
           notes: formNotes
         };
 
@@ -437,6 +468,7 @@ const SPJRealization: React.FC<SPJRealizationProps> = ({ data, onUpdate }) => {
         vendor: formVendor,
         vendor_account: formVendorAccount,
         evidence_file: existingFileName || 'Nota',
+        evidence_files: formEvidenceFiles,
         notes: formNotes
       };
 
@@ -1104,22 +1136,69 @@ const SPJRealization: React.FC<SPJRealizationProps> = ({ data, onUpdate }) => {
                       <span className="text-xs text-gray-600">Pastikan belanja barang/modal menggunakan <b>SIPLah</b>.</span>
                     </div>
 
-                    <div className="space-y-2">
+                    <div className="space-y-3">
                       {evidenceItems.map((item, idx) => {
                         const isChecked = checkedEvidence.includes(item);
+                        const files = formEvidenceFiles.filter(f => f.type === item);
+                        
                         return (
                           <div
                             key={idx}
-                            onClick={() => toggleEvidence(item)}
-                            className={`flex items-start gap-3 p-2 rounded-lg cursor-pointer transition select-none ${isChecked ? 'bg-yellow-100/50' : 'hover:bg-white/50'
-                              }`}
+                            className={`p-3 rounded-xl border transition-all ${
+                              isChecked 
+                                ? 'bg-white border-yellow-200 shadow-sm' 
+                                : 'bg-yellow-50/50 border-transparent hover:border-yellow-100'
+                            }`}
                           >
-                            <div className={`mt-0.5 flex-shrink-0 text-yellow-600`}>
-                              {isChecked ? <CheckSquare size={18} /> : <Square size={18} />}
+                            <div className="flex items-start gap-3">
+                              <div 
+                                onClick={() => toggleEvidence(item)}
+                                className="mt-0.5 flex-shrink-0 text-yellow-600 cursor-pointer"
+                              >
+                                {isChecked ? <CheckSquare size={20} /> : <Square size={20} />}
+                              </div>
+                              <div className="flex-1">
+                                <div 
+                                  onClick={() => toggleEvidence(item)}
+                                  className={`text-xs font-bold transition cursor-pointer ${isChecked ? 'text-gray-800' : 'text-gray-500'}`}
+                                >
+                                  {item}
+                                </div>
+                                
+                                {isChecked && (
+                                  <div className="mt-2 space-y-2">
+                                    {/* List of files for this type */}
+                                    {files.length > 0 && (
+                                      <div className="flex flex-wrap gap-2">
+                                        {files.map((file, fIdx) => (
+                                          <div key={fIdx} className="inline-flex items-center gap-1.5 px-2 py-1 bg-blue-50 text-blue-700 rounded-lg text-[10px] border border-blue-100">
+                                            <Paperclip size={12} />
+                                            <span className="max-w-[120px] truncate">{file.name}</span>
+                                            <button 
+                                              type="button"
+                                              onClick={() => removeEvidenceFile(formEvidenceFiles.indexOf(file))}
+                                              className="text-red-400 hover:text-red-600 ml-1"
+                                            >
+                                              <X size={12} />
+                                            </button>
+                                          </div>
+                                        ))}
+                                      </div>
+                                    )}
+                                    
+                                    {/* Upload Button */}
+                                    <button
+                                      type="button"
+                                      onClick={() => addEvidenceFile(item)}
+                                      className="flex items-center gap-2 px-3 py-1.5 bg-blue-600 text-white rounded-lg text-[10px] font-bold hover:bg-blue-700 transition shadow-sm w-fit"
+                                    >
+                                      <Paperclip size={12} />
+                                      Upload Bukti Fisik
+                                    </button>
+                                  </div>
+                                )}
+                              </div>
                             </div>
-                            <span className={`text-xs ${isChecked ? 'text-gray-600 line-through' : 'text-gray-800'}`}>
-                              {item}
-                            </span>
                           </div>
                         )
                       })}
