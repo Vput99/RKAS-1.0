@@ -550,21 +550,21 @@ export const analyzeInventoryItems = async (budgets: any[]): Promise<InventoryIt
   
   Task: Analisis data pengeluaran berikut dan uraikan menjadi item-item persediaan untuk "Laporan Pengadaan BMD".
   
-  Kategori yang tersedia: 
-  - ATK: Alat Tulis Kantor (Kertas, Pena, Map, Buku, dll)
-  - Kebersihan: Bahan/Alat Kebersihan (Sapu, Pel, Sabun, Cairan Pembersih)
-  - Meterai: Bendapos dan Meterai
-  - Komputer: Peralatan/Bahan Komputer (Mouse, Keyboard, Tinta, Toner)
-  - Listrik: Peralatan/Alat Listrik (Lampu, Kabel, Baterai, Saklar)
-  - Lainnya: Bahan Habis Pakai lainnya
+  Reference Classification (PMDN 108/2016):
+  - ATK: Alat tulis kantor (bolpoint, pensil, spidol, stabilo, tinta stempel, penghapus, buku tulis, odner, map, penggaris, cutter, isi staples, staples, kalkulator, gunting), Kertas dan cover (kertas HVS, bergaris, kuarto, foto, CD, post-it).
+  - Kebersihan: Bahan/alat kebersihan (sapu, sikat, alat pel, lap, ember, keset, tempat sampah, kran, semprotan, pengharum ruangan, sabun, cairan pembersih, alat makan & minum).
+  - Meterai: Benda pos dan meterai (perangko, meterai).
+  - Komputer: Peralatan/bahan komputer (tinta toner, flash disk, kartu memori, CD, mouse, cartridge).
+  - Listrik: Peralatan/alat listrik (kabel, lampu, saklar, fitting, baterai).
+  - Lainnya: Bahan bangunan (aspal, semen, kaca, cat, dll), Bahan kimia, Bahan bakar/pelumas, Bahan baku (kawat, kayu), Bibit tanaman/ternak, Suku cadang alat (angkutan, besar, dll), Obat-obatan, Perlengkapan olahraga, Souvenir/cendera mata.
   
   Input Data: ${JSON.stringify(dataToAnalyze)}
   
   Instruksi:
-  1. Identifikasi nama barang dan spesifikasi dari deskripsi.
-  2. Gunakan quantity dan unit yang masuk akal.
-  3. Kelompokkan ke salah satu dari 6 kategori di atas.
-  4. Jika satu pengeluaran berisi banyak item (misal "Beli ATK"), pecah menjadi beberapa item yang realistis.
+  1. Identifikasi nama barang dan spesifikasi detail dari deskripsi/notes.
+  2. Gunakan quantity dan unit yang masuk akal berdasarkan item tersebut.
+  3. Kelompokkan ke salah satu dari 6 kategori di atas berdasarkan referensi PMDN 108/2016.
+  4. Jika satu pengeluaran berisi gabungan item (misal "Beli ATK"), pecah menjadi item-item individu yang realistis.
   
   Output JSON format: Array of InventoryItem objects.`;
 
