@@ -1,5 +1,5 @@
-import React, { useState, useMemo, useEffect } from 'react';
-import { ShoppingBag, FileText, ClipboardList, RefreshCw, Calendar, ArrowRightLeft, Package, Download, Printer, Sparkles, AlertCircle, Loader2 } from 'lucide-react';
+import * as React from 'react';
+import { ShoppingBag, FileText, ClipboardList, RefreshCw, Calendar, ArrowRightLeft, Package, Download, Printer, Sparkles, Loader2 } from 'lucide-react';
 import { Budget } from '../types';
 import { analyzeInventoryItems, InventoryItem } from '../lib/gemini';
 import { getSchoolProfile } from '../lib/db';
@@ -8,13 +8,13 @@ interface InventoryReportsProps {
   budgets: Budget[];
 }
 
-const InventoryReports: React.FC<InventoryReportsProps> = ({ budgets }) => {
-  const [activeReport, setActiveReport] = useState<string>('pengadaan');
-  const [inventoryItems, setInventoryItems] = useState<InventoryItem[]>([]);
-  const [isAnalyzing, setIsAnalyzing] = useState(false);
-  const [schoolProfile, setSchoolProfile] = useState<any>(null);
+const InventoryReports = ({ budgets }: InventoryReportsProps) => {
+  const [activeReport, setActiveReport] = React.useState<string>('pengadaan');
+  const [inventoryItems, setInventoryItems] = React.useState<InventoryItem[]>([]);
+  const [isAnalyzing, setIsAnalyzing] = React.useState(false);
+  const [schoolProfile, setSchoolProfile] = React.useState<any>(null);
 
-  useEffect(() => {
+  React.useEffect(() => {
     getSchoolProfile().then(setSchoolProfile);
   }, []);
 
@@ -35,7 +35,7 @@ const InventoryReports: React.FC<InventoryReportsProps> = ({ budgets }) => {
     return new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', maximumFractionDigits: 0 }).format(num);
   };
 
-  const groupedItems = useMemo(() => {
+  const groupedItems = React.useMemo(() => {
     const groups: Record<string, InventoryItem[]> = {
       'ATK': [],
       'Kebersihan': [],
@@ -44,7 +44,7 @@ const InventoryReports: React.FC<InventoryReportsProps> = ({ budgets }) => {
       'Listrik': [],
       'Lainnya': []
     };
-    inventoryItems.forEach(item => {
+    inventoryItems.forEach((item: InventoryItem) => {
       if (groups[item.category]) {
         groups[item.category].push(item);
       } else {
@@ -218,7 +218,7 @@ const InventoryReports: React.FC<InventoryReportsProps> = ({ budgets }) => {
                     </tr>
                   </thead>
                   <tbody>
-                    {Object.entries(groupedItems).map(([category, items]) => {
+                    {(Object.entries(groupedItems) as [string, InventoryItem[]][]).map(([category, items]) => {
                       if (items.length === 0) return null;
                       const categoryTotal = items.reduce((sum, item) => sum + item.total, 0);
                       
@@ -239,7 +239,7 @@ const InventoryReports: React.FC<InventoryReportsProps> = ({ budgets }) => {
                           </tr>
 
                           {/* Item Rows */}
-                          {items.map((item, idx) => (
+                          {items.map((item: InventoryItem, idx) => (
                             <tr key={`${category}-${idx}`} className="hover:bg-gray-50 group">
                               <td className="border border-gray-300 p-2 text-center text-gray-400">{idx + 1}</td>
                               <td className="border border-gray-300 p-2 font-medium">{item.name}</td>

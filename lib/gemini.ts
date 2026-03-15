@@ -13,7 +13,9 @@ const getEnv = (key: string) => {
   } catch (e) { }
 
   try {
+    // @ts-ignore
     if (typeof process !== 'undefined' && process.env && process.env[key]) {
+      // @ts-ignore
       return process.env[key];
     }
   } catch (e) { }
