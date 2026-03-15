@@ -500,3 +500,111 @@ export const analyzeRaporPDF = async (pdfBase64: string, targetYear: string): Pr
     return { success: false, error: `${errorMessage} Detail: ${error.message}` };
   }
 };
+
+export interface InventoryItem {
+  no: number;
+  name: string;
+  spec: string;
+  quantity: number;
+  unit: string;
+  price: number;
+  total: number;
+  subActivityCode: string;
+  subActivityName: string;
+  accountCode: string;
+  date: string;
+  contractType: string;
+  vendor: string;
+  docNumber: string;
+  category: 'ATK' | 'Kebersihan' | 'Meterai' | 'Komputer' | 'Listrik' | 'Lainnya';
+}
+
+export const analyzeInventoryItems = async (budgets: any[]): Promise<InventoryItem[]> => {
+  if (!ai) return [];
+
+  // Filter only relevant budgets (expenses with realizations)
+  const relevantBudgets = budgets.filter(b => 
+    b.type === 'belanja' && 
+    b.realizations && b.realizations.length > 0 &&
+    (b.account_code?.startsWith('5.1.01') || b.account_code?.startsWith('5.1.02.01') || b.account_code?.startsWith('5.2.02'))
+  );
+
+  if (relevantBudgets.length === 0) return [];
+
+  const dataToAnalyze = relevantBudgets.map(b => ({
+    id: b.id,
+    description: b.description,
+    account_code: b.account_code,
+    realizations: b.realizations.map((r: any) => ({
+      amount: r.amount,
+      quantity: r.quantity,
+      date: r.date,
+      vendor: r.vendor,
+      notes: r.notes
+    }))
+  }));
+
+  const prompt = `Role: Logistik & Pengadaan Aset Sekolah (Indonesia).
+  
+  Task: Analisis data pengeluaran berikut dan uraikan menjadi item-item persediaan untuk "Laporan Pengadaan BMD".
+  
+  Kategori yang tersedia: 
+  - ATK: Alat Tulis Kantor (Kertas, Pena, Map, Buku, dll)
+  - Kebersihan: Bahan/Alat Kebersihan (Sapu, Pel, Sabun, Cairan Pembersih)
+  - Meterai: Bendapos dan Meterai
+  - Komputer: Peralatan/Bahan Komputer (Mouse, Keyboard, Tinta, Toner)
+  - Listrik: Peralatan/Alat Listrik (Lampu, Kabel, Baterai, Saklar)
+  - Lainnya: Bahan Habis Pakai lainnya
+  
+  Input Data: ${JSON.stringify(dataToAnalyze)}
+  
+  Instruksi:
+  1. Identifikasi nama barang dan spesifikasi dari deskripsi.
+  2. Gunakan quantity dan unit yang masuk akal.
+  3. Kelompokkan ke salah satu dari 6 kategori di atas.
+  4. Jika satu pengeluaran berisi banyak item (misal "Beli ATK"), pecah menjadi beberapa item yang realistis.
+  
+  Output JSON format: Array of InventoryItem objects.`;
+
+  const schema = {
+    type: Type.ARRAY,
+    items: {
+      type: Type.OBJECT,
+      properties: {
+        no: { type: Type.NUMBER },
+        name: { type: Type.STRING },
+        spec: { type: Type.STRING },
+        quantity: { type: Type.NUMBER },
+        unit: { type: Type.STRING },
+        price: { type: Type.NUMBER },
+        total: { type: Type.NUMBER },
+        subActivityCode: { type: Type.STRING },
+        subActivityName: { type: Type.STRING },
+        accountCode: { type: Type.STRING },
+        date: { type: Type.STRING },
+        contractType: { type: Type.STRING },
+        vendor: { type: Type.STRING },
+        docNumber: { type: Type.STRING },
+        category: { type: Type.STRING, enum: ['ATK', 'Kebersihan', 'Meterai', 'Komputer', 'Listrik', 'Lainnya'] }
+      },
+      required: ['name', 'spec', 'quantity', 'unit', 'price', 'total', 'accountCode', 'date', 'category']
+    }
+  };
+
+  try {
+    const response = await ai.models.generateContent({
+      model: 'gemini-3-flash-preview',
+      contents: prompt,
+      config: {
+        responseMimeType: "application/json",
+        responseSchema: schema
+      }
+    });
+
+    const result = parseAIResponse(response.text);
+    return Array.isArray(result) ? result : [];
+  } catch (error) {
+    console.error("Inventory analysis failed:", error);
+    return [];
+  }
+};
