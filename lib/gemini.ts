@@ -2,6 +2,23 @@
 import { GoogleGenAI, Type } from "@google/genai";
 import { SNPStandard, BOSPComponent, AccountCodes, RaporIndicator, PBDRecommendation } from "../types";
 
+export interface InventoryItem {
+  name: string;
+  spec: string;
+  quantity: number;
+  unit: string;
+  price: number;
+  total: number;
+  subActivityCode?: string;
+  subActivityName?: string;
+  accountCode: string;
+  date: string;
+  contractType?: string;
+  vendor?: string;
+  docNumber: string;
+  category: 'ATK' | 'Kebersihan' | 'Meterai' | 'Komputer' | 'Listrik' | 'Lainnya';
+}
+
 // Helper to safely get environment variables
 const getEnv = (key: string) => {
   try {
@@ -503,23 +520,6 @@ export const analyzeRaporPDF = async (pdfBase64: string, targetYear: string): Pr
   }
 };
 
-export interface InventoryItem {
-  no: number;
-  name: string;
-  spec: string;
-  quantity: number;
-  unit: string;
-  price: number;
-  total: number;
-  subActivityCode: string;
-  subActivityName: string;
-  accountCode: string;
-  date: string;
-  contractType: string;
-  vendor: string;
-  docNumber: string;
-  category: 'ATK' | 'Kebersihan' | 'Meterai' | 'Komputer' | 'Listrik' | 'Lainnya';
-}
 
 export const analyzeInventoryItems = async (budgets: any[]): Promise<InventoryItem[]> => {
   if (!ai) return [];

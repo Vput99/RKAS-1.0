@@ -65,6 +65,16 @@ const InventoryReports = ({ budgets }: InventoryReportsProps) => {
     return groups;
   }, [inventoryItems]);
 
+  const groupedByDoc = useMemo(() => {
+    const groups: Record<string, InventoryItem[]> = {};
+    inventoryItems.forEach((item: InventoryItem) => {
+      const key = `${item.date}-${item.docNumber}`;
+      if (!groups[key]) groups[key] = [];
+      groups[key].push(item);
+    });
+    return groups;
+  }, [inventoryItems]);
+
   const reportMenu = [
     { 
       id: 'pengadaan', 
@@ -283,7 +293,102 @@ const InventoryReports = ({ budgets }: InventoryReportsProps) => {
           </div>
         )}
 
-        {activeReport !== 'pengadaan' && (
+        {activeReport === 'pengeluaran' && (
+          <div className="flex flex-col h-full">
+            <div className="p-6 border-b border-gray-100 bg-orange-50/30 flex justify-between items-center">
+               <div className="flex items-center gap-3">
+                <div className="p-2 bg-orange-100 text-orange-600 rounded-lg">
+                  <ClipboardList size={20} />
+                </div>
+                <div>
+                  <h4 className="font-bold text-gray-800 text-sm">Buku Pengeluaran Persediaan</h4>
+                  <p className="text-[10px] text-gray-500 italic">Data pengeluaran barang yang telah terealisasi melalui SPJ.</p>
+                </div>
+              </div>
+              <div className="text-[10px] font-bold text-orange-700 bg-orange-100/50 px-3 py-1 rounded-full border border-orange-200">
+                Otomatis dari Laporan Pengadaan
+              </div>
+            </div>
+
+            {inventoryItems.length === 0 ? (
+              <div className="p-12 text-center text-gray-400">
+                <p className="text-sm">Belum ada data. Silakan analisa data di menu "Laporan Pengadaan BMD" terlebih dahulu.</p>
+              </div>
+            ) : (
+              <div className="overflow-x-auto p-4">
+                <div className="text-center mb-6 space-y-1">
+                  <h3 className="text-base font-black text-gray-800 uppercase">BUKU PENGELUARAN PERSEDIAAN</h3>
+                  <p className="text-sm font-bold text-gray-700 uppercase">{schoolProfile?.name || 'SD NEGERI CONTOH'}</p>
+                  <p className="text-xs font-bold text-gray-600 uppercase">TAHUN ANGGARAN {schoolProfile?.fiscalYear || '2026'}</p>
+                </div>
+
+                <table className="w-full text-[10px] border-collapse border border-gray-300">
+                  <thead className="bg-gray-50 text-gray-700">
+                    <tr>
+                      <th rowSpan={2} className="border border-gray-300 p-2 w-8 text-center">No.</th>
+                      <th colSpan={2} className="border border-gray-300 p-1 text-center">Dokumen</th>
+                      <th rowSpan={2} className="border border-gray-300 p-2 text-center">Nama Barang</th>
+                      <th rowSpan={2} className="border border-gray-300 p-2 text-center">Spesifikasi Nama Barang</th>
+                      <th rowSpan={2} className="border border-gray-300 p-2 w-12 text-center">Jumlah</th>
+                      <th rowSpan={2} className="border border-gray-300 p-2 w-16 text-center">Satuan Barang</th>
+                      <th rowSpan={2} className="border border-gray-300 p-2 w-24 text-center">Harga Satuan (Rp)</th>
+                      <th rowSpan={2} className="border border-gray-300 p-2 w-24 text-center">Nilai Total (Rp)</th>
+                      <th rowSpan={2} className="border border-gray-300 p-2 w-24 text-center">Keterangan</th>
+                    </tr>
+                    <tr className="bg-gray-50/50">
+                      <th className="border border-gray-300 p-1 w-20 text-center">Tanggal</th>
+                      <th className="border border-gray-300 p-1 w-24 text-center">Nomor</th>
+                    </tr>
+                    <tr className="bg-gray-100 text-[8px] italic text-center text-gray-500">
+                      <td className="border border-gray-300">1</td>
+                      <td className="border border-gray-300">2</td>
+                      <td className="border border-gray-300">3</td>
+                      <td className="border border-gray-300">4</td>
+                      <td className="border border-gray-300">5</td>
+                      <td className="border border-gray-300">6</td>
+                      <td className="border border-gray-300">7</td>
+                      <td className="border border-gray-300">8</td>
+                      <td className="border border-gray-300">9 = (6x8)</td>
+                      <td className="border border-gray-300">10</td>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {Object.entries(groupedByDoc).map(([docKey, rawItems], docIdx) => {
+                      const documentItems = rawItems as InventoryItem[];
+                      const firstItem = documentItems[0];
+                      return (
+                        <Fragment key={docKey}>
+                          {documentItems.map((item: InventoryItem, itemIdx: number) => (
+                            <tr key={`${docKey}-${itemIdx}`} className="hover:bg-gray-50">
+                              {itemIdx === 0 && (
+                                <Fragment>
+                                  <td className="border border-gray-300 p-2 text-center font-bold" rowSpan={documentItems.length}>{docIdx + 1}</td>
+                                  <td className="border border-gray-300 p-2 text-center" rowSpan={documentItems.length}>{formatDate(firstItem.date)}</td>
+                                  <td className="border border-gray-300 p-2 text-center font-mono text-[8px]" rowSpan={documentItems.length}>{firstItem.docNumber}</td>
+                                </Fragment>
+                              )}
+                              <td className="border border-gray-300 p-2 font-medium">{item.name}</td>
+                              <td className="border border-gray-300 p-2 text-gray-500 italic">{item.spec}</td>
+                              <td className="border border-gray-300 p-2 text-center">{item.quantity}</td>
+                              <td className="border border-gray-300 p-2 text-center">{item.unit}</td>
+                              <td className="border border-gray-300 p-2 text-right">{formatRupiah(item.price)}</td>
+                              <td className="border border-gray-300 p-2 text-right font-semibold">{formatRupiah(item.total)}</td>
+                              <td className="border border-gray-300 p-2 text-[8px] italic text-gray-400">
+                                {itemIdx === 0 ? "per belanja, per transaksi" : "-"}
+                              </td>
+                            </tr>
+                          ))}
+                        </Fragment>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </div>
+        )}
+
+        {activeReport !== 'pengadaan' && activeReport !== 'pengeluaran' && (
           <div className="p-12 text-center">
               <div className="max-w-md mx-auto space-y-4">
                   <div className="w-20 h-20 bg-gray-50 rounded-full flex items-center justify-center mx-auto text-gray-300">
