@@ -553,20 +553,20 @@ export const analyzeInventoryItems = async (budgets: any[]): Promise<InventoryIt
   
   Task: Analisis data pengeluaran berikut dan uraikan menjadi item-item persediaan untuk "Laporan Pengadaan BMD".
   
-  Reference Classification (Based on Manual Format):
-  - 01 ALAT TULIS KANTOR: Alat tulis, Kertas, cover, buku tulis, map, penggaris, staples, tinta, dll.
-  - 02 BAHAN KOMPUTER: Tinta printer, toner, flash disk, mouse, cartridge, dll.
-  - 03 ALAT/BAHAN KEBERSIHAN: Sapu, pel, ember, sabun, cairan pembersih, dll.
-  - 04 LISTRIK/ELEKTRONIK: Kabel, lampu, saklar, baterai, dll.
-  - 05 BENDA POS: Materai, prangko.
-  - 99 LAINNYA: Bahan habis pakai lainnya.
+  Reference Classification (Based on Official List):
+  - Bahan bangunan, bahan kimia, Bahan dalam proses, isi tabung gas, bahan lainya
+  - Suku cadang alat angkutan, Suku cadang alat kedokteran, Suku cadang alat laboratorium
+  - Alat tulis kantor, ATK, Bahan cetak, Benda pos, Bahan komputer, Perabot kantor
+  - Alat listrik, Perlengkapan dinas, Perlengkapan pendukung olahraga, Souvernir/cindera mata
+  - Alat/Bahan untuk Kegiatan Kantor, Obat, Obat obatan lainnya, Buku
+  - Persediaan untuk Dijual/Diserahkan Kepada Masyarakat, natura
   
   Input Data: ${JSON.stringify(dataToAnalyze)}
   
   Instruksi:
   1. Identifikasi nama barang dan spesifikasi detail dari deskripsi/notes.
   2. Gunakan quantity dan unit yang masuk akal berdasarkan item tersebut.
-  3. Kelompokkan ke salah satu kategori di atas dengan format LABEL LENGKAP (misal: "01 ALAT TULIS KANTOR").
+  3. Kelompokkan ke salah satu kategori di atas secara TEPAT sesuai daftar kategorisasi.
   4. Jika satu pengeluaran berisi gabungan item (misal "Beli ATK"), pecah menjadi item-item individu yang realistis.
   5. Set lastYearBalance ke 0 secara default unless context suggests otherwise.
   6. Set usedQuantity sama dengan quantity (masuk) jika barang tersebut langsung disalurkan/dipakai.
