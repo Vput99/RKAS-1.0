@@ -13,10 +13,21 @@ const InventoryReports = ({ budgets }: InventoryReportsProps) => {
   const [inventoryItems, setInventoryItems] = useState<InventoryItem[]>([]);
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [schoolProfile, setSchoolProfile] = useState<any>(null);
+  const [itemOverrides, setItemOverrides] = useState<Record<string, { lastYearBalance?: number, usedQuantity?: number }>>({});
 
   useEffect(() => {
     getSchoolProfile().then(setSchoolProfile);
   }, []);
+
+  const handleOverride = (itemId: string, field: 'lastYearBalance' | 'usedQuantity', value: number) => {
+    setItemOverrides((prev: Record<string, { lastYearBalance?: number, usedQuantity?: number }>) => ({
+      ...prev,
+      [itemId]: {
+        ...prev[itemId],
+        [field]: value
+      }
+    }));
+  };
 
   const handleAnalyze = async () => {
     setIsAnalyzing(true);
@@ -46,21 +57,14 @@ const InventoryReports = ({ budgets }: InventoryReportsProps) => {
   };
 
   const groupedItems = useMemo(() => {
-    const groups: Record<string, InventoryItem[]> = {
-      'ATK': [],
-      'Kebersihan': [],
-      'Meterai': [],
-      'Komputer': [],
-      'Listrik': [],
-      'Lainnya': []
-    };
+    const groups: Record<string, InventoryItem[]> = {};
     inventoryItems.forEach((item: InventoryItem) => {
       if (!item) return;
-      if (groups[item.category]) {
-        groups[item.category].push(item);
-      } else {
-        groups['Lainnya'].push(item);
+      const cat = item.category || '99 LAINNYA';
+      if (!groups[cat]) {
+        groups[cat] = [];
       }
+      groups[cat].push(item);
     });
     return groups;
   }, [inventoryItems]);
@@ -99,6 +103,14 @@ const InventoryReports = ({ budgets }: InventoryReportsProps) => {
       description: 'Rekapitulasi posisi stok barang persediaan setiap periode semester.',
       icon: Calendar,
       color: 'green'
+    },
+    { 
+      id: 'persediaan', 
+      title: 'Laporan Persediaan', 
+      subtitle: 'Stok & Saldo Akhir',
+      description: 'Rekapitulasi persediaan barang dengan penggolongan dan kodefikasi manual.',
+      icon: ClipboardList,
+      color: 'indigo'
     },
     { 
       id: 'mutasi', 
@@ -250,15 +262,9 @@ const InventoryReports = ({ budgets }: InventoryReportsProps) => {
                       
                       return (
                         <Fragment key={category}>
-                          {/* Category Header Row */}
                           <tr className="bg-blue-50/50 font-bold">
                             <td colSpan={6} className="border border-gray-300 p-2 text-blue-800 uppercase italic">
-                              {category === 'ATK' && 'ALAT TULIS KANTOR'}
-                              {category === 'Kebersihan' && 'BAHAN DAN ALAT KEBERSIHAN'}
-                              {category === 'Meterai' && 'BENDA POS / METERAI'}
-                              {category === 'Komputer' && 'PERALATAN DAN BAHAN KOMPUTER'}
-                              {category === 'Listrik' && 'PERALATAN DAN ALAT LISTRIK'}
-                              {category === 'Lainnya' && 'BAHAN HABIS PAKAI LAINNYA'}
+                              {category}
                             </td>
                             <td className="border border-gray-300 p-2 text-right text-blue-900">{formatRupiah(categoryTotal)}</td>
                             <td colSpan={7} className="border border-gray-300 p-2 bg-gray-50/20"></td>
@@ -388,7 +394,145 @@ const InventoryReports = ({ budgets }: InventoryReportsProps) => {
           </div>
         )}
 
-        {activeReport !== 'pengadaan' && activeReport !== 'pengeluaran' && (
+        {activeReport === 'persediaan' && (
+          <div className="flex flex-col h-full">
+            <div className="p-6 border-b border-gray-100 bg-indigo-50/30 flex justify-between items-center">
+               <div className="flex items-center gap-3">
+                <div className="p-2 bg-indigo-100 text-indigo-600 rounded-lg">
+                  <ClipboardList size={20} />
+                </div>
+                <div>
+                  <h4 className="font-bold text-gray-800 text-sm">Laporan Persediaan</h4>
+                  <p className="text-[10px] text-gray-500 italic">Format manual dengan penggolongan dan kodefikasi barang.</p>
+                </div>
+              </div>
+              <div className="flex items-center gap-2">
+                <div className="text-[10px] font-bold text-indigo-700 bg-indigo-100/50 px-3 py-1 rounded-full border border-indigo-200">
+                  Otomatis Terkalkulasi
+                </div>
+              </div>
+            </div>
+
+            {inventoryItems.length === 0 ? (
+              <div className="p-12 text-center text-gray-400">
+                <p className="text-sm">Belum ada data. Silakan analisa data di menu "Laporan Pengadaan BMD" terlebih dahulu.</p>
+              </div>
+            ) : (
+              <div className="overflow-x-auto p-4">
+                <div className="text-center mb-6 space-y-1">
+                  <h3 className="text-base font-black text-gray-800 uppercase">LAPORAN PERSEDIAAN</h3>
+                  <p className="text-sm font-bold text-gray-700 uppercase">TAHUN {schoolProfile?.fiscalYear || '2026'}</p>
+                  <p className="text-xs font-bold text-gray-600 uppercase">SUMBERDANA KESELURUHAN</p>
+                </div>
+
+                <div className="mb-4 text-[10px] space-y-1">
+                  <div className="flex gap-2">
+                    <span className="w-32 font-medium">Kuasa Pengguna Barang</span>
+                    <span>: Dinas Pendidikan</span>
+                  </div>
+                  <div className="flex gap-2">
+                    <span className="w-32 font-medium">Pengguna Barang</span>
+                    <span>: {schoolProfile?.name || '-'}</span>
+                  </div>
+                </div>
+
+                <table className="w-full text-[10px] border-collapse border border-gray-300">
+                  <thead className="bg-gray-50 text-gray-700 font-bold text-center">
+                    <tr>
+                      <th className="border border-gray-300 p-2 w-8" rowSpan={2}>No</th>
+                      <th className="border border-gray-300 p-2 w-32" rowSpan={2}>Nama Barang</th>
+                      <th className="border border-gray-300 p-2" rowSpan={2}>Spesifikasi Nama Barang</th>
+                      <th className="border border-gray-300 p-2 w-16" rowSpan={2}>Sisa Tahun lalu</th>
+                      <th className="border border-gray-300 p-1" colSpan={2}>Persediaan</th>
+                      <th className="border border-gray-300 p-2 w-16" rowSpan={2}>Sisa Persediaan</th>
+                      <th className="border border-gray-300 p-2 w-16" rowSpan={2}>Satuan Barang</th>
+                      <th className="border border-gray-300 p-1" colSpan={2}>Harga</th>
+                      <th className="border border-gray-300 p-2 w-20" rowSpan={2}>Keterangan</th>
+                    </tr>
+                    <tr>
+                      <th className="border border-gray-300 p-1 w-16">Masuk</th>
+                      <th className="border border-gray-300 p-1 w-16 bg-yellow-50">Keluar</th>
+                      <th className="border border-gray-300 p-1 w-24">Satuan (Rp)</th>
+                      <th className="border border-gray-300 p-1 w-24">Total Nilai Barang (Rp)</th>
+                    </tr>
+                    <tr className="bg-gray-100 text-[8px] italic text-gray-500">
+                      <td className="border border-gray-300 p-1">1</td>
+                      <td className="border border-gray-300 p-1">2</td>
+                      <td className="border border-gray-300 p-1">3</td>
+                      <td className="border border-gray-300 p-1">4</td>
+                      <td className="border border-gray-300 p-1">5</td>
+                      <td className="border border-gray-300 p-1">6</td>
+                      <td className="border border-gray-300 p-1">7 = (4+5-6)</td>
+                      <td className="border border-gray-300 p-1">8</td>
+                      <td className="border border-gray-300 p-1">9</td>
+                      <td className="border border-gray-300 p-1">10 = (7x9)</td>
+                      <td className="border border-gray-300 p-1">11</td>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {(Object.entries(groupedItems) as [string, InventoryItem[]][]).sort().map(([category, items]) => {
+                      if (items.length === 0) return null;
+                      
+                      return (
+                        <Fragment key={category}>
+                          {/* Category Header */}
+                          <tr className="bg-gray-50 font-bold italic">
+                            <td className="border border-gray-300 p-2" colSpan={11}>
+                              {category}
+                            </td>
+                          </tr>
+
+                          {items.map((item, idx) => {
+                            const overrides = itemOverrides[item.id] || {};
+                            const sisaLalu = overrides.lastYearBalance ?? (item.lastYearBalance || 0);
+                            const masuk = item.quantity;
+                            const keluar = overrides.usedQuantity ?? (item.usedQuantity || 0);
+                            const sisa = sisaLalu + masuk - keluar;
+                            const totalNilai = sisa * item.price;
+
+                            return (
+                              <tr key={item.id} className="hover:bg-blue-50/30 transition-colors">
+                                <td className="border border-gray-300 p-2 text-center text-gray-400">{idx + 1}</td>
+                                <td className="border border-gray-300 p-2 font-medium">{item.name}</td>
+                                <td className="border border-gray-300 p-2 text-gray-500 italic">{item.spec}</td>
+                                <td className="border border-gray-300 p-1 text-center bg-gray-50/50">
+                                  <input 
+                                    type="number" 
+                                    className="w-full bg-transparent text-center border-none focus:ring-0 p-0"
+                                    value={sisaLalu}
+                                    onChange={(e: React.ChangeEvent<HTMLInputElement>) => handleOverride(item.id, 'lastYearBalance', Number(e.target.value))}
+                                  />
+                                </td>
+                                <td className="border border-gray-300 p-2 text-center font-bold text-blue-600">{masuk}</td>
+                                <td className="border border-gray-300 p-1 text-center bg-yellow-50/50">
+                                  <input 
+                                    type="number" 
+                                    className="w-full bg-transparent text-center border-none focus:ring-0 p-0 font-bold text-orange-600"
+                                    value={keluar}
+                                    onChange={(e: React.ChangeEvent<HTMLInputElement>) => handleOverride(item.id, 'usedQuantity', Number(e.target.value))}
+                                  />
+                                </td>
+                                <td className={`border border-gray-300 p-2 text-center font-black ${sisa < 0 ? 'text-red-600' : 'text-green-700'}`}>
+                                  {sisa}
+                                </td>
+                                <td className="border border-gray-300 p-2 text-center">{item.unit}</td>
+                                <td className="border border-gray-300 p-2 text-right">{formatRupiah(item.price)}</td>
+                                <td className="border border-gray-300 p-2 text-right font-bold">{formatRupiah(totalNilai)}</td>
+                                <td className="border border-gray-300 p-2 text-[8px] italic text-gray-400">-</td>
+                              </tr>
+                            );
+                          })}
+                        </Fragment>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </div>
+        )}
+
+        {activeReport !== 'pengadaan' && activeReport !== 'pengeluaran' && activeReport !== 'persediaan' && (
           <div className="p-12 text-center">
               <div className="max-w-md mx-auto space-y-4">
                   <div className="w-20 h-20 bg-gray-50 rounded-full flex items-center justify-center mx-auto text-gray-300">

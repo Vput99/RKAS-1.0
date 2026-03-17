@@ -3,6 +3,7 @@ import { GoogleGenAI, Type } from "@google/genai";
 import { SNPStandard, BOSPComponent, AccountCodes, RaporIndicator, PBDRecommendation } from "../types";
 
 export interface InventoryItem {
+  id: string;
   name: string;
   spec: string;
   quantity: number;
@@ -17,6 +18,8 @@ export interface InventoryItem {
   vendor?: string;
   docNumber: string;
   category: 'ATK' | 'Kebersihan' | 'Meterai' | 'Komputer' | 'Listrik' | 'Lainnya';
+  lastYearBalance?: number;
+  usedQuantity?: number;
 }
 
 // Helper to safely get environment variables
@@ -550,21 +553,23 @@ export const analyzeInventoryItems = async (budgets: any[]): Promise<InventoryIt
   
   Task: Analisis data pengeluaran berikut dan uraikan menjadi item-item persediaan untuk "Laporan Pengadaan BMD".
   
-  Reference Classification (PMDN 108/2016):
-  - ATK: Alat tulis kantor (bolpoint, pensil, spidol, stabilo, tinta stempel, penghapus, buku tulis, odner, map, penggaris, cutter, isi staples, staples, kalkulator, gunting), Kertas dan cover (kertas HVS, bergaris, kuarto, foto, CD, post-it).
-  - Kebersihan: Bahan/alat kebersihan (sapu, sikat, alat pel, lap, ember, keset, tempat sampah, kran, semprotan, pengharum ruangan, sabun, cairan pembersih, alat makan & minum).
-  - Meterai: Benda pos dan meterai (perangko, meterai).
-  - Komputer: Peralatan/bahan komputer (tinta toner, flash disk, kartu memori, CD, mouse, cartridge).
-  - Listrik: Peralatan/alat listrik (kabel, lampu, saklar, fitting, baterai).
-  - Lainnya: Bahan bangunan (aspal, semen, kaca, cat, dll), Bahan kimia, Bahan bakar/pelumas, Bahan baku (kawat, kayu), Bibit tanaman/ternak, Suku cadang alat (angkutan, besar, dll), Obat-obatan, Perlengkapan olahraga, Souvenir/cendera mata.
+  Reference Classification (Based on Manual Format):
+  - 01 ALAT TULIS KANTOR: Alat tulis, Kertas, cover, buku tulis, map, penggaris, staples, tinta, dll.
+  - 02 BAHAN KOMPUTER: Tinta printer, toner, flash disk, mouse, cartridge, dll.
+  - 03 ALAT/BAHAN KEBERSIHAN: Sapu, pel, ember, sabun, cairan pembersih, dll.
+  - 04 LISTRIK/ELEKTRONIK: Kabel, lampu, saklar, baterai, dll.
+  - 05 BENDA POS: Materai, prangko.
+  - 99 LAINNYA: Bahan habis pakai lainnya.
   
   Input Data: ${JSON.stringify(dataToAnalyze)}
   
   Instruksi:
   1. Identifikasi nama barang dan spesifikasi detail dari deskripsi/notes.
   2. Gunakan quantity dan unit yang masuk akal berdasarkan item tersebut.
-  3. Kelompokkan ke salah satu dari 6 kategori di atas berdasarkan referensi PMDN 108/2016.
+  3. Kelompokkan ke salah satu kategori di atas dengan format LABEL LENGKAP (misal: "01 ALAT TULIS KANTOR").
   4. Jika satu pengeluaran berisi gabungan item (misal "Beli ATK"), pecah menjadi item-item individu yang realistis.
+  5. Set lastYearBalance ke 0 secara default unless context suggests otherwise.
+  6. Set usedQuantity sama dengan quantity (masuk) jika barang tersebut langsung disalurkan/dipakai.
   
   Output JSON format: Array of InventoryItem objects.`;
 
@@ -573,7 +578,6 @@ export const analyzeInventoryItems = async (budgets: any[]): Promise<InventoryIt
     items: {
       type: Type.OBJECT,
       properties: {
-        no: { type: Type.NUMBER },
         name: { type: Type.STRING },
         spec: { type: Type.STRING },
         quantity: { type: Type.NUMBER },
@@ -587,7 +591,9 @@ export const analyzeInventoryItems = async (budgets: any[]): Promise<InventoryIt
         contractType: { type: Type.STRING },
         vendor: { type: Type.STRING },
         docNumber: { type: Type.STRING },
-        category: { type: Type.STRING, enum: ['ATK', 'Kebersihan', 'Meterai', 'Komputer', 'Listrik', 'Lainnya'] }
+        category: { type: Type.STRING },
+        lastYearBalance: { type: Type.NUMBER },
+        usedQuantity: { type: Type.NUMBER }
       },
       required: ['name', 'spec', 'quantity', 'unit', 'price', 'total', 'accountCode', 'date', 'category']
     }
@@ -604,7 +610,10 @@ export const analyzeInventoryItems = async (budgets: any[]): Promise<InventoryIt
     });
 
     const result = parseAIResponse(response.text);
-    return Array.isArray(result) ? result : [];
+    return (Array.isArray(result) ? result : []).map((item: any, idx: number) => ({
+      ...item,
+      id: item.id || `inv-${Date.now()}-${idx}`
+    }));
   } catch (error) {
     console.error("Inventory analysis failed:", error);
     return [];
