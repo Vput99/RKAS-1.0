@@ -509,7 +509,7 @@ const EvidenceTemplates = ({ budgets: allBudgets, onUpdate }: EvidenceTemplatesP
     }
   };
 
-  const handleDeleteFile = async (evidenceType: string, filePath: string) => {
+  const handleDeleteFile = async (_evidenceType: string, filePath: string) => {
     if (!selectedGroup) return;
 
     if (!confirm('Apakah Anda yakin ingin menghapus file ini?')) return;
