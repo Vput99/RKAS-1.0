@@ -12,6 +12,7 @@ import BankWithdrawal from './components/BankWithdrawal';
 import EvidenceTemplates from './components/EvidenceTemplates';
 import InventoryReports from './components/InventoryReports'; // Import new component
 import Auth from './components/Auth';
+import BKU from './components/BKU';
 import { getBudgets, addBudget, updateBudget, deleteBudget, getSchoolProfile, checkDatabaseConnection, clearLocalData } from './lib/db';
 import { supabase } from './lib/supabase'; // Import supabase client
 import { Budget, TransactionType, SchoolProfile } from './types';
@@ -27,10 +28,10 @@ function App() {
   const [isStandalone, setIsStandalone] = useState(false);
 
   // App State - Initialize from LocalStorage to persist state on reload
-  const [activeTab, setActiveTab] = useState<'dashboard' | 'income' | 'planning' | 'spj' | 'reports' | 'rapor' | 'settings' | 'withdrawal' | 'evidence' | 'inventory'>(() => {
+  const [activeTab, setActiveTab] = useState<'dashboard' | 'income' | 'planning' | 'spj' | 'reports' | 'rapor' | 'settings' | 'withdrawal' | 'evidence' | 'inventory' | 'bku'>(() => {
       const savedTab = localStorage.getItem('rkas_active_tab');
       // Validate if saved tab is valid, otherwise default to dashboard
-      const validTabs = ['dashboard', 'income', 'planning', 'spj', 'reports', 'rapor', 'settings', 'withdrawal', 'evidence', 'inventory'];
+      const validTabs = ['dashboard', 'income', 'planning', 'spj', 'reports', 'rapor', 'settings', 'withdrawal', 'evidence', 'inventory', 'bku'];
       return (savedTab && validTabs.includes(savedTab)) ? (savedTab as any) : 'dashboard';
   });
 
@@ -281,6 +282,7 @@ function App() {
             <NavItem id="spj" label="Peng-SPJ-an" icon={FileCheck} />
             <NavItem id="evidence" label="Bukti Fisik" icon={FileText} />
             <NavItem id="inventory" label="Stok Opname" icon={ShoppingBag} />
+            <NavItem id="bku" label="BKU" icon={FileText} />
             <NavItem id="reports" label="Laporan" icon={FileBarChart} />
           </div>
           
@@ -409,6 +411,9 @@ function App() {
                 )}
                 {activeTab === 'inventory' && (
                   <InventoryReports budgets={data} />
+                )}
+                {activeTab === 'bku' && (
+                  <BKU data={data} onBack={() => setActiveTab('dashboard')} />
                 )}
                 {activeTab === 'settings' && (
                   <Settings 
