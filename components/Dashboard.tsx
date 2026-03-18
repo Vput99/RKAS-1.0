@@ -1,6 +1,6 @@
 
 import React, { useMemo } from 'react';
-import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip as RechartsTooltip, XAxis, YAxis, CartesianGrid, Legend, AreaChart, Area } from 'recharts';
+import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip as RechartsTooltip, XAxis, YAxis, CartesianGrid, AreaChart, Area } from 'recharts';
 import { Budget, TransactionType, SchoolProfile } from '../types';
 import { ArrowUpRight, ArrowDownRight, Wallet, Target, PieChart as PieChartIcon, Activity, AlertTriangle, XCircle } from 'lucide-react';
 
@@ -123,210 +123,267 @@ const Dashboard: React.FC<DashboardProps> = ({ data, profile }) => {
   };
 
   return (
-    <div className="space-y-8 animate-fade-in pb-10">
+    <div className="space-y-6 pb-10 animate-fade-in-up">
       
-      {/* 1. Modern Header */}
-      <div className="relative overflow-hidden bg-gradient-to-r from-blue-600 to-indigo-700 rounded-2xl p-6 md:p-10 text-white shadow-lg">
-         <div className="absolute top-0 right-0 -mt-10 -mr-10 w-64 h-64 bg-white opacity-5 rounded-full blur-3xl"></div>
-         <div className="absolute bottom-0 left-0 -mb-10 -ml-10 w-40 h-40 bg-indigo-400 opacity-10 rounded-full blur-2xl"></div>
-         
-         <div className="relative z-10 flex flex-col md:flex-row justify-between items-start md:items-end gap-4">
-            <div>
-               <h1 className="text-3xl font-bold mb-2">Dashboard Keuangan</h1>
-               <p className="text-blue-100 text-sm md:text-base max-w-xl">
-                 Pantau kesehatan finansial {profile?.name || 'sekolah'} secara real-time. Kelola dana BOSP, realisasi SPJ, dan pelaporan dengan lebih efisien.
-               </p>
-            </div>
-            <div className="bg-white/10 backdrop-blur-sm px-4 py-2 rounded-lg border border-white/20">
-               <p className="text-xs text-blue-100 uppercase font-bold tracking-wider">Tahun Anggaran</p>
-               <p className="text-xl font-bold">{profile?.fiscalYear || new Date().getFullYear()}</p>
-            </div>
-         </div>
-      </div>
-
-      {/* 2. Premium Stats Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-6">
+      {/* Bento Grid Container */}
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 auto-rows-auto">
         
-        {/* Income Card */}
-        <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100 hover:shadow-md transition-shadow group">
-           <div className="flex justify-between items-start mb-4">
-              <div className="p-3 bg-green-50 rounded-xl text-green-600 group-hover:bg-green-600 group-hover:text-white transition-colors">
+        {/* 1. Welcome Card (Full Width) */}
+        <div className="lg:col-span-4 relative overflow-hidden bg-gradient-to-br from-[#1e40af] via-[#3730a3] to-[#4338ca] rounded-[2.5rem] p-8 md:p-12 text-white shadow-2xl shadow-indigo-500/20 border border-white/10 group transition-all duration-500 hover:shadow-indigo-500/30">
+           <div className="absolute top-0 right-0 -mt-20 -mr-20 w-80 h-80 bg-white opacity-[0.03] rounded-full blur-[100px] group-hover:opacity-[0.05] transition-opacity"></div>
+           <div className="absolute -bottom-10 -left-10 w-44 h-44 bg-blue-400 opacity-[0.07] rounded-full blur-[80px]"></div>
+           
+           <div className="relative z-10 flex flex-col md:flex-row justify-between items-start md:items-center gap-8">
+              <div className="max-w-2xl">
+                 <div className="flex items-center gap-3 mb-6">
+                    <div className="p-3 bg-white/10 backdrop-blur-md rounded-2xl border border-white/20">
+                       <Activity className="text-blue-300" size={24} />
+                    </div>
+                    <span className="px-3 py-1 bg-blue-500/20 backdrop-blur-md rounded-full text-xs font-bold tracking-widest uppercase border border-blue-400/30">Sistem Terintegrasi</span>
+                 </div>
+                 <h1 className="text-4xl md:text-5xl font-black mb-4 tracking-tight leading-tight">
+                    Ringkasan <br/> <span className="text-blue-200">Keuangan Sekolah</span>
+                 </h1>
+                 <p className="text-indigo-100/80 text-lg leading-relaxed max-w-lg">
+                    Manajemen anggaran {profile?.name || 'sekolah'} yang efisien. Pantau realisasi dana BOSP dan kepatuhan SPJ dalam satu tampilan cerdas.
+                 </p>
+              </div>
+              <div className="flex flex-col items-end gap-3">
+                 <div className="bg-white/10 backdrop-blur-xl px-6 py-4 rounded-3xl border border-white/20 text-right min-w-[180px] shadow-lg">
+                    <p className="text-[10px] text-indigo-200 uppercase font-black tracking-[0.2em] mb-1">Tahun Anggaran</p>
+                    <p className="text-4xl font-black">{profile?.fiscalYear || new Date().getFullYear()}</p>
+                 </div>
+                 <div className="flex gap-2">
+                    <span className="w-2 h-2 rounded-full bg-green-400 animate-pulse"></span>
+                    <span className="text-[10px] font-bold text-indigo-200 uppercase tracking-widest">Sistem Online & Terverifikasi</span>
+                 </div>
+              </div>
+           </div>
+        </div>
+
+        {/* 2. Key Stats (4 Cards) */}
+        
+        {/* Income */}
+        <div className="lg:col-span-1 bg-white rounded-[2rem] p-7 shadow-sm border border-gray-100 hover:shadow-xl hover:shadow-blue-500/5 transition-all duration-300 group bento-inner-shadow">
+           <div className="flex justify-between items-center mb-6">
+              <div className="p-4 bg-emerald-50 rounded-2xl text-emerald-600 group-hover:bg-emerald-600 group-hover:text-white transition-all duration-500 rotate-0 group-hover:rotate-6">
                  <ArrowDownRight size={24} />
               </div>
-              <span className="bg-green-100 text-green-700 text-[10px] font-bold px-2 py-1 rounded-full">+100% Valid</span>
+              <div className="text-right">
+                 <p className="text-[10px] font-black text-emerald-600 bg-emerald-100/50 px-2 py-1 rounded-lg uppercase tracking-wider italic">Validated</p>
+              </div>
            </div>
-           <p className="text-sm text-gray-500 font-medium">Total Pendapatan</p>
-           <h3 className="text-2xl font-bold text-gray-800 mt-1">{formatRupiah(stats.income)}</h3>
+           <div>
+              <p className="text-sm text-slate-500 font-bold tracking-wide mb-1">Total Pendapatan</p>
+              <h3 className="text-2xl font-black text-slate-800 tracking-tight">{formatRupiah(stats.income)}</h3>
+           </div>
         </div>
 
-        {/* Realization Card */}
-        <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100 hover:shadow-md transition-shadow group">
-           <div className="flex justify-between items-start mb-4">
-              <div className="p-3 bg-blue-50 rounded-xl text-blue-600 group-hover:bg-blue-600 group-hover:text-white transition-colors">
+        {/* Realization */}
+        <div className="lg:col-span-1 bg-white rounded-[2rem] p-7 shadow-sm border border-gray-100 hover:shadow-xl hover:shadow-blue-500/5 transition-all duration-300 group bento-inner-shadow">
+           <div className="flex justify-between items-center mb-6">
+              <div className="p-4 bg-blue-50 rounded-2xl text-blue-600 group-hover:bg-blue-600 group-hover:text-white transition-all duration-500">
                  <ArrowUpRight size={24} />
               </div>
-              <span className={`text-[10px] font-bold px-2 py-1 rounded-full ${stats.absorptionRate > 80 ? 'bg-orange-100 text-orange-700' : 'bg-blue-100 text-blue-700'}`}>
-                 {stats.absorptionRate.toFixed(1)}% Serapan
-              </span>
+              <div className="text-right">
+                 <span className={`text-[10px] font-black px-2 py-1 rounded-lg uppercase tracking-wider ${stats.absorptionRate > 80 ? 'bg-orange-100 text-orange-600' : 'bg-blue-100 text-blue-600'}`}>
+                    {stats.absorptionRate.toFixed(1)}% Serapan
+                 </span>
+              </div>
            </div>
-           <p className="text-sm text-gray-500 font-medium">Total Realisasi (SPJ)</p>
-           <h3 className="text-2xl font-bold text-gray-800 mt-1">{formatRupiah(stats.realizedExpense)}</h3>
-           <div className="w-full bg-gray-100 rounded-full h-1.5 mt-3 overflow-hidden">
-              <div 
-                 className="bg-blue-600 h-1.5 rounded-full transition-all duration-1000" 
-                 style={{ width: `${Math.min(stats.absorptionRate, 100)}%` }}
-              ></div>
+           <div>
+              <p className="text-sm text-slate-500 font-bold tracking-wide mb-1">Realisasi (SPJ)</p>
+              <h3 className="text-2xl font-black text-slate-800 tracking-tight">{formatRupiah(stats.realizedExpense)}</h3>
+              <div className="w-full bg-slate-100 rounded-full h-2 mt-4 overflow-hidden p-[2px]">
+                 <div 
+                    className="bg-blue-600 h-full rounded-full transition-all duration-1000 ease-out" 
+                    style={{ width: `${Math.min(stats.absorptionRate, 100)}%` }}
+                 ></div>
+              </div>
            </div>
         </div>
 
-        {/* Cash Balance Card */}
-        <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100 hover:shadow-md transition-shadow group">
-           <div className="flex justify-between items-start mb-4">
-              <div className="p-3 bg-indigo-50 rounded-xl text-indigo-600 group-hover:bg-indigo-600 group-hover:text-white transition-colors">
+        {/* Cash Balance */}
+        <div className="lg:col-span-1 bg-white rounded-[2rem] p-7 shadow-sm border border-gray-100 hover:shadow-xl hover:shadow-blue-500/5 transition-all duration-300 group bento-inner-shadow">
+           <div className="flex justify-between items-center mb-6">
+              <div className="p-4 bg-indigo-50 rounded-2xl text-indigo-600 group-hover:bg-indigo-600 group-hover:text-white transition-all duration-500">
                  <Wallet size={24} />
               </div>
            </div>
-           <p className="text-sm text-gray-500 font-medium">Saldo Kas Tunai/Bank</p>
-           <h3 className="text-2xl font-bold text-gray-800 mt-1">{formatRupiah(stats.cashBalance)}</h3>
-           <p className="text-xs text-gray-400 mt-2">Dana Tersedia</p>
+           <div>
+              <p className="text-sm text-slate-500 font-bold tracking-wide mb-1">Saldo Kas Tersedia</p>
+              <h3 className="text-2xl font-black text-slate-800 tracking-tight">{formatRupiah(stats.cashBalance)}</h3>
+              <p className="text-[10px] text-slate-400 mt-2 uppercase tracking-widest font-bold">Dana Siap Belanja</p>
+           </div>
         </div>
 
-        {/* Remaining Budget Card */}
-        <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100 hover:shadow-md transition-shadow group">
-           <div className="flex justify-between items-start mb-4">
-              <div className="p-3 bg-orange-50 rounded-xl text-orange-600 group-hover:bg-orange-600 group-hover:text-white transition-colors">
+        {/* Target/Remaining */}
+        <div className="lg:col-span-1 bg-white rounded-[2rem] p-7 shadow-sm border border-gray-100 hover:shadow-xl hover:shadow-blue-500/5 transition-all duration-300 group bento-inner-shadow">
+           <div className="flex justify-between items-center mb-6">
+              <div className="p-4 bg-orange-50 rounded-2xl text-orange-600 group-hover:bg-orange-600 group-hover:text-white transition-all duration-500">
                  <Target size={24} />
               </div>
            </div>
-           <p className="text-sm text-gray-500 font-medium">Sisa Pagu Anggaran</p>
-           <h3 className="text-2xl font-bold text-gray-800 mt-1">{formatRupiah(stats.plannedExpense - stats.realizedExpense)}</h3>
-           <p className="text-xs text-gray-400 mt-2">Belum dibelanjakan</p>
-        </div>
-      </div>
-
-      {/* 3. Charts Section */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 h-full">
-        
-        {/* Left: Area Chart (Trends) */}
-        <div className="lg:col-span-2 bg-white p-6 rounded-2xl shadow-sm border border-gray-100">
-          <div className="flex items-center justify-between mb-6">
-             <h4 className="text-lg font-bold text-gray-800 flex items-center gap-2">
-                <Activity className="text-blue-500" size={20} /> Arus Kas Bulanan
-             </h4>
-             <div className="flex items-center gap-2 text-xs">
-                <div className="flex items-center gap-1">
-                   <span className="w-3 h-3 rounded-full bg-green-500"></span> Pendapatan
-                </div>
-                <div className="flex items-center gap-1">
-                   <span className="w-3 h-3 rounded-full bg-red-500"></span> Belanja
-                </div>
-             </div>
-          </div>
-          
-          <div className="h-[300px]">
-            <ResponsiveContainer width="100%" height="100%">
-              <AreaChart data={monthlyTrend} margin={{ top: 10, right: 10, left: 0, bottom: 0 }}>
-                <defs>
-                  <linearGradient id="colorIncome" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="5%" stopColor="#10B981" stopOpacity={0.1}/>
-                    <stop offset="95%" stopColor="#10B981" stopOpacity={0}/>
-                  </linearGradient>
-                  <linearGradient id="colorExpense" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="5%" stopColor="#EF4444" stopOpacity={0.1}/>
-                    <stop offset="95%" stopColor="#EF4444" stopOpacity={0}/>
-                  </linearGradient>
-                </defs>
-                <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f3f4f6" />
-                <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{fontSize: 12, fill: '#9ca3af'}} dy={10} />
-                <YAxis hide />
-                <RechartsTooltip content={<CustomTooltip />} />
-                <Area type="monotone" dataKey="income" stroke="#10B981" strokeWidth={2} fillOpacity={1} fill="url(#colorIncome)" />
-                <Area type="monotone" dataKey="expense" stroke="#EF4444" strokeWidth={2} fillOpacity={1} fill="url(#colorExpense)" />
-              </AreaChart>
-            </ResponsiveContainer>
-          </div>
+           <div>
+              <p className="text-sm text-slate-500 font-bold tracking-wide mb-1">Sisa Pagu Anggaran</p>
+              <h3 className="text-2xl font-black text-slate-800 tracking-tight">{formatRupiah(stats.plannedExpense - stats.realizedExpense)}</h3>
+              <p className="text-[10px] text-slate-400 mt-2 uppercase tracking-widest font-bold">Belum Direalisasikan</p>
+           </div>
         </div>
 
-        {/* Right: Donut Chart (Breakdown) */}
-        <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100 flex flex-col">
-          <h4 className="text-lg font-bold text-gray-800 mb-2 flex items-center gap-2">
-             <PieChartIcon className="text-purple-500" size={20} /> Komposisi Belanja
-          </h4>
-          <p className="text-xs text-gray-500 mb-6">Distribusi realisasi berdasarkan komponen BOSP.</p>
-          
-          <div className="flex-1 min-h-[250px] relative">
-            {expenseByComponent.length > 0 ? (
-                <ResponsiveContainer width="100%" height="100%">
-                <PieChart>
-                    <Pie
-                    data={expenseByComponent}
-                    cx="50%"
-                    cy="50%"
-                    innerRadius={60}
-                    outerRadius={80}
-                    paddingAngle={5}
-                    dataKey="value"
-                    stroke="none"
-                    >
-                    {expenseByComponent.map((_, index) => (
-                        <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
-                    ))}
-                    </Pie>
-                    <RechartsTooltip content={<CustomTooltip />} />
-                    <Legend 
-                        layout="horizontal" 
-                        verticalAlign="bottom" 
-                        align="center"
-                        iconType="circle"
-                        wrapperStyle={{ fontSize: '10px', paddingTop: '20px' }} 
-                    />
-                </PieChart>
-                </ResponsiveContainer>
-            ) : (
-                <div className="absolute inset-0 flex flex-col items-center justify-center text-gray-400">
-                    <PieChartIcon size={40} className="mb-2 opacity-20" />
-                    <span className="text-xs">Belum ada data realisasi</span>
-                </div>
-            )}
-            
-            {/* Center Label for Donut */}
-            {expenseByComponent.length > 0 && (
-                <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none pb-8">
-                    <span className="text-2xl font-bold text-gray-800">{expenseByComponent.length}</span>
-                    <span className="text-[10px] text-gray-400 uppercase tracking-wider">Komponen</span>
-                </div>
-            )}
-          </div>
-        </div>
-      </div>
-
-      {/* 4. LARANGAN PENGGUNAAN DANA BOSP (NEW SECTION) */}
-      <div className="bg-red-50 border border-red-100 rounded-2xl p-6 shadow-sm">
-         <div className="flex flex-col md:flex-row items-start md:items-center gap-4 mb-6 border-b border-red-100 pb-4">
-             <div className="bg-red-100 p-3 rounded-full text-red-600">
-                 <AlertTriangle size={24} />
-             </div>
-             <div>
-                 <h3 className="text-lg font-bold text-red-800">Larangan Penggunaan Dana BOSP</h3>
-                 <p className="text-sm text-red-600">
-                    Dana BOSP yang diterima oleh sekolah tidak boleh digunakan untuk kegiatan-kegiatan berikut:
-                 </p>
-             </div>
-         </div>
-         
-         <div className="grid grid-cols-1 md:grid-cols-2 gap-x-8 gap-y-3">
-             {BOS_LARANGAN.map((item, idx) => (
-                 <div key={idx} className="flex items-start gap-3">
-                     <XCircle size={16} className="text-red-500 mt-0.5 flex-shrink-0" />
-                     <p className="text-sm text-red-700 leading-snug">{item}</p>
+        {/* 3. Main Trends Chart (Large Span) */}
+        <div className="lg:col-span-3 bg-white rounded-[2.5rem] p-8 shadow-sm border border-gray-100 hover:shadow-xl transition-all duration-500 scroll-mt-20">
+           <div className="flex flex-col md:flex-row items-start md:items-center justify-between mb-10 gap-4">
+              <div>
+                 <h4 className="text-xl font-black text-slate-800 flex items-center gap-3">
+                    <Activity className="text-blue-500" size={24} />
+                    Arus Kas Bulanan
+                 </h4>
+                 <p className="text-sm text-slate-400 mt-1">Perbandingan pemasukan vs pengeluaran real-time.</p>
+              </div>
+              <div className="flex items-center gap-4 bg-slate-50 p-2 rounded-2xl border border-slate-100">
+                 <div className="flex items-center gap-2 px-3 py-1.5 rounded-xl bg-white shadow-sm">
+                    <span className="w-2.5 h-2.5 rounded-full bg-emerald-500"></span> 
+                    <span className="text-xs font-black text-slate-600 uppercase tracking-widest">Pendapatan</span>
                  </div>
-             ))}
-         </div>
-         <div className="mt-6 text-xs text-red-500 italic border-t border-red-100 pt-2">
-             * Referensi: Juknis BOSP Tahun Berjalan.
-         </div>
-      </div>
+                 <div className="flex items-center gap-2 px-3 py-1.5 rounded-xl bg-white shadow-sm">
+                    <span className="w-2.5 h-2.5 rounded-full bg-rose-500"></span> 
+                    <span className="text-xs font-black text-slate-600 uppercase tracking-widest">Belanja</span>
+                 </div>
+              </div>
+           </div>
+           
+           <div className="h-[350px] w-full">
+             <ResponsiveContainer width="100%" height="100%">
+               <AreaChart data={monthlyTrend} margin={{ top: 10, right: 10, left: 0, bottom: 0 }}>
+                 <defs>
+                   <linearGradient id="colorIncome" x1="0" y1="0" x2="0" y2="1">
+                     <stop offset="5%" stopColor="#10B981" stopOpacity={0.2}/>
+                     <stop offset="95%" stopColor="#10B981" stopOpacity={0}/>
+                   </linearGradient>
+                   <linearGradient id="colorExpense" x1="0" y1="0" x2="0" y2="1">
+                     <stop offset="5%" stopColor="#F43F5E" stopOpacity={0.2}/>
+                     <stop offset="95%" stopColor="#F43F5E" stopOpacity={0}/>
+                   </linearGradient>
+                 </defs>
+                 <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
+                 <XAxis 
+                    dataKey="name" 
+                    axisLine={false} 
+                    tickLine={false} 
+                    tick={{fontSize: 10, fill: '#64748b', fontWeight: 700}} 
+                    dy={15} 
+                 />
+                 <YAxis hide />
+                 <RechartsTooltip 
+                    content={<CustomTooltip />} 
+                    cursor={{ stroke: '#e2e8f0', strokeWidth: 2 }}
+                 />
+                 <Area type="monotone" dataKey="income" stroke="#10B981" strokeWidth={4} fillOpacity={1} fill="url(#colorIncome)" animationDuration={2000} />
+                 <Area type="monotone" dataKey="expense" stroke="#F43F5E" strokeWidth={4} fillOpacity={1} fill="url(#colorExpense)" animationDuration={2500} />
+               </AreaChart>
+             </ResponsiveContainer>
+           </div>
+        </div>
 
+        {/* 4. Pie Chart (Small Span) */}
+        <div className="lg:col-span-1 bg-white rounded-[2.5rem] p-8 shadow-sm border border-gray-100 flex flex-col hover:shadow-xl transition-all duration-500">
+           <div className="mb-6">
+              <h4 className="text-lg font-black text-slate-800 flex items-center gap-3">
+                 <PieChartIcon className="text-indigo-500" size={24} />
+                 Komposisi
+              </h4>
+              <p className="text-xs text-slate-400 mt-1 uppercase tracking-widest font-black">Realisasi BOSP</p>
+           </div>
+           
+           <div className="flex-1 min-h-[250px] relative">
+             {expenseByComponent.length > 0 ? (
+                 <ResponsiveContainer width="100%" height="100%">
+                 <PieChart>
+                     <Pie
+                        data={expenseByComponent}
+                        cx="50%"
+                        cy="50%"
+                        innerRadius={70}
+                        outerRadius={100}
+                        paddingAngle={8}
+                        dataKey="value"
+                        stroke="none"
+                        animationBegin={500}
+                        animationDuration={1500}
+                        cornerRadius={10}
+                     >
+                     {expenseByComponent.map((_, index) => (
+                         <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                     ))}
+                     </Pie>
+                     <RechartsTooltip content={<CustomTooltip />} />
+                 </PieChart>
+                 </ResponsiveContainer>
+             ) : (
+                 <div className="absolute inset-0 flex flex-col items-center justify-center text-slate-300">
+                     <PieChartIcon size={64} className="mb-4 opacity-10" />
+                     <span className="text-xs font-bold uppercase tracking-widest">Tidak ada data</span>
+                 </div>
+             )}
+             
+             {expenseByComponent.length > 0 && (
+                 <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none pb-2">
+                     <span className="text-4xl font-black text-slate-800">{expenseByComponent.length}</span>
+                     <span className="text-[10px] text-slate-400 font-bold uppercase tracking-widest">Sektor</span>
+                 </div>
+             )}
+           </div>
+           
+           {expenseByComponent.length > 0 && (
+              <div className="mt-6 pt-6 border-t border-slate-50 space-y-2">
+                 {expenseByComponent.slice(0, 3).map((item, idx) => (
+                    <div key={idx} className="flex items-center justify-between">
+                       <div className="flex items-center gap-2 max-w-[70%]">
+                          <span className="w-2 h-2 rounded-full flex-shrink-0" style={{backgroundColor: COLORS[idx % COLORS.length]}}></span>
+                          <span className="text-[10px] font-bold text-slate-600 truncate uppercase tracking-tighter">{item.name}</span>
+                       </div>
+                       <span className="text-[10px] font-black text-slate-800">{((item.value / stats.realizedExpense) * 100).toFixed(0)}%</span>
+                    </div>
+                 ))}
+              </div>
+           )}
+        </div>
+
+        {/* 5. Larangan Section (Full Width Modern Alert) */}
+        <div className="lg:col-span-4 bg-rose-50/50 rounded-[2.5rem] p-8 md:p-10 border border-rose-100 shadow-sm overflow-hidden relative group">
+           <div className="absolute top-0 right-0 w-64 h-64 bg-rose-200/20 blur-[100px] -mr-32 -mt-32"></div>
+           
+           <div className="flex flex-col md:flex-row items-start md:items-center gap-6 mb-10 pb-6 border-b border-rose-100/50">
+              <div className="p-5 bg-rose-100 rounded-[1.5rem] text-rose-600 shadow-inner group-hover:scale-110 transition-transform duration-500">
+                 <AlertTriangle size={32} />
+              </div>
+              <div>
+                 <h3 className="text-2xl font-black text-rose-900 tracking-tight">Larangan Penggunaan Dana BOSP</h3>
+                 <p className="text-rose-700/70 font-medium max-w-2xl mt-1 leading-relaxed">
+                    Penting bagi Satuan Pendidikan untuk menjaga integritas pengelolaan dana sesuai Juknis BOSP yang berlaku.
+                 </p>
+              </div>
+           </div>
+           
+           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+              {BOS_LARANGAN.map((item, idx) => (
+                  <div key={idx} className="bg-white/60 backdrop-blur-sm p-5 rounded-2xl border border-rose-100/30 flex items-start gap-4 hover:bg-white transition-colors duration-300">
+                      <div className="w-6 h-6 rounded-lg bg-rose-100 flex items-center justify-center text-rose-600 flex-shrink-0 mt-0.5">
+                         <XCircle size={14} />
+                      </div>
+                      <p className="text-xs font-bold text-rose-800/80 leading-relaxed uppercase tracking-tight">{item}</p>
+                  </div>
+              ))}
+           </div>
+           
+           <div className="mt-10 flex items-center justify-between text-[10px] font-black text-rose-400 uppercase tracking-[0.2em] pt-4">
+              <span>&copy; Kementeruan Pendidikan & Kebudayaan RI</span>
+              <span className="italic">Ref: Juknis BOSP Terbaru</span>
+           </div>
+        </div>
+
+      </div>
     </div>
   );
 };

@@ -260,100 +260,121 @@ function App() {
       )}
 
       {/* Sidebar */}
-      <aside className={`fixed lg:relative z-30 w-64 h-full bg-white border-r border-gray-200 transition-transform duration-300 ease-in-out flex flex-col ${
-        isSidebarOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0 lg:w-20 xl:w-64'
+      <aside className={`fixed lg:relative z-30 w-72 h-full bg-white border-r border-slate-200/60 transition-all duration-500 ease-in-out flex flex-col shadow-2xl shadow-slate-200/50 ${
+        isSidebarOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0 lg:w-[88px]'
       }`}>
-        <div className="p-6 border-b border-gray-100 flex items-center justify-between lg:justify-center xl:justify-start gap-3">
-          <div className="w-10 h-10 bg-gradient-to-br from-blue-600 to-indigo-700 rounded-xl flex items-center justify-center text-white shadow-lg shadow-blue-500/30 flex-shrink-0">
-            <School size={22} />
+        <div className="p-8 pb-10 flex items-center gap-4">
+          <div className="w-12 h-12 bg-gradient-to-br from-blue-600 to-indigo-700 rounded-2xl flex items-center justify-center text-white shadow-xl shadow-blue-500/30 flex-shrink-0 animate-scale-in">
+            <School size={24} />
           </div>
-          <span className={`text-xl font-bold text-gray-800 ${!isSidebarOpen && 'lg:hidden xl:block'}`}>
-            RKAS Pintar
-          </span>
+          <div className={`transition-all duration-300 ${!isSidebarOpen && 'lg:opacity-0 lg:scale-90'}`}>
+            <h1 className="text-xl font-black text-slate-800 tracking-tight">RKAS Pintar</h1>
+            <p className="text-[10px] font-black text-blue-600 uppercase tracking-[0.2em]">Dashboard SD</p>
+          </div>
         </div>
 
-        <nav className="p-4 space-y-2 flex-1 overflow-y-auto">
-          <div className="space-y-2">
+        <nav className="px-4 space-y-1.5 flex-1 overflow-y-auto scrollbar-hide py-2">
+          <div className="space-y-1.5 focus-within:ring-0">
             <NavItem id="dashboard" label="Dashboard" icon={LayoutDashboard} />
             <NavItem id="rapor" label="Rapor Pendidikan" icon={TrendingUp} />
+            
+            <div className={`pt-4 pb-2 px-4 transition-all duration-300 ${!isSidebarOpen && 'lg:opacity-0'}`}>
+              <span className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em]">Manajemen Anggaran</span>
+            </div>
+            
             <NavItem id="income" label="Pendapatan" icon={Wallet} />
             <NavItem id="planning" label="Penganggaran" icon={BookOpen} />
             <NavItem id="withdrawal" label="Pencairan Bank" icon={Landmark} />
+            
+            <div className={`pt-4 pb-2 px-4 transition-all duration-300 ${!isSidebarOpen && 'lg:opacity-0'}`}>
+              <span className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em]">Pelaksanaan & Stok</span>
+            </div>
+
             <NavItem id="spj" label="Peng-SPJ-an" icon={FileCheck} />
             <NavItem id="evidence" label="Bukti Fisik" icon={FileText} />
             <NavItem id="inventory" label="Stok Opname" icon={ShoppingBag} />
+            
+            <div className={`pt-4 pb-2 px-4 transition-all duration-300 ${!isSidebarOpen && 'lg:opacity-0'}`}>
+               <span className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em]">Pelaporan</span>
+            </div>
+
             <NavItem id="bku" label="BKU" icon={FileText} />
             <NavItem id="reports" label="Laporan" icon={FileBarChart} />
           </div>
           
-          <div className="pt-4 mt-auto border-t border-gray-100 space-y-2">
+          <div className="pt-8 mt-4 border-t border-slate-100 space-y-1.5 mb-6">
              {/* Install Button Logic */}
              {!isStandalone && (deferredPrompt || isIOS) && (
                 <button
                   onClick={handleInstallClick}
-                  className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg transition-all duration-200 text-green-600 hover:bg-green-50 animate-pulse`}
+                  className={`w-full flex items-center gap-3 px-5 py-3 rounded-2xl transition-all duration-300 text-emerald-600 hover:bg-emerald-50 relative overflow-hidden group`}
                 >
-                  <Download size={20} />
-                  <span className={`${!isSidebarOpen && 'lg:hidden xl:block'} font-bold`}>
-                      {isIOS ? 'Cara Install (iOS)' : 'Install Aplikasi'}
+                  <Download size={20} className="relative z-10 group-hover:scale-110 transition-transform" />
+                  <span className={`relative z-10 font-black text-sm tracking-tight ${!isSidebarOpen && 'lg:hidden'}`}>
+                      {isIOS ? 'Cara Install' : 'Install App'}
                   </span>
+                  <div className="absolute inset-0 bg-emerald-500/0 group-hover:bg-emerald-500/5 transition-colors"></div>
                 </button>
              )}
 
              <button 
                 onClick={() => { setActiveTab('settings'); if (window.innerWidth < 1024) setSidebarOpen(false); }}
-                className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg transition-all duration-200 ${
+                className={`w-full flex items-center gap-3 px-5 py-3 rounded-2xl transition-all duration-300 group ${
                   activeTab === 'settings' 
-                    ? 'bg-blue-600 text-white shadow-lg shadow-blue-500/30' 
-                    : 'text-gray-600 hover:bg-gray-100'
+                    ? 'bg-slate-900 text-white shadow-xl shadow-slate-900/20 active:scale-95' 
+                    : 'text-slate-500 hover:bg-slate-100'
                 }`}
              >
-                <SettingsIcon size={20} />
-                <span className={`${!isSidebarOpen && 'lg:hidden xl:block'} font-medium`}>Pengaturan</span>
+                <SettingsIcon size={20} className={`transition-transform duration-500 ${activeTab === 'settings' ? '' : 'group-hover:rotate-90'}`} />
+                <span className={`font-bold text-sm tracking-tight ${!isSidebarOpen && 'lg:hidden'}`}>Pengaturan</span>
              </button>
              
              <button 
                 onClick={handleLogout}
-                className="w-full flex items-center gap-3 px-4 py-3 rounded-lg transition-all duration-200 text-red-500 hover:bg-red-50"
+                className="w-full flex items-center gap-3 px-5 py-3 rounded-2xl transition-all duration-300 text-rose-500 hover:bg-rose-50 active:scale-95 group"
              >
-                <LogOut size={20} />
-                <span className={`${!isSidebarOpen && 'lg:hidden xl:block'} font-medium`}>Keluar</span>
+                <LogOut size={20} className="group-hover:-translate-x-1 transition-transform" />
+                <span className={`font-bold text-sm tracking-tight ${!isSidebarOpen && 'lg:hidden'}`}>Keluar</span>
              </button>
           </div>
         </nav>
 
         {/* Version Indicator */}
-        <div className={`p-4 text-center border-t border-gray-100 ${!isSidebarOpen && 'lg:hidden xl:block'}`}>
-            <p className="text-[10px] text-gray-400">Versi Aplikasi 1.2</p>
+        <div className={`p-6 text-center border-t border-slate-50 ${!isSidebarOpen && 'lg:hidden'}`}>
+            <p className="text-[10px] font-black text-slate-300 uppercase tracking-[0.25em]">Ver 1.2.0 Stable</p>
         </div>
       </aside>
 
       {/* Main Content */}
       <main className="flex-1 flex flex-col h-full overflow-hidden relative">
         {/* Header */}
-        <header className="h-16 bg-white border-b border-gray-200 flex items-center justify-between px-6 flex-shrink-0">
+        <header className="h-20 bg-white/70 backdrop-blur-xl border-b border-slate-200/60 flex items-center justify-between px-8 flex-shrink-0 z-10">
           <button 
             onClick={() => setSidebarOpen(!isSidebarOpen)}
-            className="p-2 hover:bg-gray-100 rounded-lg lg:hidden"
+            className="p-2.5 hover:bg-slate-100 rounded-xl transition-colors lg:bg-slate-50 lg:hover:bg-slate-100"
           >
-            <Menu size={24} className="text-gray-600" />
+            <Menu size={22} className="text-slate-600" />
           </button>
-          <div className="flex items-center gap-4 ml-auto">
-             <div className="text-right hidden sm:block">
-               <p className="text-sm font-bold text-gray-800">
-                  {schoolProfile?.name || 'Nama Sekolah Belum Diatur'}
+          <div className="flex items-center gap-6 ml-auto">
+             <div className="text-right hidden md:block">
+               <p className="text-sm font-black text-slate-800 tracking-tight">
+                  {schoolProfile?.name || 'Sekolah Belum Terdaftar'}
                </p>
-               <div className="flex items-center justify-end gap-2 text-xs text-gray-500">
-                  <span>{session?.user?.email || 'Guest'}</span>
-                  <span className="text-gray-300">|</span>
-                  <span className={`flex items-center gap-1 font-medium ${isOnline ? 'text-green-600' : 'text-orange-500'}`}>
-                    <span className={`w-2 h-2 rounded-full ${isOnline ? 'bg-green-500' : 'bg-orange-500'}`}></span>
-                    {isOnline ? 'Cloud' : 'Lokal'}
-                  </span>
+               <div className="flex items-center justify-end gap-3 text-[10px] font-bold mt-0.5">
+                  <span className="text-slate-400 font-medium truncate max-w-[150px]">{session?.user?.email || 'Guest Mode'}</span>
+                  <div className="flex items-center gap-1.5 px-2 py-0.5 bg-slate-100 rounded-full border border-slate-200">
+                    <span className={`w-1.5 h-1.5 rounded-full ${isOnline ? 'bg-emerald-500 shadow-sm shadow-emerald-500/50' : 'bg-orange-500 shadow-sm shadow-orange-500/50'}`}></span>
+                    <span className={`uppercase tracking-widest ${isOnline ? 'text-emerald-600' : 'text-orange-600'}`}>
+                      {isOnline ? 'Online' : 'Offline'}
+                    </span>
+                  </div>
                </div>
              </div>
-             <div className="w-10 h-10 bg-gray-200 rounded-full flex items-center justify-center text-gray-500 border border-gray-100">
-               <User size={20} />
+             <div className="relative group cursor-pointer">
+                <div className="w-12 h-12 bg-gradient-to-tr from-slate-100 to-white rounded-2xl flex items-center justify-center text-slate-600 border border-slate-200 shadow-sm group-hover:shadow-md transition-all group-hover:scale-105 active:scale-95 overflow-hidden">
+                   <User size={24} />
+                </div>
+                <div className="absolute top-0 right-0 w-3 h-3 bg-emerald-500 border-2 border-white rounded-full"></div>
              </div>
           </div>
         </header>

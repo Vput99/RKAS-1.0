@@ -88,19 +88,22 @@ const TransactionTable: React.FC<TransactionTableProps> = ({ type, data, onAdd, 
   };
 
   return (
-    <div className="space-y-4">
-      <div className="flex justify-between items-center">
-        <h2 className="text-xl font-bold text-gray-800 capitalize">Data {type}</h2>
+    <div className="space-y-6 animate-fade-in-up">
+      <div className="flex justify-between items-center bg-white p-6 rounded-[2rem] border border-slate-100 shadow-sm">
+        <div>
+          <h2 className="text-2xl font-black text-slate-800 tracking-tight capitalize">Data {type}</h2>
+          <p className="text-xs text-slate-500 font-bold uppercase tracking-widest mt-1">Kelola pencatatan aliran dana {type}</p>
+        </div>
         <button 
           onClick={() => setIsModalOpen(true)}
-          className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg flex items-center gap-2 transition-colors shadow-sm"
+          className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-3 rounded-2xl flex items-center gap-2 transition-all shadow-lg shadow-blue-500/25 active:scale-95 font-bold"
         >
-          <Plus size={18} />
+          <Plus size={20} />
           Tambah {type === TransactionType.INCOME ? 'Pendapatan' : 'Kegiatan'}
         </button>
       </div>
 
-      <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
+      <div className="bg-white rounded-[2rem] shadow-sm border border-slate-100 overflow-hidden bento-inner-shadow">
         <div className="overflow-x-auto">
           <table className="w-full text-left text-sm text-gray-600">
             <thead className="bg-gray-50 border-b border-gray-100">

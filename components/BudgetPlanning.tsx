@@ -1,6 +1,6 @@
 import React, { useState, useMemo, useEffect, useRef } from 'react';
 import { Budget, TransactionType, BOSPComponent, SNPStandard, AccountCodes } from '../types';
-import { Plus, Search, Edit2, Trash2, X, Save, Calculator, Sparkles, Loader2, AlertTriangle, CheckCircle, Filter, ChevronDown, Check } from 'lucide-react';
+import { Plus, Search, Edit2, Trash2, X, Save, Calculator, Sparkles, Loader2, AlertTriangle, CheckCircle, ChevronDown, Check } from 'lucide-react';
 import { analyzeBudgetEntry } from '../lib/gemini';
 import { getStoredAccounts } from '../lib/db';
 
@@ -233,58 +233,59 @@ const BudgetPlanning: React.FC<BudgetPlanningProps> = ({ data, onAdd, onUpdate, 
   };
 
   return (
-    <div className="space-y-6 animate-fade-in">
-      <div className="flex flex-col md:flex-row justify-between items-end gap-4">
+    <div className="space-y-6 animate-fade-in-up">
+      <div className="bg-white p-6 rounded-[2rem] border border-slate-100 shadow-sm flex flex-col lg:flex-row justify-between items-start lg:items-center gap-6">
         <div>
-          <h2 className="text-xl font-bold text-gray-800">Perencanaan Anggaran (RKAS)</h2>
-          <p className="text-sm text-gray-500">Susun rencana belanja sekolah selama satu tahun anggaran.</p>
+          <h2 className="text-2xl font-black text-slate-800 tracking-tight">Perencanaan RKAS</h2>
+          <p className="text-xs text-slate-500 font-bold uppercase tracking-widest mt-1">Susunan rencana belanja sekolah tahun ini</p>
         </div>
-        <div className="flex flex-col sm:flex-row gap-2 w-full md:w-auto">
+        
+        <div className="flex flex-wrap items-center gap-3 w-full lg:w-auto">
            {/* Filters */}
-           <div className="flex gap-2">
+           <div className="grid grid-cols-2 sm:flex gap-2 w-full sm:w-auto">
               <div className="relative">
                  <select
                     value={filterMonth}
                     onChange={(e) => setFilterMonth(e.target.value ? Number(e.target.value) : '')}
-                    className="pl-3 pr-8 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 appearance-none bg-white cursor-pointer"
+                    className="w-full pl-4 pr-10 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-bold focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 appearance-none cursor-pointer tracking-tight"
                  >
                     <option value="">Semua Bulan</option>
                     {MONTHS.map((m, i) => <option key={i} value={i+1}>{m}</option>)}
                  </select>
-                 <Filter size={14} className="absolute right-2 top-3 text-gray-400 pointer-events-none" />
+                 <ChevronDown size={14} className="absolute right-3 top-3.5 text-slate-400 pointer-events-none" />
               </div>
 
-              <div className="relative max-w-[150px] sm:max-w-[200px]">
+              <div className="relative">
                  <select
                     value={filterAccount}
                     onChange={(e) => setFilterAccount(e.target.value)}
-                    className="w-full pl-3 pr-8 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 appearance-none bg-white cursor-pointer truncate"
+                    className="w-full pl-4 pr-10 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-bold focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 appearance-none cursor-pointer truncate tracking-tight max-w-[150px]"
                  >
                     <option value="">Semua Rekening</option>
                     {Object.entries(allAccounts).map(([code, name]) => (
                         <option key={code} value={code}>{code} - {name}</option>
                     ))}
                  </select>
-                 <Filter size={14} className="absolute right-2 top-3 text-gray-400 pointer-events-none" />
+                 <ChevronDown size={14} className="absolute right-3 top-3.5 text-slate-400 pointer-events-none" />
               </div>
            </div>
 
-           <div className="relative flex-1 md:flex-none">
-              <Search className="absolute left-3 top-2.5 text-gray-400" size={18} />
+           <div className="relative flex-1 sm:w-64">
+              <Search className="absolute left-4 top-3 text-slate-400" size={18} />
               <input 
                 type="text" 
                 placeholder="Cari kegiatan..." 
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
-                className="pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 w-full"
+                className="w-full pl-11 pr-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500"
               />
            </div>
            
            <button 
              onClick={handleOpenAdd}
-             className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg flex items-center gap-2 font-medium transition shadow-sm whitespace-nowrap"
+             className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-2.5 rounded-xl flex items-center gap-2 font-bold transition shadow-lg shadow-blue-500/25 active:scale-95 whitespace-nowrap"
            >
-             <Plus size={18} /> Tambah
+             <Plus size={20} /> Tambah
            </button>
         </div>
       </div>
