@@ -2,25 +2,46 @@ import React, { useState, useEffect, useMemo, Fragment } from 'react';
 import { ShoppingBag, FileText, ClipboardList, RefreshCw, Calendar, ArrowRightLeft, Package, Download, Printer, Sparkles, Loader2, Plus, Trash2, X, ArrowRight } from 'lucide-react';
 import { Budget } from '../types';
 import { analyzeInventoryItems, InventoryItem } from '../lib/gemini';
-import { getSchoolProfile } from '../lib/db';
 
 interface InventoryReportsProps {
   budgets: Budget[];
+  schoolProfile: any; // Added based on the diff
 }
 
-const InventoryReports = ({ budgets }: InventoryReportsProps) => {
+interface WithdrawalTransaction {
+  id: string;
+  inventoryItemId: string;
+  date: string;
+  docNumber: string;
+  quantity: number;
+  notes?: string;
+}
+
+const InventoryReports: React.FC<InventoryReportsProps> = ({ budgets, schoolProfile }) => {
   const [activeReport, setActiveReport] = useState<string>('pengadaan');
   const [inventoryItems, setInventoryItems] = useState<InventoryItem[]>([]);
   const [manualInventoryItems, setManualInventoryItems] = useState<InventoryItem[]>([]);
-  const [isAnalyzing, setIsAnalyzing] = useState(false);
-  const [schoolProfile, setSchoolProfile] = useState<any>(null);
-  const [itemOverrides, setItemOverrides] = useState<Record<string, { lastYearBalance?: number, usedQuantity?: number }>>({});
+  const [isAnalyzing, setIsAnalyzing] = useState(false); // Restored isAnalyzing state
+  const [withdrawalTransactions, setWithdrawalTransactions] = useState<WithdrawalTransaction[]>([]);
+  const [itemOverrides, setItemOverrides] = useState<Record<string, { usedQuantity?: number; lastYearBalance?: number }>>(() => {
+    const saved = localStorage.getItem('rkas_inventory_overrides_v1');
+    return saved ? JSON.parse(saved) : {};
+  });
 
   // Selection & Modal State
   const [isManualModalOpen, setIsManualModalOpen] = useState(false);
   const [selectedBudget, setSelectedBudget] = useState<Budget | null>(null);
   const [manualForm, setManualForm] = useState<Partial<InventoryItem>>({});
   const [currentSubCategory, setCurrentSubCategory] = useState<string>('');
+
+  const [isWithdrawalModalOpen, setIsWithdrawalModalOpen] = useState(false);
+  const [selectedInventoryItem, setSelectedInventoryItem] = useState<InventoryItem | null>(null);
+  const [withdrawalForm, setWithdrawalForm] = useState({
+    date: new Date().toISOString().split('T')[0],
+    docNumber: '',
+    quantity: 0,
+    notes: ''
+  });
 
   const CATEGORY_SUB_MAP: Record<string, string[]> = {
     'Bahan': [
@@ -88,9 +109,11 @@ const InventoryReports = ({ budgets }: InventoryReportsProps) => {
   };
 
   useEffect(() => {
-    getSchoolProfile().then(setSchoolProfile);
     const localManual = localStorage.getItem('rkas_manual_inventory_v1');
     if (localManual) setManualInventoryItems(JSON.parse(localManual));
+
+    const localWithdrawals = localStorage.getItem('rkas_withdrawal_transactions_v1');
+    if (localWithdrawals) setWithdrawalTransactions(JSON.parse(localWithdrawals));
   }, []);
 
   const saveManualItems = (items: InventoryItem[]) => {
@@ -98,14 +121,25 @@ const InventoryReports = ({ budgets }: InventoryReportsProps) => {
     localStorage.setItem('rkas_manual_inventory_v1', JSON.stringify(items));
   };
 
-  const handleOverride = (itemId: string, field: 'lastYearBalance' | 'usedQuantity', value: number) => {
-    setItemOverrides((prev: Record<string, { lastYearBalance?: number, usedQuantity?: number }>) => ({
-      ...prev,
+  const saveWithdrawals = (txs: WithdrawalTransaction[]) => {
+    setWithdrawalTransactions(txs);
+    localStorage.setItem('rkas_withdrawal_transactions_v1', JSON.stringify(txs));
+  };
+
+  const saveOverrides = (newOverrides: typeof itemOverrides) => {
+    setItemOverrides(newOverrides);
+    localStorage.setItem('rkas_inventory_overrides_v1', JSON.stringify(newOverrides));
+  };
+
+  const handleOverride = (itemId: string, field: 'usedQuantity' | 'lastYearBalance', value: number) => {
+    const updated = {
+      ...itemOverrides,
       [itemId]: {
-        ...prev[itemId],
+        ...(itemOverrides[itemId] || {}),
         [field]: value
       }
-    }));
+    };
+    saveOverrides(updated);
   };
 
   const handleAnalyze = async () => {
@@ -121,29 +155,36 @@ const InventoryReports = ({ budgets }: InventoryReportsProps) => {
     }
   };
 
-  const handleManualAdd = (budgetItem: Budget) => {
-    setSelectedBudget(budgetItem);
-    const firstRealization = budgetItem.realizations?.[0];
+  const handleManualAdd = (budgetItem: any) => {
+    const isManualBalance = !budgetItem;
+    const budget = budgetItem || {
+      id: 'manual-inventory',
+      description: 'Saldo Awal / Input Manual Persediaan',
+      account_code: '0.00',
+      bosp_component: '0.00 Saldo Awal'
+    };
 
-    const subCode = typeof budgetItem.bosp_component === 'string' ? budgetItem.bosp_component.split('.')[0] : '';
-    const subName = typeof budgetItem.bosp_component === 'string' ? budgetItem.bosp_component.replace(/^\d+\.\s/, '') : budgetItem.bosp_component;
+    setSelectedBudget(budget);
+    setIsManualModalOpen(true);
+
+    const firstRealization = budgetItem?.realizations?.[0];
+    const subCode = typeof budget?.bosp_component === 'string' ? budget.bosp_component.split(/[.\s]/)[0] : '';
+    const subName = typeof budget?.bosp_component === 'string' ? budget.bosp_component.replace(/^\d+[\.\s]*/, '') : budget?.bosp_component;
 
     setManualForm({
-      name: budgetItem.description,
-      spec: budgetItem.notes || firstRealization?.notes || '',
-      quantity: firstRealization?.quantity || budgetItem.quantity || 1,
-      unit: budgetItem.unit || 'Unit',
-      price: budgetItem.unit_price || (firstRealization?.amount ? firstRealization.amount / (firstRealization.quantity || 1) : 0),
-      subActivityCode: subCode || '0.00.01',
-      subActivityName: subName || 'Administrasi Sekolah',
-      accountCode: budgetItem.account_code || '',
-      date: firstRealization?.date || budgetItem.date || new Date().toISOString(),
-      contractType: 'Invoice',
+      name: isManualBalance ? '' : budget.description,
+      spec: isManualBalance ? '' : (budget.notes || firstRealization?.notes || ''),
+      quantity: isManualBalance ? 0 : (firstRealization?.quantity || budget.quantity || 1),
+      unit: firstRealization?.unit || (budgetItem ? budget.unit : 'pcs'),
+      price: firstRealization?.price || (budgetItem ? budget.price : 0),
+      category: 'Alat Atau Bahan Untuk Kegiatan Kantor',
+      date: new Date().toISOString().split('T')[0],
+      subActivityCode: subCode,
+      subActivityName: subName,
       vendor: firstRealization?.vendor || '',
-      docNumber: firstRealization?.notes || '',
-      category: 'ATK'
+      docNumber: firstRealization?.notes || ''
     });
-    const defaultSub = CATEGORY_SUB_MAP[budgetItem.category || 'Alat Atau Bahan Untuk Kegiatan Kantor']?.[0] || '';
+    const defaultSub = CATEGORY_SUB_MAP[budget.category || 'Alat Atau Bahan Untuk Kegiatan Kantor']?.[0] || '';
     setCurrentSubCategory(defaultSub);
   };
 
@@ -176,6 +217,34 @@ const InventoryReports = ({ budgets }: InventoryReportsProps) => {
     saveManualItems(updated);
     setIsManualModalOpen(false);
     setSelectedBudget(null);
+  };
+
+  const submitWithdrawalForm = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!selectedInventoryItem || !withdrawalForm.quantity) return;
+
+    const newTx = {
+      id: `wd-${Date.now()}`,
+      inventoryItemId: selectedInventoryItem.id,
+      date: withdrawalForm.date,
+      docNumber: withdrawalForm.docNumber,
+      quantity: Number(withdrawalForm.quantity),
+      notes: withdrawalForm.notes
+    };
+
+    saveWithdrawals([...withdrawalTransactions, newTx]);
+    setIsWithdrawalModalOpen(false);
+    setSelectedInventoryItem(null);
+    setWithdrawalForm({
+      date: new Date().toISOString().split('T')[0],
+      docNumber: '',
+      quantity: 0,
+      notes: ''
+    });
+  };
+
+  const deleteWithdrawal = (id: string) => {
+    saveWithdrawals(withdrawalTransactions.filter(tx => tx.id !== id));
   };
 
   const deleteManualItem = (id: string) => {
@@ -214,15 +283,19 @@ const InventoryReports = ({ budgets }: InventoryReportsProps) => {
     return groups;
   }, [combinedItems]);
 
-  const groupedByDoc = useMemo(() => {
-    const groups: Record<string, InventoryItem[]> = {};
-    combinedItems.forEach((item: InventoryItem) => {
-      const key = `${item.date}-${item.docNumber}`;
+  const groupedWithdrawals = useMemo(() => {
+    const groups: Record<string, typeof withdrawalTransactions> = {};
+    const sorted = [...withdrawalTransactions].sort((a, b) => {
+      const dateCompare = new Date(a.date).getTime() - new Date(b.date).getTime();
+      return dateCompare !== 0 ? dateCompare : a.docNumber.localeCompare(b.docNumber);
+    });
+    sorted.forEach(tx => {
+      const key = tx.docNumber;
       if (!groups[key]) groups[key] = [];
-      groups[key].push(item);
+      groups[key].push(tx);
     });
     return groups;
-  }, [combinedItems]);
+  }, [withdrawalTransactions]);
 
   const reportMenu = [
     {
@@ -666,6 +739,123 @@ const InventoryReports = ({ budgets }: InventoryReportsProps) => {
           </div>
         )}
 
+        {/* Modal Withdrawal Entry */}
+        {isWithdrawalModalOpen && (
+          <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[100] flex items-center justify-center p-4 overflow-y-auto">
+            <div className="bg-white rounded-[2rem] shadow-2xl w-full max-w-4xl p-8 animate-fade-in-up relative my-auto">
+              <div className="flex justify-between items-center mb-6">
+                <div>
+                  <h3 className="text-2xl font-black text-slate-800">Catat Pengeluaran Barang</h3>
+                  <p className="text-xs text-slate-500 font-bold uppercase tracking-widest mt-1">Pilih barang dari Laporan Pengadaan</p>
+                </div>
+                <button onClick={() => { setIsWithdrawalModalOpen(false); setSelectedInventoryItem(null); }} className="p-2 hover:bg-slate-100 rounded-xl transition-colors">
+                  <X size={24} className="text-slate-400" />
+                </button>
+              </div>
+
+              {!selectedInventoryItem ? (
+                <div className="space-y-4">
+                  <p className="text-sm font-bold text-slate-700 mb-4">Pilih Barang dari Inventaris:</p>
+                  <div className="max-h-[60vh] overflow-y-auto pr-2 space-y-2 scrollbar-hide">
+                    {combinedItems.length === 0 ? (
+                      <div className="p-12 text-center text-slate-400 italic">Belum ada data barang masuk. Masukkan data di Laporan Pengadaan terlebih dahulu.</div>
+                    ) : (
+                      combinedItems.map(item => (
+                        <button
+                          key={item.id}
+                          onClick={() => {
+                            setSelectedInventoryItem(item);
+                            setWithdrawalForm({ ...withdrawalForm, quantity: item.quantity, docNumber: item.docNumber });
+                          }}
+                          className="w-full text-left p-4 rounded-2xl border border-slate-100 hover:border-orange-200 hover:bg-orange-50/30 transition-all group flex justify-between items-center"
+                        >
+                          <div>
+                            <p className="font-bold text-slate-800 group-hover:text-orange-700 transition-colors">{item.name}</p>
+                            <div className="flex gap-3 mt-1 items-center">
+                              <span className="text-[10px] bg-slate-100 text-slate-500 px-2 py-0.5 rounded-full font-mono">{item.category}</span>
+                              <span className="text-[10px] text-slate-400 font-bold">Tersedia: {item.quantity} {item.unit}</span>
+                              <span className="text-[10px] text-slate-400 italic">{item.spec}</span>
+                            </div>
+                          </div>
+                          <ArrowRight size={18} className="text-slate-300 group-hover:text-orange-500 group-hover:translate-x-1 transition-all" />
+                        </button>
+                      ))
+                    )}
+                  </div>
+                </div>
+              ) : (
+                <form onSubmit={submitWithdrawalForm} className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  <div className="md:col-span-2 bg-orange-50/50 p-4 rounded-2xl border border-orange-100 mb-2">
+                    <p className="text-[10px] font-black text-orange-600 uppercase tracking-widest mb-1">Barang yang Dikeluarkan:</p>
+                    <p className="text-sm font-bold text-slate-800">{selectedInventoryItem.name}</p>
+                    <p className="text-xs text-slate-500 italic">{selectedInventoryItem.spec}</p>
+                  </div>
+
+                  <div className="space-y-1">
+                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Tanggal Keluar</label>
+                    <input
+                      required
+                      type="date"
+                      className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 text-sm font-bold focus:ring-2 focus:ring-orange-500/20 focus:border-orange-500 outline-none"
+                      value={withdrawalForm.date}
+                      onChange={e => setWithdrawalForm({ ...withdrawalForm, date: e.target.value })}
+                    />
+                  </div>
+
+                  <div className="space-y-1">
+                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Nomor Dokumen Pengeluaran</label>
+                    <input
+                      required
+                      className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 text-sm font-bold focus:ring-2 focus:ring-orange-500/20 focus:border-orange-500 outline-none"
+                      placeholder="Misal: 250213084713..."
+                      value={withdrawalForm.docNumber}
+                      onChange={e => setWithdrawalForm({ ...withdrawalForm, docNumber: e.target.value })}
+                    />
+                  </div>
+
+                  <div className="space-y-1">
+                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Jumlah Keluar (Max: {selectedInventoryItem.quantity} {selectedInventoryItem.unit})</label>
+                    <input
+                      required
+                      type="number"
+                      max={selectedInventoryItem.quantity}
+                      className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 text-sm font-bold focus:ring-2 focus:ring-orange-500/20 focus:border-orange-500 outline-none"
+                      value={withdrawalForm.quantity || ''}
+                      onChange={e => setWithdrawalForm({ ...withdrawalForm, quantity: Number(e.target.value) })}
+                    />
+                  </div>
+
+                  <div className="space-y-1">
+                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Keterangan / Peruntukan</label>
+                    <input
+                      className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 text-sm font-bold focus:ring-2 focus:ring-orange-500/20 focus:border-orange-500 outline-none"
+                      placeholder="Misal: Untuk kegiatan pramuka"
+                      value={withdrawalForm.notes}
+                      onChange={e => setWithdrawalForm({ ...withdrawalForm, notes: e.target.value })}
+                    />
+                  </div>
+
+                  <div className="md:col-span-2 pt-6 flex gap-3">
+                    <button
+                      type="button"
+                      onClick={() => setSelectedInventoryItem(null)}
+                      className="flex-1 py-4 px-6 rounded-2xl border border-slate-200 text-slate-500 font-bold hover:bg-slate-50 transition-all font-mono tracking-tight"
+                    >
+                      KEMBALI
+                    </button>
+                    <button
+                      type="submit"
+                      className="flex-[2] py-4 px-6 rounded-2xl bg-orange-600 text-white font-black hover:bg-orange-700 shadow-xl shadow-orange-500/25 transition-all active:scale-95"
+                    >
+                      SIMPAN PENGELUARAN
+                    </button>
+                  </div>
+                </form>
+              )}
+            </div>
+          </div>
+        )}
+
         {activeReport === 'pengeluaran' && (
           <div className="flex flex-col h-full">
             <div className="p-6 border-b border-gray-100 bg-orange-50/30 flex justify-between items-center">
@@ -678,14 +868,19 @@ const InventoryReports = ({ budgets }: InventoryReportsProps) => {
                   <p className="text-[10px] text-gray-500 italic">Data pengeluaran barang yang telah terealisasi melalui SPJ.</p>
                 </div>
               </div>
-              <div className="text-[10px] font-bold text-orange-700 bg-orange-100/50 px-3 py-1 rounded-full border border-orange-200">
-                Otomatis dari Laporan Pengadaan
+              <div className="flex gap-2">
+                <button
+                  onClick={() => setIsWithdrawalModalOpen(true)}
+                  className="flex items-center gap-2 px-4 py-2 bg-orange-600 hover:bg-orange-700 text-white rounded-lg text-xs font-bold transition shadow-md shadow-orange-200"
+                >
+                  <Plus size={14} /> Catat Pengeluaran
+                </button>
               </div>
             </div>
 
-            {inventoryItems.length === 0 ? (
+            {withdrawalTransactions.length === 0 ? (
               <div className="p-12 text-center text-gray-400">
-                <p className="text-sm">Belum ada data. Silakan analisa data di menu "Laporan Pengadaan BMD" terlebih dahulu.</p>
+                <p className="text-sm">Belum ada data pengeluaran. Klik "Catat Pengeluaran" untuk menambah data manual dari barang yang sudah dibeli.</p>
               </div>
             ) : (
               <div className="overflow-x-auto p-4">
@@ -726,31 +921,41 @@ const InventoryReports = ({ budgets }: InventoryReportsProps) => {
                     </tr>
                   </thead>
                   <tbody>
-                    {Object.entries(groupedByDoc).map(([docKey, rawItems], docIdx) => {
-                      const documentItems = rawItems as InventoryItem[];
-                      const firstItem = documentItems[0];
+                    {Object.entries(groupedWithdrawals).map(([docKey, rawTxs], docIdx) => {
+                      const txs = rawTxs as typeof withdrawalTransactions;
+                      const firstTx = txs[0];
                       return (
                         <Fragment key={docKey}>
-                          {documentItems.map((item: InventoryItem, itemIdx: number) => (
-                            <tr key={`${docKey}-${itemIdx}`} className="hover:bg-gray-50">
-                              {itemIdx === 0 && (
-                                <Fragment>
-                                  <td className="border border-gray-300 p-2 text-center font-bold" rowSpan={documentItems.length}>{docIdx + 1}</td>
-                                  <td className="border border-gray-300 p-2 text-center" rowSpan={documentItems.length}>{formatDate(firstItem.date)}</td>
-                                  <td className="border border-gray-300 p-2 text-center font-mono text-[8px]" rowSpan={documentItems.length}>{firstItem.docNumber}</td>
-                                </Fragment>
-                              )}
-                              <td className="border border-gray-300 p-2 font-medium">{item.name}</td>
-                              <td className="border border-gray-300 p-2 text-gray-500 italic">{item.spec}</td>
-                              <td className="border border-gray-300 p-2 text-center">{item.quantity}</td>
-                              <td className="border border-gray-300 p-2 text-center">{item.unit}</td>
-                              <td className="border border-gray-300 p-2 text-right">{formatRupiah(item.price)}</td>
-                              <td className="border border-gray-300 p-2 text-right font-semibold">{formatRupiah(item.total)}</td>
-                              <td className="border border-gray-300 p-2 text-[8px] italic text-gray-400">
-                                {itemIdx === 0 ? "per belanja, per transaksi" : "-"}
-                              </td>
-                            </tr>
-                          ))}
+                          {txs.map((tx, txIdx: number) => {
+                            const item = combinedItems.find(i => i.id === tx.inventoryItemId);
+                            if (!item) return null;
+                            return (
+                              <tr key={`${docKey}-${txIdx}`} className="hover:bg-gray-50 group">
+                                {txIdx === 0 && (
+                                  <Fragment>
+                                    <td className="border border-gray-300 p-2 text-center font-bold" rowSpan={txs.length}>{docIdx + 1}</td>
+                                    <td className="border border-gray-300 p-2 text-center font-bold" rowSpan={txs.length}>{formatDate(firstTx.date)}</td>
+                                    <td className="border border-gray-300 p-2 text-center font-mono text-[8px] font-bold" rowSpan={txs.length}>{firstTx.docNumber}</td>
+                                  </Fragment>
+                                )}
+                                <td className="border border-gray-300 p-2 font-medium">{item.name}</td>
+                                <td className="border border-gray-300 p-2 text-gray-500 italic">{item.spec}</td>
+                                <td className="border border-gray-300 p-2 text-center">{tx.quantity}</td>
+                                <td className="border border-gray-300 p-2 text-center">{item.unit}</td>
+                                <td className="border border-gray-300 p-2 text-right">{formatRupiah(item.price)}</td>
+                                <td className="border border-gray-300 p-2 text-right font-semibold">{formatRupiah(tx.quantity * item.price)}</td>
+                                <td className="border border-gray-300 p-2 text-[8px] italic text-gray-400 relative">
+                                  {tx.notes || "-"}
+                                  <button
+                                    onClick={() => deleteWithdrawal(tx.id)}
+                                    className="absolute right-1 top-1 text-red-400 hover:text-red-600 opacity-0 group-hover:opacity-100 transition-opacity"
+                                  >
+                                    <Trash2 size={10} />
+                                  </button>
+                                </td>
+                              </tr>
+                            );
+                          })}
                         </Fragment>
                       );
                     })}
@@ -774,6 +979,12 @@ const InventoryReports = ({ budgets }: InventoryReportsProps) => {
                 </div>
               </div>
               <div className="flex items-center gap-2">
+                <button
+                  onClick={() => handleManualAdd(null)}
+                  className="flex items-center gap-2 px-3 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg text-[10px] font-bold transition shadow-sm"
+                >
+                  <Plus size={12} /> Tambah Saldo Awal
+                </button>
                 <div className="text-[10px] font-bold text-indigo-700 bg-indigo-100/50 px-3 py-1 rounded-full border border-indigo-200">
                   Otomatis Terkalkulasi
                 </div>
@@ -809,31 +1020,36 @@ const InventoryReports = ({ budgets }: InventoryReportsProps) => {
                       <th className="border border-gray-300 p-2 w-8" rowSpan={2}>No</th>
                       <th className="border border-gray-300 p-2 w-32" rowSpan={2}>Nama Barang</th>
                       <th className="border border-gray-300 p-2" rowSpan={2}>Spesifikasi Nama Barang</th>
-                      <th className="border border-gray-300 p-2 w-16" rowSpan={2}>Sisa Tahun lalu</th>
-                      <th className="border border-gray-300 p-1" colSpan={2}>Persediaan</th>
+                      <th className="border border-gray-300 p-2 w-16" rowSpan={2}>Sisa Tahun Lalu</th>
+                      <th className="border border-gray-300 p-1" colSpan={2}>Persediaan Masuk</th>
+                      <th className="border border-gray-300 p-1 bg-yellow-50" colSpan={2}>Persediaan Keluar</th>
                       <th className="border border-gray-300 p-2 w-16" rowSpan={2}>Sisa Persediaan</th>
                       <th className="border border-gray-300 p-2 w-16" rowSpan={2}>Satuan Barang</th>
                       <th className="border border-gray-300 p-1" colSpan={2}>Harga</th>
                       <th className="border border-gray-300 p-2 w-20" rowSpan={2}>Keterangan</th>
                     </tr>
                     <tr>
-                      <th className="border border-gray-300 p-1 w-16">Masuk</th>
-                      <th className="border border-gray-300 p-1 w-16 bg-yellow-50">Keluar</th>
+                      <th className="border border-gray-300 p-1 w-12 font-normal italic">Masuk</th>
+                      <th className="border border-gray-300 p-1 w-20 font-normal italic bg-yellow-50/50 text-[8px]">hanya itungan</th>
+                      <th className="border border-gray-300 p-1 w-12 font-normal italic bg-yellow-50">Keluar</th>
+                      <th className="border border-gray-300 p-1 w-20 font-normal italic bg-yellow-50 text-[8px]">hanya itungan</th>
                       <th className="border border-gray-300 p-1 w-24">Satuan (Rp)</th>
                       <th className="border border-gray-300 p-1 w-24">Total Nilai Barang (Rp)</th>
                     </tr>
-                    <tr className="bg-gray-100 text-[8px] italic text-gray-500">
-                      <td className="border border-gray-300 p-1">1</td>
-                      <td className="border border-gray-300 p-1">2</td>
-                      <td className="border border-gray-300 p-1">3</td>
-                      <td className="border border-gray-300 p-1">4</td>
-                      <td className="border border-gray-300 p-1">5</td>
-                      <td className="border border-gray-300 p-1">6</td>
-                      <td className="border border-gray-300 p-1">7 = (4+5-6)</td>
-                      <td className="border border-gray-300 p-1">8</td>
-                      <td className="border border-gray-300 p-1">9</td>
-                      <td className="border border-gray-300 p-1">10 = (7x9)</td>
-                      <td className="border border-gray-300 p-1">11</td>
+                    <tr className="bg-gray-100 text-[7px] italic text-gray-500 text-center">
+                      <td className="border border-gray-300 p-0.5">1</td>
+                      <td className="border border-gray-300 p-0.5">2</td>
+                      <td className="border border-gray-300 p-0.5">3</td>
+                      <td className="border border-gray-300 p-0.5">4</td>
+                      <td className="border border-gray-300 p-0.5">5</td>
+                      <td className="border border-gray-300 p-0.5 bg-yellow-50/20">itungan</td>
+                      <td className="border border-gray-300 p-0.5">6</td>
+                      <td className="border border-gray-300 p-0.5 bg-yellow-50/20">itungan</td>
+                      <td className="border border-gray-300 p-0.5">7 = (4+5-6)</td>
+                      <td className="border border-gray-300 p-0.5">8</td>
+                      <td className="border border-gray-300 p-0.5">9</td>
+                      <td className="border border-gray-300 p-0.5">10 = (7x9)</td>
+                      <td className="border border-gray-300 p-0.5">11</td>
                     </tr>
                   </thead>
                   <tbody>
@@ -844,7 +1060,7 @@ const InventoryReports = ({ budgets }: InventoryReportsProps) => {
                         <Fragment key={category}>
                           {/* Category Header */}
                           <tr className="bg-gray-50 font-bold italic">
-                            <td className="border border-gray-300 p-2" colSpan={11}>
+                            <td className="border border-gray-300 p-2" colSpan={13}>
                               {category}
                             </td>
                           </tr>
@@ -853,39 +1069,57 @@ const InventoryReports = ({ budgets }: InventoryReportsProps) => {
                             const overrides = itemOverrides[item.id] || {};
                             const sisaLalu = overrides.lastYearBalance ?? (item.lastYearBalance || 0);
                             const masuk = item.quantity;
-                            const keluar = overrides.usedQuantity ?? (item.usedQuantity || 0);
+                            
+                            // Calculate usedQuantity from manual transactions
+                            const transactionsQuantity = withdrawalTransactions
+                              .filter(tx => tx.inventoryItemId === item.id)
+                              .reduce((sum, tx) => sum + tx.quantity, 0);
+
+                            const keluar = overrides.usedQuantity ?? (transactionsQuantity || item.usedQuantity || 0);
                             const sisa = sisaLalu + masuk - keluar;
                             const totalNilai = sisa * item.price;
 
                             return (
-                              <tr key={item.id} className="hover:bg-blue-50/30 transition-colors">
+                              <tr key={item.id} className="hover:bg-gray-50 group">
                                 <td className="border border-gray-300 p-2 text-center text-gray-400">{idx + 1}</td>
                                 <td className="border border-gray-300 p-2 font-medium">{item.name}</td>
                                 <td className="border border-gray-300 p-2 text-gray-500 italic">{item.spec}</td>
-                                <td className="border border-gray-300 p-1 text-center bg-gray-50/50">
-                                  <input
-                                    type="number"
-                                    className="w-full bg-transparent text-center border-none focus:ring-0 p-0"
+                                <td className="border border-gray-300 p-2 text-center relative group/cell">
+                                  <input 
+                                    type="number" 
+                                    className="w-full bg-transparent text-center border-none focus:ring-1 focus:ring-indigo-300 rounded outline-none"
                                     value={sisaLalu}
-                                    onChange={(e: React.ChangeEvent<HTMLInputElement>) => handleOverride(item.id, 'lastYearBalance', Number(e.target.value))}
+                                    onChange={(e) => handleOverride(item.id, 'lastYearBalance', Number(e.target.value))}
                                   />
                                 </td>
-                                <td className="border border-gray-300 p-2 text-center font-bold text-blue-600">{masuk}</td>
-                                <td className="border border-gray-300 p-1 text-center bg-yellow-50/50">
-                                  <input
-                                    type="number"
-                                    className="w-full bg-transparent text-center border-none focus:ring-0 p-0 font-bold text-orange-600"
+                                <td className="border border-gray-300 p-2 text-center">{masuk}</td>
+                                
+                                <td className="border border-gray-300 p-2 text-right bg-yellow-50/20 text-[9px]">{formatRupiah(masuk * item.price)}</td>
+                                
+                                <td className="border border-gray-300 p-2 text-center relative group/cell bg-yellow-50/50">
+                                   <input 
+                                    type="number" 
+                                    className="w-full bg-transparent text-center border-none focus:ring-1 focus:ring-orange-300 rounded outline-none font-bold"
                                     value={keluar}
-                                    onChange={(e: React.ChangeEvent<HTMLInputElement>) => handleOverride(item.id, 'usedQuantity', Number(e.target.value))}
+                                    onChange={(e) => handleOverride(item.id, 'usedQuantity', Number(e.target.value))}
                                   />
+                                  {transactionsQuantity > 0 && overrides.usedQuantity === undefined && (
+                                    <span className="absolute -top-1 -right-1 flex h-2 w-2">
+                                      <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-blue-400 opacity-75"></span>
+                                      <span className="relative inline-flex rounded-full h-2 w-2 bg-blue-500"></span>
+                                    </span>
+                                  )}
                                 </td>
-                                <td className={`border border-gray-300 p-2 text-center font-black ${sisa < 0 ? 'text-red-600' : 'text-green-700'}`}>
-                                  {sisa}
-                                </td>
+                                
+                                <td className="border border-gray-300 p-2 text-right bg-yellow-50/20 text-[9px]">{formatRupiah(keluar * item.price)}</td>
+                                
+                                <td className={`border border-gray-300 p-2 text-center font-bold ${sisa < 0 ? 'text-red-600 bg-red-50' : ''}`}>{sisa}</td>
                                 <td className="border border-gray-300 p-2 text-center">{item.unit}</td>
                                 <td className="border border-gray-300 p-2 text-right">{formatRupiah(item.price)}</td>
-                                <td className="border border-gray-300 p-2 text-right font-bold">{formatRupiah(totalNilai)}</td>
-                                <td className="border border-gray-300 p-2 text-[8px] italic text-gray-400">-</td>
+                                <td className="border border-gray-300 p-2 text-right font-black bg-indigo-50/30">{formatRupiah(totalNilai)}</td>
+                                <td className="border border-gray-300 p-2 text-[8px] italic text-gray-400">
+                                  {overrides.usedQuantity !== undefined ? "Manual override" : transactionsQuantity > 0 ? `${transactionsQuantity} ${item.unit} dari Buku Pengeluaran` : "-"}
+                                </td>
                               </tr>
                             );
                           })}
