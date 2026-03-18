@@ -20,15 +20,61 @@ const InventoryReports = ({ budgets }: InventoryReportsProps) => {
   const [isManualModalOpen, setIsManualModalOpen] = useState(false);
   const [selectedBudget, setSelectedBudget] = useState<Budget | null>(null);
   const [manualForm, setManualForm] = useState<Partial<InventoryItem>>({});
-  const [atkSubCategory, setAtkSubCategory] = useState<string>('');
+  const [currentSubCategory, setCurrentSubCategory] = useState<string>('');
 
-  const ATK_SUB_CATEGORIES = [
-    'Kertas dan Cover',
-    'Alat Tulis',
-    'Benda Pos / Meterai',
-    'Penjilidan',
-    'Alat Tulis Kantor (Umum)'
-  ];
+  const CATEGORY_SUB_MAP: Record<string, string[]> = {
+    'Bahan': [
+      'Bahan Bangunan dan Konstruksi',
+      'Bahan Kimia',
+      'Bahan Bakar dan Pelumas',
+      'Bahan Cetak dan Penggandaan',
+      'Bahan Praktek Siswa',
+      'Lainnya'
+    ],
+    'Suku Cadang': [
+      'Suku Cadang Kendaraan',
+      'Suku Cadang Peralatan Kantor',
+      'Suku Cadang Komputer',
+      'Suku Cadang Alat Angkutan',
+      'Lainnya'
+    ],
+    'Alat Atau Bahan Untuk Kegiatan Kantor': [
+      'Kertas dan Cover',
+      'Alat Tulis Kantor (Umum)',
+      'Benda Pos / Meterai',
+      'Tinta / Toner / Ribbon',
+      'Alat Listrik dan Elektronik',
+      'Bahan Kebersihan',
+      'Perabot Kantor',
+      'Lainnya'
+    ],
+    'Obat Obatan': [
+      'Obat-obatan Umum / Generik',
+      'Peralatan P3K',
+      'Obat-obatan Laboratorium',
+      'Vaksin',
+      'Lainnya'
+    ],
+    'Persediaan Untuk dijual atau diserahkan': [
+      'Hadiah / Doorprize',
+      'Brosur / Pamflet / Leaflet',
+      'Seragam untuk Siswa',
+      'Buku untuk Diserahkan',
+      'Lainnya'
+    ],
+    'Natura dan Pakan': [
+      'Bahan Makanan (Sembako)',
+      'Pakan Hewan / Ternak',
+      'Bibit / Benih Tanaman',
+      'Lainnya'
+    ],
+    'Persediaan Penelitian': [
+      'Alat Penelitian Habis Pakai',
+      'Bahan Penelitian',
+      'Dokumentasi Penelitian',
+      'Lainnya'
+    ]
+  };
 
   useEffect(() => {
     getSchoolProfile().then(setSchoolProfile);
@@ -86,7 +132,8 @@ const InventoryReports = ({ budgets }: InventoryReportsProps) => {
       docNumber: firstRealization?.notes || '',
       category: 'ATK'
     });
-    setAtkSubCategory('Alat Tulis Kantor (Umum)');
+    const defaultSub = CATEGORY_SUB_MAP[budgetItem.category || 'Alat Atau Bahan Untuk Kegiatan Kantor']?.[0] || '';
+    setCurrentSubCategory(defaultSub);
   };
 
   const submitManualForm = (e: React.FormEvent) => {
@@ -108,7 +155,9 @@ const InventoryReports = ({ budgets }: InventoryReportsProps) => {
       contractType: manualForm.contractType || 'Invoice',
       vendor: manualForm.vendor || '',
       docNumber: manualForm.docNumber || '',
-      category: manualForm.category === 'ATK' ? `ATK - ${atkSubCategory}` : (manualForm.category || 'Lainnya'),
+      category: manualForm.category && CATEGORY_SUB_MAP[manualForm.category] 
+        ? `${manualForm.category} - ${currentSubCategory}` 
+        : (manualForm.category || 'Lainnya'),
       usedQuantity: Number(manualForm.quantity)
     };
 
@@ -222,8 +271,8 @@ const InventoryReports = ({ budgets }: InventoryReportsProps) => {
             key={report.id}
             onClick={() => setActiveReport(report.id)}
             className={`flex items-start gap-4 p-5 rounded-xl border transition-all duration-200 text-left ${activeReport === report.id
-                ? 'bg-white border-blue-600 ring-4 ring-blue-50 shadow-md'
-                : 'bg-white border-gray-100 hover:border-blue-200 hover:shadow-sm'
+              ? 'bg-white border-blue-600 ring-4 ring-blue-50 shadow-md'
+              : 'bg-white border-gray-100 hover:border-blue-200 hover:shadow-sm'
               }`}
           >
             {(() => {
@@ -473,7 +522,15 @@ const InventoryReports = ({ budgets }: InventoryReportsProps) => {
                         <select
                           className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 text-sm font-bold focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 outline-none"
                           value={manualForm.category || 'Lainnya'}
-                          onChange={e => setManualForm({ ...manualForm, category: e.target.value as any })}
+                          onChange={e => {
+                            const newCat = e.target.value;
+                            setManualForm({ ...manualForm, category: newCat as any });
+                            if (CATEGORY_SUB_MAP[newCat]) {
+                              setCurrentSubCategory(CATEGORY_SUB_MAP[newCat][0]);
+                            } else {
+                              setCurrentSubCategory('');
+                            }
+                          }}
                         >
                           <option value="Bahan">Bahan</option>
                           <option value="Suku Cadang">Suku Cadang</option>
@@ -483,18 +540,19 @@ const InventoryReports = ({ budgets }: InventoryReportsProps) => {
                           <option value="Persediaan untuk Strategis atau Berjaga jaga">Persediaan untuk Strategis atau Berjaga jaga</option>
                           <option value="Natura dan Pakan">Natura dan Pakan</option>
                           <option value="Persediaan Penelitian">Persediaan Penelitian</option>
+                          <option value="Lainnya">Lainnya</option>
                         </select>
                       </div>
 
-                      {manualForm.category === 'ATK' && (
+                      {manualForm.category && CATEGORY_SUB_MAP[manualForm.category] && (
                         <div className="space-y-1 animate-fade-in">
-                          <label className="text-[10px] font-black text-blue-600 uppercase tracking-widest ml-1">Jenis ATK</label>
+                          <label className="text-[10px] font-black text-blue-600 uppercase tracking-widest ml-1">Jenis {manualForm.category}</label>
                           <select
                             className="w-full bg-blue-50 border border-blue-200 rounded-xl px-4 py-2.5 text-sm font-bold focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 outline-none"
-                            value={atkSubCategory}
-                            onChange={e => setAtkSubCategory(e.target.value)}
+                            value={currentSubCategory}
+                            onChange={e => setCurrentSubCategory(e.target.value)}
                           >
-                            {ATK_SUB_CATEGORIES.map(sub => (
+                            {CATEGORY_SUB_MAP[manualForm.category].map((sub: string) => (
                               <option key={sub} value={sub}>{sub}</option>
                             ))}
                           </select>
