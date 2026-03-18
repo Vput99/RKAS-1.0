@@ -634,6 +634,14 @@ const InventoryReports = ({ budgets }: InventoryReportsProps) => {
                           onChange={e => setManualForm({ ...manualForm, vendor: e.target.value })}
                         />
                       </div>
+                      <div className="space-y-1">
+                        <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Nomor Dokumen</label>
+                        <input
+                          className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 text-sm font-bold focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 outline-none"
+                          value={manualForm.docNumber || ''}
+                          onChange={e => setManualForm({ ...manualForm, docNumber: e.target.value })}
+                        />
+                      </div>
 
                       <div className="md:col-span-3 pt-6 flex gap-3">
                         <button
