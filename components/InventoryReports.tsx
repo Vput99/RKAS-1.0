@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo, Fragment } from 'react';
-import { ShoppingBag, FileText, ClipboardList, RefreshCw, Calendar, ArrowRightLeft, Package, Download, Printer, Sparkles, Loader2 } from 'lucide-react';
+import { ShoppingBag, FileText, ClipboardList, RefreshCw, Calendar, ArrowRightLeft, Package, Download, Printer, Sparkles, Loader2, Plus, Trash2, X, ArrowRight } from 'lucide-react';
 import { Budget } from '../types';
 import { analyzeInventoryItems, InventoryItem } from '../lib/gemini';
 import { getSchoolProfile } from '../lib/db';
@@ -11,13 +11,26 @@ interface InventoryReportsProps {
 const InventoryReports = ({ budgets }: InventoryReportsProps) => {
   const [activeReport, setActiveReport] = useState<string>('pengadaan');
   const [inventoryItems, setInventoryItems] = useState<InventoryItem[]>([]);
+  const [manualInventoryItems, setManualInventoryItems] = useState<InventoryItem[]>([]);
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [schoolProfile, setSchoolProfile] = useState<any>(null);
   const [itemOverrides, setItemOverrides] = useState<Record<string, { lastYearBalance?: number, usedQuantity?: number }>>({});
 
+  // Selection & Modal State
+  const [isManualModalOpen, setIsManualModalOpen] = useState(false);
+  const [selectedBudget, setSelectedBudget] = useState<Budget | null>(null);
+  const [manualForm, setManualForm] = useState<Partial<InventoryItem>>({});
+
   useEffect(() => {
     getSchoolProfile().then(setSchoolProfile);
+    const localManual = localStorage.getItem('rkas_manual_inventory_v1');
+    if (localManual) setManualInventoryItems(JSON.parse(localManual));
   }, []);
+
+  const saveManualItems = (items: InventoryItem[]) => {
+    setManualInventoryItems(items);
+    localStorage.setItem('rkas_manual_inventory_v1', JSON.stringify(items));
+  };
 
   const handleOverride = (itemId: string, field: 'lastYearBalance' | 'usedQuantity', value: number) => {
     setItemOverrides((prev: Record<string, { lastYearBalance?: number, usedQuantity?: number }>) => ({
@@ -42,6 +55,64 @@ const InventoryReports = ({ budgets }: InventoryReportsProps) => {
     }
   };
 
+  const handleManualAdd = (budgetItem: Budget) => {
+      setSelectedBudget(budgetItem);
+      const firstRealization = budgetItem.realizations?.[0];
+      
+      const subCode = typeof budgetItem.bosp_component === 'string' ? budgetItem.bosp_component.split('.')[0] : '';
+      const subName = typeof budgetItem.bosp_component === 'string' ? budgetItem.bosp_component.replace(/^\d+\.\s/, '') : budgetItem.bosp_component;
+
+      setManualForm({
+          name: budgetItem.description,
+          spec: budgetItem.notes || firstRealization?.notes || '',
+          quantity: firstRealization?.quantity || budgetItem.quantity || 1,
+          unit: budgetItem.unit || 'Unit',
+          price: budgetItem.unit_price || (firstRealization?.amount ? firstRealization.amount / (firstRealization.quantity || 1) : 0),
+          subActivityCode: subCode || '0.00.01',
+          subActivityName: subName || 'Administrasi Sekolah',
+          accountCode: budgetItem.account_code || '',
+          date: firstRealization?.date || budgetItem.date || new Date().toISOString(),
+          contractType: 'Invoice',
+          vendor: firstRealization?.vendor || '',
+          docNumber: firstRealization?.notes || '',
+          category: 'Lainnya'
+      });
+  };
+
+  const submitManualForm = (e: React.FormEvent) => {
+      e.preventDefault();
+      if (!manualForm.name || !manualForm.quantity || !manualForm.price) return;
+
+      const newItem: InventoryItem = {
+          id: `manual-${Date.now()}`,
+          name: manualForm.name!,
+          spec: manualForm.spec || '',
+          quantity: Number(manualForm.quantity),
+          unit: manualForm.unit || 'Unit',
+          price: Number(manualForm.price),
+          total: Number(manualForm.quantity) * Number(manualForm.price),
+          subActivityCode: manualForm.subActivityCode,
+          subActivityName: manualForm.subActivityName,
+          accountCode: manualForm.accountCode || '',
+          date: manualForm.date!,
+          contractType: manualForm.contractType || 'Invoice',
+          vendor: manualForm.vendor || '',
+          docNumber: manualForm.docNumber || '',
+          category: (manualForm.category as any) || 'Lainnya',
+          usedQuantity: Number(manualForm.quantity)
+      };
+
+      const updated = [newItem, ...manualInventoryItems];
+      saveManualItems(updated);
+      setIsManualModalOpen(false);
+      setSelectedBudget(null);
+  };
+
+  const deleteManualItem = (id: string) => {
+      const updated = manualInventoryItems.filter(item => item.id !== id);
+      saveManualItems(updated);
+  };
+
   const formatRupiah = (num: number) => {
     return new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', maximumFractionDigits: 0 }).format(num);
   };
@@ -56,9 +127,13 @@ const InventoryReports = ({ budgets }: InventoryReportsProps) => {
     }
   };
 
+  const combinedItems = useMemo(() => {
+    return [...inventoryItems, ...manualInventoryItems];
+  }, [inventoryItems, manualInventoryItems]);
+
   const groupedItems = useMemo(() => {
     const groups: Record<string, InventoryItem[]> = {};
-    inventoryItems.forEach((item: InventoryItem) => {
+    combinedItems.forEach((item: InventoryItem) => {
       if (!item) return;
       const cat = item.category || '99 LAINNYA';
       if (!groups[cat]) {
@@ -67,17 +142,17 @@ const InventoryReports = ({ budgets }: InventoryReportsProps) => {
       groups[cat].push(item);
     });
     return groups;
-  }, [inventoryItems]);
+  }, [combinedItems]);
 
   const groupedByDoc = useMemo(() => {
     const groups: Record<string, InventoryItem[]> = {};
-    inventoryItems.forEach((item: InventoryItem) => {
+    combinedItems.forEach((item: InventoryItem) => {
       const key = `${item.date}-${item.docNumber}`;
       if (!groups[key]) groups[key] = [];
       groups[key].push(item);
     });
     return groups;
-  }, [inventoryItems]);
+  }, [combinedItems]);
 
   const reportMenu = [
     { 
@@ -187,27 +262,35 @@ const InventoryReports = ({ budgets }: InventoryReportsProps) => {
 
         {activeReport === 'pengadaan' && (
           <div className="flex flex-col h-full">
-            <div className="p-6 border-b border-gray-100 flex justify-between items-center bg-blue-50/30">
+            <div className="p-6 border-b border-gray-100 flex flex-wrap gap-4 justify-between items-center bg-blue-50/30">
               <div className="flex items-center gap-3">
                 <div className="p-2 bg-blue-100 text-blue-600 rounded-lg">
                   <Sparkles size={20} />
                 </div>
                 <div>
-                  <h4 className="font-bold text-gray-800 text-sm">Analisa Otomatis SIPLah</h4>
-                  <p className="text-[10px] text-gray-500 italic">Gunakan AI untuk mengurai transaksi belanja menjadi item persediaan.</p>
+                  <h4 className="font-bold text-gray-800 text-sm">Input Data Inventaris</h4>
+                  <p className="text-[10px] text-gray-500 italic">Pilih dari SPJ yang terealisasi atau gunakan AI.</p>
                 </div>
               </div>
-              <button 
-                onClick={handleAnalyze}
-                disabled={isAnalyzing}
-                className="flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-xs font-bold transition disabled:opacity-50 shadow-md shadow-blue-200"
-              >
-                {isAnalyzing ? <Loader2 size={14} className="animate-spin" /> : <RefreshCw size={14} />}
-                {isAnalyzing ? 'Menganalisis...' : 'Analisa Data Transaksi'}
-              </button>
+              <div className="flex gap-2">
+                <button 
+                  onClick={() => setIsManualModalOpen(true)}
+                  className="flex items-center gap-2 px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-xs font-bold transition shadow-md shadow-emerald-200"
+                >
+                  <Plus size={14} /> Tambah Manual
+                </button>
+                <button 
+                  onClick={handleAnalyze}
+                  disabled={isAnalyzing}
+                  className="flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-xs font-bold transition disabled:opacity-50 shadow-md shadow-blue-200"
+                >
+                  {isAnalyzing ? <Loader2 size={14} className="animate-spin" /> : <RefreshCw size={14} />}
+                  {isAnalyzing ? 'Menganalisis...' : 'Analisa AI'}
+                </button>
+              </div>
             </div>
 
-            {inventoryItems.length === 0 && !isAnalyzing ? (
+            {combinedItems.length === 0 && !isAnalyzing ? (
               <div className="p-12 text-center">
                 <div className="max-w-xs mx-auto space-y-4">
                   <div className="w-16 h-16 bg-blue-50 rounded-full flex items-center justify-center mx-auto text-blue-200">
@@ -286,7 +369,17 @@ const InventoryReports = ({ budgets }: InventoryReportsProps) => {
                               <td className="border border-gray-300 p-2 text-center text-[8px]">{formatDate(item.date)}</td>
                               <td className="border border-gray-300 p-2 text-center text-[8px]">{item.contractType || 'Kuitansi'}</td>
                               <td className="border border-gray-300 p-2 text-[8px] italic">{item.vendor}</td>
-                              <td className="border border-gray-300 p-2 text-[8px] font-mono whitespace-nowrap overflow-hidden text-ellipsis max-w-[80px]">{item.docNumber}</td>
+                              <td className="border border-gray-300 p-2 text-center text-[8px] font-mono whitespace-nowrap overflow-hidden text-ellipsis max-w-[80px]">
+                                {item.docNumber}
+                                {item.id.startsWith('manual-') && (
+                                  <button 
+                                    onClick={() => deleteManualItem(item.id)}
+                                    className="ml-2 text-red-400 hover:text-red-600 opacity-0 group-hover:opacity-100 transition-opacity"
+                                  >
+                                    <Trash2 size={10} />
+                                  </button>
+                                )}
+                              </td>
                             </tr>
                           ))}
                         </Fragment>
@@ -294,6 +387,177 @@ const InventoryReports = ({ budgets }: InventoryReportsProps) => {
                     })}
                   </tbody>
                 </table>
+              </div>
+            )}
+            
+            {/* Modal Manual Entry */}
+            {isManualModalOpen && (
+              <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[100] flex items-center justify-center p-4 overflow-y-auto">
+                <div className="bg-white rounded-[2rem] shadow-2xl w-full max-w-4xl p-8 animate-fade-in-up relative my-auto">
+                  <div className="flex justify-between items-center mb-6">
+                    <div>
+                      <h3 className="text-2xl font-black text-slate-800">Input Manual Inventaris</h3>
+                      <p className="text-xs text-slate-500 font-bold uppercase tracking-widest mt-1">Pilih data dari Anggaran/SPJ yang terealisasi</p>
+                    </div>
+                    <button onClick={() => { setIsManualModalOpen(false); setSelectedBudget(null); }} className="p-2 hover:bg-slate-100 rounded-xl transition-colors">
+                      <X size={24} className="text-slate-400" />
+                    </button>
+                  </div>
+
+                  {!selectedBudget ? (
+                    <div className="space-y-4">
+                      <p className="text-sm font-bold text-slate-700 mb-4">Pilih Item dari Anggaran:</p>
+                      <div className="max-h-[60vh] overflow-y-auto pr-2 space-y-2 scrollbar-hide">
+                        {budgets
+                          .filter(b => b.type === 'belanja' && b.realizations && b.realizations.length > 0)
+                          .map(b => (
+                            <button
+                              key={b.id}
+                              onClick={() => handleManualAdd(b)}
+                              className="w-full text-left p-4 rounded-2xl border border-slate-100 hover:border-blue-200 hover:bg-blue-50/30 transition-all group flex justify-between items-center"
+                            >
+                              <div>
+                                <p className="font-bold text-slate-800 group-hover:text-blue-700 transition-colors">{b.description}</p>
+                                <div className="flex gap-3 mt-1 items-center">
+                                  <span className="text-[10px] bg-slate-100 text-slate-500 px-2 py-0.5 rounded-full font-mono">{b.account_code}</span>
+                                  <span className="text-[10px] text-slate-400">{formatRupiah(b.amount)}</span>
+                                  <span className="text-[10px] text-blue-600 font-bold uppercase">{b.realizations?.length} Realisasi</span>
+                                </div>
+                              </div>
+                              <ArrowRight size={18} className="text-slate-300 group-hover:text-blue-500 group-hover:translate-x-1 transition-all" />
+                            </button>
+                          ))}
+                        {budgets.filter(b => b.type === 'belanja' && b.realizations && b.realizations.length > 0).length === 0 && (
+                          <div className="p-12 text-center text-slate-400 italic">Belum ada data SPJ yang terealisasi untuk dipilih.</div>
+                        )}
+                      </div>
+                    </div>
+                  ) : (
+                    <form onSubmit={submitManualForm} className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                      <div className="md:col-span-3 bg-blue-50/50 p-4 rounded-2xl border border-blue-100 mb-2">
+                        <p className="text-[10px] font-black text-blue-600 uppercase tracking-widest mb-1">Sumber Data:</p>
+                        <p className="text-sm font-bold text-slate-800">{selectedBudget.description}</p>
+                      </div>
+
+                      <div className="space-y-1">
+                        <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Nama Barang</label>
+                        <input 
+                          required
+                          className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 text-sm font-bold focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 outline-none"
+                          value={manualForm.name || ''}
+                          onChange={e => setManualForm({...manualForm, name: e.target.value})}
+                        />
+                      </div>
+
+                      <div className="space-y-1">
+                        <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Spesifikasi</label>
+                        <input 
+                          className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 text-sm font-bold focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 outline-none"
+                          value={manualForm.spec || ''}
+                          onChange={e => setManualForm({...manualForm, spec: e.target.value})}
+                          placeholder="Misal: Merk A, Ukuran B, Warna C"
+                        />
+                      </div>
+
+                      <div className="space-y-1">
+                        <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Kategori</label>
+                        <select 
+                          className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 text-sm font-bold focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 outline-none"
+                          value={manualForm.category || 'Lainnya'}
+                          onChange={e => setManualForm({...manualForm, category: e.target.value as any})}
+                        >
+                          <option value="ATK">Alat Tulis Kantor (ATK)</option>
+                          <option value="Kebersihan">Bahan Pembersih & Kebersihan</option>
+                          <option value="Meterai">Meterai & Benda Pos</option>
+                          <option value="Komputer">Tinta & Bahan Komputer</option>
+                          <option value="Listrik">Alat Listrik & Elektronik</option>
+                          <option value="Lainnya">Lainnya</option>
+                        </select>
+                      </div>
+
+                      <div className="space-y-1">
+                        <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Jumlah</label>
+                        <input 
+                          required
+                          type="number"
+                          className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 text-sm font-bold focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 outline-none"
+                          value={manualForm.quantity || ''}
+                          onChange={e => setManualForm({...manualForm, quantity: Number(e.target.value)})}
+                        />
+                      </div>
+
+                      <div className="space-y-1">
+                        <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Satuan</label>
+                        <input 
+                          required
+                          className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 text-sm font-bold focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 outline-none"
+                          value={manualForm.unit || ''}
+                          onChange={e => setManualForm({...manualForm, unit: e.target.value})}
+                        />
+                      </div>
+
+                      <div className="space-y-1">
+                        <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Harga Satuan</label>
+                        <input 
+                          required
+                          type="number"
+                          className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 text-sm font-bold focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 outline-none"
+                          value={manualForm.price || ''}
+                          onChange={e => setManualForm({...manualForm, price: Number(e.target.value)})}
+                        />
+                      </div>
+
+                      <div className="space-y-1">
+                        <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Tgl Perolehan</label>
+                        <input 
+                          type="date"
+                          className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 text-sm font-bold focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 outline-none"
+                          value={manualForm.date?.split('T')[0] || ''}
+                          onChange={e => setManualForm({...manualForm, date: e.target.value})}
+                        />
+                      </div>
+
+                      <div className="space-y-1">
+                        <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Bentuk Kontrak</label>
+                        <select 
+                          className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 text-sm font-bold focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 outline-none"
+                          value={manualForm.contractType || 'Invoice'}
+                          onChange={e => setManualForm({...manualForm, contractType: e.target.value})}
+                        >
+                          <option value="Invoice">Invoice</option>
+                          <option value="Kuitansi">Kuitansi</option>
+                          <option value="Nota Kontan">Nota Kontan</option>
+                          <option value="BAST">BAST</option>
+                        </select>
+                      </div>
+
+                      <div className="space-y-1">
+                        <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Penyedia</label>
+                        <input 
+                          className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 text-sm font-bold focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 outline-none"
+                          value={manualForm.vendor || ''}
+                          onChange={e => setManualForm({...manualForm, vendor: e.target.value})}
+                        />
+                      </div>
+
+                      <div className="md:col-span-3 pt-6 flex gap-3">
+                        <button 
+                          type="button"
+                          onClick={() => setSelectedBudget(null)}
+                          className="flex-1 py-4 px-6 rounded-2xl border border-slate-200 text-slate-500 font-bold hover:bg-slate-50 transition-all font-mono tracking-tight"
+                        >
+                          KEMBALI
+                        </button>
+                        <button 
+                          type="submit"
+                          className="flex-[2] py-4 px-6 rounded-2xl bg-blue-600 text-white font-black hover:bg-blue-700 shadow-xl shadow-blue-500/25 transition-all active:scale-95"
+                        >
+                          SIMPAN DATA
+                        </button>
+                      </div>
+                    </form>
+                  )}
+                </div>
               </div>
             )}
           </div>
