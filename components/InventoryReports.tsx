@@ -26,53 +26,64 @@ const InventoryReports = ({ budgets }: InventoryReportsProps) => {
     'Bahan': [
       'Bahan Bangunan dan Konstruksi',
       'Bahan Kimia',
+      'Bahan Peldak',
       'Bahan Bakar dan Pelumas',
-      'Bahan Cetak dan Penggandaan',
-      'Bahan Praktek Siswa',
-      'Lainnya'
+      'Bahan Baku : Kawat, Kayu',
+      'Bahan kimia nuklir',
+      'Barang dalam proses',
+      'Bahan/bibit tanaman',
+      'Isi tabung pemadam kebakaran',
+      'Isi tabung gas: isi tabung gas LPG',
+      'Bahan/bibit ternak/bibit ikan',
+      'Bahan lainnya'
+
     ],
     'Suku Cadang': [
-      'Suku Cadang Kendaraan',
-      'Suku Cadang Peralatan Kantor',
-      'Suku Cadang Komputer',
-      'Suku Cadang Alat Angkutan',
-      'Lainnya'
+      'Suku cadang alat angkutan',
+      'Suku cadang alat besar',
+      'Suku cadang alat kedokteran',
+      'Suku cadang alat laboratorium',
+      'Suku cadang alat pemancar',
+      'Suku cadang alat studio dan komunikasi',
+      'Suku cadang alat pertanian',
+      'Suku cadang alat bengkel',
+      'Suku cadang alat persenjataan',
+      'Persediaan dari belanja bantuan sosial',
+      'Suku cadang lainnya'
     ],
     'Alat Atau Bahan Untuk Kegiatan Kantor': [
-      'Kertas dan Cover',
-      'Alat Tulis Kantor (Umum)',
-      'Benda Pos / Meterai',
-      'Tinta / Toner / Ribbon',
-      'Alat Listrik dan Elektronik',
-      'Bahan Kebersihan',
-      'Perabot Kantor',
-      'Lainnya'
+      'Alat tulis kantor',
+      'Kertas dan cover',
+      'Bahan cetak',
+      'Benda pos',
+      'Persediaan dokumen/administrasi tender',
+      'Bahan komputer',
+      'Perabot kantor',
+      'Alat listrik',
+      'Perlengkapan dinas',
+      'Kaporlap dan perlengkapan satwa',
+      'Perlengkapan pendukung olah raga',
+      'Suvenir/cindera mata',
+      'Alat/bahan untuk kegiatan kantor lainnya'
     ],
     'Obat Obatan': [
-      'Obat-obatan Umum / Generik',
-      'Peralatan P3K',
-      'Obat-obatan Laboratorium',
-      'Vaksin',
-      'Lainnya'
+      'Obat',
+      'Obat Lainnya'
     ],
     'Persediaan Untuk dijual atau diserahkan': [
-      'Hadiah / Doorprize',
-      'Brosur / Pamflet / Leaflet',
-      'Seragam untuk Siswa',
-      'Buku untuk Diserahkan',
-      'Lainnya'
+      'Persediaan untuk dijual/diserahkan kepada masyarakat',
+      'Persediaan untuk dijual/diserahkan lainnya'
     ],
     'Natura dan Pakan': [
-      'Bahan Makanan (Sembako)',
-      'Pakan Hewan / Ternak',
-      'Bibit / Benih Tanaman',
-      'Lainnya'
+      'Natura: makanan/ sembako, minuman',
+      'Pakan',
+      'Natura dan Pakan Lainnya'
     ],
     'Persediaan Penelitian': [
-      'Alat Penelitian Habis Pakai',
-      'Bahan Penelitian',
-      'Dokumentasi Penelitian',
-      'Lainnya'
+      'Persediaan Penelitian Biologi',
+      'Persediaan Penelitian Biologi Lainnya',
+      'Persediaan Penelitian Teknologi',
+      'Persediaan Penelitian Lainnya'
     ]
   };
 
@@ -155,8 +166,8 @@ const InventoryReports = ({ budgets }: InventoryReportsProps) => {
       contractType: manualForm.contractType || 'Invoice',
       vendor: manualForm.vendor || '',
       docNumber: manualForm.docNumber || '',
-      category: manualForm.category && CATEGORY_SUB_MAP[manualForm.category] 
-        ? `${manualForm.category} - ${currentSubCategory}` 
+      category: manualForm.category && CATEGORY_SUB_MAP[manualForm.category]
+        ? `${manualForm.category} - ${currentSubCategory}`
         : (manualForm.category || 'Lainnya'),
       usedQuantity: Number(manualForm.quantity)
     };
