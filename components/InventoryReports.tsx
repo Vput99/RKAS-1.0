@@ -27,6 +27,10 @@ const InventoryReports: React.FC<InventoryReportsProps> = ({ budgets, schoolProf
     const saved = localStorage.getItem('rkas_inventory_overrides_v1');
     return saved ? JSON.parse(saved) : {};
   });
+  const [mutationOverrides, setMutationOverrides] = useState<Record<string, { awal?: number; tambah?: number; kurang?: number }>>(() => {
+    const saved = localStorage.getItem('rkas_mutation_overrides_v1');
+    return saved ? JSON.parse(saved) : {};
+  });
 
   // Selection & Modal State
   const [isManualModalOpen, setIsManualModalOpen] = useState(false);
@@ -142,6 +146,22 @@ const InventoryReports: React.FC<InventoryReportsProps> = ({ budgets, schoolProf
     saveOverrides(updated);
   };
 
+  const saveMutationOverrides = (newOverrides: typeof mutationOverrides) => {
+    setMutationOverrides(newOverrides);
+    localStorage.setItem('rkas_mutation_overrides_v1', JSON.stringify(newOverrides));
+  };
+
+  const handleMutationOverride = (category: string, field: 'awal' | 'tambah' | 'kurang', value: number) => {
+    const updated = {
+      ...mutationOverrides,
+      [category]: {
+        ...(mutationOverrides[category] || {}),
+        [field]: value
+      }
+    };
+    saveMutationOverrides(updated);
+  };
+
   const handleAnalyze = async () => {
     setIsAnalyzing(true);
     try {
@@ -190,7 +210,7 @@ const InventoryReports: React.FC<InventoryReportsProps> = ({ budgets, schoolProf
 
   const submitManualForm = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!manualForm.name || !manualForm.quantity || !manualForm.price) return;
+    if (!manualForm.name || !selectedBudget) return;
 
     const newItem: InventoryItem = {
       id: `manual-${Date.now()}`,
@@ -296,6 +316,30 @@ const InventoryReports: React.FC<InventoryReportsProps> = ({ budgets, schoolProf
     });
     return groups;
   }, [withdrawalTransactions]);
+
+  const mutationData = useMemo(() => {
+    const data: Record<string, { awal: number; tambah: number; kurang: number }> = {};
+    
+    combinedItems.forEach(item => {
+      const cat = item.category || '99 LAINNYA';
+      if (!data[cat]) data[cat] = { awal: 0, tambah: 0, kurang: 0 };
+      
+      const overrides = itemOverrides[item.id] || {};
+      const sisaLalu = overrides.lastYearBalance ?? (item.lastYearBalance || 0);
+      const masuk = item.quantity;
+      
+      const transactionsQuantity = withdrawalTransactions
+        .filter(tx => tx.inventoryItemId === item.id)
+        .reduce((sum, tx) => sum + tx.quantity, 0);
+      const keluar = overrides.usedQuantity ?? (transactionsQuantity || item.usedQuantity || 0);
+
+      data[cat].awal += sisaLalu * item.price;
+      data[cat].tambah += masuk * item.price;
+      data[cat].kurang += keluar * item.price;
+    });
+    
+    return data;
+  }, [combinedItems, itemOverrides, withdrawalTransactions]);
 
   const reportMenu = [
     {
@@ -991,7 +1035,7 @@ const InventoryReports: React.FC<InventoryReportsProps> = ({ budgets, schoolProf
               </div>
             </div>
 
-            {inventoryItems.length === 0 ? (
+            {combinedItems.length === 0 ? (
               <div className="p-12 text-center text-gray-400">
                 <p className="text-sm">Belum ada data. Silakan analisa data di menu "Laporan Pengadaan BMD" terlebih dahulu.</p>
               </div>
@@ -1133,24 +1177,143 @@ const InventoryReports: React.FC<InventoryReportsProps> = ({ budgets, schoolProf
           </div>
         )}
 
-        {activeReport !== 'pengadaan' && activeReport !== 'pengeluaran' && activeReport !== 'persediaan' && (
-          <div className="p-12 text-center">
-            <div className="max-w-md mx-auto space-y-4">
-              <div className="w-20 h-20 bg-gray-50 rounded-full flex items-center justify-center mx-auto text-gray-300">
-                <RefreshCw size={40} className="animate-spin-slow" />
+        {activeReport === 'mutasi' && (
+          <div className="flex flex-col h-full overflow-hidden">
+            <div className="p-6 border-b border-gray-100 bg-purple-50/30 flex justify-between items-center shrink-0">
+              <div className="flex items-center gap-3">
+                <div className="p-2 bg-purple-100 text-purple-600 rounded-lg">
+                  <ArrowRightLeft size={20} />
+                </div>
+                <div>
+                  <h4 className="font-bold text-gray-800 text-sm">Laporan Mutasi Persediaan</h4>
+                  <p className="text-[10px] text-gray-500 italic">Rekapitulasi mutasi tambah dan kurang per kategori barang.</p>
+                </div>
               </div>
-              <h4 className="font-bold text-gray-800 text-lg">Format Laporan Sedang Disiapkan</h4>
-              <p className="text-sm text-gray-500">
-                Struktur dasar menu <b>"{reportMenu.find(r => r.id === activeReport)?.title}"</b> telah siap.
-                Format detail kolom dan isi laporan akan diimplementasikan satu per satu sesuai instruksi selanjutnya.
-              </p>
-              <div className="pt-4">
-                <div className="inline-flex items-center gap-2 px-4 py-2 bg-yellow-50 text-yellow-700 rounded-full text-xs font-bold border border-yellow-100">
-                  <span className="w-2 h-2 bg-yellow-400 rounded-full animate-pulse"></span>
-                  Menunggu Definisi Kolom Laporan
+              <div className="flex items-center gap-2">
+                <div className="text-[10px] font-bold text-purple-700 bg-purple-100/50 px-3 py-1 rounded-full border border-purple-200">
+                  Otomatis dari Rekap Persediaan
                 </div>
               </div>
             </div>
+
+            <div className="flex-1 overflow-auto p-4 bg-slate-50/50">
+              <div className="bg-white p-8 rounded-3xl shadow-xl border border-gray-100 min-w-[800px]">
+                <div className="text-center mb-6 space-y-1">
+                  <h3 className="font-black text-lg text-gray-900 tracking-tight uppercase">LAPORAN PERSEDIAAN MUTASI TAMBAH DAN KURANG</h3>
+                  <p className="text-xs font-bold text-gray-600 uppercase">MENURUT OBJEK SUMBERDANA KESELURUHAN</p>
+                </div>
+
+                <div className="mb-4 text-[10px] space-y-1">
+                  <div className="flex gap-2">
+                    <span className="w-32 font-medium">Provinsi</span>
+                    <span>: JAWA TIMUR</span>
+                  </div>
+                  <div className="flex gap-2">
+                    <span className="w-32 font-medium">Kota/Kabupaten</span>
+                    <span>: KOTA KEDIRI</span>
+                  </div>
+                </div>
+
+                <table className="w-full text-[10px] border-collapse border border-gray-300">
+                  <thead className="bg-gray-50 text-gray-700 font-bold text-center">
+                    <tr>
+                      <th className="border border-gray-300 p-2 w-16">Kode Barang</th>
+                      <th className="border border-gray-300 p-2">Nama Barang</th>
+                      <th className="border border-gray-300 p-2 w-32">Saldo Awal (Rp.)</th>
+                      <th className="border border-gray-300 p-2 w-32">Mutasi Tambah (Rp.)</th>
+                      <th className="border border-gray-300 p-2 w-32">Mutasi Kurang (Rp.)</th>
+                      <th className="border border-gray-300 p-2 w-32">Saldo Akhir</th>
+                    </tr>
+                    <tr className="bg-gray-100 text-[8px] italic text-gray-500">
+                      <td className="border border-gray-300 p-1 text-center">1</td>
+                      <td className="border border-gray-300 p-1 text-center">2</td>
+                      <td className="border border-gray-300 p-1 text-center">3</td>
+                      <td className="border border-gray-300 p-1 text-center">4</td>
+                      <td className="border border-gray-300 p-1 text-center">5</td>
+                      <td className="border border-gray-300 p-1 text-center">6=(3+4-5)</td>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <tr className="font-bold bg-slate-50">
+                      <td className="border border-gray-300 p-2 text-center text-[8px]">1.1.7</td>
+                      <td className="border border-gray-300 p-2">ASET LANCAR</td>
+                      <td className="border border-gray-300 p-2 text-right"></td>
+                      <td className="border border-gray-300 p-2 text-right"></td>
+                      <td className="border border-gray-300 p-2 text-right"></td>
+                      <td className="border border-gray-300 p-2 text-right"></td>
+                    </tr>
+                    <tr className="font-bold bg-slate-50">
+                      <td className="border border-gray-300 p-2 text-center text-[8px]">1.1.7.01</td>
+                      <td className="border border-gray-300 p-2">PERSEDIAAN</td>
+                      <td className="border border-gray-300 p-2 text-right">{formatRupiah(Object.values(mutationData).reduce((s,v) => s + v.awal, 0))}</td>
+                      <td className="border border-gray-300 p-2 text-right">{formatRupiah(Object.values(mutationData).reduce((s,v) => s + v.tambah, 0))}</td>
+                      <td className="border border-gray-300 p-2 text-right">{formatRupiah(Object.values(mutationData).reduce((s,v) => s + v.kurang, 0))}</td>
+                      <td className="border border-gray-300 p-2 text-right">
+                        {formatRupiah(Object.values(mutationData).reduce((s,v) => s + (v.awal + v.tambah - v.kurang), 0))}
+                      </td>
+                    </tr>
+                    {Object.entries(mutationData).sort().map(([category, vals]) => {
+                      const overrides = mutationOverrides[category] || {};
+                      const awal = overrides.awal ?? vals.awal;
+                      const tambah = overrides.tambah ?? vals.tambah;
+                      const kurang = overrides.kurang ?? vals.kurang;
+                      const akhir = awal + tambah - kurang;
+                      
+                      const code = category.match(/^\d+[\d.]*/)?.[0] || '-';
+                      const name = category.replace(/^\d+[\d.\s]*/, '');
+
+                      return (
+                        <tr key={category} className="hover:bg-slate-50/50 group">
+                          <td className="border border-gray-300 p-2 text-center text-[8px] text-gray-400 font-mono">{code}</td>
+                          <td className="border border-gray-300 p-2 font-medium">{name}</td>
+                          <td className="border border-gray-300 p-2 text-right relative group/cell">
+                             <input 
+                              type="number" 
+                              className="w-full bg-transparent text-right border-none focus:ring-1 focus:ring-purple-300 rounded outline-none"
+                              value={awal}
+                              onChange={(e) => handleMutationOverride(category, 'awal', Number(e.target.value))}
+                            />
+                            <div className="hidden group-hover/cell:block absolute top-0 right-0 bg-white text-[7px] p-0.5 border shadow-sm z-10 pointer-events-none">
+                              {formatRupiah(awal)}
+                            </div>
+                          </td>
+                          <td className="border border-gray-300 p-2 text-right relative group/cell">
+                             <input 
+                              type="number" 
+                              className="w-full bg-transparent text-right border-none focus:ring-1 focus:ring-purple-300 rounded outline-none"
+                              value={tambah}
+                              onChange={(e) => handleMutationOverride(category, 'tambah', Number(e.target.value))}
+                            />
+                            <div className="hidden group-hover/cell:block absolute top-0 right-0 bg-white text-[7px] p-0.5 border shadow-sm z-10 pointer-events-none">
+                              {formatRupiah(tambah)}
+                            </div>
+                          </td>
+                          <td className="border border-gray-300 p-2 text-right relative group/cell">
+                             <input 
+                              type="number" 
+                              className="w-full bg-transparent text-right border-none focus:ring-1 focus:ring-purple-300 rounded outline-none"
+                              value={kurang}
+                              onChange={(e) => handleMutationOverride(category, 'kurang', Number(e.target.value))}
+                            />
+                            <div className="hidden group-hover/cell:block absolute top-0 right-0 bg-white text-[7px] p-0.5 border shadow-sm z-10 pointer-events-none">
+                              {formatRupiah(kurang)}
+                            </div>
+                          </td>
+                          <td className="border border-gray-300 p-2 text-right font-bold bg-slate-50">{formatRupiah(akhir)}</td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Catch-all for other reports pending implementation */}
+        {activeReport !== 'pengadaan' && activeReport !== 'pengeluaran' && activeReport !== 'persediaan' && activeReport !== 'mutasi' && (
+          <div className="p-12 text-center">
+            {/* ... placeholder ... */}
           </div>
         )}
       </div>
