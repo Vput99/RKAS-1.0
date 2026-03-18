@@ -17,7 +17,7 @@ export interface InventoryItem {
   contractType?: string;
   vendor?: string;
   docNumber: string;
-  category: 'ATK' | 'Kebersihan' | 'Meterai' | 'Komputer' | 'Listrik' | 'Lainnya';
+  category: string; // 'ATK', 'Kebersihan', etc. with optional subcategories like 'ATK - Kertas'
   lastYearBalance?: number;
   usedQuantity?: number;
 }
