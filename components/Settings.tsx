@@ -464,7 +464,7 @@ const Settings: React.FC<SettingsProps> = ({ onProfileUpdate }) => {
                     <Trash2 size={16} />
                   </button>
                 </div>
-              </motion.div>
+              </div>
             )}
             </div>
           </motion.div>
@@ -663,8 +663,7 @@ const Settings: React.FC<SettingsProps> = ({ onProfileUpdate }) => {
                   {profile.studentCount > 0
                     ? formatRupiah(profile.budgetCeiling / profile.studentCount)
                     : 'Rp 0'}
-                  }
-                </span>
+                  </span>
                 </div>
               </div>
             </div>
@@ -677,48 +676,48 @@ const Settings: React.FC<SettingsProps> = ({ onProfileUpdate }) => {
               Data Penandatangan Dokumen
             </h3>
 
-            <div className="grid grid-cols-1 gap-5">
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">Nama Kepala Sekolah</label>
-              <input
-                type="text"
-                name="headmaster"
-                value={profile.headmaster}
-                onChange={handleChange}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none"
-              />
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">Nama Kepala Sekolah</label>
+                <input
+                  type="text"
+                  name="headmaster"
+                  value={profile.headmaster}
+                  onChange={handleChange}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none"
+                />
+              </div>
+              <div>
+                <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">NIP Kepala Sekolah</label>
+                <input
+                  type="text"
+                  name="headmasterNip"
+                  value={profile.headmasterNip}
+                  onChange={handleChange}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none"
+                />
+              </div>
             </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">NIP Kepala Sekolah</label>
-              <input
-                type="text"
-                name="headmasterNip"
-                value={profile.headmasterNip}
-                onChange={handleChange}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none"
-              />
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Nama Bendahara</label>
-              <input
-                type="text"
-                name="treasurer"
-                value={profile.treasurer}
-                onChange={handleChange}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none"
-              />
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">NIP Bendahara</label>
-              <input
-                type="text"
-                name="treasurerNip"
-                value={profile.treasurerNip}
-                onChange={handleChange}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none"
-              />
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">Nama Bendahara</label>
+                <input
+                  type="text"
+                  name="treasurer"
+                  value={profile.treasurer}
+                  onChange={handleChange}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none"
+                />
+              </div>
+              <div>
+                <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">NIP Bendahara</label>
+                <input
+                  type="text"
+                  name="treasurerNip"
+                  value={profile.treasurerNip}
+                  onChange={handleChange}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none"
+                />
               </div>
             </div>
           </motion.div>

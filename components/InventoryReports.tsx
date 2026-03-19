@@ -804,7 +804,7 @@ const InventoryReports: React.FC<InventoryReportsProps> = ({ budgets, schoolProf
                 </div>
               </div>
             )}
-          </div>
+          </motion.div>
         )}
 
         {/* Modal Withdrawal Entry */}
@@ -1031,7 +1031,7 @@ const InventoryReports: React.FC<InventoryReportsProps> = ({ budgets, schoolProf
                 </table>
               </div>
             )}
-          </div>
+          </motion.div>
         )}
 
         {activeReport === 'persediaan' && (
@@ -1198,7 +1198,7 @@ const InventoryReports: React.FC<InventoryReportsProps> = ({ budgets, schoolProf
                 </table>
               </div>
             )}
-          </div>
+          </motion.div>
         )}
 
         {activeReport === 'mutasi' && (
@@ -1331,7 +1331,7 @@ const InventoryReports: React.FC<InventoryReportsProps> = ({ budgets, schoolProf
                 </table>
               </div>
             </div>
-          </div>
+          </motion.div>
         )}
 
         {/* Catch-all for other reports pending implementation */}
