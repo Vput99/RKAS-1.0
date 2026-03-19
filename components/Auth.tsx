@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { supabase } from '../lib/supabase';
 import { Lock, Mail, Loader2, UserPlus, LogIn, School, Building2 } from 'lucide-react';
 import { saveSchoolProfile } from '../lib/db';
+import { motion, AnimatePresence } from 'framer-motion';
 
 interface AuthProps {
   onLoginSuccess: () => void;
@@ -63,98 +64,149 @@ const Auth: React.FC<AuthProps> = ({ onLoginSuccess }) => {
   };
 
   return (
-    <div className="min-h-screen grid grid-cols-1 lg:grid-cols-2 bg-white selection:bg-blue-100">
+    <div className="min-h-screen grid grid-cols-1 lg:grid-cols-2 bg-slate-50 selection:bg-blue-200">
       
       {/* Left Side: Dynamic Brand Area */}
       <div className="hidden lg:flex relative bg-[#0f172a] overflow-hidden items-center justify-center p-12">
-        <div className="absolute inset-0 bg-gradient-to-br from-blue-900/40 via-transparent to-indigo-900/40 z-10"></div>
-        <div className="absolute top-0 left-0 w-full h-full opacity-20 bg-[url('https://www.transparenttextures.com/patterns/cubes.png')]"></div>
+        <div className="absolute inset-0 bg-gradient-to-br from-blue-900/60 via-indigo-900/40 to-slate-900/90 z-10 backdrop-blur-3xl"></div>
+        <div className="absolute top-0 left-0 w-full h-full opacity-10 bg-[url('https://www.transparenttextures.com/patterns/cubes.png')] mix-blend-overlay"></div>
         
         {/* Animated Orbs */}
-        <div className="absolute top-1/4 left-1/4 w-96 h-96 bg-blue-600/30 rounded-full blur-[100px] animate-pulse"></div>
-        <div className="absolute bottom-1/4 right-1/4 w-64 h-64 bg-indigo-600/20 rounded-full blur-[80px]"></div>
+        <motion.div 
+           animate={{ scale: [1, 1.2, 1], opacity: [0.3, 0.5, 0.3], x: [0, 50, 0] }} 
+           transition={{ duration: 8, repeat: Infinity, ease: "easeInOut" }}
+           className="absolute top-1/4 left-1/4 w-[500px] h-[500px] bg-blue-500/30 rounded-full blur-[120px]"
+        />
+        <motion.div 
+           animate={{ scale: [1, 1.5, 1], opacity: [0.2, 0.4, 0.2], y: [0, -50, 0] }} 
+           transition={{ duration: 10, repeat: Infinity, ease: "easeInOut", delay: 1 }}
+           className="absolute bottom-1/4 right-1/4 w-96 h-96 bg-indigo-600/30 rounded-full blur-[100px]"
+        />
 
         <div className="relative z-20 max-w-lg text-center">
-          <div className="w-24 h-24 bg-white/10 backdrop-blur-xl rounded-3xl flex items-center justify-center text-white mb-8 mx-auto border border-white/20 shadow-2xl transform hover:scale-105 transition-transform duration-500">
-            <School size={48} className="text-blue-400" />
-          </div>
-          <h2 className="text-5xl font-black text-white mb-6 tracking-tight leading-tight">
-            Digitalisasi <br/>
-            <span className="text-transparent bg-clip-text bg-gradient-to-r from-blue-400 to-indigo-400">RKAS Pintar</span>
-          </h2>
-          <p className="text-gray-400 text-lg leading-relaxed mb-8">
-            Sistem manajemen anggaran sekolah yang modern, transparan, dan terintegrasi untuk masa depan pendidikan yang lebih baik.
-          </p>
+          <motion.div 
+            initial={{ scale: 0, opacity: 0, rotate: -20 }}
+            animate={{ scale: 1, opacity: 1, rotate: 0 }}
+            transition={{ type: "spring", stiffness: 200, damping: 20 }}
+            className="w-28 h-28 bg-white/10 backdrop-blur-2xl rounded-[2rem] flex items-center justify-center text-white mb-8 mx-auto border border-white/20 shadow-2xl relative overflow-hidden group"
+          >
+            <div className="absolute inset-0 bg-gradient-to-tr from-blue-500/20 to-transparent opacity-0 group-hover:opacity-100 transition-opacity"></div>
+            <School size={56} className="text-blue-300 drop-shadow-lg" />
+          </motion.div>
           
-          <div className="grid grid-cols-3 gap-6 pt-10 border-t border-white/10">
-             <div className="text-center">
-                <p className="text-white font-bold text-xl">100%</p>
-                <p className="text-gray-500 text-xs uppercase tracking-widest mt-1">Aman</p>
+          <motion.h2 
+            initial={{ y: 20, opacity: 0 }}
+            animate={{ y: 0, opacity: 1 }}
+            transition={{ delay: 0.2 }}
+            className="text-5xl font-black text-white mb-6 tracking-tight leading-tight drop-shadow-xl"
+          >
+            Digitalisasi <br/>
+            <span className="text-transparent bg-clip-text bg-gradient-to-r from-blue-400 via-indigo-400 to-purple-400 drop-shadow-sm">RKAS Pintar</span>
+          </motion.h2>
+          
+          <motion.p 
+            initial={{ y: 20, opacity: 0 }}
+            animate={{ y: 0, opacity: 1 }}
+            transition={{ delay: 0.3 }}
+            className="text-slate-300 text-lg leading-relaxed mb-10 font-medium"
+          >
+            Sistem manajemen anggaran sekolah yang modern, transparan, dan terintegrasi untuk masa depan pendidikan yang lebih baik.
+          </motion.p>
+          
+          <motion.div 
+             initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.5 }}
+             className="grid grid-cols-3 gap-6 pt-10 border-t border-white/10"
+          >
+             <div className="text-center group">
+                <p className="text-white font-black text-2xl group-hover:scale-110 transition-transform">100%</p>
+                <p className="text-blue-300 text-[10px] font-black uppercase tracking-widest mt-2">Aman</p>
              </div>
-             <div className="text-center">
-                <p className="text-white font-bold text-xl">Cloud</p>
-                <p className="text-gray-500 text-xs uppercase tracking-widest mt-1">Sync</p>
+             <div className="text-center group">
+                <p className="text-white font-black text-2xl group-hover:scale-110 transition-transform">Cloud</p>
+                <p className="text-indigo-300 text-[10px] font-black uppercase tracking-widest mt-2">Sync</p>
              </div>
-             <div className="text-center">
-                <p className="text-white font-bold text-xl">Realtime</p>
-                <p className="text-gray-500 text-xs uppercase tracking-widest mt-1">Data</p>
+             <div className="text-center group">
+                <p className="text-white font-black text-2xl group-hover:scale-110 transition-transform">Realtime</p>
+                <p className="text-purple-300 text-[10px] font-black uppercase tracking-widest mt-2">Data</p>
              </div>
-          </div>
+          </motion.div>
         </div>
       </div>
 
       {/* Right Side: Form Area */}
-      <div className="flex items-center justify-center p-6 md:p-12 lg:p-20 bg-gray-50/50">
-        <div className="w-full max-w-md">
+      <div className="flex items-center justify-center p-6 md:p-12 lg:p-20 relative overflow-hidden">
+        {/* Abstract shapes for right side */}
+        <div className="absolute top-0 right-0 w-64 h-64 bg-gradient-to-bl from-blue-100 to-transparent rounded-full blur-3xl opacity-50 -z-10 transform translate-x-1/2 -translate-y-1/2"></div>
+        <div className="absolute bottom-0 left-0 w-64 h-64 bg-gradient-to-tr from-indigo-100 to-transparent rounded-full blur-3xl opacity-50 -z-10 transform -translate-x-1/2 translate-y-1/2"></div>
+
+        <motion.div 
+          initial={{ opacity: 0, x: 20 }}
+          animate={{ opacity: 1, x: 0 }}
+          transition={{ type: "spring", stiffness: 300, damping: 30 }}
+          className="w-full max-w-md relative z-10"
+        >
           
           {/* Mobile Header */}
           <div className="lg:hidden text-center mb-10">
-             <div className="w-16 h-16 bg-blue-600 rounded-2xl flex items-center justify-center text-white mx-auto mb-4 shadow-xl">
-                <School size={32} />
+             <div className="w-20 h-20 bg-gradient-to-br from-blue-600 to-indigo-700 rounded-[2rem] flex items-center justify-center text-white mx-auto mb-5 shadow-xl shadow-blue-900/20 border border-white/20">
+                <School size={40} />
              </div>
-             <h1 className="text-2xl font-black text-gray-900">RKAS Pintar SD</h1>
+             <h1 className="text-3xl font-black text-slate-800 tracking-tight">RKAS Pintar SD</h1>
           </div>
 
-          <div className="bg-white p-8 md:p-10 rounded-3xl shadow-sm border border-gray-100">
-            <div className="mb-8">
-               <h2 className="text-3xl font-bold text-gray-900 mb-2">
-                 {isLogin ? 'Masuk' : 'Daftar'}
+          <div className="bg-white/80 backdrop-blur-2xl p-8 md:p-10 rounded-[2.5rem] shadow-2xl shadow-indigo-900/5 border border-white">
+            <div className="mb-10 text-center">
+               <h2 className="text-3xl font-black text-slate-800 mb-3 tracking-tight">
+                 {isLogin ? 'Selamat Datang' : 'Mulai Sekarang'}
                </h2>
-               <p className="text-gray-500">
-                 {isLogin ? 'Kelola anggaran sekolah Anda sekarang.' : 'Mulai digitalisasi RKAS sekolah Anda.'}
+               <p className="text-slate-500 font-medium">
+                 {isLogin ? 'Masuk untuk kelola anggaran sekolah.' : 'Daftarkan sekolah Anda, 100% gratis.'}
                </p>
             </div>
 
-            {error && (
-              <div className="bg-red-50 text-red-600 text-sm p-4 rounded-xl mb-6 flex items-center gap-3 border border-red-100 animate-fade-in">
-                 <AlertCircle size={18} /> {error}
-              </div>
-            )}
+            <AnimatePresence mode="popLayout">
+                {error && (
+                  <motion.div 
+                    initial={{ opacity: 0, y: -10, scale: 0.95 }}
+                    animate={{ opacity: 1, y: 0, scale: 1 }}
+                    exit={{ opacity: 0, scale: 0.95 }}
+                    className="bg-rose-50/80 backdrop-blur-sm text-rose-600 text-sm font-bold p-4 rounded-2xl mb-6 flex items-center gap-3 border border-rose-200 shadow-sm"
+                  >
+                     <AlertCircle size={20} className="shrink-0" /> <span className="flex-1">{error}</span>
+                  </motion.div>
+                )}
+            </AnimatePresence>
 
             <form onSubmit={handleAuth} className="space-y-5">
-               {!isLogin && (
-                   <div className="animate-fade-in-up">
-                     <label className="block text-sm font-semibold text-gray-700 mb-2">Nama Sekolah</label>
-                     <div className="relative group">
-                        <div className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 group-focus-within:text-blue-600 transition-colors">
-                           <Building2 size={20} />
-                        </div>
-                        <input 
-                           type="text" 
-                           required={!isLogin}
-                           value={schoolName}
-                           onChange={(e) => setSchoolName(e.target.value)}
-                           className="w-full pl-12 pr-4 py-3.5 bg-gray-50 border border-gray-200 rounded-xl focus:bg-white focus:ring-2 focus:ring-blue-500/20 focus:border-blue-600 outline-none transition-all"
-                           placeholder="Contoh: SD NEGERI 1 MAWAR"
-                        />
-                     </div>
-                   </div>
-               )}
+               <AnimatePresence mode="popLayout">
+                   {!isLogin && (
+                       <motion.div 
+                          initial={{ opacity: 0, height: 0, overflow: 'hidden' }}
+                          animate={{ opacity: 1, height: 'auto', overflow: 'visible' }}
+                          exit={{ opacity: 0, height: 0, overflow: 'hidden' }}
+                       >
+                         <label className="block text-xs font-black uppercase tracking-widest text-slate-500 mb-2 ml-1">Nama Sekolah</label>
+                         <div className="relative group">
+                            <div className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-blue-600 transition-colors">
+                               <Building2 size={20} />
+                            </div>
+                            <input 
+                               type="text" 
+                               required={!isLogin}
+                               value={schoolName}
+                               onChange={(e) => setSchoolName(e.target.value)}
+                               className="w-full pl-12 pr-4 py-4 bg-slate-50/50 border border-slate-200 rounded-2xl focus:bg-white focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 outline-none transition-all font-bold text-slate-700 shadow-sm"
+                               placeholder="Contoh: SD NEGERI 1 MAWAR"
+                            />
+                         </div>
+                       </motion.div>
+                   )}
+               </AnimatePresence>
 
-               <div className="animate-fade-in-up" style={{ animationDelay: '0.1s' }}>
-                 <label className="block text-sm font-semibold text-gray-700 mb-2">Email</label>
+               <div>
+                 <label className="block text-xs font-black uppercase tracking-widest text-slate-500 mb-2 ml-1">Email Sekolah</label>
                  <div className="relative group">
-                    <div className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 group-focus-within:text-blue-600 transition-colors">
+                    <div className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-blue-600 transition-colors">
                        <Mail size={20} />
                     </div>
                     <input 
@@ -162,16 +214,16 @@ const Auth: React.FC<AuthProps> = ({ onLoginSuccess }) => {
                        required
                        value={email}
                        onChange={(e) => setEmail(e.target.value)}
-                       className="w-full pl-12 pr-4 py-3.5 bg-gray-50 border border-gray-200 rounded-xl focus:bg-white focus:ring-2 focus:ring-blue-500/20 focus:border-blue-600 outline-none transition-all"
+                       className="w-full pl-12 pr-4 py-4 bg-slate-50/50 border border-slate-200 rounded-2xl focus:bg-white focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 outline-none transition-all font-bold text-slate-700 shadow-sm"
                        placeholder="sekolah@dikbud.id"
                     />
                  </div>
                </div>
                
-               <div className="animate-fade-in-up" style={{ animationDelay: '0.2s' }}>
-                 <label className="block text-sm font-semibold text-gray-700 mb-2">Password</label>
+               <div>
+                 <label className="block text-xs font-black uppercase tracking-widest text-slate-500 mb-2 ml-1">Password</label>
                  <div className="relative group">
-                    <div className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 group-focus-within:text-blue-600 transition-colors">
+                    <div className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-blue-600 transition-colors">
                        <Lock size={20} />
                     </div>
                     <input 
@@ -180,54 +232,58 @@ const Auth: React.FC<AuthProps> = ({ onLoginSuccess }) => {
                        minLength={6}
                        value={password}
                        onChange={(e) => setPassword(e.target.value)}
-                       className="w-full pl-12 pr-4 py-3.5 bg-gray-50 border border-gray-200 rounded-xl focus:bg-white focus:ring-2 focus:ring-blue-500/20 focus:border-blue-600 outline-none transition-all"
-                       placeholder="Masukkan password..."
+                       className="w-full pl-12 pr-4 py-4 bg-slate-50/50 border border-slate-200 rounded-2xl focus:bg-white focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 outline-none transition-all font-bold text-slate-700 shadow-sm"
+                       placeholder="&#9679;&#9679;&#9679;&#9679;&#9679;&#9679;&#9679;&#9679;"
                     />
                  </div>
                </div>
 
-               <button 
+               <motion.button 
+                  whileHover={{ y: -2 }}
+                  whileTap={{ scale: 0.98 }}
                   type="submit" 
                   disabled={loading}
-                  className="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-4 rounded-xl transition-all shadow-lg shadow-blue-500/25 hover:shadow-blue-500/40 flex items-center justify-center gap-3 mt-4 active:scale-[0.98]"
+                  className="w-full bg-gradient-to-r from-blue-600 to-indigo-600 text-white font-black py-4 rounded-2xl transition-all shadow-xl shadow-blue-600/20 hover:shadow-blue-600/40 flex items-center justify-center gap-3 mt-8 border border-white/20 disabled:opacity-70 disabled:pointer-events-none group"
                >
                   {loading ? (
-                     <Loader2 className="animate-spin" size={20} />
+                     <><Loader2 className="animate-spin" size={20} /> Memproses...</>
                   ) : (
                      <>
-                        <span className="text-lg">{isLogin ? 'Masuk Sekarang' : 'Daftar Sekarang'}</span>
-                        {isLogin ? <LogIn size={20} /> : <UserPlus size={20} />}
+                        <span className="text-lg">{isLogin ? 'Masuk ke Dashboard' : 'Buat Akun Sekolah'}</span>
+                        <div className="bg-white/20 p-1.5 rounded-lg group-hover:bg-white/30 transition-colors">
+                            {isLogin ? <LogIn size={18} /> : <UserPlus size={18} />}
+                        </div>
                      </>
                   )}
-               </button>
+               </motion.button>
             </form>
 
-            <div className="mt-8 text-center pt-8 border-t border-gray-100">
-               <p className="text-gray-500">
-                  {isLogin ? 'Belum bergabung?' : 'Sudah terdaftar?'} 
-                  <button 
-                     onClick={() => { setIsLogin(!isLogin); setError(''); }}
-                     className="text-blue-600 font-bold ml-2 hover:text-blue-700 transition-colors"
-                  >
-                     {isLogin ? 'Buat Akun Baru' : 'Masuk ke Akun'}
-                  </button>
+            <div className="mt-8 pt-8 border-t border-slate-100 flex flex-col items-center">
+               <p className="text-slate-500 font-medium text-sm">
+                  {isLogin ? 'Sekolah belum terdaftar?' : 'Sudah punya akun sekolah?'} 
                </p>
+               <button 
+                    onClick={() => { setIsLogin(!isLogin); setError(''); }}
+                    className="mt-2 text-blue-600 font-black hover:text-indigo-600 transition-colors px-4 py-2 bg-blue-50/50 rounded-xl hover:bg-blue-100/50"
+                >
+                    {isLogin ? 'Registrasi Sekarang' : 'Masuk di Sini'}
+                </button>
             </div>
           </div>
           
-          <p className="mt-10 text-center text-xs text-gray-400 uppercase tracking-widest leading-loose">
-             RKAS Pintar v1.2 &bull; Smart & Transparent Financial Management<br/>
+          <p className="mt-12 text-center text-[10px] text-slate-400 font-black uppercase tracking-widest leading-loose opacity-70">
+             RKAS Pintar v1.2 &bull; Smart Finance<br/>
              Made for SD Schools in Indonesia
           </p>
-        </div>
+        </motion.div>
       </div>
     </div>
   );
 };
 
 // Helper component for error display
-const AlertCircle = ({ size }: { size: number }) => (
-    <svg xmlns="http://www.w3.org/2000/svg" width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+const AlertCircle = ({ size, className }: { size: number, className?: string }) => (
+    <svg className={className} xmlns="http://www.w3.org/2000/svg" width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
 );
 
 export default Auth;

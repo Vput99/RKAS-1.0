@@ -1,6 +1,7 @@
 import React, { useState, useMemo } from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
 import { Budget, TransactionType } from '../types';
-import { Search, Printer, Trash2, MoreHorizontal, ArrowLeft, HelpCircle } from 'lucide-react';
+import { Search, Printer, Trash2, MoreHorizontal, ArrowLeft, HelpCircle, BookOpen, CreditCard, Landmark, Receipt, Calendar } from 'lucide-react';
 
 interface BKUProps {
   data: Budget[];
@@ -11,6 +12,16 @@ const MONTHS = [
   'Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni',
   'Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember'
 ];
+
+const containerVariants = {
+  hidden: { opacity: 0 },
+  show: { opacity: 1, transition: { staggerChildren: 0.1 } }
+};
+
+const itemVariants = {
+  hidden: { opacity: 0, y: 15 },
+  show: { opacity: 1, y: 0, transition: { type: "spring", stiffness: 300, damping: 24 } }
+};
 
 const BKU: React.FC<BKUProps> = ({ data, onBack }) => {
   const [selectedMonth, setSelectedMonth] = useState(new Date().getMonth() + 1);
@@ -74,162 +85,210 @@ const BKU: React.FC<BKUProps> = ({ data, onBack }) => {
   }, [bkuData, data, selectedMonth]);
 
   return (
-    <div className="min-h-screen bg-gray-50 pb-12">
+    <motion.div variants={containerVariants} initial="hidden" animate="show" className="space-y-6 pb-10">
       {/* Top Header */}
-      <div className="bg-white px-6 py-4 flex items-center justify-between border-b border-gray-100 sticky top-0 z-10">
-        <div className="flex items-center gap-4">
-          <button onClick={onBack} className="text-blue-600 hover:bg-blue-50 p-2 rounded-full transition">
-            <ArrowLeft size={18} />
+      <motion.div variants={itemVariants} className="flex flex-col md:flex-row md:items-end justify-between bg-white/60 backdrop-blur-xl p-6 rounded-[2rem] border border-white/80 shadow-xl shadow-blue-900/5 relative overflow-hidden">
+        <div className="flex items-center gap-4 relative z-10">
+          <button onClick={onBack} className="text-slate-400 hover:text-blue-600 hover:bg-blue-50 p-3 rounded-2xl transition shadow-sm bg-white/50 border border-slate-100">
+            <ArrowLeft size={20} />
           </button>
           <div>
-            <h1 className="text-lg font-bold text-gray-800">BKU {MONTHS[selectedMonth - 1]} 2025</h1>
-            <p className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">BOSP REGULER 2025</p>
+            <div className="flex items-center gap-2 mb-1">
+                <span className="px-3 py-1 bg-yellow-50 text-yellow-600 text-[10px] font-black uppercase tracking-widest rounded-lg border border-yellow-100 flex items-center gap-1"><BookOpen size={12}/> Buku Kas Umum</span>
+                <span className="px-3 py-1 bg-blue-50 text-blue-600 text-[10px] font-black uppercase tracking-widest rounded-lg border border-blue-100">BOSP REGULER 2025</span>
+            </div>
+            <h1 className="text-2xl font-black text-slate-800 tracking-tight">BKU <span className="text-transparent bg-clip-text bg-gradient-to-r from-blue-600 to-indigo-600">{MONTHS[selectedMonth - 1]} 2025</span></h1>
           </div>
-          <button className="text-blue-600 hover:text-red-500 flex items-center gap-1 ml-4 text-sm font-medium transition group">
-            <Trash2 size={14} className="group-hover:animate-pulse" />
-            <span>Hapus BKU</span>
-          </button>
         </div>
 
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-3 mt-4 md:mt-0 relative z-10">
           <div className="relative group">
-            <Search className="absolute left-3 top-2.5 text-gray-400 group-focus-within:text-blue-500 transition-colors" size={16} />
+            <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-blue-500 transition-colors" size={16} />
             <input 
               type="text" 
-              placeholder="Cari..."
+              placeholder="Cari transaksi..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
-              className="pl-9 pr-4 py-2 border border-gray-200 rounded-lg text-sm bg-gray-50 focus:bg-white focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 w-48 transition-all"
+              className="pl-10 pr-4 py-3 border border-white/60 rounded-xl text-sm bg-white/50 backdrop-blur-sm focus:bg-white focus:outline-none focus:ring-2 focus:ring-blue-500/50 focus:border-blue-500 w-64 shadow-sm transition-all placeholder:text-slate-400 font-medium"
             />
           </div>
-          <button className="flex items-center gap-2 px-4 py-2 bg-gray-800 text-white rounded-lg text-sm font-bold hover:bg-gray-700 active:scale-95 transition shadow-md shadow-gray-200">
-            <Printer size={16} />
-            Cetak
+          <button className="flex items-center gap-2 px-5 py-3 bg-gradient-to-br from-slate-700 to-slate-900 text-white rounded-xl text-sm font-bold shadow-lg shadow-slate-900/20 hover:shadow-xl hover:shadow-slate-900/30 active:scale-95 transition-all">
+            <Printer size={16} /> Print
+          </button>
+          <button className="flex items-center gap-2 px-4 py-3 bg-rose-50 text-rose-600 border border-rose-100 rounded-xl text-sm font-bold hover:bg-rose-100 transition-all">
+            <Trash2 size={16} /> Hapus
           </button>
         </div>
-      </div>
+        
+        {/* Background Graphic */}
+        <div className="absolute right-0 top-0 w-64 h-64 bg-gradient-to-br from-blue-400/10 to-transparent rounded-full blur-3xl -z-10 translate-x-1/3 -translate-y-1/3 pointer-events-none"></div>
+      </motion.div>
 
-      <div className="max-w-7xl mx-auto px-6 mt-8 space-y-6 animate-in fade-in duration-500 slide-in-from-bottom-4">
+      <motion.div variants={itemVariants} className="space-y-6">
         
         {/* Closure Info Card */}
-        <div className="bg-white border border-gray-100 rounded-xl p-4 shadow-sm flex items-center gap-3">
-          <div className="w-5 h-5 bg-blue-50 rounded-full flex items-center justify-center">
-             <div className="w-2.5 h-1.5 border-b-2 border-l-2 border-blue-600 -rotate-45 mb-0.5"></div>
+        <div className="bg-amber-50/80 backdrop-blur-md border border-amber-200/50 rounded-2xl p-4 shadow-sm flex items-center gap-3 animate-in fade-in zoom-in duration-500">
+          <div className="w-8 h-8 bg-amber-100 rounded-xl flex items-center justify-center shadow-inner">
+             <Calendar size={16} className="text-amber-600" />
           </div>
-          <p className="text-xs font-medium text-blue-800">BKU sudah ditutup pada 10 Des 2025</p>
+          <div>
+            <p className="text-xs font-bold text-amber-800 tracking-tight">Status Penutupan BKU</p>
+            <p className="text-[10px] text-amber-600/80 font-medium mt-0.5">BKU sudah ditutup pada tanggal 10 Desember 2025. Data bersifat read-only.</p>
+          </div>
         </div>
 
         {/* Stats Grid */}
         <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-          <div className="bg-white p-5 rounded-xl border border-gray-100 shadow-sm transition-hover hover:shadow-md">
-            <p className="text-[10px] font-bold text-gray-400 uppercase mb-3">Total Dibelanjakan Nontunai</p>
-            <div className="text-xl font-bold text-gray-800 tabular-nums">
+          <div className="glass-panel p-6 rounded-3xl border border-white/60 shadow-xl shadow-blue-900/5 relative overflow-hidden group">
+            <div className="flex items-center gap-3 mb-4">
+                <div className="p-2.5 bg-blue-50 rounded-xl group-hover:bg-blue-600 group-hover:text-white transition-colors duration-300 text-blue-600">
+                    <Landmark size={20} />
+                </div>
+                <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Belanja Nontunai</p>
+            </div>
+            <div className="text-2xl font-black text-slate-800 tabular-nums my-1 group-hover:translate-x-1 transition-transform">
               {formatRupiah(stats.nonTunai)}
             </div>
+            <div className="absolute right-[-10px] bottom-[-10px] opacity-[0.03] group-hover:opacity-[0.05] transition-opacity"><Landmark size={100}/></div>
           </div>
-          <div className="bg-white p-5 rounded-xl border border-gray-100 shadow-sm transition-hover hover:shadow-md">
-            <p className="text-[10px] font-bold text-gray-400 uppercase mb-3">Total Dibelanjakan Tunai</p>
-            <div className="text-xl font-bold text-gray-800 tabular-nums">
+
+          <div className="glass-panel p-6 rounded-3xl border border-white/60 shadow-xl shadow-blue-900/5 relative overflow-hidden group">
+             <div className="flex items-center gap-3 mb-4">
+                <div className="p-2.5 bg-emerald-50 rounded-xl group-hover:bg-emerald-600 group-hover:text-white transition-colors duration-300 text-emerald-600">
+                    <CreditCard size={20} />
+                </div>
+                <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Belanja Tunai</p>
+            </div>
+            <div className="text-2xl font-black text-slate-800 tabular-nums my-1 group-hover:translate-x-1 transition-transform">
               {formatRupiah(stats.tunai)}
             </div>
+            <div className="absolute right-[-10px] bottom-[-10px] opacity-[0.03] group-hover:opacity-[0.05] transition-opacity"><CreditCard size={100}/></div>
           </div>
-          <div className="bg-white p-5 rounded-xl border border-gray-100 shadow-sm transition-hover hover:shadow-md">
-            <p className="text-[10px] font-bold text-gray-400 uppercase mb-3">Pajak Wajib Lapor</p>
-            <div className="text-xl font-bold text-gray-800 tabular-nums">
+
+          <div className="glass-panel p-6 rounded-3xl border border-white/60 shadow-xl shadow-blue-900/5 relative overflow-hidden group">
+            <div className="flex items-center gap-3 mb-4">
+                <div className="p-2.5 bg-orange-50 rounded-xl group-hover:bg-orange-600 group-hover:text-white transition-colors duration-300 text-orange-600">
+                    <Receipt size={20} />
+                </div>
+                <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Pajak (Wajib Lapor)</p>
+            </div>
+            <div className="text-2xl font-black text-slate-800 tabular-nums my-1 group-hover:translate-x-1 transition-transform">
               {formatRupiah(stats.pajak)}
             </div>
+            <div className="absolute right-[-10px] bottom-[-10px] opacity-[0.03] group-hover:opacity-[0.05] transition-opacity"><Receipt size={100}/></div>
           </div>
-          <div className="bg-white p-5 rounded-xl border border-gray-100 shadow-sm transition-hover hover:shadow-md relative">
-            <div className="flex items-center gap-1.5 mb-3">
-              <p className="text-[10px] font-bold text-gray-400 uppercase">Sisa Dana Tersedia</p>
-              <HelpCircle size={12} className="text-blue-500" />
+
+          <div className="bg-gradient-to-br from-slate-800 to-slate-900 p-6 rounded-[2rem] border border-blue-400/30 shadow-2xl shadow-slate-900/20 text-white relative overflow-hidden group">
+            <div className="flex items-center justify-between mb-4">
+                <p className="text-[10px] font-black text-blue-200 uppercase tracking-widest opacity-90">Sisa Dana Tersedia</p>
+                <HelpCircle size={16} className="text-blue-400 cursor-pointer" />
             </div>
-            <div className="text-xl font-bold text-gray-800 tabular-nums">
+            <div className="text-3xl font-black drop-shadow-md my-1 group-hover:scale-105 transition-transform transform origin-left">
               {formatRupiah(stats.sisa)}
             </div>
+             <div className="absolute right-[-20px] bottom-[-20px] opacity-10 blur-sm pointer-events-none text-white"><Landmark size={140}/></div>
           </div>
         </div>
 
         {/* Main Table */}
-        <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
-          <div className="overflow-x-auto">
-            <table className="w-full text-left text-sm whitespace-nowrap">
-              <thead className="text-[11px] font-bold text-gray-800 uppercase tracking-wider border-b border-gray-100">
+        <div className="glass-panel overflow-hidden rounded-[2rem] border border-white/60 shadow-xl shadow-slate-200/40">
+          <div className="overflow-x-auto custom-scrollbar relative">
+            <table className="w-full text-left text-sm text-slate-600 border-collapse">
+              <thead className="bg-slate-50/80 backdrop-blur-md sticky top-0 z-10 font-bold border-b border-white">
                 <tr>
-                  <th className="px-6 py-5">ID</th>
-                  <th className="px-6 py-5">Tanggal</th>
-                  <th className="px-6 py-5">Kegiatan</th>
-                  <th className="px-6 py-5">Rekening Belanja</th>
-                  <th className="px-6 py-5">Jenis Transaksi</th>
-                  <th className="px-6 py-5">Anggaran</th>
-                  <th className="px-6 py-5">Dibelanjakan</th>
-                  <th className="px-6 py-5">Pajak Wajib Lapor</th>
-                  <th className="px-6 py-5 text-center">Aksi</th>
+                  <th className="px-6 py-4 uppercase tracking-widest text-[10px] text-slate-400 font-black">ID BNU</th>
+                  <th className="px-6 py-4 uppercase tracking-widest text-[10px] text-slate-400 font-black">Tanggal</th>
+                  <th className="px-6 py-4 uppercase tracking-widest text-[10px] text-slate-400 font-black">Kegiatan & Rekening</th>
+                  <th className="px-6 py-4 uppercase tracking-widest text-[10px] text-slate-400 font-black text-center">Tipe</th>
+                  <th className="px-6 py-4 uppercase tracking-widest text-[10px] text-slate-400 font-black text-right">Anggaran</th>
+                  <th className="px-6 py-4 uppercase tracking-widest text-[10px] text-slate-400 font-black text-right">Dibelanjakan</th>
+                  <th className="px-6 py-4 uppercase tracking-widest text-[10px] text-slate-400 font-black text-right">Pajak</th>
+                  <th className="px-6 py-4 uppercase tracking-widest text-[10px] text-slate-400 font-black text-center">Aksi</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-gray-50">
+              <tbody className="divide-y divide-slate-100/60 bg-white/40">
                 {bkuData.length === 0 ? (
-                  <tr>
-                    <td colSpan={9} className="px-6 py-12 text-center text-gray-400 italic bg-gray-50/30">
-                      Bulan ini belum ada transaksi terealisasi.
-                    </td>
-                  </tr>
-                ) : (
-                  bkuData.map((row) => (
-                    <tr key={row.id} className="hover:bg-gray-50/50 transition-colors group">
-                      <td className="px-6 py-4 font-mono text-[11px] text-gray-500">{row.id}</td>
-                      <td className="px-6 py-4 text-gray-600">
-                        {new Date(row.date).toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric' })}
+                    <tr>
+                      <td colSpan={8} className="px-6 py-16 text-center">
+                        <div className="flex flex-col items-center justify-center placeholder:text-slate-400 opacity-60">
+                            <BookOpen size={48} strokeWidth={1} className="text-slate-400 mb-4"/>
+                            <p className="font-bold text-slate-500">Tidak ada data transaksi</p>
+                            <p className="text-xs text-slate-400">Belum ada transaksi realisasi pada bulan {MONTHS[selectedMonth-1]}.</p>
+                        </div>
                       </td>
-                      <td className="px-6 py-4 text-gray-800 font-medium max-w-[240px] truncate" title={row.kegiatan}>
-                        {row.kegiatan}
-                      </td>
-                      <td className="px-6 py-4 text-gray-600 text-xs">
-                        {row.rekening}
+                    </tr>
+                  ) : bkuData.map((row) => (
+                    <motion.tr 
+                        key={row.id} 
+                        initial={{opacity:0, y:5}} animate={{opacity:1, y:0}} transition={{type:"spring"}}
+                        className="hover:bg-white/80 transition-colors group"
+                    >
+                      <td className="px-6 py-4">
+                        <span className="font-mono text-[11px] font-bold text-slate-400 bg-slate-100/50 px-2 py-1 rounded-md">{row.id}</span>
                       </td>
                       <td className="px-6 py-4">
-                        <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-medium ${
-                          row.jenis === 'Non Tunai' ? 'bg-blue-50 text-blue-600' : 'bg-orange-50 text-orange-600'
+                        <span className="font-medium text-slate-600 text-xs bg-slate-50 px-3 py-1.5 rounded-lg border border-slate-100 shadow-sm whitespace-nowrap">
+                            {new Date(row.date).toLocaleDateString('id-ID', { day: '2-digit', month: 'short', year: 'numeric' })}
+                        </span>
+                      </td>
+                      <td className="px-6 py-4 min-w-[300px]">
+                        <div className="font-bold text-slate-700 text-sm leading-snug line-clamp-2" title={row.kegiatan}>{row.kegiatan}</div>
+                        <div className="font-mono text-[10px] text-slate-400 mt-1">{row.rekening}</div>
+                      </td>
+                      <td className="px-6 py-4 text-center">
+                         <span className={`inline-flex items-center px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-widest shadow-sm border ${
+                          row.jenis === 'Non Tunai' 
+                            ? 'bg-blue-50 text-blue-600 border-blue-100' 
+                            : 'bg-emerald-50 text-emerald-600 border-emerald-100'
                         }`}>
                           {row.jenis}
                         </span>
                       </td>
-                      <td className="px-6 py-4 text-gray-600 tabular-nums">{formatRupiah(row.anggaran)}</td>
-                      <td className="px-6 py-4 text-gray-800 font-bold tabular-nums">{formatRupiah(row.dibelanjakan)}</td>
-                      <td className="px-6 py-4 text-gray-600 tabular-nums">{formatRupiah(row.pajak)}</td>
+                      <td className="px-6 py-4 text-right font-mono text-xs font-semibold text-slate-400">
+                        {formatRupiah(row.anggaran)}
+                      </td>
+                      <td className="px-6 py-4 text-right font-mono text-sm font-black text-slate-700 bg-slate-50/30">
+                        {formatRupiah(row.dibelanjakan)}
+                      </td>
+                      <td className="px-6 py-4 text-right">
+                         <span className="text-[11px] font-bold text-slate-500 bg-slate-100 px-2 py-1 rounded-md">
+                            {formatRupiah(row.pajak)}
+                         </span>
+                      </td>
                       <td className="px-6 py-4 text-center">
-                        <button className="p-1.5 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition active:scale-95">
-                          <MoreHorizontal size={18} />
+                        <button className="p-2 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-xl transition-all shadow-sm bg-white border border-slate-100 opacity-0 group-hover:opacity-100">
+                          <MoreHorizontal size={16} />
                         </button>
                       </td>
-                    </tr>
-                  ))
-                )}
+                    </motion.tr>
+                  ))}
               </tbody>
             </table>
           </div>
         </div>
 
         {/* Month Picker for testing/navigation */}
-        <div className="flex justify-center pt-4">
-           <div className="bg-white border border-gray-100 rounded-full p-1 shadow-sm flex gap-1 overflow-x-auto no-scrollbar max-w-full">
-              {MONTHS.map((m, i) => (
-                <button
-                  key={m}
-                  onClick={() => setSelectedMonth(i + 1)}
-                  className={`px-4 py-1.5 rounded-full text-[11px] font-bold transition-all whitespace-nowrap ${
-                    selectedMonth === i + 1 
-                      ? 'bg-blue-600 text-white shadow-md' 
-                      : 'text-gray-500 hover:bg-gray-50'
-                  }`}
-                >
-                  {m}
-                </button>
-              ))}
+        <div className="flex justify-center pt-2">
+           <div className="bg-white/80 backdrop-blur-md border border-white rounded-full p-1.5 shadow-lg shadow-blue-900/5 flex gap-1 overflow-x-auto custom-scrollbar max-w-full">
+              {MONTHS.map((m, i) => {
+                const isSelected = selectedMonth === i + 1;
+                return (
+                    <button
+                        key={m}
+                        onClick={() => setSelectedMonth(i + 1)}
+                        className={`relative px-5 py-2 rounded-full text-[11px] font-black uppercase tracking-widest transition-all whitespace-nowrap ${
+                            isSelected ? 'text-white shadow-xl shadow-blue-500/30 scale-105 z-10' : 'text-slate-400 hover:text-slate-700 hover:bg-slate-100/50'
+                        }`}
+                        >
+                        {isSelected && <motion.div layoutId="month-blob" className="absolute inset-0 bg-gradient-to-r from-blue-600 to-indigo-600 rounded-full -z-10"></motion.div>}
+                        {m.substring(0,3)}
+                    </button>
+                 );
+              })}
            </div>
         </div>
-      </div>
-    </div>
+      </motion.div>
+    </motion.div>
   );
 };
 

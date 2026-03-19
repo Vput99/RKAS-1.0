@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { LayoutDashboard, Wallet, FileCheck, Settings as SettingsIcon, Menu, User, BookOpen, FileBarChart, LogOut, Download, Share, PlusSquare, X, School, TrendingUp, Landmark, FileText, ShoppingBag } from 'lucide-react';
+import { motion, AnimatePresence } from 'framer-motion';
 import Dashboard from './components/Dashboard';
 import TransactionTable from './components/TransactionTable';
 import BudgetPlanning from './components/BudgetPlanning';
@@ -10,11 +11,11 @@ import ChatAssistant from './components/ChatAssistant';
 import RaporPendidikan from './components/RaporPendidikan';
 import BankWithdrawal from './components/BankWithdrawal';
 import EvidenceTemplates from './components/EvidenceTemplates';
-import InventoryReports from './components/InventoryReports'; // Import new component
+import InventoryReports from './components/InventoryReports';
 import Auth from './components/Auth';
 import BKU from './components/BKU';
 import { getBudgets, addBudget, updateBudget, deleteBudget, getSchoolProfile, checkDatabaseConnection, clearLocalData } from './lib/db';
-import { supabase } from './lib/supabase'; // Import supabase client
+import { supabase } from './lib/supabase';
 import { Budget, TransactionType, SchoolProfile } from './types';
 
 function App() {
@@ -30,7 +31,6 @@ function App() {
   // App State - Initialize from LocalStorage to persist state on reload
   const [activeTab, setActiveTab] = useState<'dashboard' | 'income' | 'planning' | 'spj' | 'reports' | 'rapor' | 'settings' | 'withdrawal' | 'evidence' | 'inventory' | 'bku'>(() => {
       const savedTab = localStorage.getItem('rkas_active_tab');
-      // Validate if saved tab is valid, otherwise default to dashboard
       const validTabs = ['dashboard', 'income', 'planning', 'spj', 'reports', 'rapor', 'settings', 'withdrawal', 'evidence', 'inventory', 'bku'];
       return (savedTab && validTabs.includes(savedTab)) ? (savedTab as any) : 'dashboard';
   });
@@ -41,24 +41,18 @@ function App() {
   const [loading, setLoading] = useState(true);
   const [isOnline, setIsOnline] = useState(false);
 
-  // --- PERSIST ACTIVE TAB ---
-  // Whenever activeTab changes, save it to localStorage
   useEffect(() => {
       localStorage.setItem('rkas_active_tab', activeTab);
   }, [activeTab]);
 
-  // --- PWA INSTALL LISTENER ---
   useEffect(() => {
-    // 1. Check if running in standalone (already installed)
     const isStandaloneMode = window.matchMedia('(display-mode: standalone)').matches || (window.navigator as any).standalone;
     setIsStandalone(isStandaloneMode);
 
-    // 2. Check if device is iOS
     const userAgent = window.navigator.userAgent.toLowerCase();
     const isIosDevice = /iphone|ipad|ipod/.test(userAgent);
     setIsIOS(isIosDevice);
 
-    // 3. Listen for Android/Desktop install prompt
     const handleBeforeInstallPrompt = (e: any) => {
       e.preventDefault();
       setDeferredPrompt(e);
@@ -66,18 +60,13 @@ function App() {
     };
 
     window.addEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
-
-    return () => {
-      window.removeEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
-    };
+    return () => window.removeEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
   }, []);
 
   const handleInstallClick = async () => {
     if (isIOS) {
-        // Show manual instruction for iOS
         setShowIOSPrompt(true);
     } else if (deferredPrompt) {
-        // Android/Desktop: Show native prompt
         deferredPrompt.prompt();
         const { outcome } = await deferredPrompt.userChoice;
         console.log(`User response to the install prompt: ${outcome}`);
@@ -87,23 +76,19 @@ function App() {
     }
   };
 
-  // --- AUTH CHECK ---
   useEffect(() => {
     if (!supabase) {
-        // Offline/Demo Mode: Auto login as Guest
         console.warn("Supabase not configured. Using Guest Mode.");
         setSession({ user: { email: 'guest@local' } });
         setAuthChecked(true);
         return;
     }
 
-    // Check active session
     supabase.auth.getSession().then(({ data: { session } }) => {
       setSession(session);
       setAuthChecked(true);
     });
 
-    // Listen for auth changes
     const {
       data: { subscription },
     } = supabase.auth.onAuthStateChange((_event, session) => {
@@ -113,7 +98,6 @@ function App() {
     return () => subscription.unsubscribe();
   }, []);
 
-  // --- DATA LOADING (Only if session exists) ---
   useEffect(() => {
     if (session) {
         fetchData();
@@ -125,29 +109,13 @@ function App() {
   const setupRealtimeSubscription = () => {
     if (!supabase) return;
 
-    const channel = supabase
+    const channel = supabase!
       .channel('public:db_changes')
-      .on(
-        'postgres_changes',
-        { event: '*', schema: 'public', table: 'budgets' },
-        () => {
-          getBudgets().then(setData);
-        }
-      )
-      .on(
-        'postgres_changes',
-        { event: '*', schema: 'public', table: 'school_profiles' },
-        () => {
-          getSchoolProfile().then(setSchoolProfile);
-        }
-      )
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'budgets' }, () => { getBudgets().then(setData); })
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'school_profiles' }, () => { getSchoolProfile().then(setSchoolProfile); })
       .subscribe();
 
-    return () => {
-      if (supabase) {
-        supabase.removeChannel(channel);
-      }
-    };
+    return () => supabase!.removeChannel(channel);
   };
 
   const checkConnection = async () => {
@@ -168,24 +136,14 @@ function App() {
 
   const handleAdd = async (item: Omit<Budget, 'id' | 'created_at'>) => {
     const newItem = await addBudget(item);
-    if (newItem) {
-      setData(prev => {
-        if (prev.some(p => p.id === newItem.id)) return prev;
-        return [newItem, ...prev];
-      });
-    }
+    if (newItem) setData(prev => prev.some(p => p.id === newItem.id) ? prev : [newItem, ...prev]);
   };
 
   const handleUpdate = async (id: string, updates: Partial<Budget>) => {
-    // Optimistic Update
     setData(prev => prev.map(item => item.id === id ? { ...item, ...updates } : item));
-    
     try {
       const updatedItem = await updateBudget(id, updates);
-      if (!updatedItem) {
-        // If update failed, revert silently
-        fetchData(true);
-      }
+      if (!updatedItem) fetchData(true);
     } catch (error) {
       console.error("Update failed:", error);
       fetchData(true);
@@ -200,20 +158,11 @@ function App() {
   };
 
   const handleLogout = async () => {
-      // 1. Clear Local Data to prevent leakage
       clearLocalData();
-      
-      // 2. Sign Out Supabase
-      if (supabase) {
-          await supabase.auth.signOut();
-      }
-      
-      // 3. Force Reload to ensure complete state clearance
-      // This is crucial to prevent "stale" data from being visible
+      if (supabase) await supabase.auth.signOut();
       window.location.reload(); 
   };
 
-  // Mobile responsiveness
   useEffect(() => {
     const handleResize = () => {
       if (window.innerWidth < 1024) setSidebarOpen(false);
@@ -227,21 +176,40 @@ function App() {
   const NavItem = ({ id, label, icon: Icon }: { id: typeof activeTab, label: string, icon: any }) => (
     <button
       onClick={() => { setActiveTab(id); if (window.innerWidth < 1024) setSidebarOpen(false); }}
-      className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg transition-all duration-200 ${
+      className={`w-full flex items-center gap-3 px-4 py-3 rounded-2xl transition-all duration-300 relative group overflow-hidden ${
         activeTab === id 
-          ? 'bg-blue-600 text-white shadow-lg shadow-blue-500/30' 
-          : 'text-gray-600 hover:bg-gray-100'
+          ? 'text-indigo-700 font-bold' 
+          : 'text-slate-600 hover:text-indigo-600 hover:bg-indigo-50/50'
       }`}
     >
-      <Icon size={20} />
-      <span className="font-medium">{label}</span>
+      {activeTab === id && (
+         <motion.div 
+            layoutId="activeTabIndicator"
+            className="absolute inset-0 bg-indigo-100/80 backdrop-blur border border-indigo-200 shadow-sm rounded-2xl -z-10"
+            transition={{ type: "spring", stiffness: 300, damping: 30 }}
+         />
+      )}
+      <Icon size={20} className={`transition-transform duration-300 ${activeTab === id ? 'scale-110 drop-shadow-sm' : 'group-hover:scale-110'}`} />
+      <span className="font-semibold tracking-tight">{label}</span>
     </button>
   );
 
-  // --- RENDER ---
-  
   if (!authChecked) {
-      return <div className="min-h-screen flex items-center justify-center bg-gray-50 text-gray-400">Memuat...</div>;
+      return (
+        <div className="min-h-screen flex items-center justify-center bg-slate-50 relative overflow-hidden">
+           <div className="absolute inset-0 z-0">
+             <div className="absolute top-1/4 left-1/4 w-96 h-96 bg-indigo-300/40 rounded-full mix-blend-multiply filter blur-3xl animate-blob"></div>
+             <div className="absolute top-1/3 right-1/4 w-96 h-96 bg-purple-300/40 rounded-full mix-blend-multiply filter blur-3xl animate-blob animation-delay-2000"></div>
+           </div>
+           <motion.div 
+             initial={{ opacity: 0, scale: 0.9 }} animate={{ opacity: 1, scale: 1 }}
+             className="z-10 bg-white/60 backdrop-blur-xl p-8 rounded-3xl shadow-2xl border border-white/50 flex flex-col items-center gap-4"
+           >
+              <div className="w-16 h-16 border-4 border-indigo-200 border-t-indigo-600 rounded-full animate-spin"></div>
+              <p className="text-indigo-900 font-bold text-lg animate-pulse">Memuat Aplikasi...</p>
+           </motion.div>
+        </div>
+      );
   }
 
   if (!session) {
@@ -249,200 +217,182 @@ function App() {
   }
 
   return (
-    <div className="flex h-screen bg-gray-50 overflow-hidden">
+    <div className="flex h-screen bg-transparent overflow-hidden font-sans">
       
       {/* Sidebar Overlay for Mobile */}
-      {isSidebarOpen && window.innerWidth < 1024 && (
-        <div 
-          className="fixed inset-0 bg-black/50 z-20"
-          onClick={() => setSidebarOpen(false)}
-        />
-      )}
+      <AnimatePresence>
+        {isSidebarOpen && window.innerWidth < 1024 && (
+          <motion.div 
+            initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+            className="fixed inset-0 bg-slate-900/40 backdrop-blur-md z-40"
+            onClick={() => setSidebarOpen(false)}
+          />
+        )}
+      </AnimatePresence>
 
-      {/* Sidebar */}
-      <aside className={`fixed lg:relative z-30 w-72 h-full bg-white border-r border-slate-200/60 transition-all duration-500 ease-in-out flex flex-col shadow-2xl shadow-slate-200/50 ${
-        isSidebarOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0 lg:w-[88px]'
+      {/* Sidebar Focus Area */}
+      <div className={`fixed lg:relative z-50 transition-all duration-500 ease-spring h-full p-4 lg:p-6 lg:pr-3 flex flex-col ${
+        isSidebarOpen ? 'translate-x-0 w-80' : '-translate-x-full lg:translate-x-0 lg:w-[124px]'
       }`}>
-        <div className="p-8 pb-10 flex items-center gap-4">
-          <div className="w-12 h-12 bg-gradient-to-br from-blue-600 to-indigo-700 rounded-2xl flex items-center justify-center text-white shadow-xl shadow-blue-500/30 flex-shrink-0 animate-scale-in">
-            <School size={24} />
+        <aside className="flex-1 w-full bg-white/70 backdrop-blur-2xl border border-white/80 shadow-[0_8px_32px_rgba(0,0,0,0.06)] rounded-[32px] flex flex-col overflow-hidden relative">
+          
+          <div className="p-8 pb-6 flex items-center gap-4 relative z-10">
+            <div className="w-14 h-14 bg-gradient-to-br from-indigo-500 to-purple-600 rounded-2xl flex items-center justify-center text-white shadow-xl shadow-indigo-500/30 flex-shrink-0 animate-fade-in-up">
+              <School size={28} className="drop-shadow-md" />
+            </div>
+            <div className={`transition-all duration-300 ${!isSidebarOpen && 'lg:opacity-0 lg:scale-90 hidden lg:block'}`}>
+              <h1 className="text-2xl font-black bg-clip-text text-transparent bg-gradient-to-r from-indigo-800 to-purple-800 tracking-tight">RKAS Pintar</h1>
+              <p className="text-[10px] font-bold text-indigo-500 uppercase tracking-[0.2em] mt-0.5">Dashboard SD</p>
+            </div>
           </div>
-          <div className={`transition-all duration-300 ${!isSidebarOpen && 'lg:opacity-0 lg:scale-90'}`}>
-            <h1 className="text-xl font-black text-slate-800 tracking-tight">RKAS Pintar</h1>
-            <p className="text-[10px] font-black text-blue-600 uppercase tracking-[0.2em]">Dashboard SD</p>
-          </div>
-        </div>
 
-        <nav className="px-4 space-y-1.5 flex-1 overflow-y-auto scrollbar-hide py-2">
-          <div className="space-y-1.5 focus-within:ring-0">
-            <NavItem id="dashboard" label="Dashboard" icon={LayoutDashboard} />
-            <NavItem id="rapor" label="Rapor Pendidikan" icon={TrendingUp} />
-            
-            <div className={`pt-4 pb-2 px-4 transition-all duration-300 ${!isSidebarOpen && 'lg:opacity-0'}`}>
-              <span className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em]">Manajemen Anggaran</span>
+          <nav className="px-4 space-y-1.5 flex-1 overflow-y-auto scrollbar-hide py-2 pb-8 relative z-10">
+            <div className="space-y-1">
+              <NavItem id="dashboard" label="Dashboard Utama" icon={LayoutDashboard} />
+              <NavItem id="rapor" label="Rapor Pendidikan" icon={TrendingUp} />
+              
+              <div className={`pt-6 pb-2 px-4 transition-all duration-300 ${!isSidebarOpen && 'lg:opacity-0'}`}>
+                <span className="text-[10px] font-black text-slate-400 uppercase tracking-[0.25em]">M. Anggaran</span>
+              </div>
+              
+              <NavItem id="income" label="Pendapatan BOS" icon={Wallet} />
+              <NavItem id="planning" label="Penganggaran RKAS" icon={BookOpen} />
+              <NavItem id="withdrawal" label="Pencairan Bank" icon={Landmark} />
+              
+              <div className={`pt-6 pb-2 px-4 transition-all duration-300 ${!isSidebarOpen && 'lg:opacity-0'}`}>
+                <span className="text-[10px] font-black text-slate-400 uppercase tracking-[0.25em]">Aktivitas</span>
+              </div>
+
+              <NavItem id="spj" label="Pencatatan SPJ" icon={FileCheck} />
+              <NavItem id="evidence" label="Manajemen Bukti" icon={FileText} />
+              <NavItem id="inventory" label="Stok Opname" icon={ShoppingBag} />
+              
+              <div className={`pt-6 pb-2 px-4 transition-all duration-300 ${!isSidebarOpen && 'lg:opacity-0'}`}>
+                 <span className="text-[10px] font-black text-slate-400 uppercase tracking-[0.25em]">Pelaporan Resmi</span>
+              </div>
+
+              <NavItem id="bku" label="Buku Kas Umum" icon={FileText} />
+              <NavItem id="reports" label="Laporan BOS" icon={FileBarChart} />
             </div>
             
-            <NavItem id="income" label="Pendapatan" icon={Wallet} />
-            <NavItem id="planning" label="Penganggaran" icon={BookOpen} />
-            <NavItem id="withdrawal" label="Pencairan Bank" icon={Landmark} />
-            
-            <div className={`pt-4 pb-2 px-4 transition-all duration-300 ${!isSidebarOpen && 'lg:opacity-0'}`}>
-              <span className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em]">Pelaksanaan & Stok</span>
-            </div>
+            <div className="pt-6 mt-6 border-t border-slate-200/50 space-y-2 mb-6">
+               {(!isStandalone && (deferredPrompt || isIOS)) && (
+                  <button
+                    onClick={handleInstallClick}
+                    className="w-full flex items-center gap-3 px-4 py-3 rounded-2xl bg-gradient-to-r from-emerald-400 to-teal-500 text-white shadow-lg shadow-emerald-500/30 hover:shadow-xl hover:-translate-y-0.5 transition-all duration-300 group"
+                  >
+                    <Download size={20} className="group-hover:animate-bounce drop-shadow" />
+                    <span className={`font-bold text-sm tracking-tight ${!isSidebarOpen && 'lg:hidden'}`}>
+                        {isIOS ? 'Cara Install App' : 'Install Aplikasi'}
+                    </span>
+                  </button>
+               )}
 
-            <NavItem id="spj" label="Peng-SPJ-an" icon={FileCheck} />
-            <NavItem id="evidence" label="Bukti Fisik" icon={FileText} />
-            <NavItem id="inventory" label="Stok Opname" icon={ShoppingBag} />
-            
-            <div className={`pt-4 pb-2 px-4 transition-all duration-300 ${!isSidebarOpen && 'lg:opacity-0'}`}>
-               <span className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em]">Pelaporan</span>
+               <button 
+                  onClick={() => { setActiveTab('settings'); if (window.innerWidth < 1024) setSidebarOpen(false); }}
+                  className={`w-full flex items-center gap-3 px-4 py-3 rounded-2xl transition-all duration-300 group ${
+                    activeTab === 'settings' 
+                      ? 'bg-slate-900 text-white shadow-xl shadow-slate-900/30' 
+                      : 'text-slate-500 hover:bg-slate-100/80 hover:text-slate-800'
+                  }`}
+               >
+                  <SettingsIcon size={20} className={`transition-transform duration-500 ${activeTab === 'settings' ? 'rotate-180' : 'group-hover:rotate-90'}`} />
+                  <span className={`font-bold text-sm tracking-tight ${!isSidebarOpen && 'lg:hidden'}`}>Pengaturan Sistem</span>
+               </button>
+               
+               <button 
+                  onClick={handleLogout}
+                  className="w-full flex items-center gap-3 px-4 py-3 rounded-2xl transition-all duration-300 text-rose-500 hover:bg-rose-50 hover:text-rose-600 active:scale-95 group"
+               >
+                  <LogOut size={20} className="group-hover:-translate-x-1 transition-transform" />
+                  <span className={`font-bold text-sm tracking-tight ${!isSidebarOpen && 'lg:hidden'}`}>Keluar Sesi</span>
+               </button>
             </div>
+          </nav>
 
-            <NavItem id="bku" label="BKU" icon={FileText} />
-            <NavItem id="reports" label="Laporan" icon={FileBarChart} />
+          <div className="absolute inset-0 bg-gradient-to-br from-white/40 via-transparent to-indigo-50/40 pointer-events-none rounded-[32px]"></div>
+        </aside>
+      </div>
+
+      {/* Main Content Area */}
+      <main className="flex-1 flex flex-col h-full overflow-hidden relative pb-4 lg:pb-6 pr-4 lg:pr-6 pt-4 lg:pt-6">
+        
+        {/* Floating Header */}
+        <header className="h-[76px] mb-6 bg-white/70 backdrop-blur-2xl border border-white/80 shadow-[0_8px_32px_rgba(0,0,0,0.04)] rounded-[28px] flex items-center justify-between px-6 flex-shrink-0 z-40 transition-all duration-300">
+          <div className="flex items-center gap-4">
+            <button 
+              onClick={() => setSidebarOpen(!isSidebarOpen)}
+              className="p-2.5 hover:bg-slate-100/80 hover:text-indigo-600 rounded-xl transition-colors text-slate-500 focus:outline-none focus:ring-2 focus:ring-indigo-500/20"
+            >
+              <Menu size={24} />
+            </button>
+            <h2 className="text-xl font-bold text-slate-800 hidden md:block capitalize tracking-tight">
+              {activeTab === 'spj' ? 'Pencatatan SPJ' : 
+               activeTab === 'bku' ? 'Buku Kas Umum' :
+               activeTab === 'inventory' ? 'Stok Opname' :
+               activeTab.replace('-', ' ')}
+            </h2>
           </div>
           
-          <div className="pt-8 mt-4 border-t border-slate-100 space-y-1.5 mb-6">
-             {/* Install Button Logic */}
-             {!isStandalone && (deferredPrompt || isIOS) && (
-                <button
-                  onClick={handleInstallClick}
-                  className={`w-full flex items-center gap-3 px-5 py-3 rounded-2xl transition-all duration-300 text-emerald-600 hover:bg-emerald-50 relative overflow-hidden group`}
-                >
-                  <Download size={20} className="relative z-10 group-hover:scale-110 transition-transform" />
-                  <span className={`relative z-10 font-black text-sm tracking-tight ${!isSidebarOpen && 'lg:hidden'}`}>
-                      {isIOS ? 'Cara Install' : 'Install App'}
-                  </span>
-                  <div className="absolute inset-0 bg-emerald-500/0 group-hover:bg-emerald-500/5 transition-colors"></div>
-                </button>
-             )}
-
-             <button 
-                onClick={() => { setActiveTab('settings'); if (window.innerWidth < 1024) setSidebarOpen(false); }}
-                className={`w-full flex items-center gap-3 px-5 py-3 rounded-2xl transition-all duration-300 group ${
-                  activeTab === 'settings' 
-                    ? 'bg-slate-900 text-white shadow-xl shadow-slate-900/20 active:scale-95' 
-                    : 'text-slate-500 hover:bg-slate-100'
-                }`}
-             >
-                <SettingsIcon size={20} className={`transition-transform duration-500 ${activeTab === 'settings' ? '' : 'group-hover:rotate-90'}`} />
-                <span className={`font-bold text-sm tracking-tight ${!isSidebarOpen && 'lg:hidden'}`}>Pengaturan</span>
-             </button>
-             
-             <button 
-                onClick={handleLogout}
-                className="w-full flex items-center gap-3 px-5 py-3 rounded-2xl transition-all duration-300 text-rose-500 hover:bg-rose-50 active:scale-95 group"
-             >
-                <LogOut size={20} className="group-hover:-translate-x-1 transition-transform" />
-                <span className={`font-bold text-sm tracking-tight ${!isSidebarOpen && 'lg:hidden'}`}>Keluar</span>
-             </button>
-          </div>
-        </nav>
-
-        {/* Version Indicator */}
-        <div className={`p-6 text-center border-t border-slate-50 ${!isSidebarOpen && 'lg:hidden'}`}>
-            <p className="text-[10px] font-black text-slate-300 uppercase tracking-[0.25em]">Ver 1.2.0 Stable</p>
-        </div>
-      </aside>
-
-      {/* Main Content */}
-      <main className="flex-1 flex flex-col h-full overflow-hidden relative">
-        {/* Header */}
-        <header className="h-20 bg-white/70 backdrop-blur-xl border-b border-slate-200/60 flex items-center justify-between px-8 flex-shrink-0 z-10">
-          <button 
-            onClick={() => setSidebarOpen(!isSidebarOpen)}
-            className="p-2.5 hover:bg-slate-100 rounded-xl transition-colors lg:bg-slate-50 lg:hover:bg-slate-100"
-          >
-            <Menu size={22} className="text-slate-600" />
-          </button>
           <div className="flex items-center gap-6 ml-auto">
              <div className="text-right hidden md:block">
-               <p className="text-sm font-black text-slate-800 tracking-tight">
-                  {schoolProfile?.name || 'Sekolah Belum Terdaftar'}
+               <p className="text-sm font-bold text-slate-800 tracking-tight">
+                  {schoolProfile?.name || 'SDN Belum Diatur'}
                </p>
-               <div className="flex items-center justify-end gap-3 text-[10px] font-bold mt-0.5">
-                  <span className="text-slate-400 font-medium truncate max-w-[150px]">{session?.user?.email || 'Guest Mode'}</span>
-                  <div className="flex items-center gap-1.5 px-2 py-0.5 bg-slate-100 rounded-full border border-slate-200">
-                    <span className={`w-1.5 h-1.5 rounded-full ${isOnline ? 'bg-emerald-500 shadow-sm shadow-emerald-500/50' : 'bg-orange-500 shadow-sm shadow-orange-500/50'}`}></span>
+               <div className="flex items-center justify-end gap-3 text-[10px] font-bold mt-1">
+                  <span className="text-slate-500 font-medium truncate max-w-[150px]">{session?.user?.email || 'Guest Mode'}</span>
+                  <div className="flex items-center gap-1.5 px-2.5 py-1 bg-white/80 rounded-full border border-slate-200 shadow-sm">
+                    <span className={`w-1.5 h-1.5 rounded-full ${isOnline ? 'bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.5)]' : 'bg-orange-500 shadow-[0_0_8px_rgba(249,115,22,0.5)]'}`}></span>
                     <span className={`uppercase tracking-widest ${isOnline ? 'text-emerald-600' : 'text-orange-600'}`}>
                       {isOnline ? 'Online' : 'Offline'}
                     </span>
                   </div>
                </div>
              </div>
-             <div className="relative group cursor-pointer">
-                <div className="w-12 h-12 bg-gradient-to-tr from-slate-100 to-white rounded-2xl flex items-center justify-center text-slate-600 border border-slate-200 shadow-sm group-hover:shadow-md transition-all group-hover:scale-105 active:scale-95 overflow-hidden">
-                   <User size={24} />
+             
+             <button className="relative group cursor-pointer" onClick={() => setActiveTab('settings')}>
+                <div className="w-12 h-12 bg-gradient-to-tr from-indigo-100 to-purple-100 rounded-2xl flex items-center justify-center text-indigo-700 border border-white shadow-sm group-hover:shadow-lg group-hover:shadow-indigo-500/20 transition-all duration-300 group-hover:-translate-y-0.5 active:scale-95 overflow-hidden">
+                   <User size={22} className="drop-shadow-sm" />
                 </div>
-                <div className="absolute top-0 right-0 w-3 h-3 bg-emerald-500 border-2 border-white rounded-full"></div>
-             </div>
+                <div className="absolute -top-1 -right-1 w-4 h-4 bg-emerald-500 border-2 border-white rounded-full shadow-sm"></div>
+             </button>
           </div>
         </header>
 
-        {/* Scrollable Area */}
-        <div className="flex-1 overflow-y-auto p-4 md:p-8">
-          <div className="max-w-7xl mx-auto">
-            {loading ? (
-              <div className="flex items-center justify-center h-64">
-                <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
-              </div>
-            ) : (
-              <>
-                {activeTab === 'dashboard' && <Dashboard data={data} profile={schoolProfile} />}
-                {activeTab === 'rapor' && (
-                  <RaporPendidikan onAddBudget={handleAdd} budgetData={data} />
+        {/* Scrollable Main View Area */}
+        <div className="flex-1 overflow-hidden relative rounded-[32px] bg-white/50 backdrop-blur-md border border-white/60 shadow-[0_8px_32px_rgba(0,0,0,0.03)]">
+          <div className="absolute inset-0 overflow-y-auto p-6 md:p-8 scrollbar-hide">
+             <div className="max-w-7xl mx-auto h-full relative">
+                {loading ? (
+                  <div className="flex flex-col items-center justify-center h-full gap-4 text-indigo-400">
+                    <div className="w-12 h-12 border-4 border-indigo-200 border-t-indigo-600 rounded-full animate-spin"></div>
+                    <p className="font-bold tracking-widest uppercase text-xs animate-pulse">Memuat Data...</p>
+                  </div>
+                ) : (
+                  <AnimatePresence mode="wait">
+                    <motion.div
+                      key={activeTab}
+                      initial={{ opacity: 0, y: 15, scale: 0.99 }}
+                      animate={{ opacity: 1, y: 0, scale: 1 }}
+                      exit={{ opacity: 0, y: -15, scale: 0.99 }}
+                      transition={{ duration: 0.3, ease: [0.22, 1, 0.36, 1] }}
+                      className="min-h-full pb-10"
+                    >
+                      {activeTab === 'dashboard' && <Dashboard data={data} profile={schoolProfile} />}
+                      {activeTab === 'rapor' && <RaporPendidikan onAddBudget={handleAdd} budgetData={data} />}
+                      {activeTab === 'income' && <TransactionTable type={TransactionType.INCOME} data={data} onAdd={handleAdd} onDelete={handleDelete} />}
+                      {activeTab === 'planning' && <BudgetPlanning data={data} onAdd={handleAdd} onUpdate={handleUpdate} onDelete={handleDelete} />}
+                      {activeTab === 'withdrawal' && <BankWithdrawal data={data} profile={schoolProfile} onUpdate={handleUpdate} />}
+                      {activeTab === 'spj' && <SPJRealization data={data} onUpdate={handleUpdate} />}
+                      {activeTab === 'evidence' && <EvidenceTemplates budgets={data} onUpdate={handleUpdate} />}
+                      {activeTab === 'reports' && <Reports data={data} />}
+                      {activeTab === 'inventory' && <InventoryReports budgets={data} schoolProfile={schoolProfile!} />}
+                      {activeTab === 'bku' && <BKU data={data} onBack={() => setActiveTab('dashboard')} />}
+                      {activeTab === 'settings' && <Settings onProfileUpdate={(updated) => setSchoolProfile(updated)} />}
+                    </motion.div>
+                  </AnimatePresence>
                 )}
-                {activeTab === 'income' && (
-                  <TransactionTable 
-                    type={TransactionType.INCOME} 
-                    data={data} 
-                    onAdd={handleAdd} 
-                    onDelete={handleDelete}
-                  />
-                )}
-                {activeTab === 'planning' && (
-                  <BudgetPlanning 
-                    data={data} 
-                    onAdd={handleAdd}
-                    onUpdate={handleUpdate}
-                    onDelete={handleDelete}
-                  />
-                )}
-                {activeTab === 'withdrawal' && (
-                  <BankWithdrawal 
-                    data={data}
-                    profile={schoolProfile}
-                    onUpdate={handleUpdate}
-                  />
-                )}
-                {activeTab === 'spj' && (
-                  <SPJRealization 
-                    data={data}
-                    onUpdate={handleUpdate}
-                  />
-                )}
-                {activeTab === 'evidence' && (
-                  <EvidenceTemplates 
-                    budgets={data}
-                    onUpdate={handleUpdate}
-                  />
-                )}
-                {activeTab === 'reports' && (
-                  <Reports data={data} />
-                )}
-                {activeTab === 'inventory' && (
-                  <InventoryReports budgets={data} />
-                )}
-                {activeTab === 'bku' && (
-                  <BKU data={data} onBack={() => setActiveTab('dashboard')} />
-                )}
-                {activeTab === 'settings' && (
-                  <Settings 
-                    onProfileUpdate={(updated) => setSchoolProfile(updated)} 
-                  />
-                )}
-              </>
-            )}
+             </div>
           </div>
         </div>
       </main>
@@ -451,53 +401,64 @@ function App() {
       <ChatAssistant budgets={data} />
 
       {/* IOS Install Instructions Modal */}
-      {showIOSPrompt && (
-         <div className="fixed inset-0 bg-black/80 z-50 flex items-end sm:items-center justify-center p-4">
-            <div className="bg-white rounded-t-xl sm:rounded-xl w-full max-w-sm p-6 relative animate-fade-in-up">
-               <button 
-                 onClick={() => setShowIOSPrompt(false)}
-                 className="absolute top-4 right-4 text-gray-400 hover:text-gray-600"
-               >
-                 <X size={20} />
-               </button>
-               <h3 className="font-bold text-lg text-gray-800 mb-2">Install di iPhone/iPad</h3>
-               <p className="text-sm text-gray-600 mb-4">
-                 iOS tidak mendukung tombol install otomatis. Ikuti langkah manual berikut:
-               </p>
-               
-               <ol className="space-y-4 text-sm text-gray-700">
-                  <li className="flex items-center gap-3">
-                     <div className="w-8 h-8 bg-gray-100 rounded flex items-center justify-center text-blue-600">
-                        <Share size={18} />
-                     </div>
-                     <span>1. Tekan tombol <b>Share</b> di bawah layar Safari.</span>
-                  </li>
-                  <li className="flex items-center gap-3">
-                     <div className="w-8 h-8 bg-gray-100 rounded flex items-center justify-center text-gray-600">
-                        <PlusSquare size={18} />
-                     </div>
-                     <span>2. Geser ke bawah dan pilih <b>Add to Home Screen</b> (Tambah ke Layar Utama).</span>
-                  </li>
-                  <li className="flex items-center gap-3">
-                     <div className="w-8 h-8 bg-gray-100 rounded flex items-center justify-center text-gray-600">
-                        <span className="font-bold">Add</span>
-                     </div>
-                     <span>3. Tekan <b>Add</b> di pojok kanan atas.</span>
-                  </li>
-               </ol>
-
-               <button 
+      <AnimatePresence>
+        {showIOSPrompt && (
+          <motion.div 
+            initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+            className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-end sm:items-center justify-center p-4"
+          >
+             <motion.div 
+               initial={{ y: 100, opacity: 0 }} animate={{ y: 0, opacity: 1 }} exit={{ y: 100, opacity: 0 }}
+               className="bg-white/90 backdrop-blur-xl border border-white rounded-[32px] w-full max-w-sm p-8 relative shadow-2xl"
+             >
+                <button 
                   onClick={() => setShowIOSPrompt(false)}
-                  className="w-full mt-6 bg-blue-600 text-white py-2 rounded-lg font-bold"
-               >
-                  Saya Mengerti
-               </button>
-            </div>
-         </div>
-      )}
+                  className="absolute top-6 right-6 text-slate-400 hover:text-slate-600 hover:rotate-90 transition-transform bg-slate-100 p-2 rounded-full"
+                >
+                  <X size={20} />
+                </button>
+                <div className="w-16 h-16 bg-gradient-to-br from-indigo-100 to-purple-100 rounded-2xl flex items-center justify-center text-indigo-600 mb-6 border border-white shadow-inner">
+                   <School size={32} />
+                </div>
+                <h3 className="font-black text-xl text-slate-800 mb-2 tracking-tight">Install di iPhone/iPad</h3>
+                <p className="text-sm text-slate-500 mb-6 font-medium leading-relaxed">
+                  iOS tidak mendukung tombol install otomatis. Ikuti langkah manual berikut:
+                </p>
+                
+                <ol className="space-y-4 text-sm text-slate-700 font-medium">
+                   <li className="flex items-center gap-4 p-3 bg-white rounded-2xl shadow-sm border border-slate-100">
+                      <div className="w-10 h-10 bg-blue-50/50 rounded-xl flex items-center justify-center text-blue-600">
+                         <Share size={20} />
+                      </div>
+                      <span>1. Tekan tombol <b className="text-slate-900">Share</b> di bawah layar Safari.</span>
+                   </li>
+                   <li className="flex items-center gap-4 p-3 bg-white rounded-2xl shadow-sm border border-slate-100">
+                      <div className="w-10 h-10 bg-slate-50 rounded-xl flex items-center justify-center text-slate-600">
+                         <PlusSquare size={20} />
+                      </div>
+                      <span className="flex-1">2. Geser ke bawah dan pilih <b className="text-slate-900">Add to Home Screen</b>.</span>
+                   </li>
+                   <li className="flex items-center gap-4 p-3 bg-white rounded-2xl shadow-sm border border-slate-100">
+                      <div className="w-10 h-10 bg-slate-50 rounded-xl flex items-center justify-center text-slate-600">
+                         <span className="font-bold text-xs uppercase tracking-wider">Add</span>
+                      </div>
+                      <span>3. Tekan <b className="text-slate-900">Add</b> di pojok kanan atas.</span>
+                   </li>
+                </ol>
 
+                <button 
+                   onClick={() => setShowIOSPrompt(false)}
+                   className="w-full mt-8 bg-slate-900 hover:bg-slate-800 text-white py-4 rounded-2xl font-bold shadow-xl shadow-slate-900/20 active:scale-95 transition-all"
+                >
+                   Mengerti, Tutup
+                </button>
+             </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   );
 }
 
 export default App;
+

@@ -1,7 +1,7 @@
-
 import React, { useState, useEffect } from 'react';
+import { motion } from 'framer-motion';
 import { SchoolProfile, AccountCodes } from '../types';
-import { Save, School, Users, Wallet, Calendar, Database, Wifi, WifiOff, CheckCircle2, CreditCard, Image as ImageIcon, Upload, Edit3, Plus, Trash2, List, FileSpreadsheet, RefreshCcw, UserCircle, LogOut, FileText, AlertTriangle } from 'lucide-react';
+import { Save, School, Users, Wallet, Calendar, Database, Wifi, WifiOff, CheckCircle2, CreditCard, Image as ImageIcon, Upload, Edit3, Plus, Trash2, List, FileSpreadsheet, RefreshCcw, UserCircle, LogOut, FileText, AlertTriangle, Settings as SettingsIcon } from 'lucide-react';
 import { getSchoolProfile, saveSchoolProfile, checkDatabaseConnection, getStoredAccounts, saveCustomAccount, deleteCustomAccount, bulkSaveCustomAccounts, resetAllData } from '../lib/db';
 import { supabase } from '../lib/supabase';
 
@@ -206,67 +206,91 @@ const Settings: React.FC<SettingsProps> = ({ onProfileUpdate }) => {
     return new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', maximumFractionDigits: 0 }).format(num);
   };
 
-  if (loading) return <div className="p-8 text-center text-gray-500">Memuat pengaturan...</div>;
+  const containerVariants = {
+    hidden: { opacity: 0 },
+    show: { opacity: 1, transition: { staggerChildren: 0.1 } }
+  };
+
+  const itemVariants = {
+    hidden: { opacity: 0, y: 15 },
+    show: { opacity: 1, y: 0, transition: { type: "spring" as any, stiffness: 300, damping: 24 } }
+  };
+
+  if (loading) return (
+    <div className="flex flex-col items-center justify-center p-20 min-h-[60vh] text-slate-400">
+      <RefreshCcw className="animate-spin mb-4 text-blue-500" size={32} />
+      <p className="font-medium animate-pulse">Memuat pengaturan...</p>
+    </div>
+  );
 
   return (
-    <div className="space-y-6 max-w-4xl mx-auto pb-10">
-      <div className="flex justify-between items-end">
-        <div>
-          <h2 className="text-xl font-bold text-gray-800">Pengaturan Sekolah</h2>
-          <p className="text-sm text-gray-500">Kelola identitas, akun, dan parameter sistem.</p>
+    <motion.div variants={containerVariants} initial="hidden" animate="show" className="space-y-6 max-w-5xl mx-auto pb-10">
+      <motion.div variants={itemVariants} className="flex flex-col md:flex-row md:items-end justify-between bg-white/60 backdrop-blur-xl p-6 rounded-[2rem] border border-white/80 shadow-xl shadow-slate-200/50 relative overflow-hidden">
+        <div className="relative z-10">
+          <div className="flex items-center gap-2 mb-1">
+              <span className="px-3 py-1 bg-slate-100 text-slate-600 text-[10px] font-black uppercase tracking-widest rounded-lg border border-slate-200 flex items-center gap-1"><SettingsIcon size={12}/> Sistem</span>
+          </div>
+          <h2 className="text-2xl font-black text-slate-800 tracking-tight">Pengaturan Sekolah</h2>
+          <p className="text-sm text-slate-500 font-medium mt-1">Kelola identitas, akun, pengguna, dan parameter aplikasi.</p>
         </div>
-      </div>
+        <div className="absolute right-0 top-0 w-64 h-64 bg-gradient-to-bl from-slate-200/50 to-transparent rounded-full blur-3xl -z-10 translate-x-1/3 -translate-y-1/3 pointer-events-none"></div>
+      </motion.div>
 
-      {/* Account Info Card (SaaS Feature) */}
-      <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-4 flex items-center justify-between">
-        <div className="flex items-center gap-4">
-          <div className="bg-blue-100 p-3 rounded-full text-blue-600">
-            <UserCircle size={28} />
+      {/* Account & Connection Status Area */}
+      <motion.div variants={itemVariants} className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        {/* Account Info Card (SaaS Feature) */}
+        <div className="bg-white/60 backdrop-blur-md rounded-3xl shadow-lg shadow-slate-200/40 border border-white p-5 flex items-center justify-between group hover:shadow-xl transition-all">
+          <div className="flex items-center gap-4">
+            <div className="bg-gradient-to-br from-blue-100 to-indigo-100 p-3 rounded-2xl text-blue-600 shadow-inner">
+              <UserCircle size={28} />
+            </div>
+            <div>
+              <p className="text-[10px] text-slate-400 font-black uppercase tracking-widest mb-0.5">Akun Sekolah Login</p>
+              <p className="text-lg font-black text-slate-800 tracking-tight">{userEmail}</p>
+              <p className="text-[10px] text-emerald-600 font-bold flex items-center gap-1 mt-1 bg-emerald-50 w-max px-2 py-0.5 rounded-md border border-emerald-100">
+                <CheckCircle2 size={10} /> Aktif & Terproteksi
+              </p>
+            </div>
           </div>
-          <div>
-            <p className="text-xs text-gray-500 font-bold uppercase">Akun Sekolah Login</p>
-            <p className="text-lg font-bold text-gray-800">{userEmail}</p>
-            <p className="text-xs text-green-600 flex items-center gap-1 mt-0.5">
-              <CheckCircle2 size={12} /> Aktif & Terproteksi
-            </p>
-          </div>
+          <button
+            onClick={handleLogout}
+            className="text-rose-500 bg-rose-50 hover:bg-rose-100 border border-rose-100 px-4 py-2.5 rounded-xl text-sm font-bold flex items-center gap-2 transition-all shadow-sm active:scale-95"
+          >
+            <LogOut size={16} /> <span className="hidden sm:inline">Keluar</span>
+          </button>
         </div>
-        <button
-          onClick={handleLogout}
-          className="text-red-500 hover:bg-red-50 px-4 py-2 rounded-lg text-sm font-bold flex items-center gap-2 transition"
-        >
-          <LogOut size={16} /> Keluar
-        </button>
-      </div>
 
-      {/* Connection Status Card */}
-      <div className={`rounded-xl shadow-sm border p-4 flex flex-col md:flex-row md:items-center justify-between gap-4 ${isConnected ? 'bg-green-50 border-green-200' : 'bg-orange-50 border-orange-200'}`}>
-        <div className="flex items-center gap-4">
-          <div className={`p-3 rounded-full ${isConnected ? 'bg-green-200 text-green-700' : 'bg-orange-200 text-orange-700'}`}>
-            <Database size={24} />
+        {/* Connection Status Card */}
+        <div className={`rounded-3xl shadow-lg border p-5 flex flex-col md:flex-row md:items-center justify-between gap-4 transition-all group hover:shadow-xl backdrop-blur-md ${isConnected ? 'bg-emerald-50/60 border-emerald-100/50 shadow-emerald-100/30' : 'bg-orange-50/60 border-orange-100/50 shadow-orange-100/30'}`}>
+          <div className="flex items-center gap-4">
+            <div className={`p-3 rounded-2xl shadow-inner ${isConnected ? 'bg-emerald-200/50 text-emerald-700' : 'bg-orange-200/50 text-orange-700'}`}>
+              <Database size={28} className={isConnected ? "animate-pulse" : ""} />
+            </div>
+            <div>
+              <h3 className={`font-black tracking-tight ${isConnected ? 'text-emerald-800' : 'text-orange-800'}`}>
+                {isConnected ? 'Terhubung ke Database Cloud' : 'Mode Penyimpanan Lokal'}
+              </h3>
+              <p className={`text-[11px] font-medium leading-tight mt-1 ${isConnected ? 'text-emerald-600/80' : 'text-orange-700/80'}`}>
+                {isConnected
+                  ? 'Data tersimpan aman di Supabase. Anda bisa mengaksesnya dari perangkat lain.'
+                  : 'Data hanya tersimpan di browser ini. Data akan hilang jika cache dibersihkan.'}
+              </p>
+            </div>
           </div>
-          <div>
-            <h3 className={`font-bold ${isConnected ? 'text-green-800' : 'text-orange-800'}`}>
-              {isConnected ? 'Terhubung ke Database Cloud' : 'Mode Penyimpanan Lokal'}
-            </h3>
-            <p className={`text-sm ${isConnected ? 'text-green-600' : 'text-orange-700'}`}>
-              {isConnected
-                ? 'Data tersimpan aman di Supabase. Anda bisa mengaksesnya dari perangkat lain.'
-                : 'Data hanya tersimpan di browser ini. Data akan hilang jika cache dibersihkan.'}
-            </p>
+          <div className="hidden sm:flex bg-white/50 p-2.5 rounded-xl shadow-sm border border-black/5">
+            {isConnected ? <Wifi className="text-emerald-500" size={20} /> : <WifiOff className="text-orange-500" size={20} />}
           </div>
         </div>
-        <div className="hidden sm:block">
-          {isConnected ? <Wifi className="text-green-500" size={24} /> : <WifiOff className="text-orange-400" size={24} />}
-        </div>
-      </div>
+      </motion.div>
 
       <form onSubmit={handleSubmit} className="space-y-6">
 
         {/* Identitas Sekolah */}
-        <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
-          <h3 className="text-md font-bold text-gray-800 mb-4 flex items-center gap-2 pb-2 border-b border-gray-100">
-            <School className="text-blue-600" size={18} /> Identitas Satuan Pendidikan
+        <motion.div variants={itemVariants} className="bg-white/60 backdrop-blur-md rounded-[2rem] shadow-xl shadow-slate-200/40 border border-white p-6 relative overflow-hidden">
+          <div className="absolute top-0 right-0 w-32 h-32 bg-blue-100/50 rounded-full blur-3xl -z-10 translate-x-1/2 -translate-y-1/2"></div>
+          <h3 className="text-lg font-black text-slate-800 mb-6 flex items-center gap-3 pb-4 border-b border-slate-100/50">
+            <div className="bg-blue-100 text-blue-600 p-2 rounded-xl"><School size={20} /></div>
+            Identitas Satuan Pendidikan
           </h3>
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -355,14 +379,15 @@ const Settings: React.FC<SettingsProps> = ({ onProfileUpdate }) => {
               </div>
             </div>
           </div>
-        </div>
+        </motion.div>
 
-        {/* Data Rekening Bank */}
-        <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
-          <h3 className="text-md font-bold text-gray-800 mb-4 flex items-center gap-2 pb-2 border-b border-gray-100">
-            <CreditCard className="text-purple-600" size={18} /> Data Rekening Bank Sekolah
-          </h3>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          {/* Data Rekening Bank */}
+          <motion.div variants={itemVariants} className="bg-white/60 backdrop-blur-md rounded-[2rem] shadow-xl shadow-slate-200/40 border border-white p-6 relative overflow-hidden">
+            <h3 className="text-lg font-black text-slate-800 mb-6 flex items-center gap-3 pb-4 border-b border-slate-100/50">
+              <div className="bg-indigo-100 text-indigo-600 p-2 rounded-xl"><CreditCard size={20} /></div>
+              Data Rekening Bank Sekolah
+            </h3>
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">Nama Bank</label>
               <input
@@ -405,16 +430,16 @@ const Settings: React.FC<SettingsProps> = ({ onProfileUpdate }) => {
                 className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none font-mono text-lg"
               />
             </div>
-          </div>
-        </div>
+          </motion.div>
 
-        {/* Kop Surat */}
-        <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
-          <h3 className="text-md font-bold text-gray-800 mb-4 flex items-center gap-2 pb-2 border-b border-gray-100">
-            <ImageIcon className="text-indigo-600" size={18} /> Kop Surat & Logo
-          </h3>
-          <div className="flex flex-col md:flex-row gap-6 items-start">
-            <div className="flex-1 w-full">
+          {/* Kop Surat */}
+          <motion.div variants={itemVariants} className="bg-white/60 backdrop-blur-md rounded-[2rem] shadow-xl shadow-slate-200/40 border border-white p-6 relative overflow-hidden">
+            <h3 className="text-lg font-black text-slate-800 mb-6 flex items-center gap-3 pb-4 border-b border-slate-100/50">
+              <div className="bg-purple-100 text-purple-600 p-2 rounded-xl"><ImageIcon size={20} /></div>
+              Kop Surat & Logo
+            </h3>
+            <div className="flex flex-col gap-6 items-start h-full">
+              <div className="flex-1 w-full relative group">
               <label className="block text-sm font-medium text-gray-700 mb-2">Upload Logo (Kiri Atas)</label>
               <label className="flex flex-col items-center justify-center w-full h-32 border-2 border-gray-300 border-dashed rounded-lg cursor-pointer bg-gray-50 hover:bg-gray-100 transition">
                 <div className="flex flex-col items-center justify-center pt-5 pb-6">
@@ -434,21 +459,23 @@ const Settings: React.FC<SettingsProps> = ({ onProfileUpdate }) => {
                   <button
                     type="button"
                     onClick={() => setProfile(prev => ({ ...prev, headerImage: '' }))}
-                    className="absolute top-2 right-2 bg-white text-red-500 rounded-full p-1 shadow hover:bg-red-50 border border-red-100"
+                    className="absolute top-2 right-2 bg-white text-rose-500 rounded-xl p-2 shadow-lg hover:bg-rose-50 border border-rose-100 transform hover:scale-105 active:scale-95 transition-all"
                   >
-                    <Edit3 size={14} />
+                    <Trash2 size={16} />
                   </button>
                 </div>
-              </div>
+              </motion.div>
             )}
-          </div>
+            </div>
+          </motion.div>
         </div>
 
         {/* MANAJEMEN REKENING BARU */}
-        <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
-          <div className="flex justify-between items-center mb-4 pb-2 border-b border-gray-100">
-            <h3 className="text-md font-bold text-gray-800 flex items-center gap-2">
-              <List className="text-indigo-600" size={18} /> Manajemen Kode Rekening (Akun Belanja)
+        <motion.div variants={itemVariants} className="bg-white/60 backdrop-blur-md rounded-[2rem] shadow-xl shadow-slate-200/40 border border-white p-6 md:p-8">
+          <div className="flex justify-between items-center mb-6 pb-4 border-b border-slate-100/50">
+            <h3 className="text-lg font-black text-slate-800 flex items-center gap-3">
+              <div className="bg-emerald-100 text-emerald-600 p-2 rounded-xl"><List size={20} /></div>
+              Manajemen Kode Rekening (Akun Belanja)
             </h3>
             <button onClick={loadAccounts} className="text-gray-400 hover:text-blue-600" title="Refresh Akun">
               <RefreshCcw size={16} className={isAccountLoading ? "animate-spin" : ""} />
@@ -588,16 +615,18 @@ const Settings: React.FC<SettingsProps> = ({ onProfileUpdate }) => {
               )}
             </div>
           </div>
-        </div>
+        </motion.div>
 
-        {/* Data Anggaran & Siswa */}
-        <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
-          <h3 className="text-md font-bold text-gray-800 mb-4 flex items-center gap-2 pb-2 border-b border-gray-100">
-            <Wallet className="text-green-600" size={18} /> Pagu & Kesiswaan
-          </h3>
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          {/* Data Anggaran & Siswa */}
+          <motion.div variants={itemVariants} className="bg-white/60 backdrop-blur-md rounded-[2rem] shadow-xl shadow-slate-200/40 border border-white p-6">
+            <h3 className="text-lg font-black text-slate-800 mb-6 flex items-center gap-3 pb-4 border-b border-slate-100/50">
+              <div className="bg-cyan-100 text-cyan-600 p-2 rounded-xl"><Wallet size={20} /></div>
+              Pagu & Kesiswaan
+            </h3>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            <div className="bg-blue-50 p-4 rounded-lg border border-blue-100">
+            <div className="space-y-6">
+              <div className="bg-blue-50/50 p-5 rounded-2xl border border-blue-100/50 shadow-inner">
               <div className="flex items-center gap-2 mb-2 text-blue-800 font-medium">
                 <Users size={18} /> Jumlah Peserta Didik (Cut Off)
               </div>
@@ -615,10 +644,10 @@ const Settings: React.FC<SettingsProps> = ({ onProfileUpdate }) => {
               </p>
             </div>
 
-            <div className="bg-green-50 p-4 rounded-lg border border-green-100">
-              <div className="flex items-center gap-2 mb-2 text-green-800 font-medium">
-                <Wallet size={18} /> Total Pagu Anggaran (1 Tahun)
-              </div>
+              <div className="bg-emerald-50/50 p-5 rounded-2xl border border-emerald-100/50 shadow-inner">
+                <div className="flex items-center gap-2 mb-3 text-emerald-800 font-bold">
+                  <Wallet size={18} className="text-emerald-500" /> Total Pagu Anggaran (1 Tahun)
+                </div>
               <input
                 required
                 type="number"
@@ -628,27 +657,30 @@ const Settings: React.FC<SettingsProps> = ({ onProfileUpdate }) => {
                 onChange={handleChange}
                 className="w-full px-3 py-2 border border-green-200 rounded-lg focus:ring-2 focus:ring-green-500 outline-none text-lg font-bold text-gray-800"
               />
-              <div className="flex justify-between items-center mt-2 text-xs">
-                <span className="text-green-600">Estimasi per Siswa:</span>
-                <span className="font-mono font-bold text-green-700">
+                <div className="flex justify-between items-center mt-3 pt-3 border-t border-emerald-200/30 text-xs">
+                  <span className="text-emerald-600 font-bold">Estimasi per Siswa:</span>
+                  <span className="font-mono font-black text-emerald-700 bg-emerald-100/50 px-2 py-1 rounded-md">
                   {profile.studentCount > 0
                     ? formatRupiah(profile.budgetCeiling / profile.studentCount)
                     : 'Rp 0'}
+                  }
                 </span>
+                </div>
               </div>
             </div>
-          </div>
-        </div>
+          </motion.div>
 
-        {/* Penandatangan */}
-        <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
-          <h3 className="text-md font-bold text-gray-800 mb-4 flex items-center gap-2 pb-2 border-b border-gray-100">
-            <FileText size={18} className="text-gray-600" /> Data Penandatangan Dokumen
-          </h3>
+          {/* Penandatangan */}
+          <motion.div variants={itemVariants} className="bg-white/60 backdrop-blur-md rounded-[2rem] shadow-xl shadow-slate-200/40 border border-white p-6">
+            <h3 className="text-lg font-black text-slate-800 mb-6 flex items-center gap-3 pb-4 border-b border-slate-100/50">
+              <div className="bg-amber-100 text-amber-600 p-2 rounded-xl"><FileText size={20} /></div>
+              Data Penandatangan Dokumen
+            </h3>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Nama Kepala Sekolah</label>
+            <div className="grid grid-cols-1 gap-5">
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">Nama Kepala Sekolah</label>
               <input
                 type="text"
                 name="headmaster"
@@ -687,44 +719,53 @@ const Settings: React.FC<SettingsProps> = ({ onProfileUpdate }) => {
                 onChange={handleChange}
                 className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none"
               />
+              </div>
             </div>
-          </div>
+          </motion.div>
         </div>
 
         {/* DANGER ZONE */}
-        <div className="bg-red-50 rounded-xl shadow-sm border border-red-100 p-6">
-          <h3 className="text-md font-bold text-red-800 mb-2 flex items-center gap-2">
-            <AlertTriangle size={18} /> Zona Bahaya (Reset Data)
-          </h3>
-          <p className="text-sm text-red-600 mb-4">
+        <motion.div variants={itemVariants} className="bg-rose-50/80 backdrop-blur-md rounded-[2rem] shadow-xl shadow-rose-200/40 border border-rose-200/60 p-6 md:p-8 relative overflow-hidden">
+          <div className="absolute -right-10 -top-10 text-rose-100/50 rotate-12 pointer-events-none">
+             <AlertTriangle size={150} />
+          </div>
+          <div className="relative z-10 w-full md:w-2/3">
+              <h3 className="text-xl font-black text-rose-800 mb-3 flex items-center gap-3">
+                <div className="bg-rose-100 text-rose-600 p-2 rounded-xl"><AlertTriangle size={24} /></div>
+                Zona Bahaya (Reset Data)
+              </h3>
+              <p className="text-sm text-rose-600/90 mb-6 font-medium leading-relaxed">
             Jika Anda ingin memulai dari awal (misalnya tahun anggaran baru), Anda dapat menghapus semua data transaksi, rapor, dan riwayat pencairan. Data Profil Sekolah tidak akan dihapus.
           </p>
-          <button
-            type="button"
-            onClick={handleResetData}
-            className="bg-white border border-red-200 text-red-600 hover:bg-red-600 hover:text-white px-4 py-2 rounded-lg font-bold text-sm transition flex items-center gap-2"
-          >
-            <Trash2 size={16} /> Hapus Semua Data Transaksi
-          </button>
-        </div>
+              <button
+                type="button"
+                onClick={handleResetData}
+                className="bg-white/80 backdrop-blur-md border border-rose-200 text-rose-600 hover:bg-rose-600 hover:border-rose-600 hover:text-white px-5 py-3 rounded-xl font-bold text-sm transition-all shadow-sm hover:shadow-lg hover:shadow-rose-600/30 flex items-center gap-2 active:scale-95"
+              >
+                <Trash2 size={18} /> Hapus Semua Data Transaksi
+              </button>
+          </div>
+        </motion.div>
 
-        <div className="flex justify-end gap-3 pt-4">
+        <motion.div variants={itemVariants} className="flex justify-end gap-4 pb-8">
           {saved && (
-            <div className="flex items-center text-green-600 gap-2 animate-fade-in">
+            <motion.div initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} className="flex items-center text-emerald-600 gap-2 font-bold px-4 py-3 bg-emerald-50 rounded-2xl border border-emerald-100 shadow-sm">
               <CheckCircle2 className="w-5 h-5" />
-              <span className="text-sm font-medium">Pengaturan berhasil disimpan!</span>
-            </div>
+              <span>Pengaturan disimpan!</span>
+            </motion.div>
           )}
-          <button
+          <motion.button
             type="submit"
-            className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-2.5 rounded-lg flex items-center gap-2 transition-colors shadow-lg font-medium"
+            whileHover={{ y: -2 }}
+            whileTap={{ scale: 0.98 }}
+            className="bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white px-10 py-4 rounded-2xl flex items-center gap-3 transition-all shadow-xl shadow-blue-600/30 font-black text-lg border border-white/20"
           >
-            <Save size={18} />
+            <Save size={24} />
             Simpan Perubahan
-          </button>
-        </div>
+          </motion.button>
+        </motion.div>
       </form>
-    </div>
+    </motion.div>
   );
 };
 

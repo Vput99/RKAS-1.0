@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useMemo, Fragment } from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
 import { ShoppingBag, FileText, ClipboardList, RefreshCw, Calendar, ArrowRightLeft, Package, Download, Printer, Sparkles, Loader2, Plus, Trash2, X, ArrowRight } from 'lucide-react';
 import { Budget } from '../types';
 import { analyzeInventoryItems, InventoryItem } from '../lib/gemini';
@@ -384,71 +385,94 @@ const InventoryReports: React.FC<InventoryReportsProps> = ({ budgets, schoolProf
     },
   ];
 
+  const containerVariants = {
+    hidden: { opacity: 0 },
+    show: { opacity: 1, transition: { staggerChildren: 0.1 } }
+  };
+
+  const itemVariants = {
+    hidden: { opacity: 0, y: 15 },
+    show: { opacity: 1, y: 0, transition: { type: "spring" as any, stiffness: 300, damping: 24 } }
+  };
+
   return (
-    <div className="space-y-6">
+    <motion.div variants={containerVariants} initial="hidden" animate="show" className="space-y-6 pb-10">
       {/* Header */}
-      <div>
-        <h2 className="text-xl font-bold text-gray-800">Stok Opname & Persediaan</h2>
-        <p className="text-sm text-gray-500">Manajemen dan pelaporan aset lancar serta barang persediaan sekolah.</p>
-      </div>
+      <motion.div variants={itemVariants} className="flex flex-col md:flex-row md:items-end justify-between bg-white/60 backdrop-blur-xl p-6 rounded-[2rem] border border-white/80 shadow-xl shadow-blue-900/5 relative overflow-hidden">
+        <div className="relative z-10">
+          <div className="flex items-center gap-2 mb-1">
+              <span className="px-3 py-1 bg-blue-50 text-blue-600 text-[10px] font-black uppercase tracking-widest rounded-lg border border-blue-100 flex items-center gap-1"><Package size={12}/> Inventaris</span>
+          </div>
+          <h2 className="text-2xl font-black text-slate-800 tracking-tight">Stok Opname & Persediaan</h2>
+          <p className="text-sm text-slate-500 font-medium mt-1">Manajemen dan pelaporan aset lancar serta barang persediaan.</p>
+        </div>
+        <div className="absolute right-0 top-0 w-64 h-64 bg-gradient-to-br from-blue-400/10 to-transparent rounded-full blur-3xl -z-10 translate-x-1/3 -translate-y-1/3 pointer-events-none"></div>
+      </motion.div>
 
       {/* Grid Menu Laporan */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+      <motion.div variants={itemVariants} className="grid grid-cols-1 md:grid-cols-2 gap-4">
         {reportMenu.map((report) => (
-          <button
+          <motion.button
             key={report.id}
+            whileHover={{ y: -2 }}
+            whileTap={{ scale: 0.98 }}
             onClick={() => setActiveReport(report.id)}
-            className={`flex items-start gap-4 p-5 rounded-xl border transition-all duration-200 text-left ${activeReport === report.id
-              ? 'bg-white border-blue-600 ring-4 ring-blue-50 shadow-md'
-              : 'bg-white border-gray-100 hover:border-blue-200 hover:shadow-sm'
+            className={`flex items-start gap-4 p-5 rounded-2xl border transition-all duration-300 text-left relative overflow-hidden group ${activeReport === report.id
+              ? `bg-gradient-to-br from-white to-${report.color}-50/50 border-${report.color}-200 shadow-xl shadow-${report.color}-500/10`
+              : 'bg-white/60 backdrop-blur-md border-white hover:border-blue-100 hover:shadow-lg shadow-sm'
               }`}
           >
+            {activeReport === report.id && (
+                <motion.div layoutId="active-report-bg" className={`absolute inset-0 bg-${report.color}-500/5 z-0`} />
+            )}
             {(() => {
               const Icon = report.icon;
               return (
-                <div className={`p-3 rounded-xl bg-${report.color}-50 text-${report.color}-600`}>
-                  <Icon size={24} />
+                <div className={`p-3 rounded-xl bg-${report.color}-100 text-${report.color}-600 relative z-10 shadow-inner`}>
+                  <Icon size={24} className={activeReport === report.id ? 'animate-pulse' : ''} />
                 </div>
               );
             })()}
-            <div className="flex-1">
+            <div className="flex-1 relative z-10">
               <div className="flex justify-between items-start">
                 <div>
-                  <h3 className="font-bold text-gray-800">{report.title}</h3>
-                  <p className={`text-xs font-medium text-${report.color}-600 mb-2`}>{report.subtitle}</p>
+                  <h3 className="font-bold text-slate-800 tracking-tight text-sm">{report.title}</h3>
+                  <p className={`text-[10px] font-black uppercase tracking-widest text-${report.color}-600 mb-2`}>{report.subtitle}</p>
                 </div>
-                <div className={`text-${report.color}-500 opacity-50`}>
-                  <FileText size={16} />
+                <div className={`text-${report.color}-500 opacity-30 transform group-hover:scale-110 group-hover:opacity-100 transition-all`}>
+                  <ArrowRight size={16} />
                 </div>
               </div>
-              <p className="text-xs text-gray-500 leading-relaxed">{report.description}</p>
+              <p className="text-xs text-slate-500 leading-relaxed font-medium">{report.description}</p>
             </div>
-          </button>
+          </motion.button>
         ))}
-      </div>
+      </motion.div>
 
       {/* Report View Area */}
-      <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden animate-fade-in">
-        <div className="px-6 py-4 border-b border-gray-100 bg-gray-50/50 flex flex-col md:flex-row md:justify-between md:items-center gap-4">
+      <motion.div variants={itemVariants} className="glass-panel rounded-[2rem] border border-white/60 shadow-xl overflow-hidden relative min-h-[500px]">
+        <div className="px-6 py-4 border-b border-slate-100 bg-white/40 flex flex-col md:flex-row md:justify-between md:items-center gap-4 relative z-10">
           <div className="flex items-center gap-2">
-            <div className="p-1.5 bg-blue-600 rounded-lg text-white">
-              <ShoppingBag size={18} />
+            <div className="p-1.5 bg-blue-100 text-blue-600 rounded-lg">
+              <FileText size={18} />
             </div>
-            <h3 className="font-bold text-gray-700">Pratinjau: {reportMenu.find(r => r.id === activeReport)?.title}</h3>
+            <h3 className="font-black text-slate-800 tracking-tight">Pratinjau Laporan: {reportMenu.find(r => r.id === activeReport)?.title}</h3>
           </div>
           <div className="flex items-center gap-2">
-            <button className="flex items-center gap-2 px-3 py-1.5 bg-white border border-gray-200 rounded-lg text-xs font-bold text-gray-600 hover:bg-gray-50 transition">
+            <button className="flex items-center gap-2 px-3 py-1.5 bg-white/60 border border-slate-200 rounded-lg text-xs font-bold text-slate-600 hover:bg-slate-50 transition shadow-sm backdrop-blur-md">
               <Printer size={14} /> Cetak
             </button>
-            <button className="flex items-center gap-2 px-3 py-1.5 bg-blue-600 rounded-lg text-xs font-bold text-white hover:bg-blue-700 transition">
+            <button className="flex items-center gap-2 px-3 py-1.5 bg-gradient-to-r from-blue-600 to-indigo-600 text-white rounded-lg text-xs font-bold hover:shadow-lg hover:shadow-blue-500/30 transition transform hover:-translate-y-0.5">
               <Download size={14} /> Excel / PDF
             </button>
           </div>
         </div>
 
+        <AnimatePresence mode="wait">
+
         {activeReport === 'pengadaan' && (
-          <div className="flex flex-col h-full">
-            <div className="p-6 border-b border-gray-100 flex flex-wrap gap-4 justify-between items-center bg-blue-50/30">
+          <motion.div key="pengadaan" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }} className="flex flex-col h-full bg-white/40 relative z-0">
+            <div className="p-6 border-b border-slate-100 flex flex-wrap gap-4 justify-between items-center bg-blue-50/30">
               <div className="flex items-center gap-3">
                 <div className="p-2 bg-blue-100 text-blue-600 rounded-lg">
                   <Sparkles size={20} />
@@ -901,8 +925,8 @@ const InventoryReports: React.FC<InventoryReportsProps> = ({ budgets, schoolProf
         )}
 
         {activeReport === 'pengeluaran' && (
-          <div className="flex flex-col h-full">
-            <div className="p-6 border-b border-gray-100 bg-orange-50/30 flex justify-between items-center">
+          <motion.div key="pengeluaran" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }} className="flex flex-col h-full bg-white/40 relative z-0">
+            <div className="p-6 border-b border-slate-100 bg-orange-50/30 flex justify-between items-center">
               <div className="flex items-center gap-3">
                 <div className="p-2 bg-orange-100 text-orange-600 rounded-lg">
                   <ClipboardList size={20} />
@@ -1011,8 +1035,8 @@ const InventoryReports: React.FC<InventoryReportsProps> = ({ budgets, schoolProf
         )}
 
         {activeReport === 'persediaan' && (
-          <div className="flex flex-col h-full">
-            <div className="p-6 border-b border-gray-100 bg-indigo-50/30 flex justify-between items-center">
+          <motion.div key="persediaan" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }} className="flex flex-col h-full bg-white/40 relative z-0">
+            <div className="p-6 border-b border-slate-100 bg-indigo-50/30 flex justify-between items-center">
               <div className="flex items-center gap-3">
                 <div className="p-2 bg-indigo-100 text-indigo-600 rounded-lg">
                   <ClipboardList size={20} />
@@ -1178,8 +1202,8 @@ const InventoryReports: React.FC<InventoryReportsProps> = ({ budgets, schoolProf
         )}
 
         {activeReport === 'mutasi' && (
-          <div className="flex flex-col h-full overflow-hidden">
-            <div className="p-6 border-b border-gray-100 bg-purple-50/30 flex justify-between items-center shrink-0">
+          <motion.div key="mutasi" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }} className="flex flex-col h-full overflow-hidden bg-white/40 relative z-0">
+            <div className="p-6 border-b border-slate-100 bg-purple-50/30 flex justify-between items-center shrink-0">
               <div className="flex items-center gap-3">
                 <div className="p-2 bg-purple-100 text-purple-600 rounded-lg">
                   <ArrowRightLeft size={20} />
@@ -1312,12 +1336,13 @@ const InventoryReports: React.FC<InventoryReportsProps> = ({ budgets, schoolProf
 
         {/* Catch-all for other reports pending implementation */}
         {activeReport !== 'pengadaan' && activeReport !== 'pengeluaran' && activeReport !== 'persediaan' && activeReport !== 'mutasi' && (
-          <div className="p-12 text-center">
-            {/* ... placeholder ... */}
-          </div>
+          <motion.div key="other" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="p-12 text-center text-slate-400">
+            <p className="text-sm font-medium">Modul laporan ini sedang dalam pengembangan.</p>
+          </motion.div>
         )}
-      </div>
-    </div>
+        </AnimatePresence>
+      </motion.div>
+    </motion.div>
   );
 };
 
