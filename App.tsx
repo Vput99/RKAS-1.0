@@ -176,11 +176,12 @@ function App() {
   const NavItem = ({ id, label, icon: Icon }: { id: typeof activeTab, label: string, icon: any }) => (
     <button
       onClick={() => { setActiveTab(id); if (window.innerWidth < 1024) setSidebarOpen(false); }}
-      className={`w-full flex items-center gap-3 px-4 py-3 rounded-2xl transition-all duration-300 relative group overflow-hidden ${
+      className={`w-full flex items-center ${!isSidebarOpen ? 'lg:justify-center' : 'gap-3 px-4'} py-3 rounded-2xl transition-all duration-300 relative group overflow-hidden ${
         activeTab === id 
           ? 'text-indigo-700 font-bold' 
           : 'text-slate-600 hover:text-indigo-600 hover:bg-indigo-50/50'
       }`}
+      title={label}
     >
       {activeTab === id && (
          <motion.div 
@@ -189,8 +190,8 @@ function App() {
             transition={{ type: "spring", stiffness: 300, damping: 30 }}
          />
       )}
-      <Icon size={20} className={`transition-transform duration-300 ${activeTab === id ? 'scale-110 drop-shadow-sm' : 'group-hover:scale-110'}`} />
-      <span className="font-semibold tracking-tight">{label}</span>
+      <Icon size={20} className={`transition-transform duration-300 flex-shrink-0 ${activeTab === id ? 'scale-110 drop-shadow-sm' : 'group-hover:scale-110'}`} />
+      <span className={`font-semibold tracking-tight whitespace-nowrap transition-opacity duration-300 ${!isSidebarOpen ? 'lg:hidden' : ''}`}>{label}</span>
     </button>
   );
 
@@ -251,7 +252,7 @@ function App() {
               <NavItem id="dashboard" label="Dashboard Utama" icon={LayoutDashboard} />
               <NavItem id="rapor" label="Rapor Pendidikan" icon={TrendingUp} />
               
-              <div className={`pt-6 pb-2 px-4 transition-all duration-300 ${!isSidebarOpen && 'lg:opacity-0'}`}>
+              <div className={`pt-6 pb-2 px-4 transition-all duration-300 ${!isSidebarOpen ? 'lg:hidden' : ''}`}>
                 <span className="text-[10px] font-black text-slate-400 uppercase tracking-[0.25em]">M. Anggaran</span>
               </div>
               
@@ -259,7 +260,7 @@ function App() {
               <NavItem id="planning" label="Penganggaran RKAS" icon={BookOpen} />
               <NavItem id="withdrawal" label="Pencairan Bank" icon={Landmark} />
               
-              <div className={`pt-6 pb-2 px-4 transition-all duration-300 ${!isSidebarOpen && 'lg:opacity-0'}`}>
+              <div className={`pt-6 pb-2 px-4 transition-all duration-300 ${!isSidebarOpen ? 'lg:hidden' : ''}`}>
                 <span className="text-[10px] font-black text-slate-400 uppercase tracking-[0.25em]">Aktivitas</span>
               </div>
 
@@ -267,7 +268,7 @@ function App() {
               <NavItem id="evidence" label="Manajemen Bukti" icon={FileText} />
               <NavItem id="inventory" label="Stok Opname" icon={ShoppingBag} />
               
-              <div className={`pt-6 pb-2 px-4 transition-all duration-300 ${!isSidebarOpen && 'lg:opacity-0'}`}>
+              <div className={`pt-6 pb-2 px-4 transition-all duration-300 ${!isSidebarOpen ? 'lg:hidden' : ''}`}>
                  <span className="text-[10px] font-black text-slate-400 uppercase tracking-[0.25em]">Pelaporan Resmi</span>
               </div>
 
@@ -279,9 +280,10 @@ function App() {
                {(!isStandalone && (deferredPrompt || isIOS)) && (
                   <button
                     onClick={handleInstallClick}
-                    className="w-full flex items-center gap-3 px-4 py-3 rounded-2xl bg-gradient-to-r from-emerald-400 to-teal-500 text-white shadow-lg shadow-emerald-500/30 hover:shadow-xl hover:-translate-y-0.5 transition-all duration-300 group"
+                    className={`w-full flex items-center ${!isSidebarOpen ? 'lg:justify-center' : 'gap-3 px-4'} py-3 rounded-2xl bg-gradient-to-r from-emerald-400 to-teal-500 text-white shadow-lg shadow-emerald-500/30 hover:shadow-xl hover:-translate-y-0.5 transition-all duration-300 group`}
+                    title={isIOS ? 'Cara Install App' : 'Install Aplikasi'}
                   >
-                    <Download size={20} className="group-hover:animate-bounce drop-shadow" />
+                    <Download size={20} className="group-hover:animate-bounce drop-shadow flex-shrink-0" />
                     <span className={`font-bold text-sm tracking-tight ${!isSidebarOpen && 'lg:hidden'}`}>
                         {isIOS ? 'Cara Install App' : 'Install Aplikasi'}
                     </span>
@@ -290,7 +292,7 @@ function App() {
 
                <button 
                   onClick={() => { setActiveTab('settings'); if (window.innerWidth < 1024) setSidebarOpen(false); }}
-                  className={`w-full flex items-center gap-3 px-4 py-3 rounded-2xl transition-all duration-300 group ${
+                  className={`w-full flex items-center ${!isSidebarOpen ? 'lg:justify-center' : 'gap-3 px-4'} py-3 rounded-2xl transition-all duration-300 group ${
                     activeTab === 'settings' 
                       ? 'bg-slate-900 text-white shadow-xl shadow-slate-900/30' 
                       : 'text-slate-500 hover:bg-slate-100/80 hover:text-slate-800'
@@ -302,9 +304,10 @@ function App() {
                
                <button 
                   onClick={handleLogout}
-                  className="w-full flex items-center gap-3 px-4 py-3 rounded-2xl transition-all duration-300 text-rose-500 hover:bg-rose-50 hover:text-rose-600 active:scale-95 group"
+                  className={`w-full flex items-center ${!isSidebarOpen ? 'lg:justify-center' : 'gap-3 px-4'} py-3 rounded-2xl transition-all duration-300 text-rose-500 hover:bg-rose-50 hover:text-rose-600 active:scale-95 group`}
+                  title="Keluar Sesi"
                >
-                  <LogOut size={20} className="group-hover:-translate-x-1 transition-transform" />
+                  <LogOut size={20} className="group-hover:-translate-x-1 transition-transform flex-shrink-0" />
                   <span className={`font-bold text-sm tracking-tight ${!isSidebarOpen && 'lg:hidden'}`}>Keluar Sesi</span>
                </button>
             </div>
@@ -381,7 +384,7 @@ function App() {
                       {activeTab === 'dashboard' && <Dashboard data={data} profile={schoolProfile} />}
                       {activeTab === 'rapor' && <RaporPendidikan onAddBudget={handleAdd} budgetData={data} />}
                       {activeTab === 'income' && <TransactionTable type={TransactionType.INCOME} data={data} onAdd={handleAdd} onDelete={handleDelete} />}
-                      {activeTab === 'planning' && <BudgetPlanning data={data} onAdd={handleAdd} onUpdate={handleUpdate} onDelete={handleDelete} />}
+                      {activeTab === 'planning' && <BudgetPlanning data={data} profile={schoolProfile} onAdd={handleAdd} onUpdate={handleUpdate} onDelete={handleDelete} />}
                       {activeTab === 'withdrawal' && <BankWithdrawal data={data} profile={schoolProfile} onUpdate={handleUpdate} />}
                       {activeTab === 'spj' && <SPJRealization data={data} onUpdate={handleUpdate} />}
                       {activeTab === 'evidence' && <EvidenceTemplates budgets={data} onUpdate={handleUpdate} />}
