@@ -1,7 +1,8 @@
 
 import React, { useState, useEffect, useMemo } from 'react';
-import { FileText, Download, CheckCircle2, ChevronRight, BookOpen, Printer, Users, Coffee, Wrench, Bus, ShoppingBag, FileSignature, Handshake, ClipboardList, Receipt, FileCheck, HardHat, Hammer, X, DollarSign, Plus, Trash2, Search, Sparkles, Loader2, Upload, Eye, AlertCircle, ShoppingCart } from 'lucide-react';
+import { FileText, Download, CheckCircle2, ChevronRight, BookOpen, Printer, Users, Coffee, Wrench, Bus, ShoppingBag, FileSignature, Handshake, ClipboardList, Receipt, FileCheck, HardHat, Hammer, X, DollarSign, Plus, Trash2, Search, Sparkles, Loader2, Upload, Eye, AlertCircle, ShoppingCart, Image as ImageIcon } from 'lucide-react';
 import jsPDF from 'jspdf';
+import { motion } from 'framer-motion';
 import autoTable from 'jspdf-autotable';
 import { getSchoolProfile, uploadEvidenceFile, getWithdrawalHistory, updateWithdrawalHistory } from '../lib/db';
 import { SchoolProfile, Budget, EvidenceFile, WithdrawalHistory } from '../types';
@@ -15,34 +16,57 @@ const MONTHS = [
 // Helper to determine evidence needed based on Juknis BOSP 2026 & SIPLah Context
 const getEvidenceList = (description: string, accountCode?: string): string[] => {
   const text = (description + ' ' + (accountCode || '')).toLowerCase();
+  const accCode = accountCode || '';
   
-  if (text.includes('honor') || text.includes('gaji') || text.includes('jasa narasumber') || text.includes('instruktur') || text.includes('pembina')) {
+  // Honor/Gaji (Jasa - Non SIPLah)
+  if (text.includes('honor') || text.includes('gaji') || text.includes('jasa narasumber') || text.includes('instruktur') || text.includes('pembina') || accCode.startsWith('5.1.') || text.includes('jasa profesi')) {
     return [
-      "SK Penetapan / Surat Tugas dari Kepala Sekolah (Tahun Berjalan)",
-      "Surat Perjanjian Kerja (SPK)",
-      "Daftar Hadir / Absensi Bulan Berjalan (Tanda Tangan Lengkap)",
-      "Laporan Pelaksanaan Tugas / Jurnal Kegiatan",
-      "Daftar Tanda Terima Honorarium (Bruto, Potongan Pajak, Netto)",
-      "Bukti Transfer Bank ke Rekening Penerima (CMS/Teller)",
+      "SK Penetapan / Surat Tugas dari Kepala Sekolah (Tahun Anggaran Berjalan)",
+      "Surat Perjanjian Kerja (SPK) Jasa Perorangan",
+      "Daftar Hadir / Absensi Rekapitulasi Pokok",
+      "Laporan Pelaksanaan Tugas / Hasil Pekerjaan",
+      "Daftar Tanda Terima Honorarium (Bruto, Pajak, Netto)",
+      "Bukti Transfer Bank ke Rekening Penerima (Prioritas CMS/Non-Tunai)",
       "Bukti Setor Pajak PPh 21 (Kode Billing & NTPN)",
-      "Fotokopi KTP & NPWP Penerima"
+      "Fotokopi KTP & NPWP Penerima Jasa"
     ];
   }
 
+  // Jasa Servis/Pemeliharaan (Non-SIPLah untuk Jasa, SIPLah untuk Material)
+  if (text.includes('pemeliharaan') || text.includes('servis') || text.includes('perbaikan') || text.includes('tukang') || text.includes('rehab') || text.includes('jasa servis')) {
+    return [
+      "Surat Perintah Kerja (SPK) Pihak Ketiga / Tukang",
+      "RAB (Rincian Anggaran Biaya) Pekerjaan",
+      "Nota Belanja Bahan Material (Wajib SIPLah jika nilai belanja material barang mencukupi)",
+      "Kuitansi Pembayaran Upah Tukang / Jasa Servis",
+      "Daftar Hadir Tukang / Pekerja",
+      "Berita Acara Penyelesaian Pekerjaan & BAST Manual",
+      "Bukti Setor PPh 21 (Upah Tukang Perorangan) atau PPh 23 (Jasa Badan Usaha)",
+      "Foto Dokumentasi Pekerjaan Fisik (0%, 50%, 100%)"
+    ];
+  }
+
+  // Rekening Belanja: Modal / Barang / ATK / Cetak (Aturan BOSP 2026: KHUSUS REKENING BELANJA WAJIB SIPLAH)
   if (
-    text.includes('atk') || text.includes('bahan') || text.includes('alat tulis') || 
+    accCode.startsWith('5.2.2') || accCode.startsWith('5.2.3') ||
+    text.includes('atk') || text.includes('bahan') || text.includes('alat') || 
     text.includes('kertas') || text.includes('kebersihan') || text.includes('spanduk') || 
     text.includes('cetak') || text.includes('penggandaan') || 
-    text.includes('lampu') || text.includes('kabel') || text.includes('alat listrik') || text.includes('saklar')
+    text.includes('modal') || text.includes('buku') || text.includes('laptop') || 
+    text.includes('komputer') || text.includes('printer') || text.includes('meja') || 
+    text.includes('kursi') || text.includes('aset') || text.includes('elektronik') ||
+    text.includes('belanja')
   ) {
     return [
-      "Dokumen Cetak Pesanan SIPLah",
-      "Invoice / Faktur Penjualan (Dari SIPLah)",
+      "Dokumen Cetak Pesanan (PO) Digital dari SIPLah",
+      "Invoice / Faktur Penjualan Definitif (Dari SIPLah)",
       "Berita Acara Serah Terima (BAST) Digital SIPLah",
-      "Bukti Transfer ke Rekening Marketplace (Bukan Rekening Penjual)",
-      "Bukti Setor / Pungut Pajak (Oleh Marketplace SIPLah)",
-      "Foto Dokumentasi Barang yang diterima",
-      "Kuitansi Manual (Hanya jika pembelian Non-SIPLah / Mendesak < Rp 200rb)"
+      "Berita Acara Pemeriksaan Barang (Oleh Tim Pemeriksa Sekolah)",
+      "Bukti Transfer ke Virtual Account Marketplace SIPLah (Bukan Rekening Pribadi Penjual)",
+      "Bukti Setor/Pungut Pajak (Otomatis oleh Marketplace SIPLah jika rekanan PKP)",
+      "Foto Dokumentasi Barang yang diterima (Fisik di Sekolah)",
+      "Fotokopi Pencatatan di Buku Persediaan / Buku Aset KIB (Khusus Belanja Modal)",
+      "KUITANSI MANUAL (HANYA DIIZINKAN BISA NON-SIPLAH JIKA: Pengecualian Mendesak / Nilai Sangat Kecil / Toko Tidak Tersedia sesuai Juknis BOSP 2026)"
     ];
   }
 
@@ -50,156 +74,131 @@ const getEvidenceList = (description: string, accountCode?: string): string[] =>
     return [
       "Surat Undangan & Daftar Hadir Kegiatan",
       "Notulen / Laporan Hasil Kegiatan",
-      "Nota / Bon Pembelian Konsumsi (Rincian Menu Jelas)",
-      "Kuitansi Pembayaran (Bermaterai jika > Rp 5 Juta)",
-      "Bukti Setor PPh 23 (Jasa Katering) atau Pajak Daerah (PB1)",
-      "Foto Dokumentasi Kegiatan (Open Camera)",
-      "Dokumen SIPLah (Jika memesan Katering via SIPLah)"
+      "Dokumen SIPLah (Diutamakan memesan Katering/Penyedia UMKM via SIPLah)",
+      "Nota / Bon Pembelian Konsumsi (Rincian Menu Jelas - Jika Terpaksa Non-SIPLah)",
+      "Kuitansi Pembayaran (Bermaterai jika nilai riil > Rp 5 Juta)",
+      "Bukti Setor PPh 23 (Jasa Katering) atau Pajak Daerah (PB1 10%)",
+      "Foto Dokumentasi Kegiatan (Open Camera)"
     ];
   }
 
   if (text.includes('perjalanan') || text.includes('dinas') || text.includes('transport') || text.includes('sppd')) {
     return [
-      "Surat Tugas (Ditandatangani KS)",
-      "SPPD (Surat Perintah Perjalanan Dinas) - Cap Instansi Tujuan",
-      "Laporan Hasil Perjalanan Dinas",
-      "Tiket / Bukti Transportasi Riil",
-      "Nota BBM (Jika kendaraan pribadi/sewa)",
-      "Kuitansi / Bill Hotel (Jika Menginap)",
-      "Daftar Pengeluaran Riil (Format Lampiran Juknis)"
-    ];
-  }
-
-  if (text.includes('modal') || text.includes('buku') || text.includes('laptop') || text.includes('komputer') || text.includes('printer') || text.includes('meja') || text.includes('kursi') || text.includes('aset') || text.includes('elektronik')) {
-    return [
-      "Dokumen Cetak Pesanan SIPLah (SPK Digital)",
-      "Invoice / Faktur Penjualan (Dari SIPLah)",
-      "Berita Acara Serah Terima (BAST) Digital SIPLah",
-      "Berita Acara Pemeriksaan Barang (Internal Sekolah)",
-      "Bukti Transfer ke Rekening Marketplace",
-      "Bukti Pungut/Setor Pajak (Oleh Marketplace SIPLah)",
-      "Foto Dokumentasi Barang (Fisik di Sekolah)",
-      "Fotokopi Pencatatan di Buku Inventaris Aset / KIB",
-      "Kartu Garansi Resmi"
-    ];
-  }
-
-  if (text.includes('pemeliharaan') || text.includes('servis') || text.includes('perbaikan') || text.includes('tukang') || text.includes('rehab')) {
-    return [
-      "Surat Perintah Kerja (SPK) Manual (Jika Jasa Perorangan)",
-      "RAB (Rincian Anggaran Biaya) Pekerjaan",
-      "Nota Belanja Bahan Material (Bisa SIPLah / Toko Bangunan)",
-      "Kuitansi Upah Tukang",
-      "Daftar Hadir Tukang",
-      "Berita Acara Penyelesaian Pekerjaan & BAST",
-      "Bukti Setor PPh 21 (Upah Tukang)",
-      "Foto Dokumentasi (0%, 50%, 100%)"
+      "Surat Tugas (Ditandatangani Kepala Sekolah)",
+      "SPPD (Surat Perintah Perjalanan Dinas) - Lengkap Cap Instansi Tujuan",
+      "Laporan Hasil Perjalanan Dinas (Tuntas)",
+      "Daftar Pengeluaran Riil (Format Lampiran BOSP)",
+      "Tiket / Bukti Transportasi Riil / Boarding Pass",
+      "Nota BBM (Jika menggunakan kendaraan pribadi/sewa)",
+      "Kuitansi / Bill Hotel (Jika Menginap)"
     ];
   }
 
   if ((text.includes('listrik') && !text.includes('alat')) || text.includes('air') || text.includes('internet') || text.includes('langganan') || text.includes('telepon') || text.includes('wifi')) {
     return [
-      "Invoice / Tagihan Resmi Penyedia (PLN/Telkom)",
-      "Bukti Pembayaran Valid (Struk Bank / NTPN / Bukti Transfer)",
+      "Invoice / Tagihan Resmi Penyedia (PLN/Telkom/PDAM)",
+      "Bukti Pembayaran Valid (Struk Bank / NTPN / Bukti Transfer e-Channel)",
       "Bukti Transaksi Marketplace (Jika bayar via Tokopedia/Shopee/dll)"
     ];
   }
 
   return [
-    "Dokumen SIPLah (Invoice, BAST, Bukti Pesanan)",
-    "Bukti Pembayaran Non-Tunai / Transfer",
-    "Bukti Pajak (Dipungut Marketplace/Setor Sendiri)",
-    "Dokumentasi Foto",
-    "Kuitansi / Nota (Jika Transaksi Manual)"
+    "Dokumen SIPLah (Wajib untuk semua Rekening Belanja Barang & Modal sesuai Aturan BOSP 2026)",
+    "Invoice, BAST, dan Bukti Pesanan",
+    "Bukti Pembayaran Non-Tunai / Prioritas CMS Bank",
+    "Bukti Setor Pajak (Oleh Marketplace SIPLah atau Mandiri untuk Jasa)",
+    "Dokumentasi Foto Fisik/Kegiatan",
+    "Kuitansi / Nota Sederhana (Hanya Transaksi Pengecualian/Manual)"
   ];
 };
 
 const TEMPLATE_CATEGORIES = [
   {
+    id: 'atk',
+    title: 'Belanja Barang SIPLah (Akun 5.2.2)',
+    icon: ShoppingBag,
+    color: 'text-red-600',
+    bg: 'bg-red-50',
+    description: 'Aturan BOSP 2026: Semua Rekening Belanja Barang & Modal wajib melalui SIPLah. Hindari pembelian tunai/offline jika item tersedia di SIPLah.',
+    requirements: [
+      'Dokumen Cetak Pesanan (PO) Digital SIPLah',
+      'Invoice / Faktur Penjualan SIPLah',
+      'Berita Acara Serah Terima (BAST) Sistem SIPLah',
+      'Berita Acara Pemeriksaan Barang (Panitia Sekolah)',
+      'Bukti Transfer VA Marketplace (SIPLah)',
+      'Bukti Pungut Pajak oleh SIPLah (Bukti Potong PPh/PPN)',
+      'Foto Barang Diterima',
+      'Kuitansi Manual (KHUSUS untuk transaksi pengecualian < Rp 1 Jt / Toko belum masuk SIPLah)'
+    ]
+  },
+  {
     id: 'honor',
-    title: 'Honorarium (Ekstra/GTT/PTT)',
+    title: 'Honorarium & Jasa Non-SIPLah',
     icon: Users,
     color: 'text-blue-600',
     bg: 'bg-blue-50',
-    description: 'Untuk pembayaran jasa narasumber, pelatih ekstrakurikuler, guru honorer, dan tenaga kependidikan.',
+    description: 'Rekening Jasa (Honorarium Ekstra, PTK, Jasa Narasumber, Jasa Servis) umumnya Non-SIPLah menggunakan bukti fisik/manual.',
     requirements: [
       'SK Penetapan / Surat Tugas dari Kepala Sekolah',
-      'Surat Perjanjian Kerjasama (SPK) / MOU',
+      'Surat Perjanjian Kerja (SPK) Konvensional',
       'Daftar Hadir Kegiatan / Absensi Bulanan',
+      'Laporan Hasil Pekerjaan / Jurnal Mengajar',
       'Daftar Tanda Terima Honorarium (Bruto, Pajak, Netto)',
-      'Bukti Transfer (CMS/Struk ATM) atau Kuitansi Tunai',
+      'Bukti Transfer Non-Tunai ke Rekening Penerima',
       'Bukti Setor Pajak PPh 21 (Kode Billing & NTPN)',
-      'Fotokopi KTP & NPWP Penerima',
-      'Laporan Pelaksanaan Tugas / Jurnal Kegiatan'
+      'Fotokopi KTP & NPWP Penerima'
     ]
   },
   {
     id: 'mamin',
-    title: 'Makan & Minum (Rapat/Tamu)',
+    title: 'Konsumsi (Rapat/Tamu/Kegiatan)',
     icon: Coffee,
     color: 'text-orange-600',
     bg: 'bg-orange-50',
-    description: 'Konsumsi untuk rapat sekolah, tamu dinas, atau kegiatan siswa.',
+    description: 'BOSP 2026: Diutamakan menggunakan jasa UMKM Katering yang terdaftar di SIPLah, atau menggunakan bukti Bon manual jika terpaksa.',
     requirements: [
-      'Surat Undangan Rapat',
-      'Daftar Hadir Peserta Rapat',
-      'Notulen / Laporan Hasil Rapat',
-      'Foto Dokumentasi Kegiatan (Open Camera)',
-      'Nota / Bon Pembelian (Rincian Menu Jelas)',
-      'Kuitansi Sekolah (Bermaterai jika > 5 Juta)',
-      'Bukti Setor Pajak Daerah (PB1 10%) atau PPh 23 (Jasa Katering)'
+      'Surat Undangan & Daftar Hadir Rapat',
+      'Notulen / Ringkasan Hasil Rapat',
+      'Foto Dokumentasi Kegiatan Rapat',
+      'Dokumen Pembelian SIPLah (SPK, BAST, Invoice dari Katering SIPLah)',
+      'Nota/Bon Makan Asli (Jika Non-SIPLah, Rincian harus lengkap)',
+      'Kuitansi Sekolah (Ditandatangani KS & Bendahara)',
+      'Bukti Setor Pajak Daerah (PB1 10%) atau PPh 23 Jasa Katering'
     ]
   },
   {
     id: 'peradin',
-    title: 'Perjalanan Dinas',
+    title: 'Perjalanan Dinas (Transport)',
     icon: Bus,
     color: 'text-green-600',
     bg: 'bg-green-50',
-    description: 'Transportasi dan akomodasi untuk tugas luar sekolah (KKKS, Pelatihan, Lomba).',
+    description: 'Transportasi untuk tugas luar sekolah tidak dapat melalui SIPLah. Diwajibkan melengkapi dokumen perjalanan aktual.',
     requirements: [
-      'Surat Tugas (Ditandatangani KS)',
-      'SPPD (Surat Perintah Perjalanan Dinas) - Cap Instansi Tujuan',
-      'Laporan Hasil Perjalanan Dinas',
-      'Daftar Penerimaan Uang Transport',
-      'Tiket / Bukti Transportasi Riil',
-      'Nota BBM (Jika kendaraan pribadi/sewa)',
-      'Kuitansi / Bill Hotel (Jika Menginap)',
-      'Daftar Pengeluaran Riil (Format Lampiran Juknis)'
+      'Surat Tugas Ditandatangani Kepala Sekolah',
+      'Surat Perintah Perjalanan Dinas (SPPD) + Stempel Tujuan',
+      'Laporan Hasil Perjalanan Dinas (Dilampirkan Materi jika ada)',
+      'Daftar Penerimaan Uang Transport / Lumpsum',
+      'Tiket Angkutan Riil (Pesawat/KA/Bus) atau Boarding Pass',
+      'Nota BBM (Jika Menggunakan Kendaraan Pribadi)',
+      'Daftar Perekapan Pengeluaran Riil (Lampiran Juknis BOSP)'
     ]
   },
   {
     id: 'jasa',
-    title: 'Jasa Tukang / Servis / Sewa',
+    title: 'Pemeliharaan & Rehab Tipe Jasa',
     icon: Wrench,
     color: 'text-purple-600',
     bg: 'bg-purple-50',
-    description: 'Pemeliharaan ringan, servis elektronik, atau sewa peralatan.',
+    description: 'Gabungan SIPLah & Non-SIPLah: Pembelian Material Bangunan melalui SIPLah, pembayaran Upah Tukang secara Non-SIPLah manual.',
     requirements: [
-      'Surat Perintah Kerja (SPK) Sederhana',
-      'Daftar Hadir Pekerja / Tukang',
-      'Daftar Penerimaan Upah Kerja',
-      'Nota Pembelian Bahan Material (Toko Bangunan)',
-      'Kuitansi Upah Tukang / Jasa Servis',
-      'Berita Acara Penyelesaian Pekerjaan & Serah Terima',
-      'Bukti Setor PPh 21 (Upah Tukang) atau PPh 23 (Servis/Sewa)',
-      'Foto Dokumentasi (0%, 50%, 100%)'
-    ]
-  },
-  {
-    id: 'atk',
-    title: 'Belanja Barang Tunai (Non-SIPLah)',
-    icon: ShoppingBag,
-    color: 'text-red-600',
-    bg: 'bg-red-50',
-    description: 'Pembelian ATK/Bahan mendesak di toko kelontong/offline (Nilai Kecil).',
-    requirements: [
-      'Nota Kontan dari Toko (Asli)',
-      'Kuitansi Sekolah',
-      'Faktur Pajak (Jika Toko PKP)',
-      'Berita Acara Serah Terima Barang (Internal)',
-      'Berita Acara Pemeriksaan Barang',
-      'Foto Barang'
+      'RAB Pekerjaan Pemeliharaan / Rehab Sederhana',
+      'Invoice SIPLah & BAST (Untuk Belanja Material / Cat / Bahan)',
+      'Surat Perintah Kerja (SPK) untuk Jasa Pekerja/Tukang',
+      'Daftar Hadir Pekerja',
+      'Kuitansi Upah Tukang / Pekerja Berbasis Hari',
+      'Berita Acara Penyelesaian Pekerjaan',
+      'Bukti Setor PPh 21 Upah Tukang (Harian/Borongan)',
+      'Foto Dokumentasi Bertahap (Sebalum, Sedang, Selesai)'
     ]
   }
 ];
@@ -228,7 +227,7 @@ interface EvidenceTemplatesProps {
 }
 
 const EvidenceTemplates = ({ budgets: allBudgets, onUpdate }: EvidenceTemplatesProps) => {
-  const [activeTab, setActiveTab] = useState<'templates' | 'upload'>('templates');
+  const [activeTab, setActiveTab] = useState<'templates' | 'upload' | 'album'>('templates');
   const [activeCategory, setActiveCategory] = useState<string | null>(null);
   const [schoolProfile, setSchoolProfile] = useState<SchoolProfile | null>(null);
   const [isLoading, setIsLoading] = useState(false);
@@ -380,14 +379,30 @@ const EvidenceTemplates = ({ budgets: allBudgets, onUpdate }: EvidenceTemplatesP
   const handleProcessAi = async (group: any) => {
     // Combine descriptions for context
     const combinedDescription = group.items.map((i: any) => i.budgetDescription).join(', ');
-    const isSiplah = group.vendor.toLowerCase().includes('siplah') || combinedDescription.toLowerCase().includes('siplah');
+    const combinedAccountCodes = group.items.map((i: any) => i.accountCode || '').join(', ');
+
+    const textDesc = combinedDescription.toLowerCase();
+    const isVendorSiplah = group.vendor.toLowerCase().includes('siplah') || textDesc.includes('siplah');
     
+    // BOSP 2026: Rekening 5.2.2/5.2.3 and Goods/Capital are mandatory SIPLah
+    const isBospSiplah = combinedAccountCodes.includes('5.2.2') || combinedAccountCodes.includes('5.2.3') || 
+      textDesc.includes('atk') || textDesc.includes('bahan') || textDesc.includes('alat') || 
+      textDesc.includes('modal') || textDesc.includes('cetak') || textDesc.includes('penggandaan');
+
+    const isSiplah = isVendorSiplah || isBospSiplah;
+    
+    // SIPLah definitive items mapping BOSP 2026
+    const siplahItems = [
+      "Dokumen Cetak Pesanan (PO) Digital dari SIPLah",
+      "Invoice / Faktur Penjualan Definitif (Dari SIPLah)",
+      "Berita Acara Serah Terima (BAST) Digital SIPLah",
+      "Foto Dokumentasi Barang yang diterima (Fisik di Sekolah)"
+    ];
+
     // Check cache first
     if (aiCache[combinedDescription]) {
       let list = aiCache[combinedDescription];
       if (isSiplah) {
-        // Ensure SIPLah specific items are present
-        const siplahItems = ["Surat Pesanan", "BAST", "Invoice", "Foto Barang"];
         list = Array.from(new Set([...siplahItems, ...list]));
       }
       setSuggestedEvidence(list);
@@ -399,7 +414,6 @@ const EvidenceTemplates = ({ budgets: allBudgets, onUpdate }: EvidenceTemplatesP
       let list = await suggestEvidenceList(combinedDescription);
       
       if (isSiplah) {
-        const siplahItems = ["Surat Pesanan", "BAST", "Invoice", "Foto Barang"];
         list = Array.from(new Set([...siplahItems, ...list]));
       }
 
@@ -408,9 +422,8 @@ const EvidenceTemplates = ({ budgets: allBudgets, onUpdate }: EvidenceTemplatesP
       setAiCache(prev => ({ ...prev, [combinedDescription]: list }));
     } catch (error) {
       // Fallback to local logic
-      let fallback = getEvidenceList(combinedDescription);
+      let fallback = getEvidenceList(combinedDescription, combinedAccountCodes);
       if (isSiplah) {
-        const siplahItems = ["Surat Pesanan", "BAST", "Invoice", "Foto Barang"];
         fallback = Array.from(new Set([...siplahItems, ...fallback]));
       }
       setSuggestedEvidence(fallback);
@@ -1659,6 +1672,118 @@ const EvidenceTemplates = ({ budgets: allBudgets, onUpdate }: EvidenceTemplatesP
       }
   };
 
+  const allEvidenceFiles = useMemo(() => {
+    const list: any[] = [];
+    allBudgets.forEach(budget => {
+      budget.realizations?.forEach((real) => {
+        if (real.evidence_files && real.evidence_files.length > 0) {
+          real.evidence_files.forEach(file => {
+             list.push({ ...file, sourceType: 'Belanja', vendor: real.vendor || 'Tanpa Vendor', date: real.date, description: budget.description, amount: real.amount });
+          });
+        }
+      });
+    });
+    history.forEach(record => {
+        let snapshot: any = record.snapshot_data;
+        if (typeof snapshot === 'string') { try { snapshot = JSON.parse(snapshot); } catch(e) { snapshot = {}; } }
+        if (!snapshot) return;
+        if (snapshot.groupedRecipients && Array.isArray(snapshot.groupedRecipients)) {
+          snapshot.groupedRecipients.forEach((recipient: any) => {
+            if (recipient.evidence_files && recipient.evidence_files.length > 0) {
+               recipient.evidence_files.forEach((file: any) => list.push({ ...file, sourceType: 'Riwayat Pencairan', vendor: recipient.name || 'Tanpa Nama', date: record.letter_date, description: recipient.descriptions?.join(', ') || 'Pencairan', amount: recipient.amount }));
+            }
+          });
+        } else if (Array.isArray(snapshot)) {
+          snapshot.forEach((recipient: any) => {
+            if (recipient.evidence_files && recipient.evidence_files.length > 0) {
+               recipient.evidence_files.forEach((file: any) => list.push({ ...file, sourceType: 'Riwayat Pencairan', vendor: recipient.name || 'Tanpa Nama', date: record.letter_date, description: recipient.descriptions?.join(', ') || 'Pencairan', amount: recipient.amount }));
+            }
+          });
+        }
+    });
+    return list.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+  }, [allBudgets, history]);
+
+  const renderAlbumGallery = () => {
+    if (allEvidenceFiles.length === 0) {
+        return (
+            <div className="bg-white rounded-xl border border-gray-200 shadow-sm flex flex-col items-center justify-center p-12 text-center h-full min-h-[500px] animate-fade-in-up">
+                <div className="w-20 h-20 bg-gray-50 rounded-full flex items-center justify-center mb-6">
+                  <ImageIcon className="text-gray-300" size={40} />
+                </div>
+                <h3 className="text-lg font-bold text-gray-800 mb-2">Album Kosong</h3>
+                <p className="text-sm text-gray-500 max-w-md mx-auto">
+                  Belum ada bukti fisik yang diunggah. Silakan unggah setidaknya satu bukti fisik pada tab Upload terlebih dahulu.
+                </p>
+            </div>
+        );
+    }
+
+    return (
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+            {allEvidenceFiles.map((file, idx) => {
+                const isImage = file.name.match(/\.(jpeg|jpg|gif|png|webp)$/i);
+                return (
+                    <motion.div 
+                        key={idx}
+                        initial={{ opacity: 0, scale: 0.9, y: 20 }}
+                        animate={{ opacity: 1, scale: 1, y: 0 }}
+                        transition={{ duration: 0.4, delay: idx * 0.05 }}
+                        className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden group hover:shadow-xl hover:-translate-y-1 transition-all duration-300"
+                    >
+                        <div className="relative h-48 bg-gray-100 flex items-center justify-center overflow-hidden border-b border-gray-100 cursor-pointer" onClick={() => window.open(file.url, '_blank')}>
+                            {isImage ? (
+                                <img src={file.url} alt={file.name} className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500" />
+                            ) : (
+                                <div className="text-red-400 flex flex-col items-center group-hover:scale-110 transition-transform duration-500">
+                                    <FileText size={48} />
+                                    <span className="text-[10px] mt-2 font-bold text-gray-500 line-clamp-1 max-w-[80%] text-center">{file.name}</span>
+                                </div>
+                            )}
+                            <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex items-center justify-center">
+                                <span className="bg-white/95 text-gray-800 text-xs font-bold px-4 py-2 rounded-full flex items-center gap-2 shadow-lg scale-90 group-hover:scale-100 transition-transform">
+                                    <Eye size={14} className="text-blue-600" /> Buka {isImage ? 'Foto' : 'Dokumen'}
+                                </span>
+                            </div>
+                        </div>
+
+                        <div className="p-4">
+                            <div className="flex justify-between items-start mb-2">
+                                <span className="text-[10px] font-bold text-blue-600 bg-blue-50 px-2 py-0.5 rounded uppercase tracking-wider line-clamp-1 max-w-[60%] truncate">
+                                    {file.type}
+                                </span>
+                                <span className="text-[10px] text-gray-400 font-medium whitespace-nowrap">
+                                    {new Date(file.date).toLocaleDateString('id-ID', { day: '2-digit', month: 'short', year: 'numeric' })}
+                                </span>
+                            </div>
+                            <h4 className="text-sm font-bold text-gray-800 mb-1 line-clamp-1" title={file.vendor}>{file.vendor}</h4>
+                            <p className="text-[10px] text-gray-500 line-clamp-2 mb-3 leading-relaxed" title={file.description}>{file.description}</p>
+                            
+                            <div className="flex justify-between items-center pt-3 border-t border-gray-50">
+                                <span className="text-xs font-mono font-bold text-gray-700 bg-gray-50 px-2 py-1 rounded">
+                                    {new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', maximumFractionDigits: 0 }).format(file.amount)}
+                                </span>
+                                <button 
+                                    onClick={(e) => {
+                                        e.stopPropagation();
+                                        const win = window.open(file.url, '_blank');
+                                        if (win) win.onload = () => win.print();
+                                    }}
+                                    className="p-1.5 text-gray-400 hover:text-teal-600 hover:bg-teal-50 rounded transition-colors"
+                                    title="Cetak File"
+                                    aria-label="Cetak File"
+                                >
+                                    <Printer size={14} />
+                                </button>
+                            </div>
+                        </div>
+                    </motion.div>
+                );
+            })}
+        </div>
+    );
+  };
+
   return (
     <div className="space-y-6 pb-10">
       <div className="flex flex-col md:flex-row justify-between items-end gap-4">
@@ -1692,9 +1817,18 @@ const EvidenceTemplates = ({ budgets: allBudgets, onUpdate }: EvidenceTemplatesP
           >
             Upload Bukti Realisasi
           </button>
+          <button
+            onClick={() => setActiveTab('album')}
+            className={`px-4 py-2 text-sm font-medium rounded-md transition-all ${
+              activeTab === 'album' 
+                ? 'bg-white text-blue-600 shadow-sm' 
+                : 'text-gray-500 hover:text-gray-700'
+            }`}
+          >
+            Album Bukti Fisik
+          </button>
         </div>
       </div>
-
       {activeTab === 'templates' ? (
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
            {/* LEFT COLUMN: Categories */}
@@ -1782,9 +1916,11 @@ const EvidenceTemplates = ({ budgets: allBudgets, onUpdate }: EvidenceTemplatesP
                           Klik salah satu jenis belanja di sebelah kiri untuk membuat dokumen pendukung.
                       </p>
                   </div>
-              )}
+               )}
            </div>
         </div>
+      ) : activeTab === 'album' ? (
+        renderAlbumGallery()
       ) : (
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 animate-slide-up">
           {/* Left: Budget List */}

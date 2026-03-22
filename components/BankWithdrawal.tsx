@@ -1,7 +1,8 @@
 import React, { useState, useMemo, useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import { motion, AnimatePresence, Variants } from 'framer-motion';
 import { Budget, TransactionType, SchoolProfile, TransferDetail, WithdrawalHistory } from '../types';
-import { FileText, Printer, Landmark, CheckSquare, Square, DollarSign, Calendar, User, CreditCard, Edit3, List, X, Coins, Users, Loader2, Archive, History, RefreshCcw, Trash2, Info, Calculator, Percent, Download } from 'lucide-react';
+import { Printer, Landmark, CheckSquare, Square, Calendar, Users, Archive, RefreshCcw, Trash2, Calculator, Percent, List, Search } from 'lucide-react';
 import { jsPDF } from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import { getWithdrawalHistory, saveWithdrawalHistory, deleteWithdrawalHistory, uploadWithdrawalFile } from '../lib/db';
@@ -29,7 +30,6 @@ const itemVariants: Variants = {
 
 const BankWithdrawal: React.FC<BankWithdrawalProps> = ({ data, profile, onUpdate }) => {
     const [activeTab, setActiveTab] = useState<'rincian' | 'surat_kuasa' | 'pemindahbukuan' | 'riwayat'>('rincian');
-    const [isSelectionModalOpen, setIsSelectionModalOpen] = useState(false);
     const [isBulkEditOpen, setIsBulkEditOpen] = useState(false);
     const [isTaxModalOpen, setIsTaxModalOpen] = useState(false);
     const [isSaving, setIsSaving] = useState(false);
@@ -41,20 +41,19 @@ const BankWithdrawal: React.FC<BankWithdrawalProps> = ({ data, profile, onUpdate
     const [accountCodeFilter, setAccountCodeFilter] = useState<string>('');
     const [searchTerm, setSearchTerm] = useState<string>('');
 
-    const [historyList, setHistoryList] = useState<WithdrawalHistory[]>([]);
-    const [isLoadingHistory, setIsLoadingHistory] = useState(false);
-
     const [selectedBudgetIds, setSelectedBudgetIds] = useState<string[]>([]);
     const [chequeNo, setChequeNo] = useState('');
     const [withdrawDate, setWithdrawDate] = useState(new Date().toISOString().split('T')[0]);
 
+    const [historyList, setHistoryList] = useState<WithdrawalHistory[]>([]);
+
     const [suratNo, setSuratNo] = useState('');
     const [ksName, setKsName] = useState('');
-    const [ksTitle, setKsTitle] = useState('Kepala Sekolah');
+    const [ksTitle] = useState('Kepala Sekolah');
     const [ksNip, setKsNip] = useState('');
     const [ksAddress, setKsAddress] = useState('');
     const [trName, setTrName] = useState('');
-    const [trTitle, setTrTitle] = useState('Bendahara BOS');
+    const [trTitle] = useState('Bendahara BOS');
     const [trNip, setTrNip] = useState('');
     const [trAddress, setTrAddress] = useState('');
 
@@ -80,10 +79,8 @@ const BankWithdrawal: React.FC<BankWithdrawalProps> = ({ data, profile, onUpdate
     }, [activeTab]);
 
     const loadHistory = async () => {
-        setIsLoadingHistory(true);
         const historyData = await getWithdrawalHistory();
         setHistoryList(historyData);
-        setIsLoadingHistory(false);
     };
 
     const filteredRealizations = useMemo(() => {
@@ -444,29 +441,38 @@ const BankWithdrawal: React.FC<BankWithdrawalProps> = ({ data, profile, onUpdate
 
     const budgetTableContent = (
         <motion.div variants={itemVariants} className="space-y-4">
-            <div className="flex flex-wrap items-center gap-4 p-5 bg-white/60 backdrop-blur-xl rounded-[1.5rem] shadow-sm border border-white/60">
-                <div className="flex items-center gap-2">
-                    <label className="text-xs font-bold text-slate-500 uppercase tracking-widest">Bulan:</label>
-                    <div className="flex flex-col sm:flex-row gap-2">
-                        <select className="px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-sm font-semibold text-slate-700 outline-none focus:ring-2 focus:ring-blue-500/50" value={startMonth} onChange={(e) => setStartMonth(Number(e.target.value))}>
+            {/* ── Filter Modern ── */}
+            <div className="flex flex-col lg:flex-row items-center gap-4 p-4 mt-6 bg-white/70 backdrop-blur-2xl rounded-[1.5rem] shadow-[0_8px_30px_rgb(0,0,0,0.04)] border border-white/80 transition-all hover:bg-white/90">
+                <div className="flex w-full lg:w-auto p-1.5 bg-slate-100/50 rounded-[1.2rem] border border-slate-200">
+                    <div className="flex items-center gap-3 w-full px-3 py-2 bg-white rounded-xl shadow-sm text-sm font-bold text-slate-700">
+                        <Calendar size={15} className="text-blue-500" />
+                        <select className="bg-transparent outline-none focus:text-blue-600 appearance-none pr-2 cursor-pointer transition-colors" value={startMonth} onChange={(e) => setStartMonth(Number(e.target.value))}>
                             {MONTHS.map((m, i) => <option key={i+1} value={i+1}>{m}</option>)}
                         </select>
-                        <select className="px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-sm font-semibold text-slate-700 outline-none focus:ring-2 focus:ring-blue-500/50" value={endMonth} onChange={(e) => setEndMonth(Number(e.target.value))}>
+                        <span className="text-slate-300 font-medium">-</span>
+                        <select className="bg-transparent outline-none focus:text-blue-600 appearance-none cursor-pointer transition-colors" value={endMonth} onChange={(e) => setEndMonth(Number(e.target.value))}>
                             {MONTHS.map((m, i) => <option key={i+1} value={i+1}>{m}</option>)}
                         </select>
                     </div>
                 </div>
-                <div className="flex items-center gap-2 flex-wrap">
-                    <input type="text" className="px-4 py-2 bg-white/70 border border-slate-200 rounded-xl text-sm outline-none focus:ring-2 focus:ring-blue-500/50" placeholder="Filter Kode Rek (5.2.x)" value={accountCodeFilter} onChange={(e) => setAccountCodeFilter(e.target.value)} />
-                    <input type="text" className="px-4 py-2 bg-white/70 border border-slate-200 rounded-xl text-sm outline-none focus:ring-2 focus:ring-blue-500/50" placeholder="Cari Uraian" value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} />
+                
+                <div className="flex flex-1 items-center gap-3 w-full">
+                    <div className="relative flex-1">
+                        <Search size={15} className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" />
+                        <input type="text" className="w-full pl-10 pr-4 py-3 bg-slate-100/50 hover:bg-white focus:bg-white border border-slate-200 focus:border-blue-400 rounded-2xl text-sm outline-none focus:ring-4 focus:ring-blue-500/10 transition-all shadow-sm font-semibold text-slate-700 placeholder:text-slate-400 placeholder:font-normal" placeholder="Cari Uraian..." value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} />
+                    </div>
+                    <div className="relative w-1/3 min-w-[130px]">
+                        <input type="text" className="w-full pl-4 pr-4 py-3 bg-slate-100/50 hover:bg-white focus:bg-white border border-slate-200 focus:border-blue-400 rounded-2xl text-sm outline-none focus:ring-4 focus:ring-blue-500/10 transition-all shadow-sm font-mono font-bold text-slate-700 placeholder:text-slate-400 placeholder:font-sans placeholder:font-normal" placeholder="Filter Kode Rek" value={accountCodeFilter} onChange={(e) => setAccountCodeFilter(e.target.value)} />
+                    </div>
                 </div>
-                <div className="flex items-center gap-2 sm:ml-auto">
-                    <button onClick={() => setIsGroupingEnabled(!isGroupingEnabled)} className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold transition-all ${isGroupingEnabled ? 'bg-indigo-50 text-indigo-600 border border-indigo-200 shadow-sm' : 'bg-slate-50 text-slate-500 border border-slate-200'}`}>
-                        {isGroupingEnabled ? <Users size={14} /> : <List size={14} />} {isGroupingEnabled ? 'Grup Nama/Rek' : 'Pisah Item'}
+
+                <div className="flex w-full lg:w-auto items-center gap-2 justify-end shrink-0">
+                    <button onClick={() => setIsGroupingEnabled(!isGroupingEnabled)} className={`flex items-center gap-2 px-5 py-3 rounded-2xl text-[11px] uppercase tracking-wider font-bold transition-all ${isGroupingEnabled ? 'bg-gradient-to-r from-blue-600 to-indigo-600 text-white shadow-lg shadow-indigo-600/30 ring-2 ring-indigo-600/50 ring-offset-2' : 'bg-slate-100 text-slate-500 hover:bg-slate-200'}`}>
+                        {isGroupingEnabled ? <Users size={14} /> : <List size={14} />} {isGroupingEnabled ? 'Grup Akun' : 'Pisah Item'}
                     </button>
                     {isGroupingEnabled && (
-                        <button onClick={() => setGroupByMonth(!groupByMonth)} className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold transition-all ${groupByMonth ? 'bg-emerald-50 text-emerald-600 border border-emerald-200 shadow-sm' : 'bg-slate-50 text-slate-500 border border-slate-200'}`}>
-                            <Calendar size={14} /> {groupByMonth ? 'Pisah Bulan' : 'Gabung Bulan'}
+                        <button onClick={() => setGroupByMonth(!groupByMonth)} className={`flex items-center gap-2 px-5 py-3 rounded-2xl text-[11px] uppercase tracking-wider font-bold transition-all ${groupByMonth ? 'bg-gradient-to-r from-emerald-500 to-teal-500 text-white shadow-lg shadow-emerald-500/30 ring-2 ring-emerald-500/50 ring-offset-2' : 'bg-slate-100 text-slate-500 hover:bg-slate-200'}`}>
+                            <Calendar size={14} /> {groupByMonth ? 'Bulan Berbeda' : 'Gabung Bulan'}
                         </button>
                     )}
                 </div>
@@ -536,40 +542,66 @@ const BankWithdrawal: React.FC<BankWithdrawalProps> = ({ data, profile, onUpdate
     );
 
     return (
-        <motion.div variants={containerVariants} initial="hidden" animate="show" className="space-y-6 pb-10">
-            <motion.div variants={itemVariants} className="flex flex-col md:flex-row md:items-end justify-between bg-white/60 backdrop-blur-xl p-8 rounded-[2rem] border border-white/80 shadow-xl shadow-blue-900/5 relative overflow-hidden">
-                <div className="relative z-10">
-                    <div className="flex items-center gap-3 mb-2">
-                        <div className="p-2.5 bg-blue-100/80 rounded-xl"><Landmark className="text-blue-600" size={20}/></div>
-                        <span className="px-3 py-1 bg-blue-50 text-blue-600 text-[10px] font-black uppercase tracking-widest rounded-lg">Pencairan</span>
+        <motion.div variants={containerVariants} initial="hidden" animate="show" className="relative space-y-6 pb-12 w-full max-w-[1500px] mx-auto min-h-[90vh]">
+            {/* Background Ambience / Blobs */}
+            <div className="absolute top-0 right-0 w-full h-[600px] bg-gradient-to-b from-indigo-50/80 via-blue-50/50 to-transparent pointer-events-none -z-10 rounded-t-[3rem]" />
+            <div className="absolute -top-[5%] -right-[5%] w-[50vh] h-[50vh] bg-blue-300/20 rounded-full blur-[100px] pointer-events-none -z-10" />
+            <div className="absolute top-[20%] -left-[5%] w-[40vh] h-[40vh] bg-indigo-300/20 rounded-full blur-[100px] pointer-events-none -z-10" />
+
+            {/* Header Master */}
+            <motion.div variants={itemVariants} className="flex flex-col md:flex-row md:items-center justify-between bg-white/60 backdrop-blur-3xl p-8 rounded-[2rem] border border-white/80 shadow-[0_8px_30px_rgb(0,0,0,0.04)] relative overflow-hidden">
+                <div className="relative z-10 flex flex-col md:flex-row md:items-center gap-6">
+                    <div className="p-4 bg-gradient-to-br from-blue-600 to-indigo-700 rounded-3xl shadow-xl shadow-blue-500/30 text-white shrink-0">
+                        <Landmark size={32} className="drop-shadow-sm" strokeWidth={2.5} />
                     </div>
-                    <h2 className="text-3xl font-black text-slate-800 tracking-tight">Pengajuan Pencairan BOSP</h2>
+                    <div>
+                        <div className="flex items-center gap-2 mb-2">
+                            <span className="px-3 py-1 bg-blue-50/80 backdrop-blur border border-blue-100 text-blue-700 text-[10px] font-black uppercase tracking-[0.2em] rounded-lg shadow-sm">Modul Pencairan Bank</span>
+                        </div>
+                        <h2 className="text-3xl lg:text-4xl font-black text-slate-800 tracking-tight drop-shadow-sm">Pengajuan Pencairan BOSP</h2>
+                    </div>
+                </div>
+                <div className="hidden lg:block absolute right-0 top-0 opacity-5 pointer-events-none">
+                    <Landmark size={250} className="-mt-16 rotate-12" />
                 </div>
             </motion.div>
 
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-                <motion.div variants={itemVariants} className="lg:col-span-1 space-y-6">
-                    <div className="glass-panel p-6 rounded-[2rem] border border-white/60 shadow-xl">
-                        <h3 className="font-black text-slate-700 mb-4 flex items-center gap-2 text-sm uppercase tracking-widest"><Calendar size={16}/> Info Cek</h3>
-                        <div className="space-y-4">
-                            <div><label className="text-xs font-bold text-slate-500 uppercase tracking-widest mb-2 block">No Cek/Giro</label><input type="text" className="w-full px-4 py-3 bg-white/50 border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-blue-500 font-mono text-sm" value={chequeNo} onChange={e=>setChequeNo(e.target.value)} placeholder="Opsional"/></div>
-                            <div><label className="text-xs font-bold text-slate-500 uppercase tracking-widest mb-2 block">Tanggal</label><input type="date" className="w-full px-4 py-3 bg-white/50 border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-blue-500 font-mono text-sm" value={withdrawDate} onChange={e=>setWithdrawDate(e.target.value)}/></div>
+            <div className="grid grid-cols-1 xl:grid-cols-4 gap-6">
+                {/* Left Panel Sidebar */}
+                <motion.div variants={itemVariants} className="xl:col-span-1 flex flex-col gap-6">
+                    {/* Total Card Premium */}
+                    <motion.div whileHover={{ scale: 1.02, y: -5 }} className="bg-gradient-to-br from-[#4f46e5] via-[#4338ca] to-[#7c3aed] p-8 rounded-[2rem] shadow-2xl shadow-indigo-500/30 text-white relative overflow-hidden flex flex-col justify-center min-h-[220px] group transition-all duration-300 border border-white/10 cursor-default">
+                        <Landmark size={180} className="absolute -right-8 -bottom-8 text-white/10 rotate-12 group-hover:rotate-6 group-hover:scale-110 transition-transform duration-700 ease-out" />
+                        <div className="absolute top-0 right-0 p-5 opacity-50 text-white"><Calculator size={24}/></div>
+                        <div className="relative z-10 flex flex-col h-full justify-between">
+                            <p className="text-[10px] font-black text-indigo-200 uppercase tracking-[0.2em] mb-4 opacity-100 drop-shadow-sm flex items-center gap-2">Total Terpilih</p>
+                            <div>
+                                <h3 className="text-4xl xl:text-4xl 2xl:text-5xl font-black drop-shadow-[0_2px_10px_rgba(0,0,0,0.3)] tracking-tight mb-2 truncate">{formatRupiah(totalSelectedAmount)}</h3>
+                                <p className="text-[12px] text-indigo-100 font-medium italic opacity-90 leading-snug">{getTerbilang(totalSelectedAmount)} Rupiah</p>
+                            </div>
                         </div>
-                    </div>
+                    </motion.div>
 
-                    <div className="bg-gradient-to-br from-blue-600 to-indigo-700 p-6 rounded-[2rem] border border-blue-400/30 shadow-xl text-white relative overflow-hidden">
-                        <p className="text-[10px] font-black text-blue-200 uppercase tracking-widest mb-2 opacity-90">Total Pencairan Terpilih</p>
-                        <h3 className="text-3xl font-black drop-shadow-md">{formatRupiah(totalSelectedAmount)}</h3>
-                        <p className="text-xs text-blue-100 mt-2 font-medium italic">{getTerbilang(totalSelectedAmount)} Rupiah</p>
+                    {/* Info Cek Card */}
+                    <div className="glass-panel p-6 rounded-[2rem] border border-white/90 shadow-xl shadow-slate-200/50 bg-white/70 backdrop-blur-2xl transition-all hover:bg-white/80">
+                        <h3 className="font-black text-slate-800 mb-5 flex items-center gap-2 text-sm uppercase tracking-widest"><Calendar size={18} className="text-blue-600"/> Detail Cek / Giro</h3>
+                        <div className="space-y-5">
+                            <div><label className="text-[10px] font-bold text-slate-500 uppercase tracking-[0.15em] mb-2 block">No Cek / Giro</label><input type="text" className="w-full px-4 py-3 bg-slate-50 hover:bg-white focus:bg-white border border-slate-200 rounded-2xl outline-none focus:ring-4 focus:ring-blue-500/10 transition-all font-mono text-sm shadow-sm focus:border-blue-400 placeholder:font-sans placeholder:text-slate-400" value={chequeNo} onChange={e=>setChequeNo(e.target.value)} placeholder="Opsional"/></div>
+                            <div><label className="text-[10px] font-bold text-slate-500 uppercase tracking-[0.15em] mb-2 block">Tanggal Pencairan</label><input type="date" className="w-full px-4 py-3 bg-slate-50 hover:bg-white focus:bg-white border border-slate-200 rounded-2xl outline-none focus:ring-4 focus:ring-blue-500/10 transition-all font-mono text-sm shadow-sm focus:border-blue-400 cursor-pointer" value={withdrawDate} onChange={e=>setWithdrawDate(e.target.value)}/></div>
+                        </div>
                     </div>
                 </motion.div>
 
-                <motion.div variants={itemVariants} className="lg:col-span-2 space-y-6">
-                    <div className="glass-panel rounded-[2rem] border border-white/60 shadow-xl overflow-hidden">
-                        <div className="flex flex-wrap border-b border-slate-100 bg-white/40">
+                {/* Right Panel Main Area */}
+                <motion.div variants={itemVariants} className="xl:col-span-3 space-y-6">
+                    <div className="glass-panel rounded-[2rem] border border-white/90 shadow-2xl shadow-indigo-900/5 bg-white/60 backdrop-blur-3xl overflow-hidden flex flex-col min-h-[600px]">
+                        <div className="flex flex-wrap border-b border-slate-100 bg-white/40 p-2 gap-2 relative">
                             {['rincian', 'surat_kuasa', 'pemindahbukuan', 'riwayat'].map(tab => (
-                                <button key={tab} onClick={() => setActiveTab(tab as any)} className={`flex-1 min-w-[120px] py-4 text-xs font-bold uppercase tracking-widest transition-all ${activeTab === tab ? 'text-blue-600 border-b-2 border-blue-600 bg-white' : 'text-slate-400 hover:bg-slate-50'}`}>
-                                    {tab.replace('_', ' ')}
+                                <button key={tab} onClick={() => setActiveTab(tab as any)} className={`relative flex-1 min-w-[120px] py-3 text-xs font-bold uppercase tracking-widest transition-all rounded-xl overflow-hidden ${activeTab === tab ? 'text-white' : 'text-slate-500 hover:text-slate-800 hover:bg-slate-100/50'}`}>
+                                    {activeTab === tab && (
+                                        <motion.div layoutId="activeTabPencairan" className="absolute inset-0 bg-gradient-to-r from-blue-600 to-indigo-600 rounded-xl" transition={{ type: 'spring', stiffness: 300, damping: 25 }} />
+                                    )}
+                                    <span className="relative z-10">{tab.replace('_', ' ')}</span>
                                 </button>
                             ))}
                         </div>
@@ -646,36 +678,51 @@ const BankWithdrawal: React.FC<BankWithdrawalProps> = ({ data, profile, onUpdate
                 </motion.div>
             </div>
             
+            {typeof document !== 'undefined' && createPortal(
             <AnimatePresence>
                 {/* Modals are kept minimal or matching original structure with glass styling */}
                 {isBulkEditOpen && (
                     <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-                        <motion.div initial={{opacity:0, scale:0.95}} animate={{opacity:1, scale:1}} exit={{opacity:0}} className="bg-white rounded-[2rem] p-6 w-full max-w-md shadow-2xl">
-                            <h3 className="font-bold text-lg mb-4">Set Penerima Massal</h3>
-                            <input type="text" placeholder="Nama Penerima" className="w-full border rounded-xl px-4 py-3 text-sm mb-3" value={bulkName} onChange={e=>setBulkName(e.target.value)} />
-                            <input type="text" placeholder="No Rekening" className="w-full border rounded-xl px-4 py-3 text-sm mb-4" value={bulkAccount} onChange={e=>setBulkAccount(e.target.value)} />
-                            <div className="flex gap-2">
-                                <button onClick={()=>setIsBulkEditOpen(false)} className="flex-1 px-4 py-3 bg-slate-100 rounded-xl text-sm font-bold text-slate-600">Batal</button>
-                                <button onClick={applyBulkRecipient} className="flex-1 px-4 py-3 bg-blue-600 text-white rounded-xl text-sm font-bold">Terapkan</button>
+                        <motion.div initial={{opacity:0, scale:0.95, y:20}} animate={{opacity:1, scale:1, y:0}} exit={{opacity:0, scale:0.95, y:20}} className="bg-white rounded-[2rem] p-6 w-full max-w-md shadow-2xl relative z-10">
+                            <h3 className="font-bold text-lg mb-4 text-slate-800 tracking-tight">Set Penerima Massal</h3>
+                            <input type="text" placeholder="Nama Penerima" className="w-full border border-slate-200 focus:ring-2 focus:ring-blue-500/50 outline-none rounded-xl px-4 py-3 text-sm mb-3 bg-slate-50 transition-all font-semibold text-slate-700" value={bulkName} onChange={e=>setBulkName(e.target.value)} />
+                            <input type="text" placeholder="No Rekening" className="w-full border border-slate-200 focus:ring-2 focus:ring-blue-500/50 outline-none rounded-xl px-4 py-3 text-sm mb-4 bg-slate-50 transition-all font-mono font-bold text-slate-700" value={bulkAccount} onChange={e=>setBulkAccount(e.target.value)} />
+                            <div className="flex gap-3 mt-2">
+                                <button onClick={()=>setIsBulkEditOpen(false)} className="flex-1 px-4 py-3.5 border border-slate-200 hover:bg-slate-100/80 rounded-xl text-sm font-bold text-slate-600 transition-colors">Batal</button>
+                                <button onClick={applyBulkRecipient} className="flex-1 px-4 py-3.5 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white rounded-xl text-sm font-bold shadow-lg shadow-blue-500/30 transition-all transform active:scale-95">Terapkan</button>
                             </div>
                         </motion.div>
                     </div>
                 )}
                 {isTaxModalOpen && (
                     <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-                        <motion.div initial={{opacity:0, scale:0.95}} animate={{opacity:1, scale:1}} exit={{opacity:0}} className="bg-white rounded-[2rem] p-6 w-full max-w-md shadow-2xl">
-                            <h3 className="font-bold text-lg mb-4">Otomatisasi Pajak</h3>
-                            <div className="space-y-2">
-                                <button onClick={()=>applyAutoTax('barang_pkp')} className="w-full p-3 text-left border rounded-xl text-sm hover:bg-slate-50 font-bold">Barang {'>'} 2 Juta (PPN & PPh22)</button>
-                                <button onClick={()=>applyAutoTax('mamin_daerah')} className="w-full p-3 text-left border rounded-xl text-sm hover:bg-slate-50 font-bold">Mamin Resto (PB1 10%)</button>
-                                <button onClick={()=>applyAutoTax('jasa')} className="w-full p-3 text-left border rounded-xl text-sm hover:bg-slate-50 font-bold">Jasa (PPh23 2%)</button>
-                                <button onClick={()=>applyAutoTax('honor_5')} className="w-full p-3 text-left border rounded-xl text-sm hover:bg-slate-50 font-bold">Honor ASN/Ber-NPWP (PPh21 5%)</button>
+                        <motion.div initial={{opacity:0, scale:0.95, y:20}} animate={{opacity:1, scale:1, y:0}} exit={{opacity:0, scale:0.95, y:20}} className="bg-white rounded-[2rem] p-6 w-full max-w-md shadow-2xl border border-white/50 relative z-10">
+                            <h3 className="font-bold text-lg mb-4 text-slate-800 tracking-tight flex items-center gap-2"><Calculator size={20} className="text-emerald-500"/> Otomatisasi Pajak</h3>
+                            <div className="space-y-2 mt-2">
+                                <button onClick={()=>applyAutoTax('barang_pkp')} className="w-full p-3.5 text-left border border-slate-200 rounded-xl text-sm hover:bg-emerald-50 hover:border-emerald-200 hover:text-emerald-700 font-bold transition-all flex items-center justify-between group">
+                                    <span>Barang {'>'} 2 Juta (PPN & PPh22)</span>
+                                    <Percent size={14} className="text-slate-300 group-hover:text-emerald-500 transition-colors"/>
+                                </button>
+                                <button onClick={()=>applyAutoTax('mamin_daerah')} className="w-full p-3.5 text-left border border-slate-200 rounded-xl text-sm hover:bg-emerald-50 hover:border-emerald-200 hover:text-emerald-700 font-bold transition-all flex items-center justify-between group">
+                                    <span>Mamin Resto (PB1 10%)</span>
+                                    <Percent size={14} className="text-slate-300 group-hover:text-emerald-500 transition-colors"/>
+                                </button>
+                                <button onClick={()=>applyAutoTax('jasa')} className="w-full p-3.5 text-left border border-slate-200 rounded-xl text-sm hover:bg-emerald-50 hover:border-emerald-200 hover:text-emerald-700 font-bold transition-all flex items-center justify-between group">
+                                    <span>Jasa (PPh23 2%)</span>
+                                    <Percent size={14} className="text-slate-300 group-hover:text-emerald-500 transition-colors"/>
+                                </button>
+                                <button onClick={()=>applyAutoTax('honor_5')} className="w-full p-3.5 text-left border border-slate-200 rounded-xl text-sm hover:bg-emerald-50 hover:border-emerald-200 hover:text-emerald-700 font-bold transition-all flex items-center justify-between group">
+                                    <span>Honor ASN/Ber-NPWP (PPh21 5%)</span>
+                                    <Percent size={14} className="text-slate-300 group-hover:text-emerald-500 transition-colors"/>
+                                </button>
                             </div>
-                            <button onClick={()=>setIsTaxModalOpen(false)} className="w-full mt-4 px-4 py-3 bg-slate-100 rounded-xl text-sm font-bold text-slate-600">Tutup</button>
+                            <button onClick={()=>setIsTaxModalOpen(false)} className="w-full mt-6 px-4 py-3.5 border border-slate-200 hover:bg-slate-100/80 rounded-xl text-sm font-bold text-slate-600 transition-colors">Tutup</button>
                         </motion.div>
                     </div>
                 )}
-            </AnimatePresence>
+            </AnimatePresence>,
+            document.body
+            )}
         </motion.div>
     );
 };

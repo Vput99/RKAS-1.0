@@ -1,4 +1,5 @@
 import React, { useState, useMemo, useEffect, useRef, useCallback } from 'react';
+import { createPortal } from 'react-dom';
 import { motion, AnimatePresence, Variants } from 'framer-motion';
 import { Budget, TransactionType, BOSPComponent, SNPStandard, AccountCodes, SchoolProfile } from '../types';
 import {
@@ -62,6 +63,7 @@ const BudgetPlanning: React.FC<BudgetPlanningProps> = ({ data, profile, onAdd, o
   const searchInputRef = useRef<HTMLInputElement>(null);
   const [isReviewOpen, setIsReviewOpen] = useState(false);
   const [reviewTab, setReviewTab] = useState<'pdf' | 'excel'>('pdf');
+  const [reviewPeriod, setReviewPeriod] = useState<'yearly' | 'monthly'>('yearly');
 
   // ── Form: Kegiatan (description / AI trigger) ──
   const [kegiatanQuery, setKegiatanQuery] = useState('');       // top search field
@@ -815,7 +817,8 @@ const BudgetPlanning: React.FC<BudgetPlanningProps> = ({ data, profile, onAdd, o
       {/* ═══════════════════════════════════════════════════
           REVIEW PREVIEW MODAL
           ═══════════════════════════════════════════════════ */}
-      <AnimatePresence>
+      {typeof document !== 'undefined' && createPortal(
+        <AnimatePresence>
         {isReviewOpen && (
           <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
             {/* Overlay */}
@@ -847,27 +850,49 @@ const BudgetPlanning: React.FC<BudgetPlanningProps> = ({ data, profile, onAdd, o
                   </div>
                 </div>
                 {/* Tabs */}
-                <div className="flex items-center bg-slate-100 rounded-lg p-1 gap-1">
-                  <button
-                    onClick={() => setReviewTab('pdf')}
-                    className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-bold transition-all ${reviewTab === 'pdf'
-                      ? 'bg-white text-rose-600 shadow-sm'
-                      : 'text-slate-500 hover:text-slate-700'
-                      }`}
-                  >
-                    <FileText size={13} strokeWidth={2.5} />
-                    PDF
-                  </button>
-                  <button
-                    onClick={() => setReviewTab('excel')}
-                    className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-bold transition-all ${reviewTab === 'excel'
-                      ? 'bg-white text-emerald-600 shadow-sm'
-                      : 'text-slate-500 hover:text-slate-700'
-                      }`}
-                  >
-                    <Grid size={13} strokeWidth={2.5} />
-                    Excel
-                  </button>
+                <div className="flex items-center gap-2">
+                  <div className="flex items-center bg-slate-100 rounded-lg p-1 gap-1">
+                    <button
+                      onClick={() => setReviewPeriod('yearly')}
+                      className={`px-3 py-1.5 rounded-md text-xs font-bold transition-all ${reviewPeriod === 'yearly'
+                        ? 'bg-white text-blue-600 shadow-sm'
+                        : 'text-slate-500 hover:text-slate-700'
+                        }`}
+                    >
+                      1 Tahun
+                    </button>
+                    <button
+                      onClick={() => setReviewPeriod('monthly')}
+                      className={`px-3 py-1.5 rounded-md text-xs font-bold transition-all ${reviewPeriod === 'monthly'
+                        ? 'bg-white text-blue-600 shadow-sm'
+                        : 'text-slate-500 hover:text-slate-700'
+                        }`}
+                    >
+                      Bulan {MONTHS_FULL[activeMonth - 1]}
+                    </button>
+                  </div>
+                  <div className="flex items-center bg-slate-100 rounded-lg p-1 gap-1">
+                    <button
+                      onClick={() => setReviewTab('pdf')}
+                      className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-bold transition-all ${reviewTab === 'pdf'
+                        ? 'bg-white text-rose-600 shadow-sm'
+                        : 'text-slate-500 hover:text-slate-700'
+                        }`}
+                    >
+                      <FileText size={13} strokeWidth={2.5} />
+                      PDF
+                    </button>
+                    <button
+                      onClick={() => setReviewTab('excel')}
+                      className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-bold transition-all ${reviewTab === 'excel'
+                        ? 'bg-white text-emerald-600 shadow-sm'
+                        : 'text-slate-500 hover:text-slate-700'
+                        }`}
+                    >
+                      <Grid size={13} strokeWidth={2.5} />
+                      Excel
+                    </button>
+                  </div>
                 </div>
                 <button
                   onClick={() => setIsReviewOpen(false)}
@@ -898,7 +923,7 @@ const BudgetPlanning: React.FC<BudgetPlanningProps> = ({ data, profile, onAdd, o
                           <h2 className="text-base font-bold text-slate-800 mt-0.5">(RKAS)</h2>
                           <div className="mt-3 text-sm text-slate-700">
                             <p className="font-semibold">Tahun Anggaran {CURRENT_YEAR}</p>
-                            <p className="font-semibold mt-0.5">BOSP </p>
+                            <p className="font-semibold mt-0.5">BOSP {reviewPeriod === 'monthly' ? `- ${MONTHS_FULL[activeMonth - 1]}` : ''}</p>
                           </div>
                         </div>
 
@@ -915,20 +940,29 @@ const BudgetPlanning: React.FC<BudgetPlanningProps> = ({ data, profile, onAdd, o
                             </div>
                           </div>
                           <div className="space-y-1">
-                            <div className="flex gap-2">
-                              <span className="w-32 font-semibold text-slate-600">Pagu Dana</span>
-                              <span className="font-bold text-slate-900">: {formatRupiah(PAGU_DANA)}</span>
-                            </div>
-                            <div className="flex gap-2">
-                              <span className="w-32 font-semibold text-slate-600">Sudah Dianggarkan</span>
-                              <span className="font-bold text-slate-900">: {formatRupiah(totalBudgeted)}</span>
-                            </div>
-                            <div className="flex gap-2">
-                              <span className="w-32 font-semibold text-slate-600">Sisa</span>
-                              <span className={`font-bold ${remainingBudget < 0 ? 'text-rose-600' : 'text-slate-900'}`}>
-                                : {formatRupiah(remainingBudget)}
-                              </span>
-                            </div>
+                            {reviewPeriod === 'yearly' ? (
+                              <>
+                                <div className="flex gap-2">
+                                  <span className="w-32 font-semibold text-slate-600">Pagu Dana</span>
+                                  <span className="font-bold text-slate-900">: {formatRupiah(PAGU_DANA)}</span>
+                                </div>
+                                <div className="flex gap-2">
+                                  <span className="w-32 font-semibold text-slate-600">Sudah Dianggarkan</span>
+                                  <span className="font-bold text-slate-900">: {formatRupiah(totalBudgeted)}</span>
+                                </div>
+                                <div className="flex gap-2">
+                                  <span className="w-32 font-semibold text-slate-600">Sisa</span>
+                                  <span className={`font-bold ${remainingBudget < 0 ? 'text-rose-600' : 'text-slate-900'}`}>
+                                    : {formatRupiah(remainingBudget)}
+                                  </span>
+                                </div>
+                              </>
+                            ) : (
+                              <div className="flex gap-2">
+                                <span className="w-32 font-semibold text-slate-600">Total Anggaran Bulan Ini</span>
+                                <span className="font-bold text-slate-900">: {formatRupiah(monthExpenses.reduce((s, i) => s + Math.round((i.amount) / Math.max(i.realization_months?.length || 1, 1)), 0))}</span>
+                              </div>
+                            )}
                           </div>
                         </div>
 
@@ -942,18 +976,21 @@ const BudgetPlanning: React.FC<BudgetPlanningProps> = ({ data, profile, onAdd, o
                                 <th className="px-2 py-2 text-center border border-slate-600 w-16">Vol</th>
                                 <th className="px-2 py-2 text-center border border-slate-600 w-16">Satuan</th>
                                 <th className="px-2 py-2 text-right border border-slate-600 w-24">Harga Satuan</th>
-                                <th className="px-2 py-2 text-right border border-slate-600 w-24">Jumlah</th>
+                                <th className="px-2 py-2 text-right border border-slate-600 w-24">{reviewPeriod === 'monthly' ? 'Total (Bulan Ini)' : 'Jumlah'}</th>
                                 <th className="px-2 py-2 text-center border border-slate-600 w-20">Bulan</th>
                               </tr>
                             </thead>
                             <tbody>
-                              {allExpenses.length === 0 ? (
+                              {(reviewPeriod === 'yearly' ? allExpenses : monthExpenses).length === 0 ? (
                                 <tr>
                                   <td colSpan={7} className="px-4 py-8 text-center text-slate-400 italic border border-slate-200">
                                     Belum ada data anggaran
                                   </td>
                                 </tr>
-                              ) : allExpenses.map((item, i) => (
+                              ) : (reviewPeriod === 'yearly' ? allExpenses : monthExpenses).map((item, i) => {
+                                const qty = reviewPeriod === 'yearly' ? item.quantity : Math.round((item.quantity ?? 0) / Math.max(item.realization_months?.length || 1, 1));
+                                const amt = reviewPeriod === 'yearly' ? item.amount : Math.round((item.amount) / Math.max(item.realization_months?.length || 1, 1));
+                                return (
                                 <tr key={item.id} className={i % 2 === 0 ? 'bg-white' : 'bg-slate-50/60'}>
                                   <td className="px-2 py-1.5 text-center border border-slate-200">{i + 1}</td>
                                   <td className="px-2 py-1.5 border border-slate-200">
@@ -962,24 +999,25 @@ const BudgetPlanning: React.FC<BudgetPlanningProps> = ({ data, profile, onAdd, o
                                       <div className="text-[10px] text-slate-400 font-mono">{item.account_code} — {allAccounts[item.account_code] || ''}</div>
                                     )}
                                   </td>
-                                  <td className="px-2 py-1.5 text-center border border-slate-200">{item.quantity}</td>
+                                  <td className="px-2 py-1.5 text-center border border-slate-200">{qty}</td>
                                   <td className="px-2 py-1.5 text-center border border-slate-200">{item.unit || '-'}</td>
                                   <td className="px-2 py-1.5 text-right border border-slate-200 font-mono">{formatRupiah(item.unit_price || 0)}</td>
-                                  <td className="px-2 py-1.5 text-right border border-slate-200 font-mono font-bold text-slate-900">{formatRupiah(item.amount)}</td>
+                                  <td className="px-2 py-1.5 text-right border border-slate-200 font-mono font-bold text-slate-900">{formatRupiah(amt)}</td>
                                   <td className="px-2 py-1.5 text-center border border-slate-200">
                                     <span className="text-[9px] leading-tight">
                                       {(item.realization_months || []).map(m => MONTHS_FULL[m - 1].slice(0, 3)).join(', ')}
                                     </span>
                                   </td>
                                 </tr>
-                              ))}
-                              {allExpenses.length > 0 && (
+                                )
+                              })}
+                              {(reviewPeriod === 'yearly' ? allExpenses : monthExpenses).length > 0 && (
                                 <tr className="bg-slate-800 text-white font-bold">
                                   <td colSpan={5} className="px-2 py-2 text-right border border-slate-600 uppercase tracking-widest text-[10px]">
                                     TOTAL
                                   </td>
                                   <td className="px-2 py-2 text-right border border-slate-600 font-mono">
-                                    {formatRupiah(totalBudgeted)}
+                                    {formatRupiah(reviewPeriod === 'yearly' ? totalBudgeted : monthExpenses.reduce((s, i) => s + Math.round((i.amount) / Math.max(i.realization_months?.length || 1, 1)), 0))}
                                   </td>
                                   <td className="border border-slate-600" />
                                 </tr>
@@ -1021,7 +1059,7 @@ const BudgetPlanning: React.FC<BudgetPlanningProps> = ({ data, profile, onAdd, o
                         {/* Excel toolbar mock */}
                         <div className="flex items-center gap-2 px-4 py-2 bg-emerald-700 text-white">
                           <Grid size={15} />
-                          <span className="text-xs font-bold">Kertas Kerja RKAS — BOSP  {CURRENT_YEAR}.xlsx</span>
+                          <span className="text-xs font-bold">Kertas Kerja RKAS — BOSP {CURRENT_YEAR}{reviewPeriod === 'monthly' ? ` (Bulan ${MONTHS_FULL[activeMonth - 1]})` : ''}.xlsx</span>
                         </div>
                         {/* Column letters a la Excel */}
                         <div className="flex text-[10px] font-bold text-slate-500 bg-slate-100 border-b border-slate-200">
@@ -1046,13 +1084,16 @@ const BudgetPlanning: React.FC<BudgetPlanningProps> = ({ data, profile, onAdd, o
                               </tr>
                             </thead>
                             <tbody>
-                              {allExpenses.length === 0 ? (
+                              {(reviewPeriod === 'yearly' ? allExpenses : monthExpenses).length === 0 ? (
                                 <tr>
                                   <td colSpan={9} className="px-4 py-10 text-center text-slate-400 italic">
                                     Belum ada data anggaran
                                   </td>
                                 </tr>
-                              ) : allExpenses.map((item, i) => (
+                              ) : (reviewPeriod === 'yearly' ? allExpenses : monthExpenses).map((item, i) => {
+                                const qty = reviewPeriod === 'yearly' ? item.quantity : Math.round((item.quantity ?? 0) / Math.max(item.realization_months?.length || 1, 1));
+                                const amt = reviewPeriod === 'yearly' ? item.amount : Math.round((item.amount) / Math.max(item.realization_months?.length || 1, 1));
+                                return (
                                 <tr key={item.id} className={i % 2 === 0 ? 'bg-white' : 'bg-emerald-50/40'}>
                                   <td className="px-2 py-1.5 border border-slate-200 text-center text-slate-500">{i + 1}</td>
                                   <td className="px-2 py-1.5 border border-slate-200">
@@ -1063,16 +1104,17 @@ const BudgetPlanning: React.FC<BudgetPlanningProps> = ({ data, profile, onAdd, o
                                   </td>
                                   <td className="px-2 py-1.5 border border-slate-200 font-mono text-[10px] text-blue-600">{item.account_code || '-'}</td>
                                   <td className="px-2 py-1.5 border border-slate-200 font-semibold text-slate-800">{item.description}</td>
-                                  <td className="px-2 py-1.5 border border-slate-200 text-center">{item.quantity}</td>
+                                  <td className="px-2 py-1.5 border border-slate-200 text-center">{qty}</td>
                                   <td className="px-2 py-1.5 border border-slate-200 text-center text-slate-600">{item.unit || '-'}</td>
                                   <td className="px-2 py-1.5 border border-slate-200 text-right font-mono">{formatRupiah(item.unit_price || 0)}</td>
-                                  <td className="px-2 py-1.5 border border-slate-200 text-right font-mono font-bold text-emerald-800">{formatRupiah(item.amount)}</td>
+                                  <td className="px-2 py-1.5 border border-slate-200 text-right font-mono font-bold text-emerald-800">{formatRupiah(amt)}</td>
                                 </tr>
-                              ))}
-                              {allExpenses.length > 0 && (
+                                )
+                              })}
+                              {(reviewPeriod === 'yearly' ? allExpenses : monthExpenses).length > 0 && (
                                 <tr className="bg-emerald-700 text-white font-bold">
-                                  <td colSpan={8} className="px-3 py-2 text-right border border-emerald-600 text-[10px] uppercase tracking-widest">TOTAL ANGGARAN</td>
-                                  <td className="px-2 py-2 text-right border border-emerald-600 font-mono">{formatRupiah(totalBudgeted)}</td>
+                                  <td colSpan={8} className="px-3 py-2 text-right border border-emerald-600 text-[10px] uppercase tracking-widest">TOTAL ANGGARAN {reviewPeriod === 'monthly' ? 'BULAN INI' : ''}</td>
+                                  <td className="px-2 py-2 text-right border border-emerald-600 font-mono">{formatRupiah(reviewPeriod === 'yearly' ? totalBudgeted : monthExpenses.reduce((s, i) => s + Math.round((i.amount) / Math.max(i.realization_months?.length || 1, 1)), 0))}</td>
                                 </tr>
                               )}
                             </tbody>
@@ -1087,7 +1129,7 @@ const BudgetPlanning: React.FC<BudgetPlanningProps> = ({ data, profile, onAdd, o
               {/* Footer */}
               <div className="px-6 py-3 border-t border-slate-200 flex items-center justify-between bg-white flex-shrink-0">
                 <p className="text-xs text-slate-400">
-                  {allExpenses.length} kegiatan · {formatRupiah(totalBudgeted)} dari {formatRupiah(PAGU_DANA)}
+                  {reviewPeriod === 'yearly' ? allExpenses.length : monthExpenses.length} kegiatan · {formatRupiah(reviewPeriod === 'yearly' ? totalBudgeted : monthExpenses.reduce((s, i) => s + Math.round((i.amount) / Math.max(i.realization_months?.length || 1, 1)), 0))} {reviewPeriod === 'yearly' ? `dari ${formatRupiah(PAGU_DANA)}` : ''}
                 </p>
                 <div className="flex items-center gap-2">
                   <button
@@ -1108,12 +1150,15 @@ const BudgetPlanning: React.FC<BudgetPlanningProps> = ({ data, profile, onAdd, o
             </motion.div>
           </div>
         )}
-      </AnimatePresence>
+        </AnimatePresence>,
+        document.body
+      )}
 
       {/* ═══════════════════════════════════════════════════
           MODAL: Add / Edit Kegiatan — ARKAS style
           ═══════════════════════════════════════════════════ */}
-      <AnimatePresence>
+      {typeof document !== 'undefined' && createPortal(
+        <AnimatePresence>
         {isModalOpen && (
           <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
             {/* Overlay */}
@@ -1403,12 +1448,15 @@ const BudgetPlanning: React.FC<BudgetPlanningProps> = ({ data, profile, onAdd, o
             </motion.div>
           </div>
         )}
-      </AnimatePresence>
+        </AnimatePresence>,
+        document.body
+      )}
 
       {/* ═══════════════════════════════════════════════════
           MODAL: Delete Confirmation
           ═══════════════════════════════════════════════════ */}
-      <AnimatePresence>
+      {typeof document !== 'undefined' && createPortal(
+        <AnimatePresence>
         {deleteConfirmId && (
           <div className="fixed inset-0 z-[60] flex items-center justify-center p-4">
             <motion.div
@@ -1454,7 +1502,9 @@ const BudgetPlanning: React.FC<BudgetPlanningProps> = ({ data, profile, onAdd, o
             </motion.div>
           </div>
         )}
-      </AnimatePresence>
+        </AnimatePresence>,
+        document.body
+      )}
     </motion.div>
   );
 };
