@@ -34,7 +34,6 @@ const BankWithdrawal: React.FC<BankWithdrawalProps> = ({ data, profile, onUpdate
     const [isTaxModalOpen, setIsTaxModalOpen] = useState(false);
     const [isSaving, setIsSaving] = useState(false);
     const [isGroupingEnabled, setIsGroupingEnabled] = useState(true);
-    const [groupByMonth, setGroupByMonth] = useState(true);
 
     const [startMonth, setStartMonth] = useState<number>(1);
     const [endMonth, setEndMonth] = useState<number>(new Date().getMonth() + 1);
@@ -141,31 +140,49 @@ const BankWithdrawal: React.FC<BankWithdrawalProps> = ({ data, profile, onUpdate
 
     const getGroupedData = () => {
         const selectedItems = filteredRealizations.filter(d => selectedBudgetIds.includes(d.id));
-        const groups: Record<string, {
-            name: string; account: string; amount: number; descriptions: string[];
-            taxes: { ppn: number; pph21: number; pph22: number; pph23: number; pajakDaerah: number; }
-        }> = {};
-
-        selectedItems.forEach(item => {
-            const detail = recipientDetails[item.id] || { name: '', account: '', ppn: 0, pph21: 0, pph22: 0, pph23: 0, pajakDaerah: 0 };
-            const cleanName = detail.name?.trim() || '';
-            const cleanAccount = detail.account?.trim() || '';
-            const key = (isGroupingEnabled && (cleanName || cleanAccount))
-                ? `${cleanName.toLowerCase()}_${cleanAccount.toLowerCase()}${groupByMonth ? `_${item.targetMonth}` : ''}`
-                : `individual_${item.id}`;
-
-            if (!groups[key]) {
-                groups[key] = { name: cleanName, account: cleanAccount, amount: 0, descriptions: [], taxes: { ppn: 0, pph21: 0, pph22: 0, pph23: 0, pajakDaerah: 0 } };
-            }
-            groups[key].amount += item.amount;
-            groups[key].descriptions.push(item.description);
-            groups[key].taxes.ppn += (detail.ppn || 0);
-            groups[key].taxes.pph21 += (detail.pph21 || 0);
-            groups[key].taxes.pph22 += (detail.pph22 || 0);
-            groups[key].taxes.pph23 += (detail.pph23 || 0);
-            groups[key].taxes.pajakDaerah += (detail.pajakDaerah || 0);
-        });
-        return Object.values(groups);
+        
+        if (isGroupingEnabled) {
+            // GABUNG: Semua item yang dicentang → 1 transaksi, 1 toko, 1 rekening
+            if (selectedItems.length === 0) return [];
+            const totalTaxes = { ppn: 0, pph21: 0, pph22: 0, pph23: 0, pajakDaerah: 0 };
+            let totalAmount = 0;
+            const allDescriptions: string[] = [];
+            selectedItems.forEach(item => {
+                const detail = recipientDetails[item.id] || { ppn: 0, pph21: 0, pph22: 0, pph23: 0, pajakDaerah: 0 };
+                totalAmount += item.amount;
+                allDescriptions.push(item.description);
+                totalTaxes.ppn += (detail.ppn || 0);
+                totalTaxes.pph21 += (detail.pph21 || 0);
+                totalTaxes.pph22 += (detail.pph22 || 0);
+                totalTaxes.pph23 += (detail.pph23 || 0);
+                totalTaxes.pajakDaerah += (detail.pajakDaerah || 0);
+            });
+            return [{
+                name: bulkName.trim(),
+                account: bulkAccount.trim(),
+                amount: totalAmount,
+                descriptions: allDescriptions,
+                taxes: totalTaxes
+            }];
+        } else {
+            // PISAH: Setiap item yang dicentang → punya toko & rekening sendiri
+            const groups: Record<string, {
+                name: string; account: string; amount: number; descriptions: string[];
+                taxes: { ppn: number; pph21: number; pph22: number; pph23: number; pajakDaerah: number; }
+            }> = {};
+            selectedItems.forEach(item => {
+                const detail = recipientDetails[item.id] || { name: '', account: '', ppn: 0, pph21: 0, pph22: 0, pph23: 0, pajakDaerah: 0 };
+                const key = `individual_${item.id}`;
+                groups[key] = {
+                    name: detail.name?.trim() || '',
+                    account: detail.account?.trim() || '',
+                    amount: item.amount,
+                    descriptions: [item.description],
+                    taxes: { ppn: detail.ppn || 0, pph21: detail.pph21 || 0, pph22: detail.pph22 || 0, pph23: detail.pph23 || 0, pajakDaerah: detail.pajakDaerah || 0 }
+                };
+            });
+            return Object.values(groups);
+        }
     };
 
     const toggleSelection = (id: string) => setSelectedBudgetIds(prev => prev.includes(id) ? prev.filter(i => i !== id) : [...prev, id]);
@@ -233,7 +250,7 @@ const BankWithdrawal: React.FC<BankWithdrawalProps> = ({ data, profile, onUpdate
             uploadedUrl = uploadResult.url; uploadedPath = uploadResult.path;
         }
 
-        const snapshot = { selectedIds: selectedBudgetIds, recipientDetails, groupedRecipients: getGroupedData(), ksName, ksTitle, ksNip, trName, trTitle, trNip, startMonth, endMonth, isGroupingEnabled, groupByMonth };
+        const snapshot = { selectedIds: selectedBudgetIds, recipientDetails, groupedRecipients: getGroupedData(), ksName, ksTitle, ksNip, trName, trTitle, trNip, startMonth, endMonth, isGroupingEnabled, bulkName, bulkAccount };
         await saveWithdrawalHistory({
             letter_number: suratNo, letter_date: withdrawDate, bank_name: profile?.bankName || '', bank_branch: profile?.bankBranch || '',
             total_amount: totalSelectedAmount, item_count: selectedBudgetIds.length, snapshot_data: snapshot,
@@ -283,6 +300,8 @@ const BankWithdrawal: React.FC<BankWithdrawalProps> = ({ data, profile, onUpdate
             if (snap.ksName) setKsName(snap.ksName);
             if (snap.trName) setTrName(snap.trName);
             if (snap.isGroupingEnabled !== undefined) setIsGroupingEnabled(snap.isGroupingEnabled);
+            if (snap.bulkName) setBulkName(snap.bulkName);
+            if (snap.bulkAccount) setBulkAccount(snap.bulkAccount);
         }
         setActiveTab('rincian');
     };
@@ -468,15 +487,36 @@ const BankWithdrawal: React.FC<BankWithdrawalProps> = ({ data, profile, onUpdate
 
                 <div className="flex w-full lg:w-auto items-center gap-2 justify-end shrink-0">
                     <button onClick={() => setIsGroupingEnabled(!isGroupingEnabled)} className={`flex items-center gap-2 px-5 py-3 rounded-2xl text-[11px] uppercase tracking-wider font-bold transition-all ${isGroupingEnabled ? 'bg-gradient-to-r from-blue-600 to-indigo-600 text-white shadow-lg shadow-indigo-600/30 ring-2 ring-indigo-600/50 ring-offset-2' : 'bg-slate-100 text-slate-500 hover:bg-slate-200'}`}>
-                        {isGroupingEnabled ? <Users size={14} /> : <List size={14} />} {isGroupingEnabled ? 'Grup Akun' : 'Pisah Item'}
+                        {isGroupingEnabled ? <Users size={14} /> : <List size={14} />} {isGroupingEnabled ? 'Gabungkan' : 'Pisah Item'}
                     </button>
-                    {isGroupingEnabled && (
-                        <button onClick={() => setGroupByMonth(!groupByMonth)} className={`flex items-center gap-2 px-5 py-3 rounded-2xl text-[11px] uppercase tracking-wider font-bold transition-all ${groupByMonth ? 'bg-gradient-to-r from-emerald-500 to-teal-500 text-white shadow-lg shadow-emerald-500/30 ring-2 ring-emerald-500/50 ring-offset-2' : 'bg-slate-100 text-slate-500 hover:bg-slate-200'}`}>
-                            <Calendar size={14} /> {groupByMonth ? 'Bulan Berbeda' : 'Gabung Bulan'}
-                        </button>
-                    )}
                 </div>
             </div>
+
+            {/* ── Panel Penerima Gabungan (hanya muncul saat mode Gabung + ada item dicentang) ── */}
+            {isGroupingEnabled && selectedBudgetIds.length > 0 && (
+                <motion.div 
+                    initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }} 
+                    className="p-5 bg-gradient-to-r from-blue-50 to-indigo-50 border-2 border-blue-200 rounded-2xl shadow-sm"
+                >
+                    <div className="flex items-center gap-2 mb-4">
+                        <div className="p-2 bg-blue-600 rounded-xl text-white"><Users size={16}/></div>
+                        <div>
+                            <h4 className="font-bold text-sm text-blue-900">Penerima Gabungan</h4>
+                            <p className="text-[10px] text-blue-600">{selectedBudgetIds.length} item dicentang → akan digabung menjadi 1 transaksi</p>
+                        </div>
+                    </div>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div>
+                            <label className="text-[10px] font-bold text-blue-700 uppercase tracking-widest mb-1.5 block">Nama Toko / Penerima</label>
+                            <input type="text" className="w-full px-4 py-3 bg-white border border-blue-200 rounded-xl outline-none focus:ring-4 focus:ring-blue-500/15 text-sm font-semibold text-slate-800 shadow-sm transition-all focus:border-blue-400 placeholder:text-slate-400 placeholder:font-normal" placeholder="Contoh: Toko Makmur Sejahtera" value={bulkName} onChange={e => setBulkName(e.target.value)} />
+                        </div>
+                        <div>
+                            <label className="text-[10px] font-bold text-blue-700 uppercase tracking-widest mb-1.5 block">No. Rekening Penerima</label>
+                            <input type="text" className="w-full px-4 py-3 bg-white border border-blue-200 rounded-xl outline-none focus:ring-4 focus:ring-blue-500/15 text-sm font-mono font-bold text-slate-800 shadow-sm transition-all focus:border-blue-400 placeholder:text-slate-400 placeholder:font-sans placeholder:font-normal" placeholder="Contoh: 1234567890" value={bulkAccount} onChange={e => setBulkAccount(e.target.value)} />
+                        </div>
+                    </div>
+                </motion.div>
+            )}
 
             <div className="glass-panel overflow-hidden rounded-[1.5rem] border border-white/60 shadow-xl shadow-slate-200/40 relative max-h-[500px] overflow-y-auto custom-scrollbar">
                 <table className="w-full text-left text-sm text-slate-600 border-collapse">
@@ -488,12 +528,16 @@ const BankWithdrawal: React.FC<BankWithdrawalProps> = ({ data, profile, onUpdate
                                     {selectedBudgetIds.length > 0 && <button onClick={() => setIsTaxModalOpen(true)} className="ml-2 bg-emerald-100 text-emerald-700 px-2 py-1 rounded-lg flex items-center gap-1 shadow-sm"><Calculator size={12}/> Pajak</button>}
                                 </div>
                             </th>
-                            <th className="p-3">
-                                <div className="flex items-center justify-between">Penerima
-                                    {selectedBudgetIds.length > 1 && <button onClick={() => setIsBulkEditOpen(true)} className="ml-2 bg-indigo-100 text-indigo-700 px-2 py-1 rounded-lg flex items-center gap-1 shadow-sm"><Users size={12}/> Isi Masal</button>}
-                                </div>
-                            </th>
-                            <th className="p-3">No.Rekening</th>
+                            {!isGroupingEnabled && (
+                                <>
+                                    <th className="p-3">
+                                        <div className="flex items-center justify-between">Penerima
+                                            {selectedBudgetIds.length > 1 && <button onClick={() => setIsBulkEditOpen(true)} className="ml-2 bg-indigo-100 text-indigo-700 px-2 py-1 rounded-lg flex items-center gap-1 shadow-sm"><Users size={12}/> Isi Masal</button>}
+                                        </div>
+                                    </th>
+                                    <th className="p-3">No.Rekening</th>
+                                </>
+                            )}
                             <th className="p-2 text-center text-[9px] w-16">PPh 21</th>
                             <th className="p-2 text-center text-[9px] w-16">PPh 22</th>
                             <th className="p-2 text-center text-[9px] w-16">PPh 23</th>
@@ -504,7 +548,7 @@ const BankWithdrawal: React.FC<BankWithdrawalProps> = ({ data, profile, onUpdate
                     </thead>
                     <tbody className="divide-y divide-slate-100/60 bg-white/40">
                         {filteredRealizations.length === 0 ? (
-                            <tr><td colSpan={10} className="p-8 text-center text-slate-400 font-medium">Tidak ada realisasi.</td></tr>
+                            <tr><td colSpan={isGroupingEnabled ? 8 : 10} className="p-8 text-center text-slate-400 font-medium">Tidak ada realisasi.</td></tr>
                         ) : (
                             filteredRealizations.map((item) => {
                                 const detail = recipientDetails[item.id] || { name: '', account: '', ppn:0, pph21:0, pph22:0, pph23:0, pajakDaerah:0 };
@@ -519,12 +563,16 @@ const BankWithdrawal: React.FC<BankWithdrawalProps> = ({ data, profile, onUpdate
                                             <div className="font-bold text-slate-800">{item.description}</div>
                                             <div className="text-[10px] text-slate-400 font-mono mt-0.5">{item.account_code}</div>
                                         </td>
-                                        <td className="p-2">
-                                            {isSel ? <input type="text" className="w-full bg-white border border-slate-200 rounded-lg px-2 py-1.5 text-xs outline-none focus:ring-2 focus:ring-blue-500 shadow-sm" value={detail.name} onChange={(e) => handleRecipientChange(item.id, 'name', e.target.value)} /> : <span className="text-slate-400">-</span>}
-                                        </td>
-                                        <td className="p-2">
-                                            {isSel ? <input type="text" className="w-full bg-white border border-slate-200 rounded-lg px-2 py-1.5 text-xs outline-none focus:ring-2 focus:ring-blue-500 shadow-sm" value={detail.account} onChange={(e) => handleRecipientChange(item.id, 'account', e.target.value)} /> : <span className="text-slate-400">-</span>}
-                                        </td>
+                                        {!isGroupingEnabled && (
+                                            <>
+                                                <td className="p-2">
+                                                    {isSel ? <input type="text" className="w-full bg-white border border-slate-200 rounded-lg px-2 py-1.5 text-xs outline-none focus:ring-2 focus:ring-blue-500 shadow-sm" value={detail.name} onChange={(e) => handleRecipientChange(item.id, 'name', e.target.value)} placeholder="Nama Toko" /> : <span className="text-slate-400">-</span>}
+                                                </td>
+                                                <td className="p-2">
+                                                    {isSel ? <input type="text" className="w-full bg-white border border-slate-200 rounded-lg px-2 py-1.5 text-xs outline-none focus:ring-2 focus:ring-blue-500 shadow-sm" value={detail.account} onChange={(e) => handleRecipientChange(item.id, 'account', e.target.value)} placeholder="No. Rekening" /> : <span className="text-slate-400">-</span>}
+                                                </td>
+                                            </>
+                                        )}
                                         <td className="p-1">{isSel && <input type="number" className="w-full bg-white border border-slate-200 rounded text-right text-[10px] p-1 outline-none" value={detail.pph21||''} onChange={e=>handleRecipientChange(item.id, 'pph21', Number(e.target.value))}/>}</td>
                                         <td className="p-1">{isSel && <input type="number" className="w-full bg-white border border-slate-200 rounded text-right text-[10px] p-1 outline-none" value={detail.pph22||''} onChange={e=>handleRecipientChange(item.id, 'pph22', Number(e.target.value))}/>}</td>
                                         <td className="p-1">{isSel && <input type="number" className="w-full bg-white border border-slate-200 rounded text-right text-[10px] p-1 outline-none" value={detail.pph23||''} onChange={e=>handleRecipientChange(item.id, 'pph23', Number(e.target.value))}/>}</td>

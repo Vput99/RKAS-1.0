@@ -2,7 +2,7 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { FileText, Download, CheckCircle2, ChevronRight, BookOpen, Printer, Users, Coffee, Wrench, Bus, ShoppingBag, FileSignature, Handshake, ClipboardList, Receipt, FileCheck, HardHat, Hammer, X, DollarSign, Plus, Trash2, Search, Sparkles, Loader2, Upload, Eye, AlertCircle, ShoppingCart, Image as ImageIcon } from 'lucide-react';
 import jsPDF from 'jspdf';
-import { motion } from 'framer-motion';
+import { motion, AnimatePresence } from 'framer-motion';
 import autoTable from 'jspdf-autotable';
 import { getSchoolProfile, uploadEvidenceFile, getWithdrawalHistory, updateWithdrawalHistory } from '../lib/db';
 import { SchoolProfile, Budget, EvidenceFile, WithdrawalHistory } from '../types';
@@ -228,6 +228,7 @@ interface EvidenceTemplatesProps {
 
 const EvidenceTemplates = ({ budgets: allBudgets, onUpdate }: EvidenceTemplatesProps) => {
   const [activeTab, setActiveTab] = useState<'templates' | 'upload' | 'album'>('templates');
+  const [selectedFile, setSelectedFile] = useState<any | null>(null);
   const [activeCategory, setActiveCategory] = useState<string | null>(null);
   const [schoolProfile, setSchoolProfile] = useState<SchoolProfile | null>(null);
   const [isLoading, setIsLoading] = useState(false);
@@ -1720,34 +1721,37 @@ const EvidenceTemplates = ({ budgets: allBudgets, onUpdate }: EvidenceTemplatesP
     }
 
     return (
+      <div className="relative">
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
             {allEvidenceFiles.map((file, idx) => {
                 const isImage = file.name.match(/\.(jpeg|jpg|gif|png|webp)$/i);
                 return (
                     <motion.div 
+                        layoutId={`card-${file.url}-${idx}`}
                         key={idx}
+                        onClick={() => setSelectedFile({ ...file, isImage, idx })}
                         initial={{ opacity: 0, scale: 0.9, y: 20 }}
                         animate={{ opacity: 1, scale: 1, y: 0 }}
                         transition={{ duration: 0.4, delay: idx * 0.05 }}
-                        className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden group hover:shadow-xl hover:-translate-y-1 transition-all duration-300"
+                        className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden group cursor-pointer hover:shadow-xl hover:-translate-y-1 transition-all duration-300 flex flex-col"
                     >
-                        <div className="relative h-48 bg-gray-100 flex items-center justify-center overflow-hidden border-b border-gray-100 cursor-pointer" onClick={() => window.open(file.url, '_blank')}>
+                        <motion.div layoutId={`image-container-${file.url}-${idx}`} className="relative h-48 bg-gray-100 flex items-center justify-center overflow-hidden border-b border-gray-100">
                             {isImage ? (
-                                <img src={file.url} alt={file.name} className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500" />
+                                <motion.img layoutId={`image-${file.url}-${idx}`} src={file.url} alt={file.name} className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-700" />
                             ) : (
-                                <div className="text-red-400 flex flex-col items-center group-hover:scale-110 transition-transform duration-500">
+                                <motion.div layoutId={`image-${file.url}-${idx}`} className="text-red-400 flex flex-col items-center group-hover:scale-110 transition-transform duration-700">
                                     <FileText size={48} />
                                     <span className="text-[10px] mt-2 font-bold text-gray-500 line-clamp-1 max-w-[80%] text-center">{file.name}</span>
-                                </div>
+                                </motion.div>
                             )}
-                            <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex items-center justify-center">
-                                <span className="bg-white/95 text-gray-800 text-xs font-bold px-4 py-2 rounded-full flex items-center gap-2 shadow-lg scale-90 group-hover:scale-100 transition-transform">
-                                    <Eye size={14} className="text-blue-600" /> Buka {isImage ? 'Foto' : 'Dokumen'}
+                            <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex items-end p-4">
+                                <span className="bg-white/95 text-gray-800 text-xs font-bold px-3 py-1.5 rounded-full flex items-center gap-2 shadow-lg scale-90 group-hover:scale-100 transition-transform">
+                                    <Eye size={12} className="text-blue-600" /> Lihat Detail
                                 </span>
                             </div>
-                        </div>
+                        </motion.div>
 
-                        <div className="p-4">
+                        <motion.div layoutId={`info-${file.url}-${idx}`} className="p-4 bg-white flex-1 flex flex-col">
                             <div className="flex justify-between items-start mb-2">
                                 <span className="text-[10px] font-bold text-blue-600 bg-blue-50 px-2 py-0.5 rounded uppercase tracking-wider line-clamp-1 max-w-[60%] truncate">
                                     {file.type}
@@ -1757,30 +1761,135 @@ const EvidenceTemplates = ({ budgets: allBudgets, onUpdate }: EvidenceTemplatesP
                                 </span>
                             </div>
                             <h4 className="text-sm font-bold text-gray-800 mb-1 line-clamp-1" title={file.vendor}>{file.vendor}</h4>
-                            <p className="text-[10px] text-gray-500 line-clamp-2 mb-3 leading-relaxed" title={file.description}>{file.description}</p>
+                            <p className="text-[10px] text-gray-500 line-clamp-2 mb-3 leading-relaxed flex-1" title={file.description}>{file.description}</p>
                             
-                            <div className="flex justify-between items-center pt-3 border-t border-gray-50">
+                            <div className="flex justify-between items-center pt-3 border-t border-gray-50 mt-auto">
                                 <span className="text-xs font-mono font-bold text-gray-700 bg-gray-50 px-2 py-1 rounded">
                                     {new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', maximumFractionDigits: 0 }).format(file.amount)}
                                 </span>
-                                <button 
-                                    onClick={(e) => {
-                                        e.stopPropagation();
-                                        const win = window.open(file.url, '_blank');
-                                        if (win) win.onload = () => win.print();
-                                    }}
-                                    className="p-1.5 text-gray-400 hover:text-teal-600 hover:bg-teal-50 rounded transition-colors"
-                                    title="Cetak File"
-                                    aria-label="Cetak File"
-                                >
-                                    <Printer size={14} />
-                                </button>
                             </div>
-                        </div>
+                        </motion.div>
                     </motion.div>
                 );
             })}
         </div>
+
+        {/* Full-Screen Overlay with AnimatePresence */}
+        <AnimatePresence>
+          {selectedFile && (
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              className="fixed inset-0 z-[100] flex items-center justify-center p-4 sm:p-8 md:p-12 bg-black/60 backdrop-blur-md"
+              onClick={() => setSelectedFile(null)}
+            >
+              {/* Close Button Outer */}
+              <button 
+                  onClick={() => setSelectedFile(null)}
+                  className="absolute top-4 right-4 z-[110] p-3 bg-white/10 text-white hover:bg-white/20 hover:scale-110 rounded-full transition-all backdrop-blur-sm shadow-xl"
+              >
+                  <X size={24} />
+              </button>
+
+              <motion.div
+                layoutId={`card-${selectedFile.url}-${selectedFile.idx}`}
+                className="relative w-full max-w-5xl bg-white rounded-2xl shadow-2xl overflow-hidden flex flex-col md:flex-row max-h-[90vh]"
+                onClick={(e) => e.stopPropagation()}
+              >
+                 {/* Image/PDF Section */}
+                 <motion.div layoutId={`image-container-${selectedFile.url}-${selectedFile.idx}`} className="flex-1 bg-black relative flex items-center justify-center min-h-[40vh] md:min-h-0">
+                    {selectedFile.isImage ? (
+                        <motion.img layoutId={`image-${selectedFile.url}-${selectedFile.idx}`} src={selectedFile.url} className="w-full h-full object-contain" />
+                    ) : (
+                        <motion.iframe layoutId={`image-${selectedFile.url}-${selectedFile.idx}`} src={selectedFile.url} className="absolute inset-0 w-full h-full border-0 bg-gray-100" title="PDF Document" />
+                    )}
+                    
+                    {/* Action Toolbar overlay */}
+                    <div className="absolute bottom-6 right-6 flex gap-3 z-10">
+                        <button 
+                            onClick={() => window.open(selectedFile.url, '_blank')}
+                            className="p-3 bg-white/10 hover:bg-white/20 text-white backdrop-blur-md rounded-full transition-all shadow-xl hover:scale-110 border border-white/20"
+                            title="Unduh / Buka di Tab Baru"
+                        >
+                            <Download size={18} />
+                        </button>
+                        <button 
+                            onClick={(e) => {
+                                e.stopPropagation();
+                                const win = window.open(selectedFile.url, '_blank');
+                                if (win) win.onload = () => win.print();
+                            }}
+                            className="p-3 bg-blue-600/90 hover:bg-blue-600 text-white backdrop-blur-md rounded-full transition-all shadow-xl hover:scale-110 border border-blue-500/50"
+                            title="Print File"
+                        >
+                            <Printer size={18} />
+                        </button>
+                    </div>
+                 </motion.div>
+
+                 {/* Information Panes (Bento Style) */}
+                 <motion.div layoutId={`info-${selectedFile.url}-${selectedFile.idx}`} className="w-full md:w-[350px] lg:w-[400px] bg-white p-6 md:p-8 flex flex-col overflow-y-auto">
+                    <div className="mb-6">
+                        <span className="inline-block text-[10px] font-bold text-white bg-gradient-to-r from-blue-600 to-teal-500 px-3 py-1 rounded-full uppercase tracking-wider mb-4 shadow-sm">
+                            {selectedFile.type}
+                        </span>
+                        <h2 className="text-xl md:text-2xl font-bold text-gray-900 mb-2 leading-tight">{selectedFile.vendor}</h2>
+                        <p className="text-xs font-bold text-gray-500 flex items-center gap-1.5 mb-6 bg-gray-50 w-fit px-3 py-1.5 rounded-lg border border-gray-100">
+                            <BookOpen size={14} className="text-blue-500" /> Sumber: {selectedFile.sourceType}
+                        </p>
+                        
+                        <div className="space-y-5">
+                            <div className="bg-gray-50 p-4 rounded-xl border border-gray-100/50">
+                                <h4 className="text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-2 flex items-center gap-1.5"><ClipboardList size={12}/> Detail Transaksi</h4>
+                                <div className="space-y-3">
+                                  <div className="flex justify-between items-center pb-2 border-b border-gray-100">
+                                      <span className="text-xs text-gray-500">Tanggal</span>
+                                      <span className="text-xs font-bold text-gray-800">
+                                          {new Date(selectedFile.date).toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' })}
+                                      </span>
+                                  </div>
+                                  <div className="flex justify-between items-center pb-2 border-b border-gray-100">
+                                      <span className="text-xs text-gray-500">Nominal</span>
+                                      <span className="text-xs font-mono font-bold text-teal-600">
+                                          {new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', maximumFractionDigits: 0 }).format(selectedFile.amount)}
+                                      </span>
+                                  </div>
+                                  <div>
+                                      <span className="text-xs text-gray-500 mb-1 block">Uraian</span>
+                                      <span className="text-xs text-gray-700 leading-relaxed block bg-white p-2 rounded shadow-sm border border-gray-50 mt-1">
+                                          {selectedFile.description}
+                                      </span>
+                                  </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div className="mt-auto pt-4 flex gap-3">
+                        <button 
+                            onClick={async () => {
+                                const response = await fetch(selectedFile.url);
+                                const blob = await response.blob();
+                                const url = window.URL.createObjectURL(blob);
+                                const link = document.createElement('a');
+                                link.href = url;
+                                link.download = selectedFile.name || 'document';
+                                document.body.appendChild(link);
+                                link.click();
+                                document.body.removeChild(link);
+                            }}
+                            className="flex-1 py-3 border-2 border-gray-200 hover:border-gray-300 hover:bg-gray-50 text-gray-700 font-bold text-xs rounded-xl transition-all flex items-center justify-center gap-2"
+                        >
+                            <Download size={16} /> Unduh Instan
+                        </button>
+                    </div>
+                 </motion.div>
+              </motion.div>
+            </motion.div>
+          )}
+        </AnimatePresence>
+      </div>
     );
   };
 
