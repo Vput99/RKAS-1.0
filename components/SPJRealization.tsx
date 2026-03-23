@@ -1,11 +1,15 @@
 import React, { useState, useMemo } from 'react';
 import { motion, AnimatePresence, Variants } from 'framer-motion';
-import { Budget, TransactionType, RealizationDetail } from '../types';
-import { FileText, Save, X, Calendar, Search, CheckCircle2, FileCheck2, AlertCircle, CheckSquare, Square, Sparkles, Loader2, ShoppingCart, Filter, TrendingUp, Wallet, ListChecks, ArrowRightCircle, Trash2, Box, Paperclip, ExternalLink } from 'lucide-react';
+import { Budget, TransactionType, RealizationDetail, SchoolProfile } from '../types';
+import { FileText, Save, X, Search, CheckCircle2, FileCheck2, CheckSquare, Square, Sparkles, Loader2, Filter, TrendingUp, ListChecks, ArrowRightCircle, Printer } from 'lucide-react';
 import { suggestEvidenceList } from '../lib/gemini';
+import { generatePDFHeader, generateSignatures, formatCurrency, defaultTableStyles } from '../lib/pdfUtils';
+import jsPDF from 'jspdf';
+import autoTable from 'jspdf-autotable';
 
 interface SPJRealizationProps {
   data: Budget[];
+  profile: SchoolProfile | null;
   onUpdate: (id: string, updates: Partial<Budget>) => void;
 }
 
@@ -120,7 +124,7 @@ const getEvidenceList = (description: string, accountCode?: string): string[] =>
   ];
 };
 
-const SPJRealization: React.FC<SPJRealizationProps> = ({ data, onUpdate }) => {
+const SPJRealization: React.FC<SPJRealizationProps> = ({ data, profile, onUpdate }) => {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [selectedBudget, setSelectedBudget] = useState<Budget | null>(null);
   const [selectedBatchIds, setSelectedBatchIds] = useState<string[]>([]);
@@ -364,6 +368,34 @@ const SPJRealization: React.FC<SPJRealizationProps> = ({ data, onUpdate }) => {
     setEditingRealizationIndex(-1);
   };
 
+  const handleExportPDF = () => {
+    const item = selectedBudget || (selectedBatchIds.length > 0 ? data.find(d => d.id === selectedBatchIds[0]) : null);
+    if (!item) return;
+    
+    const doc = new jsPDF();
+    const title = 'BUKTI PENGELUARAN KAS (KUITANSI)';
+    const startY = generatePDFHeader(doc, profile, title);
+
+    autoTable(doc, {
+      ...defaultTableStyles,
+      startY,
+      head: [['Keterangan', 'Detail']],
+      body: [
+        ['No. Bukti', `SPJ/${activeMonthIndex}/${item.id.substring(0, 5)}`],
+        ['Tahun Anggaran', profile?.fiscalYear || '2026'],
+        ['Sudah Terima Dari', profile?.name || 'Sekolah'],
+        ['Jumlah Uang', formatCurrency(Number(formAmount) || 0)],
+        ['Uraian Pembayaran', item.description],
+        ['Nama Toko / Penerima', formVendor || '-'],
+        ['Tanggal', formDate || new Date().toISOString().split('T')[0]],
+      ],
+      theme: 'grid',
+    });
+
+    generateSignatures(doc, profile, (doc as any).lastAutoTable.finalY + 20);
+    doc.save(`Kuitansi_${item.description.substring(0, 15)}_${activeMonthIndex}.pdf`);
+  };
+
   const handleDeleteSPJ = () => {
     if (!selectedBudget) return;
     if (!confirm(`Hapus data realisasi ini?`)) return;
@@ -533,7 +565,6 @@ const SPJRealization: React.FC<SPJRealizationProps> = ({ data, onUpdate }) => {
                     const monthlyAllocation = calculateMonthlyAllocation(item, viewMonth);
                     const realizationsThisMonth = item.realizations?.filter(r => r.month === viewMonth) || [];
                     const totalRealizedThisMonth = realizationsThisMonth.reduce((s, r) => s + r.amount, 0);
-                    const availableToSpend = Math.max(0, monthlyAllocation - totalRealizedThisMonth);
                     const isDone = totalRealizedThisMonth > 0;
                     const isSelected = selectedBatchIds.includes(item.id);
                     const isRollover = !item.realization_months?.includes(viewMonth) && monthlyAllocation > 0;
@@ -671,7 +702,17 @@ const SPJRealization: React.FC<SPJRealizationProps> = ({ data, onUpdate }) => {
                     <p className="text-xs font-semibold text-slate-500 uppercase tracking-widest mt-1">Lengkapi data bukti fisik</p>
                   </div>
                 </div>
-                <button onClick={() => { setIsModalOpen(false); setSelectedBatchIds([]); }} className="p-2 bg-slate-100 rounded-full hover:bg-slate-200 transition"><X size={20} className="text-slate-500" /></button>
+                <div className="flex items-center gap-2">
+                  {!isBatchMode && (
+                    <button 
+                      onClick={handleExportPDF}
+                      className="flex items-center gap-2 px-4 py-2 bg-white border border-slate-200 text-slate-600 rounded-xl text-xs font-bold hover:bg-slate-50 transition shadow-sm"
+                    >
+                      <Printer size={14} /> Cetak Kuitansi
+                    </button>
+                  )}
+                  <button onClick={() => { setIsModalOpen(false); setSelectedBatchIds([]); }} className="p-2 bg-slate-100 rounded-full hover:bg-slate-200 transition"><X size={20} className="text-slate-500" /></button>
+                </div>
               </div>
 
               <div className="flex flex-1 overflow-hidden relative z-10">

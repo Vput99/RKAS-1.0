@@ -1,10 +1,14 @@
 import React, { useState, useMemo } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
-import { Budget, TransactionType } from '../types';
+import { motion } from 'framer-motion';
+import { Budget, TransactionType, SchoolProfile } from '../types';
 import { Search, Printer, Trash2, MoreHorizontal, ArrowLeft, HelpCircle, BookOpen, CreditCard, Landmark, Receipt, Calendar } from 'lucide-react';
+import { generatePDFHeader, generateSignatures, formatCurrency, defaultTableStyles } from '../lib/pdfUtils';
+import jsPDF from 'jspdf';
+import autoTable from 'jspdf-autotable';
 
 interface BKUProps {
   data: Budget[];
+  profile: SchoolProfile | null;
   onBack?: () => void;
 }
 
@@ -20,10 +24,10 @@ const containerVariants = {
 
 const itemVariants = {
   hidden: { opacity: 0, y: 15 },
-  show: { opacity: 1, y: 0, transition: { type: "spring", stiffness: 300, damping: 24 } }
+  show: { opacity: 1, y: 0, transition: { type: "spring" as const, stiffness: 300, damping: 24 } }
 };
 
-const BKU: React.FC<BKUProps> = ({ data, onBack }) => {
+const BKU: React.FC<BKUProps> = ({ data, profile, onBack }) => {
   const [selectedMonth, setSelectedMonth] = useState(new Date().getMonth() + 1);
   const [searchTerm, setSearchTerm] = useState('');
 
@@ -84,6 +88,30 @@ const BKU: React.FC<BKUProps> = ({ data, onBack }) => {
     return { nonTunai, tunai, pajak, sisa: totalIncome - totalExpenseAllTime };
   }, [bkuData, data, selectedMonth]);
 
+  const handleExportPDF = () => {
+    const doc = new jsPDF('l', 'mm', 'a4');
+    const title = `Buku Kas Umum (BKU) - ${MONTHS[selectedMonth - 1]} 2025`;
+    const startY = generatePDFHeader(doc, profile, title);
+
+    autoTable(doc, {
+      ...defaultTableStyles,
+      startY,
+      head: [['No', 'Tanggal', 'Kode Rekening', 'Uraian', 'Penerimaan', 'Pengeluaran', 'Saldo']],
+      body: bkuData.map((row, i) => [
+        i + 1,
+        row.date,
+        row.rekening,
+        row.kegiatan,
+        '-',
+        formatCurrency(row.dibelanjakan),
+        '-'
+      ]),
+    });
+
+    generateSignatures(doc, profile, (doc as any).lastAutoTable.finalY + 15);
+    doc.save(`BKU_${MONTHS[selectedMonth - 1]}_2025.pdf`);
+  };
+
   return (
     <motion.div variants={containerVariants} initial="hidden" animate="show" className="space-y-6 pb-10">
       {/* Top Header */}
@@ -112,7 +140,10 @@ const BKU: React.FC<BKUProps> = ({ data, onBack }) => {
               className="pl-10 pr-4 py-3 border border-white/60 rounded-xl text-sm bg-white/50 backdrop-blur-sm focus:bg-white focus:outline-none focus:ring-2 focus:ring-blue-500/50 focus:border-blue-500 w-64 shadow-sm transition-all placeholder:text-slate-400 font-medium"
             />
           </div>
-          <button className="flex items-center gap-2 px-5 py-3 bg-gradient-to-br from-slate-700 to-slate-900 text-white rounded-xl text-sm font-bold shadow-lg shadow-slate-900/20 hover:shadow-xl hover:shadow-slate-900/30 active:scale-95 transition-all">
+          <button 
+            onClick={handleExportPDF}
+            className="flex items-center gap-2 px-5 py-3 bg-gradient-to-br from-slate-700 to-slate-900 text-white rounded-xl text-sm font-bold shadow-lg shadow-slate-900/20 hover:shadow-xl hover:shadow-slate-900/30 active:scale-95 transition-all"
+          >
             <Printer size={16} /> Print
           </button>
           <button className="flex items-center gap-2 px-4 py-3 bg-rose-50 text-rose-600 border border-rose-100 rounded-xl text-sm font-bold hover:bg-rose-100 transition-all">

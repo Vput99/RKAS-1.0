@@ -6,10 +6,13 @@ import {
   Plus, Search, Edit2, Trash2, X, Calculator, Sparkles, Loader2,
   AlertTriangle, CheckCircle, ChevronDown, Check, FileText, ArrowLeft,
   Shield, HelpCircle, ChevronRight,
-  Eye, Download, Grid
+  Eye, Download, Grid, Printer
 } from 'lucide-react';
 import { analyzeBudgetEntry } from '../lib/gemini';
 import { getStoredAccounts } from '../lib/db';
+import { generatePDFHeader, generateSignatures, formatCurrency, defaultTableStyles } from '../lib/pdfUtils';
+import jsPDF from 'jspdf';
+import autoTable from 'jspdf-autotable';
 
 interface BudgetPlanningProps {
   data: Budget[];
@@ -174,6 +177,44 @@ const BudgetPlanning: React.FC<BudgetPlanningProps> = ({ data, profile, onAdd, o
   // Month item count badge helper
   const getMonthCount = (monthNum: number) =>
     allExpenses.filter((d) => d.realization_months?.includes(monthNum)).length;
+
+  const handleExportPDF = () => {
+    const doc = new jsPDF('l', 'mm', 'a4');
+    const title = `Rencana Kegiatan dan Anggaran Sekolah (RKAS) - ${reviewPeriod === 'monthly' ? MONTHS_FULL[activeMonth - 1] : 'Tahunan'}`;
+    const startY = generatePDFHeader(doc, profile, title);
+
+    const exportData = reviewPeriod === 'yearly' ? allExpenses : monthExpenses;
+
+    autoTable(doc, {
+      ...defaultTableStyles,
+      startY,
+      head: [['No', 'Uraian', 'Vol', 'Satuan', 'Harga Satuan', 'Jumlah', 'Bulan']],
+      body: exportData.map((item, i) => {
+        const qty = reviewPeriod === 'yearly' ? item.quantity : Math.round((item.quantity ?? 0) / Math.max(item.realization_months?.length || 1, 1));
+        const amt = reviewPeriod === 'yearly' ? item.amount : Math.round((item.amount) / Math.max(item.realization_months?.length || 1, 1));
+        return [
+          i + 1,
+          { 
+            content: `${item.description}${item.account_code ? `\n${item.account_code} — ${allAccounts[item.account_code] || ''}` : ''}`,
+            styles: { fontSize: 8 }
+          },
+          qty,
+          item.unit || '-',
+          formatCurrency(item.unit_price || 0),
+          formatCurrency(amt),
+          (item.realization_months || []).map(m => MONTHS_FULL[m - 1].slice(0, 3)).join(', ')
+        ];
+      }),
+      foot: [[
+        { content: 'TOTAL ANGGARAN', colSpan: 5, styles: { halign: 'right', fontStyle: 'bold' } },
+        { content: formatCurrency(reviewPeriod === 'yearly' ? totalBudgeted : exportData.reduce((s, i) => s + Math.round((i.amount) / Math.max(i.realization_months?.length || 1, 1)), 0)), styles: { fontStyle: 'bold' } },
+        ''
+      ]],
+    });
+
+    generateSignatures(doc, profile, (doc as any).lastAutoTable.finalY + 15);
+    doc.save(`RKAS_${reviewPeriod}_${new Date().toISOString().split('T')[0]}.pdf`);
+  };
 
   /* ─────────────── Form Logic ─────────────── */
   const resetForm = useCallback(() => {
@@ -807,6 +848,13 @@ const BudgetPlanning: React.FC<BudgetPlanningProps> = ({ data, profile, onAdd, o
                 {formatRupiah(totalBudgeted)}
               </p>
             </div>
+            <button 
+              onClick={() => { setReviewPeriod('yearly'); setIsReviewOpen(true); }}
+              className="flex items-center gap-2 px-5 py-3 bg-white/20 hover:bg-white/30 backdrop-blur-md text-white rounded-xl border border-white/30 transition-all font-bold text-sm shadow-xl active:scale-95"
+            >
+              <Printer size={18} />
+              Cetak RKAS
+            </button>
             <div className="hidden md:block p-4 bg-white/10 backdrop-blur rounded-2xl border border-white/20">
               <Calculator className="text-white" size={36} strokeWidth={1.5} />
             </div>
@@ -1139,7 +1187,7 @@ const BudgetPlanning: React.FC<BudgetPlanningProps> = ({ data, profile, onAdd, o
                     Tutup
                   </button>
                   <button
-                    onClick={() => window.print()}
+                    onClick={handleExportPDF}
                     className="flex items-center gap-1.5 px-4 py-2 text-xs font-bold bg-slate-900 hover:bg-slate-700 text-white rounded-lg transition-colors"
                   >
                     <Download size={13} strokeWidth={2.5} />

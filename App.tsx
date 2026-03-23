@@ -382,15 +382,15 @@ function App() {
                       className="min-h-full pb-10"
                     >
                       {activeTab === 'dashboard' && <Dashboard data={data} profile={schoolProfile} />}
-                      {activeTab === 'rapor' && <RaporPendidikan onAddBudget={handleAdd} budgetData={data} />}
+                      {activeTab === 'rapor' && <RaporPendidikan onAddBudget={handleAdd} budgetData={data} profile={schoolProfile} />}
                       {activeTab === 'income' && <TransactionTable type={TransactionType.INCOME} data={data} onAdd={handleAdd} onDelete={handleDelete} />}
                       {activeTab === 'planning' && <BudgetPlanning data={data} profile={schoolProfile} onAdd={handleAdd} onUpdate={handleUpdate} onDelete={handleDelete} />}
                       {activeTab === 'withdrawal' && <BankWithdrawal data={data} profile={schoolProfile} onUpdate={handleUpdate} />}
-                      {activeTab === 'spj' && <SPJRealization data={data} onUpdate={handleUpdate} />}
+                      {activeTab === 'spj' && <SPJRealization data={data} profile={schoolProfile} onUpdate={handleUpdate} />}
                       {activeTab === 'evidence' && <EvidenceTemplates budgets={data} onUpdate={handleUpdate} />}
                       {activeTab === 'reports' && <Reports data={data} />}
                       {activeTab === 'inventory' && <InventoryReports budgets={data} schoolProfile={schoolProfile!} />}
-                      {activeTab === 'bku' && <BKU data={data} onBack={() => setActiveTab('dashboard')} />}
+                      {activeTab === 'bku' && <BKU data={data} profile={schoolProfile} onBack={() => setActiveTab('dashboard')} />}
                       {activeTab === 'settings' && <Settings onProfileUpdate={(updated) => setSchoolProfile(updated)} />}
                     </motion.div>
                   </AnimatePresence>

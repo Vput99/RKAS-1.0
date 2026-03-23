@@ -3,6 +3,9 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { ShoppingBag, FileText, ClipboardList, RefreshCw, Calendar, ArrowRightLeft, Package, Download, Printer, Sparkles, Loader2, Plus, Trash2, X, ArrowRight } from 'lucide-react';
 import { Budget } from '../types';
 import { analyzeInventoryItems, InventoryItem } from '../lib/gemini';
+import { generatePDFHeader, generateSignatures, formatCurrency, defaultTableStyles } from '../lib/pdfUtils';
+import jsPDF from 'jspdf';
+import autoTable from 'jspdf-autotable';
 
 interface InventoryReportsProps {
   budgets: Budget[];
@@ -287,6 +290,105 @@ const InventoryReports: React.FC<InventoryReportsProps> = ({ budgets, schoolProf
     }
   };
 
+  const handleExportPDF = () => {
+    const doc = new jsPDF('l', 'mm', 'a4');
+    let title = '';
+    let headers: string[][] = [];
+    let body: any[][] = [];
+
+    if (activeReport === 'pengadaan') {
+      title = 'Laporan Pengadaan Barang Milik Daerah (BMD)';
+      headers = [['No', 'Tanggal', 'No. Dokumen', 'Nama Barang', 'Spesifikasi', 'Qty', 'Satuan', 'Harga', 'Total', 'Keterangan']];
+      
+      const transactionsByDoc: Record<string, WithdrawalTransaction[]> = {};
+      withdrawalTransactions.filter(t => t.docNumber.startsWith('BMD-')).forEach(t => {
+        if (!transactionsByDoc[t.docNumber]) transactionsByDoc[t.docNumber] = [];
+        transactionsByDoc[t.docNumber].push(t);
+      });
+
+      let rowIdx = 1;
+      Object.entries(transactionsByDoc).forEach(([docNum, txs]) => {
+        txs.forEach((tx, i) => {
+          const item = inventoryItems.find(it => it.id === tx.inventoryItemId);
+          if (!item) return;
+          body.push([
+            i === 0 ? rowIdx++ : '',
+            i === 0 ? tx.date : '',
+            i === 0 ? docNum : '',
+            item.name,
+            item.spec,
+            tx.quantity,
+            item.unit,
+            formatCurrency(item.price),
+            formatCurrency(tx.quantity * item.price),
+            tx.notes || '-'
+          ]);
+        });
+      });
+    } else if (activeReport === 'persediaan') {
+      title = 'Laporan Persediaan Barang';
+      headers = [['No', 'Kodefikasi', 'Nama Barang', 'Sisa Lalu', 'Masuk', 'Keluar', 'Sisa', 'Satuan', 'Harga', 'Total']];
+      
+      combinedItems.forEach((item, i) => {
+        const stats = getItemStats(item);
+        body.push([
+          i + 1,
+          item.codification || '-',
+          item.name,
+          stats.lastYearBalance,
+          stats.totalIn,
+          stats.totalOut,
+          stats.remaining,
+          item.unit,
+          formatCurrency(item.price),
+          formatCurrency(stats.remaining * item.price)
+        ]);
+      });
+    } else if (activeReport === 'mutasi') {
+      title = 'Laporan Mutasi Persediaan';
+      headers = [['No', 'Kategori / Nama Barang', 'Saldo Awal', 'Pengadaan', 'Pengeluaran', 'Saldo Akhir', 'Satuan', 'Keterangan']];
+      
+      const categories = ['Bahan', 'Suku Cadang', 'Alat/Bahan Kantor', 'Obat-obatan', 'Lainnya'];
+      categories.forEach(cat => {
+        const items = combinedItems.filter(i => {
+           if(cat === 'Alat/Bahan Kantor') return i.category === 'Alat Atau Bahan Untuk Kegiatan Kantor';
+           if(cat === 'Lainnya') return !['Bahan', 'Suku Cadang', 'Alat Atau Bahan Untuk Kegiatan Kantor', 'Obat Obatan'].includes(i.category);
+           return i.category === cat;
+        });
+
+        if (items.length > 0) {
+            body.push([{ content: cat, colSpan: 8, styles: { fontStyle: 'bold', fillColor: [240, 240, 240] } }]);
+            items.forEach((item, i) => {
+                const stats = getItemStats(item);
+                body.push([
+                    i+1,
+                    item.name,
+                    stats.lastYearBalance,
+                    stats.totalIn,
+                    stats.totalOut,
+                    stats.remaining,
+                    item.unit,
+                    ''
+                ]);
+            });
+        }
+      });
+    }
+
+    const startY = generatePDFHeader(doc, schoolProfile, title);
+    autoTable(doc, {
+      ...defaultTableStyles,
+      startY,
+      head: headers,
+      body: body,
+      styles: { fontSize: 8 },
+      headStyles: { fillColor: [51, 65, 85] }
+    });
+
+    generateSignatures(doc, schoolProfile, (doc as any).lastAutoTable.finalY + 15);
+    doc.save(`${title.replace(/ /g, '_')}_${schoolProfile?.fiscalYear || '2026'}.pdf`);
+  };
+
   const combinedItems = useMemo(() => {
     return [...inventoryItems, ...manualInventoryItems];
   }, [inventoryItems, manualInventoryItems]);
@@ -459,7 +561,10 @@ const InventoryReports: React.FC<InventoryReportsProps> = ({ budgets, schoolProf
             <h3 className="font-black text-slate-800 tracking-tight">Pratinjau Laporan: {reportMenu.find(r => r.id === activeReport)?.title}</h3>
           </div>
           <div className="flex items-center gap-2">
-            <button className="flex items-center gap-2 px-3 py-1.5 bg-white/60 border border-slate-200 rounded-lg text-xs font-bold text-slate-600 hover:bg-slate-50 transition shadow-sm backdrop-blur-md">
+            <button 
+              onClick={handleExportPDF}
+              className="flex items-center gap-2 px-3 py-1.5 bg-white/60 border border-slate-200 rounded-lg text-xs font-bold text-slate-600 hover:bg-slate-50 transition shadow-sm backdrop-blur-md"
+            >
               <Printer size={14} /> Cetak
             </button>
             <button className="flex items-center gap-2 px-3 py-1.5 bg-gradient-to-r from-blue-600 to-indigo-600 text-white rounded-lg text-xs font-bold hover:shadow-lg hover:shadow-blue-500/30 transition transform hover:-translate-y-0.5">
@@ -1047,6 +1152,12 @@ const InventoryReports: React.FC<InventoryReportsProps> = ({ budgets, schoolProf
                 </div>
               </div>
               <div className="flex items-center gap-2">
+                <button 
+                  onClick={handleExportPDF}
+                  className="flex items-center gap-2 px-3 py-1.5 bg-white border border-slate-200 text-slate-600 rounded-lg text-[10px] font-bold hover:bg-slate-50 transition shadow-sm"
+                >
+                  <Printer size={12} /> Cetak Laporan
+                </button>
                 <button
                   onClick={() => handleManualAdd(null)}
                   className="flex items-center gap-2 px-3 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg text-[10px] font-bold transition shadow-sm"

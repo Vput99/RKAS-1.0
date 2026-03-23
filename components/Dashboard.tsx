@@ -2,7 +2,10 @@ import React, { useMemo } from 'react';
 import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip as RechartsTooltip, XAxis, YAxis, CartesianGrid, AreaChart, Area } from 'recharts';
 import { motion, Variants } from 'framer-motion';
 import { Budget, TransactionType, SchoolProfile } from '../types';
-import { ArrowUpRight, ArrowDownRight, Wallet, Target, PieChart as PieChartIcon, Activity, AlertTriangle, XCircle } from 'lucide-react';
+import { ArrowUpRight, ArrowDownRight, Wallet, Target, PieChart as PieChartIcon, Activity, AlertTriangle, XCircle, Printer } from 'lucide-react';
+import { generatePDFHeader, generateSignatures, formatCurrency, defaultTableStyles } from '../lib/pdfUtils';
+import jsPDF from 'jspdf';
+import autoTable from 'jspdf-autotable';
 
 interface DashboardProps {
   data: Budget[];
@@ -103,6 +106,40 @@ const Dashboard: React.FC<DashboardProps> = ({ data, profile }) => {
       .map(([name, val]) => ({ name, ...val }))
       .sort((a, b) => ORDER.indexOf(a.name) - ORDER.indexOf(b.name));
   }, [data]);
+
+  const handlePrintSummary = () => {
+    const doc = new jsPDF();
+    const startY = generatePDFHeader(doc, profile, 'Ringkasan Eksekutif RKAS');
+
+    // Stats Table
+    autoTable(doc, {
+      ...defaultTableStyles,
+      startY,
+      head: [['Indikator Keuangan', 'Nilai Nominal']],
+      body: [
+        ['Total Penerimaan (BOSP)', formatCurrency(stats.income)],
+        ['Total Rencana Belanja', formatCurrency(stats.plannedExpense)],
+        ['Total Realisasi (SPJ)', formatCurrency(stats.realizedExpense)],
+        ['Sisa Saldo Kas', formatCurrency(stats.cashBalance)],
+        ['Persentase Penyerapan', `${stats.absorptionRate.toFixed(2)}%`]
+      ],
+    });
+
+    // Component Breakdown Table
+    const finalY = (doc as any).lastAutoTable.finalY + 10;
+    doc.setFont('helvetica', 'bold');
+    doc.text('Realisasi Per Komponen BOSP', 15, finalY);
+
+    autoTable(doc, {
+      ...defaultTableStyles,
+      startY: finalY + 5,
+      head: [['Nama Komponen', 'Total Realisasi']],
+      body: expenseByComponent.map(c => [c.name, formatCurrency(c.value)]),
+    });
+
+    generateSignatures(doc, profile, (doc as any).lastAutoTable.finalY + 20);
+    doc.save(`Ringkasan_Dashboard_${new Date().toISOString().split('T')[0]}.pdf`);
+  };
 
   const formatRupiah = (num: number) => {
     return new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', maximumFractionDigits: 0 }).format(num);

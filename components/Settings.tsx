@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { SchoolProfile, AccountCodes } from '../types';
-import { Save, School, Users, Wallet, Calendar, Database, Wifi, WifiOff, CheckCircle2, CreditCard, Image as ImageIcon, Upload, Edit3, Plus, Trash2, List, FileSpreadsheet, RefreshCcw, UserCircle, LogOut, FileText, AlertTriangle, Settings as SettingsIcon } from 'lucide-react';
+import { Save, School, Users, Wallet, Calendar, Database, Wifi, WifiOff, CheckCircle2, CreditCard, Image as ImageIcon, Upload, Plus, Trash2, List, FileSpreadsheet, RefreshCcw, UserCircle, LogOut, FileText, AlertTriangle, Settings as SettingsIcon } from 'lucide-react';
 import { getSchoolProfile, saveSchoolProfile, checkDatabaseConnection, getStoredAccounts, saveCustomAccount, deleteCustomAccount, bulkSaveCustomAccounts, resetAllData } from '../lib/db';
 import { supabase } from '../lib/supabase';
 

@@ -1,14 +1,18 @@
 
 import React, { useState, useEffect, useRef } from 'react';
-import { RaporIndicator, PBDRecommendation, TransactionType, Budget } from '../types';
+import { RaporIndicator, PBDRecommendation, TransactionType, Budget, SchoolProfile } from '../types';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell } from 'recharts';
-import { BrainCircuit, CheckCircle, Plus, TrendingUp, AlertTriangle, CalendarRange, Save, Loader2, X, Check, Upload, FileText, SlidersHorizontal, MousePointerClick } from 'lucide-react';
+import { BrainCircuit, CheckCircle, Plus, TrendingUp, AlertTriangle, CalendarRange, Save, Loader2, X, Check, Upload, FileText, SlidersHorizontal, MousePointerClick, Printer } from 'lucide-react';
 import { analyzeRaporQuality, analyzeRaporPDF, isAiConfigured } from '../lib/gemini';
 import { getRaporData, saveRaporData } from '../lib/db';
+import { generatePDFHeader, generateSignatures, formatCurrency, defaultTableStyles } from '../lib/pdfUtils';
+import jsPDF from 'jspdf';
+import autoTable from 'jspdf-autotable';
 
 interface RaporPendidikanProps {
   onAddBudget: (item: any) => Promise<void>;
-  budgetData: Budget[]; // Receive current budget data to check for duplicates
+  budgetData: Budget[];
+  profile: SchoolProfile | null;
 }
 
 const DEFAULT_INDICATORS: RaporIndicator[] = [
@@ -20,7 +24,7 @@ const DEFAULT_INDICATORS: RaporIndicator[] = [
   { id: 'D.8', label: 'Iklim Kebinekaan', score: 0, category: 'Kurang' },
 ];
 
-const RaporPendidikan: React.FC<RaporPendidikanProps> = ({ onAddBudget, budgetData }) => {
+const RaporPendidikan: React.FC<RaporPendidikanProps> = ({ onAddBudget, budgetData, profile }) => {
   const [indicators, setIndicators] = useState<RaporIndicator[]>(DEFAULT_INDICATORS);
   const [recommendations, setRecommendations] = useState<PBDRecommendation[]>([]);
   const [loading, setLoading] = useState(false);
@@ -104,6 +108,31 @@ const RaporPendidikan: React.FC<RaporPendidikanProps> = ({ onAddBudget, budgetDa
     setRecommendations(results);
     setActiveView('analysis');
     setLoading(false);
+  };
+
+  const handleExportPDF = () => {
+    const doc = new jsPDF();
+    const title = `Analisis PBD & Rapor Pendidikan ${targetYear}`;
+    const startY = generatePDFHeader(doc, profile, title);
+
+    autoTable(doc, {
+      ...defaultTableStyles,
+      startY,
+      head: [['Indikator', 'Skor', 'Kategori']],
+      body: indicators.map(ind => [ind.label, ind.score, ind.category]),
+    });
+
+    if (recommendations.length > 0) {
+      autoTable(doc, {
+        ...defaultTableStyles,
+        startY: (doc as any).lastAutoTable.finalY + 10,
+        head: [['Rekomendasi Kegiatan', 'Penjelasan / Justifikasi']],
+        body: recommendations.map(rec => [rec.title, rec.description]),
+      });
+    }
+
+    generateSignatures(doc, profile, (doc as any).lastAutoTable.finalY + 20);
+    doc.save(`Rapor_PBD_${targetYear}.pdf`);
   };
 
   // Robust File Selection Handler
@@ -497,12 +526,20 @@ const RaporPendidikan: React.FC<RaporPendidikanProps> = ({ onAddBudget, budgetDa
                   <h3 className="font-bold text-gray-800 text-lg flex items-center gap-2">
                      <BrainCircuit className="text-indigo-600" /> Hasil Rekomendasi PBD
                   </h3>
-                  <button 
-                    onClick={() => setActiveView('input')}
-                    className="text-sm bg-white border border-gray-300 hover:bg-gray-50 px-3 py-1.5 rounded-lg text-gray-600 font-medium transition"
-                  >
-                    &larr; Upload Ulang / Edit
-                  </button>
+                  <div className="flex gap-2">
+                      <button 
+                        onClick={handleExportPDF}
+                        className="text-sm bg-indigo-600 hover:bg-indigo-700 px-3 py-1.5 rounded-lg text-white font-bold flex items-center gap-2 transition shadow-md shadow-indigo-200"
+                      >
+                        <Printer size={14} /> Cetak Rekomendasi
+                      </button>
+                      <button 
+                        onClick={() => setActiveView('input')}
+                        className="text-sm bg-white border border-gray-300 hover:bg-gray-50 px-3 py-1.5 rounded-lg text-gray-600 font-medium transition"
+                      >
+                        &larr; Upload Ulang / Edit
+                      </button>
+                  </div>
               </div>
 
               <div className="grid grid-cols-1 gap-4">
