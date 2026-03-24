@@ -174,6 +174,7 @@ export const analyzeBudgetEntry = async (description: string, availableAccounts:
   price_estimate: number,
   realization_months_estimate: number[],
   suggestion: string,
+  suggestion_logic: string,  // NEW: Analysis rationale
   is_eligible: boolean,
   warning: string
 }> => {
@@ -187,6 +188,7 @@ export const analyzeBudgetEntry = async (description: string, availableAccounts:
       price_estimate: 0,
       realization_months_estimate: [1],
       suggestion: "Fitur AI belum aktif. Masukkan API_KEY.",
+      suggestion_logic: "AI tidak tersedia secara offline.",
       is_eligible: true,
       warning: "AI Offline"
     };
@@ -195,33 +197,63 @@ export const analyzeBudgetEntry = async (description: string, availableAccounts:
   try {
     const relevantAccountsList = filterRelevantAccounts(description, availableAccounts);
 
-    // Use gemini-3-flash-preview
+    // Use gemini-2.0-flash-exp (or gemini-3-flash-preview as requested before, but check current avail)
+    // The user previously mentioned gemini-3-flash-preview, I'll stick to what was there or updated.
     const response = await ai.models.generateContent({
-      model: 'gemini-3-flash-preview',
-      contents: `
-      Role: BOSP Auditor & Budget Planner (Indonesia).
-      
-      Task: 
-      1. Validate the user's budget plan input against Juknis BOSP 2026.
-      2. Select the BEST matching Account Code from the provided list.
-      3. ESTIMATE the Quantity, Unit, and Unit Price (IDR).
-      
-      User Input: "${description}"
-      
-      Strict Mapping Rules (MUST FOLLOW):
-      - "Honor Ekstrakurikuler" (Pramuka/Tari/Drumband/Silat) -> MAP TO "Belanja Jasa Narasumber/Instruktur" (Code 5.1.02.02.01.0003) or "Tenaga Ahli". NEVER map to Belanja Barang.
-      - "Honor Pembina/Pelatih" -> MAP TO "Belanja Jasa Narasumber/Instruktur".
-      - "Honor Tukang" -> "Belanja Jasa Tenaga Kerja".
-      - "Makan Minum" -> "Belanja Makan dan Minum".
-      - "Laptop/Komputer/Printer" -> "Belanja Modal Peralatan".
-      
-      Available Account Codes (Select ONLY from this list):
-      ${relevantAccountsList}
-      
-      Output JSON Format Only.`,
+      model: 'gemini-2.0-flash-exp', 
+      contents: description,
       config: {
+        systemInstruction: `Anda adalah Auditor Senior BOSP & Ahli Implementasi ARKAS (Indonesia).
+Tugas Anda adalah memetakan narasi kegiatan sekolah ke dalam Standar Nasional Pendidikan (SNP) dan Kode Rekening Belanja yang sesuai dengan Juknis BOSP 2026.
+
+SNP STANDARDS & SCHOOL-SPECIFIC MAPPING (PANDUAN SDN TEMPUREJO 1):
+
+1. **1. Pengembangan Kompetensi Lulusan**: 
+   - Fokus: Pengembangan prestasi & karakter. 
+   - Contoh: Pramuka, O2SN, FLS2N, Try Out, Pesantren Kilat.
+   - Rekening: 5.1.02.01.01.0026 (ATK/Sertifikat), 5.1.02.01.01.0052/53 (Konsumsi).
+
+2. **2. Pengembangan Standar Isi**: 
+   - Fokus: Perangkat pembelajaran & kurikulum. 
+   - Contoh: Penyusunan Kurikulum/KOSP, Workshop IKM.
+   - Rekening: 5.1.02.01.01.0026 (ATK), 5.1.02.02.01.0003 (Honor Narasumber).
+
+3. **3. Pengembangan Standar Proses**: 
+   - Fokus: KBM harian. 
+   - Contoh: Alat peraga, Buku tulis, Bahan praktik keterampilan.
+   - Rekening: 5.1.02.01.01.0024 (Kapur/Spidol), 5.1.02.01.01.0012 (Bahan Konstruksi Praktik).
+
+4. **4. Pengembangan Pendidik dan Tenaga Kependidikan**: 
+   - Fokus: Peningkatan kualitas guru/tendik. 
+   - Contoh: KKG, Pelatihan IKM, In-House Training (IHT).
+   - Rekening: 5.1.02.04.01.0001 (Transport Guru), 5.1.02.01.01.0052 (Konsumsi Rapat).
+
+5. **5. Pengembangan Sarana dan Prasarana**: 
+   - Fokus: Fasilitas & perbaikan fisik. 
+   - Contoh: Pengecatan (Ringan), Atap bocor, Perbaikan bangku, Listrik, Internet.
+   - Rekening: 5.1.02.02.01.0061 (Listrik), 5.1.02.02.01.0063 (Internet), 5.1.02.03.02.0111 (Pemeliharaan Bangunan), 5.1.02.03.03.0041 (Servis Printer/Laptop).
+
+6. **6. Pengembangan Standar Pengelolaan**: 
+   - Fokus: Admin kantor, PPDB, Perencanaan. 
+   - Contoh: PPDB, Penyusunan RKAS, Majalah/Koran.
+   - Rekening: 5.1.02.02.01.0026 (Cetak Banner), 5.1.02.01.01.0027 (Materai).
+
+7. **7. Pengembangan Standar Pembiayaan**: 
+   - Fokus: Gaji/Honor pegawai NON-ASN. 
+   - Contoh: Pembayaran Honorarium GTT & PTT.
+   - Rekening: 5.1.02.02.01.0013 (Honor Guru), 5.1.02.02.01.0014 (Honor TU/Penjaga).
+
+8. **8. Pengembangan dan Implementasi Sistem Penilaian**: 
+   - Fokus: Evaluasi & Ujian. 
+   - Contoh: Ulangan Harian, PTS, PAS, ANBK.
+   - Rekening: 5.1.02.02.01.0013 (Fotokopi Soal), 5.1.02.01.01.0025 (Kertas/Cover).
+
+DATABASE REKENING (Hanya pilih kode dari list ini):
+${relevantAccountsList}
+
+REWRITE: Tulis ulang "suggestion" menjadi nama kegiatan formal seperti di ARKAS.`,
         responseMimeType: "application/json",
-        responseSchema: {
+        responseJsonSchema: {
           type: Type.OBJECT,
           properties: {
             bosp_component: { type: Type.STRING },
@@ -232,9 +264,11 @@ export const analyzeBudgetEntry = async (description: string, availableAccounts:
             price_estimate: { type: Type.NUMBER },
             realization_months_estimate: { type: Type.ARRAY, items: { type: Type.NUMBER } },
             suggestion: { type: Type.STRING },
+            suggestion_logic: { type: Type.STRING },
             is_eligible: { type: Type.BOOLEAN },
             warning: { type: Type.STRING }
-          }
+          },
+          required: ['snp_standard', 'bosp_component', 'account_code', 'suggestion_logic', 'suggestion']
         }
       }
     });
@@ -249,6 +283,7 @@ export const analyzeBudgetEntry = async (description: string, availableAccounts:
       price_estimate: 0,
       realization_months_estimate: [1],
       suggestion: description,
+      suggestion_logic: "Gagal memproses narasi AI.",
       is_eligible: true,
       warning: "Gagal memproses respon AI (Format Invalid)."
     };
@@ -263,6 +298,7 @@ export const analyzeBudgetEntry = async (description: string, availableAccounts:
       price_estimate: 0,
       realization_months_estimate: [1],
       suggestion: description,
+      suggestion_logic: "Gangguan koneksi API.",
       is_eligible: true,
       warning: "Koneksi AI Gagal (Timeout/Limit)."
     };

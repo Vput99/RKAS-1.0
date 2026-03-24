@@ -166,6 +166,7 @@ export interface Budget {
   status: 'draft' | 'approved' | 'rejected';
   is_bosp_eligible?: boolean; 
   warning_message?: string; 
+  ai_analysis_logic?: string; // New: AI analysis result rationale
   notes?: string;
   created_at?: string;
 }
