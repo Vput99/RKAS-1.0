@@ -2,7 +2,7 @@ import React, { useMemo } from 'react';
 import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip as RechartsTooltip, XAxis, YAxis, CartesianGrid, AreaChart, Area } from 'recharts';
 import { motion, Variants } from 'framer-motion';
 import { Budget, TransactionType, SchoolProfile } from '../types';
-import { ArrowUpRight, ArrowDownRight, Wallet, Target, PieChart as PieChartIcon, Activity, AlertTriangle, XCircle, Printer } from 'lucide-react';
+import { ArrowUpRight, ArrowDownRight, Wallet, Target, PieChart as PieChartIcon, Activity, AlertTriangle, XCircle, FileText } from 'lucide-react';
 import { generatePDFHeader, generateSignatures, formatCurrency, defaultTableStyles } from '../lib/pdfUtils';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
@@ -203,6 +203,15 @@ const Dashboard: React.FC<DashboardProps> = ({ data, profile }) => {
                     <p className="text-[10px] text-indigo-200 uppercase font-black tracking-[0.2em] mb-2">Tahun Anggaran</p>
                     <p className="text-5xl font-black drop-shadow-sm">{profile?.fiscalYear || new Date().getFullYear()}</p>
                  </motion.div>
+                 <motion.button 
+                   whileHover={{ scale: 1.05 }} 
+                   whileTap={{ scale: 0.95 }}
+                   onClick={handlePrintSummary}
+                   className="flex items-center gap-2 bg-white/20 hover:bg-white/30 backdrop-blur-md px-6 py-3 rounded-2xl border border-white/30 text-white text-xs font-bold transition-all shadow-lg"
+                 >
+                   <FileText size={16} />
+                   Cetak Ringkasan
+                 </motion.button>
                  <div className="flex items-center gap-2 mt-2 bg-indigo-900/40 px-4 py-2 rounded-full backdrop-blur-md border border-indigo-500/30">
                     <span className="w-2.5 h-2.5 rounded-full bg-emerald-400 shadow-[0_0_10px_rgba(52,211,153,0.8)] animate-pulse"></span>
                     <span className="text-[10px] font-bold text-indigo-100 uppercase tracking-widest">Sistem Online Tersinkron</span>

@@ -198,13 +198,13 @@ const BudgetPlanning: React.FC<BudgetPlanningProps> = ({ data, profile, onAdd, o
             content: `${item.description}${item.account_code ? `\n${item.account_code} — ${allAccounts[item.account_code] || ''}` : ''}`,
             styles: { fontSize: 8 }
           },
-          qty,
+          qty || 0,
           item.unit || '-',
           formatCurrency(item.unit_price || 0),
-          formatCurrency(amt),
-          (item.realization_months || []).map(m => MONTHS_FULL[m - 1].slice(0, 3)).join(', ')
+          formatCurrency(amt || 0),
+          (item.realization_months || []).map(m => MONTHS_FULL[m - 1]?.slice(0, 3) || '').join(', ')
         ];
-      }),
+      }) as any[][],
       foot: [[
         { content: 'TOTAL ANGGARAN', colSpan: 5, styles: { halign: 'right', fontStyle: 'bold' } },
         { content: formatCurrency(reviewPeriod === 'yearly' ? totalBudgeted : exportData.reduce((s, i) => s + Math.round((i.amount) / Math.max(i.realization_months?.length || 1, 1)), 0)), styles: { fontStyle: 'bold' } },

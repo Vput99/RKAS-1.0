@@ -18,6 +18,7 @@ export interface InventoryItem {
   vendor?: string;
   docNumber: string;
   category: string; // 'ATK', 'Kebersihan', etc. with optional subcategories like 'ATK - Kertas'
+  codification?: string;
   lastYearBalance?: number;
   usedQuantity?: number;
 }

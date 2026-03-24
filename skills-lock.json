@@ -1,6 +1,11 @@
 {
   "version": 1,
   "skills": {
+    "excel-automation": {
+      "source": "claude-office-skills/skills",
+      "sourceType": "github",
+      "computedHash": "cfca335f10ee2f1c3afe3fceacc8c0a95af657abae1b9bba0c8320865d437043"
+    },
     "pdf": {
       "source": "anthropics/skills",
       "sourceType": "github",

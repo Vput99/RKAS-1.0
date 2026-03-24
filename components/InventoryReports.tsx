@@ -290,6 +290,19 @@ const InventoryReports: React.FC<InventoryReportsProps> = ({ budgets, schoolProf
     }
   };
 
+  const getItemStats = (item: InventoryItem) => {
+    const overrides = itemOverrides[item.id] || {};
+    const lastYearBalance = overrides.lastYearBalance ?? (item.lastYearBalance || 0);
+    const totalIn = item.quantity;
+    const transactionsQuantity = withdrawalTransactions
+      .filter(tx => tx.inventoryItemId === item.id)
+      .reduce((sum, tx) => sum + tx.quantity, 0);
+    const totalOut = overrides.usedQuantity ?? (transactionsQuantity || item.usedQuantity || 0);
+    const remaining = (lastYearBalance + totalIn) - totalOut;
+    
+    return { lastYearBalance, totalIn, totalOut, remaining };
+  };
+
   const handleExportPDF = () => {
     const doc = new jsPDF('l', 'mm', 'a4');
     let title = '';

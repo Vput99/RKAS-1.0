@@ -234,6 +234,7 @@ export interface PBDBudgetItem {
 export interface PBDRecommendation {
     indicatorId: string;
     activityName: string;
+    title: string; // Added title property
     description: string;
     
     // Parent classification
