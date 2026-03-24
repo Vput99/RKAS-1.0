@@ -568,13 +568,14 @@ export const getStoredAccounts = async (): Promise<Record<string, string>> => {
     if (supabase) {
         try {
             const userId = await getCurrentUserId();
+            // Fetch both system accounts (NULL user_id) and current user's accounts
             let query = supabase
                 .from('account_codes')
                 .select('*')
                 .order('code', { ascending: true });
 
             if (userId) {
-                query = query.or(`user_id.is.null,user_id.eq.${userId}`); // Allow system OR user specific
+                query = query.or(`user_id.is.null,user_id.eq.${userId}`);
             } else {
                 query = query.is('user_id', null);
             }
@@ -583,16 +584,34 @@ export const getStoredAccounts = async (): Promise<Record<string, string>> => {
 
             if (data && !error) {
                 const dbMap: Record<string, string> = {};
-                data.forEach((item: any) => {
+                
+                // Sort data to ensure user-owned accounts override system ones if the code is the same
+                // We'll process NULL user_ids first, then user_ids
+                const sorted = [...data].sort((a, b) => {
+                    if (a.user_id === b.user_id) return 0;
+                    return a.user_id === null ? -1 : 1;
+                });
+
+                sorted.forEach((item: any) => {
                     dbMap[item.code] = item.name;
                 });
-                return { ...AccountCodes, ...dbMap };
+
+                // If the user has specific accounts, we might want to prioritize them 
+                // but still include the system ones they haven't overridden.
+                // If the user wants a CLEAN list from DB only, we return just dbMap.
+                // To support the USER request of "management", we use the DB as source of truth.
+                
+                // If we have data in DB, we rely on it.
+                if (Object.keys(dbMap).length > 0) {
+                    return dbMap;
+                }
             }
         } catch (e) {
             console.error("Failed to fetch accounts from DB", e);
         }
     }
 
+    // Fallback to localStorage and hardcoded constants for offline/init
     const local = localStorage.getItem(CUSTOM_ACCOUNTS_KEY);
     const localMap = local ? JSON.parse(local) : {};
     return { ...AccountCodes, ...localMap };
@@ -620,8 +639,26 @@ export const saveCustomAccount = async (code: string, name: string): Promise<Rec
 
 export const deleteCustomAccount = async (code: string): Promise<Record<string, string>> => {
     if (supabase) {
-        const { error } = await supabase.from('account_codes').delete().eq('code', code);
-        if (error) console.error("Error deleting account from DB", error);
+        const userId = await getCurrentUserId();
+        // First, check if the row belongs to the user
+        const { data: existing } = await supabase
+            .from('account_codes')
+            .select('user_id')
+            .eq('code', code)
+            .maybeSingle();
+
+        if (existing) {
+            if (existing.user_id === userId) {
+                // User owns it, can delete
+                const { error } = await supabase.from('account_codes').delete().eq('code', code).eq('user_id', userId);
+                if (error) console.error("Error deleting account", error);
+            } else if (existing.user_id === null) {
+                // It's a system account. We can't delete it globally, but we can "hide" it for this user.
+                // For now, let's show an alert that system accounts are protected, 
+                // OR we could implement a 'hidden_accounts' table.
+                alert("Akun standar sistem tidak dapat dihapus secara permanen. Anda hanya dapat menghapus akun yang Anda buat sendiri.");
+            }
+        }
     }
 
     const current = (localStorage.getItem(CUSTOM_ACCOUNTS_KEY) ? JSON.parse(localStorage.getItem(CUSTOM_ACCOUNTS_KEY)!) : {});
@@ -656,6 +693,26 @@ export const bulkSaveCustomAccounts = async (accounts: Record<string, string>): 
 
     return await getStoredAccounts();
 }
+
+export const initializeUserAccounts = async (): Promise<Record<string, string>> => {
+    if (supabase) {
+        const userId = await getCurrentUserId();
+        if (!userId) return await getStoredAccounts();
+
+        // Fetch system accounts
+        const { data: systemAccounts } = await supabase
+            .from('account_codes')
+            .select('code, name')
+            .is('user_id', null);
+
+        if (systemAccounts && systemAccounts.length > 0) {
+            const rows = systemAccounts.map(a => ({ ...a, user_id: userId }));
+            const { error } = await supabase.from('account_codes').upsert(rows);
+            if (error) console.error("Error initializing accounts", error);
+        }
+    }
+    return await getStoredAccounts();
+};
 
 // --- DANGER ZONE: Reset Data ---
 

@@ -31,6 +31,7 @@ const TransactionTable: React.FC<TransactionTableProps> = ({ type, data, onAdd, 
   const [amount, setAmount] = useState('');
   const [category, setCategory] = useState(type === TransactionType.INCOME ? 'Dana Transfer' : SNPStandard.SARPRAS);
   const [bospComponent, setBospComponent] = useState(type === TransactionType.INCOME ? 'Penerimaan' : BOSPComponent.SARPRAS);
+  const [date, setDate] = useState(new Date().toISOString().split('T')[0]);
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   
   // Validation states
@@ -77,7 +78,7 @@ const TransactionTable: React.FC<TransactionTableProps> = ({ type, data, onAdd, 
       type,
       description,
       amount: Number(amount),
-      date: new Date().toISOString(),
+      date: new Date(date).toISOString(),
       category,
       bosp_component: bospComponent,
       status: 'draft',
@@ -94,6 +95,7 @@ const TransactionTable: React.FC<TransactionTableProps> = ({ type, data, onAdd, 
     setAmount('');
     setCategory(type === TransactionType.INCOME ? 'Dana Transfer' : SNPStandard.SARPRAS);
     setBospComponent(type === TransactionType.INCOME ? 'Penerimaan' : BOSPComponent.SARPRAS);
+    setDate(new Date().toISOString().split('T')[0]);
     setIsEligible(null);
     setWarningMessage('');
   };
@@ -337,6 +339,17 @@ const TransactionTable: React.FC<TransactionTableProps> = ({ type, data, onAdd, 
                       onChange={(e) => setDescription(e.target.value)}
                       className="w-full bg-slate-50/50 px-4 py-3 border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500/50 focus:border-blue-500 outline-none transition-all focus:bg-white font-medium text-slate-800 placeholder-slate-400"
                       placeholder="Uraian kegiatan lengkap..."
+                    />
+                  </div>
+
+                  <div className="md:col-span-2">
+                    <label className="block text-xs font-black text-slate-700 uppercase tracking-widest mb-2">Tanggal Transaksi</label>
+                    <input 
+                      required
+                      type="date" 
+                      value={date}
+                      onChange={(e) => setDate(e.target.value)}
+                      className="w-full bg-slate-50/50 px-4 py-3 border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500/50 focus:border-blue-500 outline-none transition-all focus:bg-white font-semibold text-slate-800"
                     />
                   </div>
 

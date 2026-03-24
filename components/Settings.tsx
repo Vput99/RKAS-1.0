@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { SchoolProfile, AccountCodes } from '../types';
 import { Save, School, Users, Wallet, Calendar, Database, Wifi, WifiOff, CheckCircle2, CreditCard, Image as ImageIcon, Upload, Plus, Trash2, List, FileSpreadsheet, RefreshCcw, UserCircle, LogOut, FileText, AlertTriangle, Settings as SettingsIcon } from 'lucide-react';
-import { getSchoolProfile, saveSchoolProfile, checkDatabaseConnection, getStoredAccounts, saveCustomAccount, deleteCustomAccount, bulkSaveCustomAccounts, resetAllData } from '../lib/db';
+import { getSchoolProfile, saveSchoolProfile, checkDatabaseConnection, getStoredAccounts, saveCustomAccount, deleteCustomAccount, bulkSaveCustomAccounts, resetAllData, initializeUserAccounts } from '../lib/db';
 import { supabase } from '../lib/supabase';
 
 interface SettingsProps {
@@ -186,6 +186,16 @@ const Settings: React.FC<SettingsProps> = ({ onProfileUpdate }) => {
     setImportMode('input');
     setIsAccountLoading(false);
     alert(`Berhasil menambahkan ${previewData.length} rekening baru.`);
+  };
+
+  const handleInitializeFromDefaults = async () => {
+    if (confirm("Ingin menyalin rekening standar (BOSP) ke database Anda? \n\nIni memungkinkan Anda untuk menghapus atau mengubah kode rekening standar sesuai kebutuhan sekolah Anda.")) {
+      setIsAccountLoading(true);
+      const updated = await initializeUserAccounts();
+      setCustomAccounts(updated);
+      setIsAccountLoading(false);
+      alert("Rekening berhasil disalin. Sekarang Anda memiliki kontrol penuh untuk menghapus atau menambah rekening.");
+    }
   };
 
   const handleResetData = async () => {
@@ -477,9 +487,18 @@ const Settings: React.FC<SettingsProps> = ({ onProfileUpdate }) => {
               <div className="bg-emerald-100 text-emerald-600 p-2 rounded-xl"><List size={20} /></div>
               Manajemen Kode Rekening (Akun Belanja)
             </h3>
-            <button onClick={loadAccounts} className="text-gray-400 hover:text-blue-600" title="Refresh Akun">
-              <RefreshCcw size={16} className={isAccountLoading ? "animate-spin" : ""} />
-            </button>
+            <div className="flex items-center gap-2">
+              <button 
+                onClick={handleInitializeFromDefaults}
+                className="text-[10px] font-black uppercase tracking-widest text-blue-600 bg-blue-50 hover:bg-blue-100 border border-blue-100 px-2.5 py-1 rounded-lg transition-colors flex items-center gap-1"
+                title="Salin standar BOSP ke database saya agar bisa diedit/dihapus"
+              >
+                <Plus size={10} /> Klaim Standar BOSP
+              </button>
+              <button onClick={loadAccounts} className="text-gray-400 hover:text-blue-600" title="Refresh Akun">
+                <RefreshCcw size={16} className={isAccountLoading ? "animate-spin" : ""} />
+              </button>
+            </div>
           </div>
 
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
