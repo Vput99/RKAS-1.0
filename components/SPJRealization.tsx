@@ -748,16 +748,37 @@ const SPJRealization: React.FC<SPJRealizationProps> = ({ data, profile, onUpdate
                             if(!item) return null;
                             const monthlyAlloc = calculateMonthlyAllocation(item, viewMonth);
                             return (
-                                <div key={id} className="bg-white p-4 rounded-2xl border border-slate-200 flex gap-4 shadow-sm items-center">
+                                <div key={id} className="bg-white p-4 rounded-2xl border border-slate-200 flex gap-4 shadow-sm items-center hover:border-indigo-300 transition-colors">
                                     <div className="flex-1">
                                         <p className="text-sm font-bold text-slate-800">{item.description}</p>
-                                        <p className="text-xs text-slate-400 mt-1">Pagu: {formatRupiah(monthlyAlloc)}</p>
+                                        <p className="text-xs text-slate-400 mt-1 uppercase font-black tracking-widest leading-none">Pagu: {formatRupiah(monthlyAlloc)}</p>
                                     </div>
-                                    <input type="number" className="w-32 px-3 py-2 border border-slate-200 rounded-xl font-mono text-sm focus:ring-2 focus:ring-indigo-500 outline-none" placeholder="Nominal" value={batchAmounts[id] || 0} onChange={e => setBatchAmounts(prev => ({...prev, [id]: Number(e.target.value)}))} />
-                                    <input type="number" className="w-20 px-3 py-2 border border-slate-200 rounded-xl text-sm text-center focus:ring-2 focus:ring-indigo-500 outline-none" placeholder="Vol" value={batchQuantities[id] || 0} onChange={e => handleBatchQuantityChange(id, e.target.value)} />
+                                    <div className="flex items-center gap-3">
+                                      <input type="number" className="w-32 px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl font-mono text-sm font-bold text-indigo-700 focus:ring-2 focus:ring-indigo-500 focus:bg-white outline-none transition-all" placeholder="Nominal" value={batchAmounts[id] || ''} onChange={e => setBatchAmounts(prev => ({...prev, [id]: Number(e.target.value)}))} />
+                                      <input type="number" className="w-20 px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-sm text-center font-bold text-slate-700 focus:ring-2 focus:ring-indigo-500 focus:bg-white outline-none transition-all" placeholder="Vol" value={batchQuantities[id] || ''} onChange={e => handleBatchQuantityChange(id, e.target.value)} />
+                                    </div>
                                 </div>
                             )
                         })}
+                        
+                        {/* Summary Total for Mode Kolektif */}
+                        <div className="mt-4 p-5 bg-gradient-to-r from-indigo-600 to-blue-700 rounded-[1.5rem] shadow-xl shadow-indigo-500/20 text-white flex items-center justify-between">
+                            <div className="flex items-center gap-3">
+                                <div className="p-2 bg-white/20 rounded-lg backdrop-blur-sm">
+                                    <TrendingUp size={20} className="text-white" />
+                                </div>
+                                <div>
+                                    <p className="text-[10px] font-black uppercase tracking-[0.2em] opacity-80 leading-tight">Total Kolektif</p>
+                                    <p className="text-xs font-bold opacity-90">{selectedBatchIds.length} item kegiatan akan direalisasikan</p>
+                                </div>
+                            </div>
+                            <div className="text-right">
+                                <p className="text-xs font-black uppercase tracking-widest opacity-70 mb-1">Jumlah Total SPJ</p>
+                                <h4 className="text-2xl font-black font-mono tracking-tight drop-shadow-sm">
+                                    {formatRupiah(Object.values(batchAmounts).reduce((acc, val) => acc + (val || 0), 0))}
+                                </h4>
+                            </div>
+                        </div>
                       </div>
                     ) : (
                       selectedBudget && (
