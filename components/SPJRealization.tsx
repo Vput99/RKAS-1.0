@@ -811,6 +811,17 @@ const SPJRealization: React.FC<SPJRealizationProps> = ({ data, profile, onUpdate
                                 <div><label className="block text-xs font-black uppercase tracking-widest text-slate-500 mb-2">Nilai Realisasi</label><input type="number" className="w-full px-4 py-3 bg-white border border-slate-200 rounded-xl font-mono text-lg font-bold text-slate-800 focus:ring-2 focus:ring-blue-500 outline-none" value={formAmount} onChange={e => setFormAmount(e.target.value)} /></div>
                                 <div><label className="block text-xs font-black uppercase tracking-widest text-slate-500 mb-2">Volume</label><input type="number" className="w-full px-4 py-3 bg-white border border-slate-200 rounded-xl text-lg font-bold text-slate-800 focus:ring-2 focus:ring-blue-500 outline-none" value={formQuantity} onChange={handleSingleQuantityChange} /></div>
                                 <div><label className="block text-xs font-black uppercase tracking-widest text-slate-500 mb-2">Nama Toko</label><input type="text" className="w-full px-4 py-3 bg-white border border-slate-200 rounded-xl text-sm focus:ring-2 focus:ring-blue-500 outline-none" value={formVendor} onChange={e => setFormVendor(e.target.value)} /></div>
+                                <div><label className="block text-xs font-black uppercase tracking-widest text-slate-500 mb-2">Peruntukan Bulan</label>
+                                  <select 
+                                    className="w-full px-4 py-3 bg-white border border-slate-200 rounded-xl text-sm focus:ring-2 focus:ring-blue-500 outline-none font-bold text-slate-700"
+                                    value={formTargetMonth || activeMonthIndex}
+                                    onChange={e => setFormTargetMonth(parseInt(e.target.value))}
+                                  >
+                                    {MONTHS.map((m, i) => (
+                                      <option key={i+1} value={i+1}>{m}</option>
+                                    ))}
+                                  </select>
+                                </div>
                                 <div><label className="block text-xs font-black uppercase tracking-widest text-slate-500 mb-2">Keterangan</label><input type="text" className="w-full px-4 py-3 bg-white border border-slate-200 rounded-xl text-sm focus:ring-2 focus:ring-blue-500 outline-none" value={formNotes} onChange={e => setFormNotes(e.target.value)} /></div>
                                 <div><label className="block text-xs font-black uppercase tracking-widest text-slate-500 mb-2">Tanggal Berkas</label><input type="date" className="w-full px-4 py-3 bg-white border border-slate-200 rounded-xl text-sm focus:ring-2 focus:ring-blue-500 outline-none" value={formDate} onChange={e => setFormDate(e.target.value)} /></div>
                             </div>
