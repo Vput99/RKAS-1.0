@@ -163,6 +163,7 @@ export interface Budget {
   category: SNPStandard | string;
   account_code?: string; 
   realization_months?: number[]; // Bulan rencana
+  month_quantities?: Record<string, number>; // Per-month quantities, keyed by month number
   status: 'draft' | 'approved' | 'rejected';
   is_bosp_eligible?: boolean; 
   warning_message?: string; 

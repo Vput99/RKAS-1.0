@@ -99,6 +99,8 @@ export const addBudget = async (item: Omit<Budget, 'id' | 'created_at'>): Promis
             realization_months: item.realization_months || [],
             quantity: item.quantity || 0,
             unit_price: item.unit_price || 0,
+            month_quantities: item.month_quantities || {},
+            ai_analysis_logic: item.ai_analysis_logic || '',
         };
 
         const { data, error } = await supabase.from('budgets').insert([dbPayload]).select();

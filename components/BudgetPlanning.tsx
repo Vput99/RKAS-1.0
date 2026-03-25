@@ -266,13 +266,14 @@ const BudgetPlanning: React.FC<BudgetPlanningProps> = ({ data, profile, onAdd, o
     setAccountCode(code);
     setAccountSearchTerm(code && allAccounts[code] ? `${code} - ${allAccounts[code]}` : code);
     setUnitPrice(item.unit_price || item.amount);
-    // Rebuild monthEntries from stored data
+    // Rebuild monthEntries from stored data, using per-month quantities if available
     const months = item.realization_months || [];
+    const mq = item.month_quantities || {};
     if (months.length > 0) {
       setMonthEntries(months.map(m => ({
         id: Math.random().toString(36).slice(2),
         month: m,
-        quantity: item.quantity || 1,
+        quantity: mq[String(m)] ?? item.quantity ?? 1,
         unit: item.unit || '',
       })));
     } else {
@@ -325,6 +326,11 @@ const BudgetPlanning: React.FC<BudgetPlanningProps> = ({ data, profile, onAdd, o
     const totalAmount = totalQty * unitPrice;
     const realization_months = [...new Set(monthEntries.map(e => e.month))].sort((a, b) => a - b);
     const firstUnit = monthEntries.find(e => e.unit)?.unit || '';
+    // Build per-month quantity map so each month keeps its own volume
+    const monthQuantities: Record<string, number> = {};
+    for (const entry of monthEntries) {
+      monthQuantities[String(entry.month)] = entry.quantity || 0;
+    }
     const payload = {
       type: TransactionType.EXPENSE,
       description: description || kegiatanQuery,
@@ -336,6 +342,7 @@ const BudgetPlanning: React.FC<BudgetPlanningProps> = ({ data, profile, onAdd, o
       unit_price: unitPrice,
       amount: totalAmount,
       realization_months,
+      month_quantities: monthQuantities,
       status: 'draft' as const,
       is_bosp_eligible: isEligible === null ? true : isEligible,
       warning_message: aiWarning,
@@ -759,7 +766,7 @@ const BudgetPlanning: React.FC<BudgetPlanningProps> = ({ data, profile, onAdd, o
                         {/* Jumlah — per-month */}
                         <td className="px-3 py-3 text-right">
                           <span className="font-bold text-slate-800 text-sm tabular-nums">
-                            {Math.round((item.quantity ?? 0) / Math.max(item.realization_months?.length || 1, 1))}
+                            {item.month_quantities?.[String(activeMonth)] ?? Math.round((item.quantity ?? 0) / Math.max(item.realization_months?.length || 1, 1))}
                           </span>
                         </td>
 
@@ -778,7 +785,7 @@ const BudgetPlanning: React.FC<BudgetPlanningProps> = ({ data, profile, onAdd, o
                         {/* Total — per-month */}
                         <td className="px-3 py-3 text-right">
                           <span className="font-black font-mono text-blue-700 tabular-nums text-sm">
-                            {formatRupiah(Math.round(item.amount / Math.max(item.realization_months?.length || 1, 1)))}
+                            {formatRupiah((item.month_quantities?.[String(activeMonth)] ?? Math.round((item.quantity ?? 0) / Math.max(item.realization_months?.length || 1, 1))) * (item.unit_price || 0))}
                           </span>
                         </td>
 

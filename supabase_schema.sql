@@ -34,8 +34,10 @@ CREATE TABLE IF NOT EXISTS public.budgets (
     realization_months INTEGER[],
     is_bosp_eligible BOOLEAN DEFAULT true,
     warning_message TEXT,
+    ai_analysis_logic TEXT,
     notes TEXT,
 
+    month_quantities JSONB DEFAULT '{}'::jsonb,
     realizations JSONB DEFAULT '[]'::jsonb,
     transfer_details JSONB DEFAULT '{}'::jsonb
 );
