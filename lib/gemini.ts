@@ -213,7 +213,7 @@ export const analyzeBudgetEntry = async (description: string, availableAccounts:
 
     // Use stable Gemini model for budget analysis
     const response = await ai.models.generateContent({
-      model: 'gemini-2.0-flash', 
+      model: 'gemini-3-flash-preview', 
       contents: description,
       config: {
         systemInstruction: `Anda adalah Auditor Senior BOSP & Ahli Implementasi ARKAS (Indonesia).
