@@ -211,10 +211,9 @@ export const analyzeBudgetEntry = async (description: string, availableAccounts:
   try {
     const relevantAccountsList = filterRelevantAccounts(description, availableAccounts);
 
-    // Use gemini-2.0-flash-exp (or gemini-3-flash-preview as requested before, but check current avail)
-    // The user previously mentioned gemini-3-flash-preview, I'll stick to what was there or updated.
+    // Use stable Gemini model for budget analysis
     const response = await ai.models.generateContent({
-      model: 'gemini-2.0-flash-exp', 
+      model: 'gemini-2.0-flash', 
       contents: description,
       config: {
         systemInstruction: `Anda adalah Auditor Senior BOSP & Ahli Implementasi ARKAS (Indonesia).
