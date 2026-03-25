@@ -566,22 +566,25 @@ const InventoryReports: React.FC<InventoryReportsProps> = ({ budgets, schoolProf
 
       {/* Report View Area */}
       <motion.div variants={itemVariants} className="glass-panel rounded-[2rem] border border-white/60 shadow-xl overflow-hidden relative min-h-[500px]">
-        <div className="px-6 py-4 border-b border-slate-100 bg-white/40 flex flex-col md:flex-row md:justify-between md:items-center gap-4 relative z-10">
-          <div className="flex items-center gap-2">
-            <div className="p-1.5 bg-blue-100 text-blue-600 rounded-lg">
-              <FileText size={18} />
+        <div className="px-8 py-6 border-b border-slate-100 bg-white/60 backdrop-blur-xl flex flex-col md:flex-row md:justify-between md:items-center gap-6 relative z-10">
+          <div className="flex items-center gap-4">
+            <div className="p-3 bg-blue-600/10 text-blue-600 rounded-2xl shadow-inner-sm">
+              <FileText size={22} className="drop-shadow-sm" />
             </div>
-            <h3 className="font-black text-slate-800 tracking-tight">Pratinjau Laporan: {reportMenu.find(r => r.id === activeReport)?.title}</h3>
+            <div>
+               <h3 className="font-black text-slate-800 tracking-tight text-lg">Pratinjau Laporan</h3>
+               <p className="text-xs font-bold text-slate-400 uppercase tracking-widest">{reportMenu.find(r => r.id === activeReport)?.title}</p>
+            </div>
           </div>
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-3">
             <button 
               onClick={handleExportPDF}
-              className="flex items-center gap-2 px-3 py-1.5 bg-white/60 border border-slate-200 rounded-lg text-xs font-bold text-slate-600 hover:bg-slate-50 transition shadow-sm backdrop-blur-md"
+              className="flex items-center gap-2 px-5 py-2.5 bg-white/80 border border-slate-200 rounded-xl text-xs font-black text-slate-600 hover:bg-white hover:shadow-lg transition-all shadow-sm backdrop-blur-md active:scale-95"
             >
-              <Printer size={14} /> Cetak
+              <Printer size={16} /> CETAK
             </button>
-            <button className="flex items-center gap-2 px-3 py-1.5 bg-gradient-to-r from-blue-600 to-indigo-600 text-white rounded-lg text-xs font-bold hover:shadow-lg hover:shadow-blue-500/30 transition transform hover:-translate-y-0.5">
-              <Download size={14} /> Excel / PDF
+            <button className="flex items-center gap-2 px-5 py-2.5 bg-gradient-to-br from-slate-800 to-slate-900 text-white rounded-xl text-xs font-black hover:shadow-xl hover:shadow-slate-500/20 transition-all transform hover:-translate-y-0.5 active:scale-95">
+              <Download size={16} /> EXCEL / PDF
             </button>
           </div>
         </div>
@@ -589,31 +592,31 @@ const InventoryReports: React.FC<InventoryReportsProps> = ({ budgets, schoolProf
         <AnimatePresence mode="wait">
 
         {activeReport === 'pengadaan' && (
-          <motion.div key="pengadaan" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }} className="flex flex-col h-full bg-white/40 relative z-0">
-            <div className="p-6 border-b border-slate-100 flex flex-wrap gap-4 justify-between items-center bg-blue-50/30">
-              <div className="flex items-center gap-3">
-                <div className="p-2 bg-blue-100 text-blue-600 rounded-lg">
-                  <Sparkles size={20} />
+          <motion.div key="pengadaan" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }} className="flex flex-col h-full bg-slate-50/30 relative z-0">
+            <div className="p-8 border-b border-slate-100 flex flex-wrap gap-6 justify-between items-center bg-white/40 backdrop-blur-md">
+              <div className="flex items-center gap-4">
+                <div className="p-3 bg-emerald-500/10 text-emerald-600 rounded-2xl shadow-inner">
+                  <Sparkles size={24} className="animate-pulse" />
                 </div>
                 <div>
-                  <h4 className="font-bold text-gray-800 text-sm">Input Data Inventaris</h4>
-                  <p className="text-[10px] text-gray-500 italic">Pilih dari SPJ yang terealisasi atau gunakan AI.</p>
+                  <h4 className="font-extrabold text-slate-800 text-md tracking-tight">Data Inventaris Masuk</h4>
+                  <p className="text-[11px] text-slate-500 font-bold uppercase tracking-widest opacity-70">Kelola item dari pengadaan SPJ</p>
                 </div>
               </div>
-              <div className="flex gap-2">
+              <div className="flex gap-3">
                 <button
                   onClick={() => setIsManualModalOpen(true)}
-                  className="flex items-center gap-2 px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-xs font-bold transition shadow-md shadow-emerald-200"
+                  className="flex items-center gap-2 px-6 py-3 bg-white border border-slate-200 hover:border-emerald-500 text-slate-700 hover:text-emerald-600 rounded-2xl text-xs font-black transition-all shadow-sm hover:shadow-emerald-500/10 active:scale-95"
                 >
-                  <Plus size={14} /> Tambah Manual
+                  <Plus size={16} /> TAMBAH MANUAL
                 </button>
                 <button
                   onClick={handleAnalyze}
                   disabled={isAnalyzing}
-                  className="flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-xs font-bold transition disabled:opacity-50 shadow-md shadow-blue-200"
+                  className="flex items-center gap-2 px-6 py-3 bg-blue-600 text-white rounded-2xl text-xs font-black transition-all disabled:opacity-50 shadow-lg shadow-blue-500/25 hover:shadow-blue-500/40 transform hover:-translate-y-0.5 active:scale-95"
                 >
-                  {isAnalyzing ? <Loader2 size={14} className="animate-spin" /> : <RefreshCw size={14} />}
-                  {isAnalyzing ? 'Menganalisis...' : 'Analisa AI'}
+                  {isAnalyzing ? <Loader2 size={16} className="animate-spin" /> : <RefreshCw size={16} />}
+                  {isAnalyzing ? 'MENGANALISIS...' : 'ANALISA AI'}
                 </button>
               </div>
             </div>
@@ -720,206 +723,172 @@ const InventoryReports: React.FC<InventoryReportsProps> = ({ budgets, schoolProf
 
             {/* Modal Manual Entry */}
             {isManualModalOpen && (
-              <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[100] flex items-center justify-center p-4 overflow-y-auto">
-                <div className="bg-white rounded-[2rem] shadow-2xl w-full max-w-4xl p-8 animate-fade-in-up relative my-auto">
-                  <div className="flex justify-between items-center mb-6">
-                    <div>
-                      <h3 className="text-2xl font-black text-slate-800">Input Manual Inventaris</h3>
-                      <p className="text-xs text-slate-500 font-bold uppercase tracking-widest mt-1">Pilih data dari Anggaran/SPJ yang terealisasi</p>
+              <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-md z-[100] flex items-center justify-center p-4 overflow-y-auto">
+                <motion.div 
+                  initial={{ opacity: 0, scale: 0.9, y: 30 }}
+                  animate={{ opacity: 1, scale: 1, y: 0 }}
+                  exit={{ opacity: 0, scale: 0.9, y: 30 }}
+                  className="bg-white/95 backdrop-blur-2xl rounded-[2.5rem] shadow-[0_32px_128px_rgba(0,0,0,0.15)] w-full max-w-4xl p-10 relative my-auto border border-white"
+                >
+                  <div className="flex justify-between items-start mb-10">
+                    <div className="flex items-center gap-5">
+                       <div className="w-16 h-16 bg-gradient-to-br from-emerald-500 to-teal-600 rounded-3xl flex items-center justify-center text-white shadow-xl shadow-emerald-500/20">
+                          <Plus size={32} />
+                       </div>
+                       <div>
+                          <h3 className="text-3xl font-black text-slate-800 tracking-tight">Input Manual Inventaris</h3>
+                          <p className="text-xs font-black text-slate-400 uppercase tracking-[0.2em] mt-1.5 flex items-center gap-2">
+                             <div className="w-1.5 h-1.5 rounded-full bg-emerald-500"></div>
+                             Data Anggaran SPJ Terealisasi
+                          </p>
+                       </div>
                     </div>
-                    <button onClick={() => { setIsManualModalOpen(false); setSelectedBudget(null); }} className="p-2 hover:bg-slate-100 rounded-xl transition-colors">
-                      <X size={24} className="text-slate-400" />
+                    <button onClick={() => { setIsManualModalOpen(false); setSelectedBudget(null); }} className="p-3 hover:bg-slate-100/80 rounded-2xl transition-all hover:scale-110 active:scale-90 bg-slate-50 border border-slate-100 shadow-sm group">
+                      <X size={20} className="text-slate-400 group-hover:text-slate-600" />
                     </button>
                   </div>
 
                   {!selectedBudget ? (
-                    <div className="space-y-4">
-                      <p className="text-sm font-bold text-slate-700 mb-4">Pilih Item dari Anggaran:</p>
-                      <div className="max-h-[60vh] overflow-y-auto pr-2 space-y-2 scrollbar-hide">
+                    <div className="space-y-6">
+                      <div className="flex items-center justify-between px-2">
+                         <p className="text-sm font-black text-slate-800 uppercase tracking-widest flex items-center gap-2">
+                            <ClipboardList size={16} className="text-blue-500"/>
+                            Pilih Anggaran
+                         </p>
+                         <span className="text-[10px] bg-blue-50 text-blue-600 px-3 py-1 rounded-full font-bold">Total: {budgets.filter(b => b.type === 'belanja' && b.realizations && b.realizations.length > 0).length} Item</span>
+                      </div>
+                      
+                      <div className="max-h-[55vh] overflow-y-auto pr-2 space-y-3 custom-scrollbar">
                         {budgets
                           .filter(b => b.type === 'belanja' && b.realizations && b.realizations.length > 0)
                           .map(b => (
-                            <button
+                            <motion.button
+                              whileHover={{ x: 8, scale: 1.005 }}
                               key={b.id}
                               onClick={() => handleManualAdd(b)}
-                              className="w-full text-left p-4 rounded-2xl border border-slate-100 hover:border-blue-200 hover:bg-blue-50/30 transition-all group flex justify-between items-center"
+                              className="w-full text-left p-5 rounded-[1.5rem] bg-slate-50/50 border border-slate-100 hover:border-blue-400/50 hover:bg-blue-50/30 transition-all group flex justify-between items-center relative overflow-hidden"
                             >
-                              <div>
-                                <p className="font-bold text-slate-800 group-hover:text-blue-700 transition-colors">{b.description}</p>
-                                <div className="flex gap-3 mt-1 items-center">
-                                  <span className="text-[10px] bg-slate-100 text-slate-500 px-2 py-0.5 rounded-full font-mono">{b.account_code}</span>
-                                  <span className="text-[10px] text-slate-400">{formatRupiah(b.amount)}</span>
-                                  <span className="text-[10px] text-blue-600 font-bold uppercase">{b.realizations?.length} Realisasi</span>
+                              <div className="absolute left-0 top-0 w-1.5 h-full bg-blue-500 opacity-0 group-hover:opacity-100 transition-opacity"></div>
+                              <div className="flex-1">
+                                <p className="font-black text-slate-800 group-hover:text-blue-700 transition-colors leading-tight mb-2">{b.description}</p>
+                                <div className="flex flex-wrap gap-2 items-center">
+                                  <span className="text-[10px] bg-white border border-slate-200 text-slate-500 px-3 py-1 rounded-lg font-mono font-bold shadow-sm">{b.account_code}</span>
+                                  <span className="text-[10px] text-slate-500 font-black">{formatRupiah(b.amount)}</span>
+                                  <div className="h-1 w-1 rounded-full bg-slate-300"></div>
+                                  <span className="text-[9px] bg-blue-600 text-white px-3 py-1 rounded-lg font-black uppercase tracking-widest shadow-lg shadow-blue-500/20">{b.realizations?.length} REALISASI</span>
                                 </div>
                               </div>
-                              <ArrowRight size={18} className="text-slate-300 group-hover:text-blue-500 group-hover:translate-x-1 transition-all" />
-                            </button>
+                              <div className="p-3 bg-white rounded-2xl border border-slate-100 shadow-sm group-hover:scale-110 group-hover:bg-blue-600 group-hover:text-white transition-all">
+                                 <ArrowRight size={20} className="group-hover:translate-x-1 transition-transform" />
+                              </div>
+                            </motion.button>
                           ))}
                         {budgets.filter(b => b.type === 'belanja' && b.realizations && b.realizations.length > 0).length === 0 && (
-                          <div className="p-12 text-center text-slate-400 italic">Belum ada data SPJ yang terealisasi untuk dipilih.</div>
+                          <div className="p-20 text-center space-y-4">
+                             <div className="w-20 h-20 bg-slate-50 rounded-full flex items-center justify-center mx-auto border border-slate-100 mb-2">
+                                <Package size={32} className="text-slate-200" />
+                             </div>
+                             <p className="text-slate-400 font-bold italic">Belum ada data SPJ yang terealisasi untuk dipilih.</p>
+                          </div>
                         )}
                       </div>
                     </div>
                   ) : (
-                    <form onSubmit={submitManualForm} className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                      <div className="md:col-span-3 bg-blue-50/50 p-4 rounded-2xl border border-blue-100 mb-2">
-                        <p className="text-[10px] font-black text-blue-600 uppercase tracking-widest mb-1">Sumber Data:</p>
-                        <p className="text-sm font-bold text-slate-800">{selectedBudget.description}</p>
+                    <form onSubmit={submitManualForm} className="space-y-8">
+                      <div className="bg-gradient-to-br from-blue-600 to-indigo-700 p-8 rounded-[2rem] shadow-2xl shadow-blue-500/20 text-white relative overflow-hidden group">
+                        <div className="absolute -right-10 -bottom-10 opacity-10 rotate-12 group-hover:rotate-0 transition-transform duration-700">
+                           <Package size={200} />
+                        </div>
+                        <p className="text-[10px] font-black text-blue-200 uppercase tracking-[0.3em] mb-3 opacity-80 flex items-center gap-2">
+                           <div className="w-1.5 h-1.5 rounded-full bg-white animate-pulse"></div>
+                           Sumber Data Anggaran
+                        </p>
+                        <h4 className="text-2xl font-black tracking-tight">{selectedBudget.description}</h4>
+                        <div className="flex items-center gap-4 mt-4">
+                           <span className="bg-white/20 backdrop-blur-md px-4 py-1.5 rounded-xl border border-white/10 text-xs font-mono font-bold tracking-widest">{selectedBudget.account_code}</span>
+                           <span className="text-sm font-black text-blue-100">{formatRupiah(selectedBudget.amount)}</span>
+                        </div>
                       </div>
 
-                      <div className="space-y-1">
-                        <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Nama Barang</label>
-                        <input
-                          required
-                          className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 text-sm font-bold focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 outline-none"
-                          value={manualForm.name || ''}
-                          onChange={e => setManualForm({ ...manualForm, name: e.target.value })}
-                        />
-                      </div>
+                      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 pt-4">
+                        <div className="space-y-1.5">
+                          <label className="text-[10px] font-black text-slate-500 uppercase tracking-[0.2em] ml-2 block mb-1">Nama Barang</label>
+                          <input required className="w-full bg-slate-50/50 hover:bg-white focus:bg-white border border-slate-200 focus:border-blue-500 rounded-2xl px-5 py-3.5 text-sm font-bold shadow-sm outline-none ring-4 ring-transparent focus:ring-blue-500/10 transition-all placeholder:font-normal placeholder:text-slate-400" value={manualForm.name || ''} onChange={e => setManualForm({ ...manualForm, name: e.target.value })} />
+                        </div>
 
-                      <div className="space-y-1">
-                        <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Spesifikasi</label>
-                        <input
-                          className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 text-sm font-bold focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 outline-none"
-                          value={manualForm.spec || ''}
-                          onChange={e => setManualForm({ ...manualForm, spec: e.target.value })}
-                          placeholder="Misal: Merk A, Ukuran B, Warna C"
-                        />
-                      </div>
+                        <div className="space-y-1.5">
+                          <label className="text-[10px] font-black text-slate-500 uppercase tracking-[0.2em] ml-2 block mb-1">Spesifikasi</label>
+                          <input className="w-full bg-slate-50/50 hover:bg-white focus:bg-white border border-slate-200 focus:border-blue-500 rounded-2xl px-5 py-3.5 text-sm font-bold shadow-sm outline-none ring-4 ring-transparent focus:ring-blue-500/10 transition-all placeholder:font-normal placeholder:text-slate-400" value={manualForm.spec || ''} onChange={e => setManualForm({ ...manualForm, spec: e.target.value })} placeholder="Merk, Ukuran, Warna, dll" />
+                        </div>
 
-                      <div className="space-y-1">
-                        <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Kategori</label>
-                        <select
-                          className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 text-sm font-bold focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 outline-none"
-                          value={manualForm.category || 'Lainnya'}
-                          onChange={e => {
-                            const newCat = e.target.value;
-                            setManualForm({ ...manualForm, category: newCat as any });
-                            if (CATEGORY_SUB_MAP[newCat]) {
-                              setCurrentSubCategory(CATEGORY_SUB_MAP[newCat][0]);
-                            } else {
-                              setCurrentSubCategory('');
-                            }
-                          }}
-                        >
-                          <option value="Bahan">Bahan</option>
-                          <option value="Suku Cadang">Suku Cadang</option>
-                          <option value="Alat Atau Bahan Untuk Kegiatan Kantor">Alat atau Bahan Untuk Kegiatan Kantor</option>
-                          <option value="Obat Obatan">Obat Obatan</option>
-                          <option value="Persediaan Untuk dijual atau diserahkan">Persediaan Untuk dijual atau diserahkan</option>
-                          <option value="Persediaan untuk Strategis atau Berjaga jaga">Persediaan untuk Strategis atau Berjaga jaga</option>
-                          <option value="Natura dan Pakan">Natura dan Pakan</option>
-                          <option value="Persediaan Penelitian">Persediaan Penelitian</option>
-                          <option value="Lainnya">Lainnya</option>
-                        </select>
-                      </div>
-
-                      {manualForm.category && CATEGORY_SUB_MAP[manualForm.category] && (
-                        <div className="space-y-1 animate-fade-in">
-                          <label className="text-[10px] font-black text-blue-600 uppercase tracking-widest ml-1">Jenis {manualForm.category}</label>
-                          <select
-                            className="w-full bg-blue-50 border border-blue-200 rounded-xl px-4 py-2.5 text-sm font-bold focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 outline-none"
-                            value={currentSubCategory}
-                            onChange={e => setCurrentSubCategory(e.target.value)}
-                          >
-                            {CATEGORY_SUB_MAP[manualForm.category].map((sub: string) => (
-                              <option key={sub} value={sub}>{sub}</option>
-                            ))}
+                        <div className="space-y-1.5">
+                          <label className="text-[10px] font-black text-slate-500 uppercase tracking-[0.2em] ml-2 block mb-1">Kategori Persediaan</label>
+                          <select className="w-full bg-slate-50/50 hover:bg-white focus:bg-white border border-slate-200 focus:border-blue-500 rounded-2xl px-5 py-3.5 text-sm font-bold shadow-sm outline-none ring-4 ring-transparent focus:ring-blue-500/10 transition-all cursor-pointer appearance-none" value={manualForm.category || 'Lainnya'} onChange={e => {
+                              const newCat = e.target.value;
+                              setManualForm({ ...manualForm, category: newCat as any });
+                              if (CATEGORY_SUB_MAP[newCat]) setCurrentSubCategory(CATEGORY_SUB_MAP[newCat][0]);
+                              else setCurrentSubCategory('');
+                            }}>
+                            <option value="Bahan">Bahan</option>
+                            <option value="Suku Cadang">Suku Cadang</option>
+                            <option value="Alat Atau Bahan Untuk Kegiatan Kantor">Kegiatan Kantor</option>
+                            <option value="Obat Obatan">Obat Obatan</option>
+                            <option value="Natura dan Pakan">Natura & Pakan</option>
+                            <option value="Lainnya">Lainnya (Umum)</option>
                           </select>
                         </div>
-                      )}
 
-                      <div className="space-y-1">
-                        <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Jumlah</label>
-                        <input
-                          required
-                          type="number"
-                          className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 text-sm font-bold focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 outline-none"
-                          value={manualForm.quantity || ''}
-                          onChange={e => setManualForm({ ...manualForm, quantity: Number(e.target.value) })}
-                        />
+                        {manualForm.category && CATEGORY_SUB_MAP[manualForm.category] && (
+                          <motion.div initial={{ opacity: 0, x: -10 }} animate={{ opacity: 1, x: 0 }} className="space-y-1.5 md:col-span-2">
+                            <label className="text-[10px] font-black text-blue-600 uppercase tracking-[0.2em] ml-2 block mb-1">Sub Jenis : {manualForm.category}</label>
+                            <select className="w-full bg-blue-50/50 border border-blue-200 focus:border-blue-500 rounded-2xl px-5 py-3.5 text-sm font-bold shadow-sm outline-none ring-4 ring-transparent focus:ring-blue-500/10 transition-all cursor-pointer" value={currentSubCategory} onChange={e => setCurrentSubCategory(e.target.value)}>
+                              {CATEGORY_SUB_MAP[manualForm.category].map((sub: string) => <option key={sub} value={sub}>{sub}</option>)}
+                            </select>
+                          </motion.div>
+                        )}
+
+                        <div className="grid grid-cols-2 gap-4 md:col-span-1">
+                          <div className="space-y-1.5">
+                            <label className="text-[10px] font-black text-slate-500 uppercase tracking-[0.2em] ml-2 block mb-1">Jumlah</label>
+                            <input required type="number" className="w-full bg-slate-50/50 hover:bg-white focus:bg-white border border-slate-200 focus:border-blue-500 rounded-2xl px-5 py-3.5 text-sm font-bold shadow-sm outline-none transition-all" value={manualForm.quantity || ''} onChange={e => setManualForm({ ...manualForm, quantity: Number(e.target.value) })} />
+                          </div>
+                          <div className="space-y-1.5">
+                            <label className="text-[10px] font-black text-slate-500 uppercase tracking-[0.2em] ml-2 block mb-1">Satuan</label>
+                            <input required className="w-full bg-slate-50/50 hover:bg-white focus:bg-white border border-slate-200 focus:border-blue-500 rounded-2xl px-5 py-3.5 text-sm font-bold shadow-sm outline-none transition-all" value={manualForm.unit || ''} onChange={e => setManualForm({ ...manualForm, unit: e.target.value })} />
+                          </div>
+                        </div>
+
+                        <div className="space-y-1.5">
+                          <label className="text-[10px] font-black text-slate-500 uppercase tracking-[0.2em] ml-2 block mb-1">Harga Satuan</label>
+                          <input required type="number" className="w-full bg-slate-50/50 hover:bg-white focus:bg-white border border-slate-200 focus:border-blue-500 rounded-2xl px-5 py-3.5 text-sm font-bold shadow-sm outline-none transition-all" value={manualForm.price || ''} onChange={e => setManualForm({ ...manualForm, price: Number(e.target.value) })} />
+                        </div>
+
+                        <div className="space-y-1.5">
+                          <label className="text-[10px] font-black text-slate-500 uppercase tracking-[0.2em] ml-2 block mb-1">Tgl Perolehan</label>
+                          <input type="date" className="w-full bg-slate-50/50 hover:bg-white focus:bg-white border border-slate-200 focus:border-blue-500 rounded-2xl px-5 py-3.5 text-sm font-bold shadow-sm outline-none transition-all cursor-pointer" value={manualForm.date?.split('T')[0] || ''} onChange={e => setManualForm({ ...manualForm, date: e.target.value })} />
+                        </div>
+
+                        <div className="space-y-1.5">
+                          <label className="text-[10px] font-black text-slate-500 uppercase tracking-[0.2em] ml-2 block mb-1">Penyedia / Toko</label>
+                          <input className="w-full bg-slate-50/50 hover:bg-white focus:bg-white border border-slate-200 focus:border-blue-500 rounded-2xl px-5 py-3.5 text-sm font-bold shadow-sm outline-none transition-all placeholder:font-normal" value={manualForm.vendor || ''} onChange={e => setManualForm({ ...manualForm, vendor: e.target.value })} placeholder="Nama Toko / UD / PT" />
+                        </div>
+
+                        <div className="space-y-1.5">
+                          <label className="text-[10px] font-black text-slate-500 uppercase tracking-[0.2em] ml-2 block mb-1">Nomor Dokumen</label>
+                          <input className="w-full bg-slate-50/50 hover:bg-white focus:bg-white border border-slate-200 focus:border-blue-500 rounded-2xl px-5 py-3.5 text-sm font-bold shadow-sm outline-none transition-all font-mono" value={manualForm.docNumber || ''} onChange={e => setManualForm({ ...manualForm, docNumber: e.target.value })} placeholder="No Kuitansi/BAST" />
+                        </div>
                       </div>
 
-                      <div className="space-y-1">
-                        <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Satuan</label>
-                        <input
-                          required
-                          className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 text-sm font-bold focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 outline-none"
-                          value={manualForm.unit || ''}
-                          onChange={e => setManualForm({ ...manualForm, unit: e.target.value })}
-                        />
-                      </div>
-
-                      <div className="space-y-1">
-                        <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Harga Satuan</label>
-                        <input
-                          required
-                          type="number"
-                          className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 text-sm font-bold focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 outline-none"
-                          value={manualForm.price || ''}
-                          onChange={e => setManualForm({ ...manualForm, price: Number(e.target.value) })}
-                        />
-                      </div>
-
-                      <div className="space-y-1">
-                        <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Tgl Perolehan</label>
-                        <input
-                          type="date"
-                          className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 text-sm font-bold focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 outline-none"
-                          value={manualForm.date?.split('T')[0] || ''}
-                          onChange={e => setManualForm({ ...manualForm, date: e.target.value })}
-                        />
-                      </div>
-
-                      <div className="space-y-1">
-                        <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Bentuk Kontrak</label>
-                        <select
-                          className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 text-sm font-bold focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 outline-none"
-                          value={manualForm.contractType || 'Invoice'}
-                          onChange={e => setManualForm({ ...manualForm, contractType: e.target.value })}
-                        >
-                          <option value="Invoice">Invoice</option>
-                          <option value="Kuitansi">Kuitansi</option>
-                          <option value="Nota Kontan">Nota Kontan</option>
-                          <option value="BAST">BAST</option>
-                        </select>
-                      </div>
-
-                      <div className="space-y-1">
-                        <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Penyedia</label>
-                        <input
-                          className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 text-sm font-bold focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 outline-none"
-                          value={manualForm.vendor || ''}
-                          onChange={e => setManualForm({ ...manualForm, vendor: e.target.value })}
-                        />
-                      </div>
-                      <div className="space-y-1">
-                        <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Nomor Dokumen</label>
-                        <input
-                          className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 text-sm font-bold focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 outline-none"
-                          value={manualForm.docNumber || ''}
-                          onChange={e => setManualForm({ ...manualForm, docNumber: e.target.value })}
-                        />
-                      </div>
-
-                      <div className="md:col-span-3 pt-6 flex gap-3">
-                        <button
-                          type="button"
-                          onClick={() => setSelectedBudget(null)}
-                          className="flex-1 py-4 px-6 rounded-2xl border border-slate-200 text-slate-500 font-bold hover:bg-slate-50 transition-all font-mono tracking-tight"
-                        >
-                          KEMBALI
-                        </button>
-                        <button
-                          type="submit"
-                          className="flex-[2] py-4 px-6 rounded-2xl bg-blue-600 text-white font-black hover:bg-blue-700 shadow-xl shadow-blue-500/25 transition-all active:scale-95"
-                        >
-                          SIMPAN DATA
+                      <div className="flex gap-4 mt-12 bg-slate-50 p-6 rounded-[2rem] border border-slate-100">
+                        <button type="button" onClick={() => setSelectedBudget(null)} className="flex-1 py-4 px-6 rounded-2xl border-2 border-slate-200 text-slate-400 font-bold hover:bg-white hover:text-slate-600 transition-all font-mono tracking-widest text-xs uppercase">Batal & Kembali</button>
+                        <button type="submit" className="flex-[2] py-4 px-6 rounded-2xl bg-gradient-to-r from-blue-600 to-indigo-700 text-white font-black hover:shadow-2xl hover:shadow-blue-500/30 transition-all transform active:scale-95 flex items-center justify-center gap-3">
+                           <ShoppingBag size={20} />
+                           SIMPAN INVENTARIS
                         </button>
                       </div>
                     </form>
                   )}
-                </div>
+                </motion.div>
               </div>
             )}
           </motion.div>
@@ -927,118 +896,124 @@ const InventoryReports: React.FC<InventoryReportsProps> = ({ budgets, schoolProf
 
         {/* Modal Withdrawal Entry */}
         {isWithdrawalModalOpen && (
-          <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[100] flex items-center justify-center p-4 overflow-y-auto">
-            <div className="bg-white rounded-[2rem] shadow-2xl w-full max-w-4xl p-8 animate-fade-in-up relative my-auto">
-              <div className="flex justify-between items-center mb-6">
-                <div>
-                  <h3 className="text-2xl font-black text-slate-800">Catat Pengeluaran Barang</h3>
-                  <p className="text-xs text-slate-500 font-bold uppercase tracking-widest mt-1">Pilih barang dari Laporan Pengadaan</p>
+          <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-md z-[100] flex items-center justify-center p-4 overflow-y-auto">
+            <motion.div 
+               initial={{ opacity: 0, scale: 0.9, y: 30 }} animate={{ opacity: 1, scale: 1, y: 0 }}
+               className="bg-white/95 backdrop-blur-2xl rounded-[2.5rem] shadow-[0_32px_128px_rgba(0,0,0,0.15)] w-full max-w-4xl p-10 relative my-auto border border-white"
+            >
+              <div className="flex justify-between items-start mb-10">
+                <div className="flex items-center gap-5">
+                   <div className="w-16 h-16 bg-gradient-to-br from-orange-500 to-rose-600 rounded-3xl flex items-center justify-center text-white shadow-xl shadow-orange-500/20">
+                      <ArrowRightLeft size={32} />
+                   </div>
+                   <div>
+                      <h3 className="text-3xl font-black text-slate-800 tracking-tight">Catat Pengeluaran Barang</h3>
+                      <p className="text-xs font-black text-slate-400 uppercase tracking-[0.2em] mt-1.5 flex items-center gap-2">
+                         <div className="w-1.5 h-1.5 rounded-full bg-orange-500"></div>
+                         Daftar Inventaris Masuk
+                      </p>
+                   </div>
                 </div>
-                <button onClick={() => { setIsWithdrawalModalOpen(false); setSelectedInventoryItem(null); }} className="p-2 hover:bg-slate-100 rounded-xl transition-colors">
-                  <X size={24} className="text-slate-400" />
+                <button onClick={() => { setIsWithdrawalModalOpen(false); setSelectedInventoryItem(null); }} className="p-3 hover:bg-slate-100/80 rounded-2xl transition-all hover:scale-110 active:scale-90 bg-slate-50 border border-slate-100 shadow-sm">
+                  <X size={20} className="text-slate-400" />
                 </button>
               </div>
 
               {!selectedInventoryItem ? (
-                <div className="space-y-4">
-                  <p className="text-sm font-bold text-slate-700 mb-4">Pilih Barang dari Inventaris:</p>
-                  <div className="max-h-[60vh] overflow-y-auto pr-2 space-y-2 scrollbar-hide">
+                <div className="space-y-6">
+                  <div className="flex items-center justify-between px-2">
+                     <p className="text-sm font-black text-slate-800 uppercase tracking-widest flex items-center gap-2">
+                        <Package size={16} className="text-orange-500"/>
+                        Pilih Barang Keluar
+                     </p>
+                     <span className="text-[10px] bg-orange-50 text-orange-600 px-3 py-1 rounded-full font-bold">Total: {combinedItems.length} Item</span>
+                  </div>
+                  <div className="max-h-[55vh] overflow-y-auto pr-2 space-y-3 custom-scrollbar">
                     {combinedItems.length === 0 ? (
-                      <div className="p-12 text-center text-slate-400 italic">Belum ada data barang masuk. Masukkan data di Laporan Pengadaan terlebih dahulu.</div>
+                      <div className="p-20 text-center space-y-4">
+                         <div className="w-20 h-20 bg-slate-50 rounded-full flex items-center justify-center mx-auto border border-slate-100 mb-2">
+                            <ShoppingBag size={32} className="text-slate-200" />
+                         </div>
+                         <p className="text-slate-400 font-bold italic text-sm">Belum ada data barang masuk.<br/>Masukkan data di Laporan Pengadaan terlebih dahulu.</p>
+                      </div>
                     ) : (
                       combinedItems.map(item => (
-                        <button
+                        <motion.button
+                          whileHover={{ x: 8 }}
                           key={item.id}
                           onClick={() => {
                             setSelectedInventoryItem(item);
                             setWithdrawalForm({ ...withdrawalForm, quantity: item.quantity, docNumber: item.docNumber });
                           }}
-                          className="w-full text-left p-4 rounded-2xl border border-slate-100 hover:border-orange-200 hover:bg-orange-50/30 transition-all group flex justify-between items-center"
+                          className="w-full text-left p-5 rounded-[1.5rem] bg-slate-50/50 border border-slate-100 hover:border-orange-400/50 hover:bg-orange-50/30 transition-all group flex justify-between items-center relative overflow-hidden"
                         >
-                          <div>
-                            <p className="font-bold text-slate-800 group-hover:text-orange-700 transition-colors">{item.name}</p>
-                            <div className="flex gap-3 mt-1 items-center">
-                              <span className="text-[10px] bg-slate-100 text-slate-500 px-2 py-0.5 rounded-full font-mono">{item.category}</span>
-                              <span className="text-[10px] text-slate-400 font-bold">Tersedia: {item.quantity} {item.unit}</span>
-                              <span className="text-[10px] text-slate-400 italic">{item.spec}</span>
-                            </div>
-                          </div>
-                          <ArrowRight size={18} className="text-slate-300 group-hover:text-orange-500 group-hover:translate-x-1 transition-all" />
-                        </button>
+                           <div className="absolute left-0 top-0 w-1.5 h-full bg-orange-500 opacity-0 group-hover:opacity-100 transition-opacity"></div>
+                           <div className="flex-1">
+                              <p className="font-black text-slate-800 group-hover:text-orange-700 transition-colors leading-tight mb-2">{item.name}</p>
+                              <div className="flex flex-wrap gap-2 items-center">
+                                 <span className="text-[9px] bg-white border border-slate-200 text-slate-500 px-3 py-1 rounded-lg font-mono font-bold shadow-sm whitespace-nowrap overflow-hidden text-ellipsis max-w-[150px]">{item.category}</span>
+                                 <span className="text-[10px] text-orange-600 font-black">STOK : {item.quantity} {item.unit}</span>
+                                 <div className="h-1 w-1 rounded-full bg-slate-200"></div>
+                                 <span className="text-[10px] text-slate-400 italic">Spec: {item.spec}</span>
+                              </div>
+                           </div>
+                           <div className="p-3 bg-white rounded-2xl border border-slate-100 shadow-sm group-hover:scale-110 group-hover:bg-orange-600 group-hover:text-white transition-all">
+                              <ArrowRight size={20} className="group-hover:translate-x-1 transition-transform" />
+                           </div>
+                        </motion.button>
                       ))
                     )}
                   </div>
                 </div>
               ) : (
-                <form onSubmit={submitWithdrawalForm} className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                  <div className="md:col-span-2 bg-orange-50/50 p-4 rounded-2xl border border-orange-100 mb-2">
-                    <p className="text-[10px] font-black text-orange-600 uppercase tracking-widest mb-1">Barang yang Dikeluarkan:</p>
-                    <p className="text-sm font-bold text-slate-800">{selectedInventoryItem.name}</p>
-                    <p className="text-xs text-slate-500 italic">{selectedInventoryItem.spec}</p>
+                <form onSubmit={submitWithdrawalForm} className="space-y-8">
+                  <div className="bg-gradient-to-br from-orange-500 to-rose-600 p-8 rounded-[2rem] shadow-2xl shadow-orange-500/20 text-white relative overflow-hidden group">
+                     <div className="absolute -right-10 -bottom-10 opacity-10 rotate-12 group-hover:rotate-0 transition-transform duration-700">
+                        <ArrowRightLeft size={200} />
+                     </div>
+                     <p className="text-[10px] font-black text-orange-200 uppercase tracking-[0.3em] mb-3 opacity-80 flex items-center gap-2">
+                        <div className="w-1.5 h-1.5 rounded-full bg-white animate-pulse"></div>
+                        Barang yang Dikeluarkan
+                     </p>
+                     <h4 className="text-2xl font-black tracking-tight">{selectedInventoryItem.name}</h4>
+                     <div className="flex items-center gap-4 mt-4">
+                        <span className="bg-white/20 backdrop-blur-md px-4 py-1.5 rounded-xl border border-white/10 text-xs font-bold tracking-widest uppercase">{selectedInventoryItem.category}</span>
+                        <span className="text-sm font-black text-orange-50 italic">Spec: {selectedInventoryItem.spec}</span>
+                     </div>
                   </div>
 
-                  <div className="space-y-1">
-                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Tanggal Keluar</label>
-                    <input
-                      required
-                      type="date"
-                      className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 text-sm font-bold focus:ring-2 focus:ring-orange-500/20 focus:border-orange-500 outline-none"
-                      value={withdrawalForm.date}
-                      onChange={e => setWithdrawalForm({ ...withdrawalForm, date: e.target.value })}
-                    />
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-x-8 gap-y-6 pt-4">
+                    <div className="space-y-1.5">
+                      <label className="text-[10px] font-black text-slate-500 uppercase tracking-[0.2em] ml-2 block mb-1">Tanggal Keluar</label>
+                      <input required type="date" className="w-full bg-slate-50/50 hover:bg-white focus:bg-white border border-slate-200 focus:border-orange-500 rounded-2xl px-5 py-3.5 text-sm font-bold shadow-sm outline-none ring-4 ring-transparent focus:ring-orange-500/10 transition-all cursor-pointer" value={withdrawalForm.date} onChange={e => setWithdrawalForm({ ...withdrawalForm, date: e.target.value })} />
+                    </div>
+
+                    <div className="space-y-1.5">
+                      <label className="text-[10px] font-black text-slate-500 uppercase tracking-[0.2em] ml-2 block mb-1">Nomor Dokumen Pengeluaran</label>
+                      <input required className="w-full bg-slate-50/50 hover:bg-white focus:bg-white border border-slate-200 focus:border-orange-500 rounded-2xl px-5 py-3.5 text-sm font-bold shadow-sm outline-none ring-4 ring-transparent focus:ring-orange-500/10 transition-all font-mono" placeholder="No. BAST / Kuitansi" value={withdrawalForm.docNumber} onChange={e => setWithdrawalForm({ ...withdrawalForm, docNumber: e.target.value })} />
+                    </div>
+
+                    <div className="space-y-1.5">
+                      <label className="text-[10px] font-black text-slate-500 uppercase tracking-[0.2em] ml-2 block mb-1">Jumlah Keluar (STOK : {selectedInventoryItem.quantity} {selectedInventoryItem.unit})</label>
+                      <input required type="number" max={selectedInventoryItem.quantity} className="w-full bg-slate-50/50 hover:bg-white focus:bg-white border border-slate-200 focus:border-orange-500 rounded-2xl px-5 py-3.5 text-sm font-black shadow-sm outline-none transition-all text-orange-600 focus:ring-4 focus:ring-orange-500/10" value={withdrawalForm.quantity || ''} onChange={e => setWithdrawalForm({ ...withdrawalForm, quantity: Number(e.target.value) })} />
+                    </div>
+
+                    <div className="space-y-1.5">
+                      <label className="text-[10px] font-black text-slate-500 uppercase tracking-[0.2em] ml-2 block mb-1">Keterangan / Peruntukan</label>
+                      <input className="w-full bg-slate-50/50 hover:bg-white focus:bg-white border border-slate-200 focus:border-orange-500 rounded-2xl px-5 py-3.5 text-sm font-bold shadow-sm outline-none transition-all placeholder:font-normal" placeholder="Misal: Untuk kebutuhan KBM Kelas 6" value={withdrawalForm.notes} onChange={e => setWithdrawalForm({ ...withdrawalForm, notes: e.target.value })} />
+                    </div>
                   </div>
 
-                  <div className="space-y-1">
-                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Nomor Dokumen Pengeluaran</label>
-                    <input
-                      required
-                      className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 text-sm font-bold focus:ring-2 focus:ring-orange-500/20 focus:border-orange-500 outline-none"
-                      placeholder="Misal: 250213084713..."
-                      value={withdrawalForm.docNumber}
-                      onChange={e => setWithdrawalForm({ ...withdrawalForm, docNumber: e.target.value })}
-                    />
-                  </div>
-
-                  <div className="space-y-1">
-                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Jumlah Keluar (Max: {selectedInventoryItem.quantity} {selectedInventoryItem.unit})</label>
-                    <input
-                      required
-                      type="number"
-                      max={selectedInventoryItem.quantity}
-                      className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 text-sm font-bold focus:ring-2 focus:ring-orange-500/20 focus:border-orange-500 outline-none"
-                      value={withdrawalForm.quantity || ''}
-                      onChange={e => setWithdrawalForm({ ...withdrawalForm, quantity: Number(e.target.value) })}
-                    />
-                  </div>
-
-                  <div className="space-y-1">
-                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Keterangan / Peruntukan</label>
-                    <input
-                      className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 text-sm font-bold focus:ring-2 focus:ring-orange-500/20 focus:border-orange-500 outline-none"
-                      placeholder="Misal: Untuk kegiatan pramuka"
-                      value={withdrawalForm.notes}
-                      onChange={e => setWithdrawalForm({ ...withdrawalForm, notes: e.target.value })}
-                    />
-                  </div>
-
-                  <div className="md:col-span-2 pt-6 flex gap-3">
-                    <button
-                      type="button"
-                      onClick={() => setSelectedInventoryItem(null)}
-                      className="flex-1 py-4 px-6 rounded-2xl border border-slate-200 text-slate-500 font-bold hover:bg-slate-50 transition-all font-mono tracking-tight"
-                    >
-                      KEMBALI
-                    </button>
-                    <button
-                      type="submit"
-                      className="flex-[2] py-4 px-6 rounded-2xl bg-orange-600 text-white font-black hover:bg-orange-700 shadow-xl shadow-orange-500/25 transition-all active:scale-95"
-                    >
-                      SIMPAN PENGELUARAN
+                  <div className="flex gap-4 mt-12 bg-slate-50 p-6 rounded-[2rem] border border-slate-100">
+                    <button type="button" onClick={() => setSelectedInventoryItem(null)} className="flex-1 py-4 px-6 rounded-2xl border-2 border-slate-200 text-slate-400 font-bold hover:bg-white hover:text-slate-600 transition-all font-mono tracking-widest text-xs uppercase">Batal & Kembali</button>
+                    <button type="submit" className="flex-[2] py-4 px-6 rounded-2xl bg-gradient-to-r from-orange-600 to-rose-700 text-white font-black hover:shadow-2xl hover:shadow-orange-500/30 transition-all transform active:scale-95 flex items-center justify-center gap-3 uppercase tracking-wider text-sm">
+                       <ArrowRightLeft size={20} />
+                       Simpan Pengeluaran
                     </button>
                   </div>
                 </form>
               )}
-            </div>
+            </motion.div>
           </div>
         )}
 
