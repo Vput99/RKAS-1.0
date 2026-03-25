@@ -13,7 +13,7 @@ $action = {
     $changeType = $Event.SourceEventArgs.ChangeType
     $timeStamp = $Event.TimeGenerated
     
-    Write-Host "Change detected: $name at $timeStamp. Syncing..." -ForegroundColor Cyan
+    Write-Host "[$timeStamp] $changeType detected: $name ($path). Syncing..." -ForegroundColor Cyan
     npm run sync
 }
 
