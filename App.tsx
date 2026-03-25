@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { LayoutDashboard, Wallet, FileCheck, Settings as SettingsIcon, Menu, User, BookOpen, FileBarChart, LogOut, Download, Share, PlusSquare, X, School, TrendingUp, Landmark, FileText, ShoppingBag } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import Dashboard from './components/Dashboard';
@@ -76,6 +76,9 @@ function App() {
     }
   };
 
+  // Track if initial data has been loaded to prevent re-fetching on token refresh
+  const dataLoadedRef = useRef(false);
+
   useEffect(() => {
     if (!supabase) {
         console.warn("Supabase not configured. Using Guest Mode.");
@@ -91,15 +94,21 @@ function App() {
 
     const {
       data: { subscription },
-    } = supabase.auth.onAuthStateChange((_event, session) => {
+    } = supabase.auth.onAuthStateChange((event, session) => {
       setSession(session);
+      // Only refetch data on actual sign-in, NOT on token refresh
+      // TOKEN_REFRESHED fires when tab regains focus — this was causing the "auto-refresh"
+      if (event === 'SIGNED_IN' && !dataLoadedRef.current) {
+        // Will be handled by the session useEffect below
+      }
     });
 
     return () => subscription.unsubscribe();
   }, []);
 
   useEffect(() => {
-    if (session) {
+    if (session && !dataLoadedRef.current) {
+        dataLoadedRef.current = true;
         fetchData();
         checkConnection();
         setupRealtimeSubscription();
@@ -158,6 +167,7 @@ function App() {
   };
 
   const handleLogout = async () => {
+      dataLoadedRef.current = false;
       clearLocalData();
       if (supabase) await supabase.auth.signOut();
       window.location.reload(); 
