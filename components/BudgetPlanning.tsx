@@ -67,6 +67,7 @@ const BudgetPlanning: React.FC<BudgetPlanningProps> = ({ data, profile, onAdd, o
   const [isReviewOpen, setIsReviewOpen] = useState(false);
   const [reviewTab, setReviewTab] = useState<'pdf' | 'excel'>('pdf');
   const [reviewPeriod, setReviewPeriod] = useState<'yearly' | 'monthly'>('yearly');
+  const [isGroupedByAccount, setIsGroupedByAccount] = useState(false);
 
   // ── Form: Kegiatan (description / AI trigger) ──
   const [kegiatanQuery, setKegiatanQuery] = useState('');       // top search field
@@ -185,6 +186,20 @@ const BudgetPlanning: React.FC<BudgetPlanningProps> = ({ data, profile, onAdd, o
     [allExpenses]
   );
   const remainingBudget = PAGU_DANA - totalBudgeted;
+  
+  // Grouped data for preview
+  const groupedExpenses = useMemo(() => {
+    const expenses = reviewPeriod === 'yearly' ? allExpenses : monthExpenses;
+    const groups: Record<string, Budget[]> = {};
+    
+    expenses.forEach(item => {
+      const code = item.account_code || 'Tanpa Kode';
+      if (!groups[code]) groups[code] = [];
+      groups[code].push(item);
+    });
+    
+    return Object.entries(groups).sort(([a], [b]) => a.localeCompare(b));
+  }, [allExpenses, monthExpenses, reviewPeriod]);
 
   const formatRupiah = (num: number) =>
     new Intl.NumberFormat('id-ID', {
@@ -947,6 +962,26 @@ const BudgetPlanning: React.FC<BudgetPlanningProps> = ({ data, profile, onAdd, o
                     </div>
                     <div className="flex items-center bg-slate-100 rounded-lg p-1 gap-1">
                       <button
+                        onClick={() => setIsGroupedByAccount(false)}
+                        className={`px-3 py-1.5 rounded-md text-xs font-bold transition-all ${!isGroupedByAccount
+                          ? 'bg-white text-blue-600 shadow-sm'
+                          : 'text-slate-500 hover:text-slate-700'
+                          }`}
+                      >
+                        Kegiatan
+                      </button>
+                      <button
+                        onClick={() => setIsGroupedByAccount(true)}
+                        className={`px-3 py-1.5 rounded-md text-xs font-bold transition-all ${isGroupedByAccount
+                          ? 'bg-white text-blue-600 shadow-sm'
+                          : 'text-slate-500 hover:text-slate-700'
+                          }`}
+                      >
+                        Per Rekening
+                      </button>
+                    </div>
+                    <div className="flex items-center bg-slate-100 rounded-lg p-1 gap-1">
+                      <button
                         onClick={() => setReviewTab('pdf')}
                         className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-bold transition-all ${reviewTab === 'pdf'
                           ? 'bg-white text-rose-600 shadow-sm'
@@ -1061,30 +1096,73 @@ const BudgetPlanning: React.FC<BudgetPlanningProps> = ({ data, profile, onAdd, o
                                       Belum ada data anggaran
                                     </td>
                                   </tr>
-                                ) : (reviewPeriod === 'yearly' ? allExpenses : monthExpenses).map((item, i) => {
-                                  const qty = reviewPeriod === 'yearly' ? item.quantity : Math.round((item.quantity ?? 0) / Math.max(item.realization_months?.length || 1, 1));
-                                  const amt = reviewPeriod === 'yearly' ? item.amount : Math.round((item.amount) / Math.max(item.realization_months?.length || 1, 1));
-                                  return (
-                                    <tr key={item.id} className={i % 2 === 0 ? 'bg-white' : 'bg-slate-50/60'}>
-                                      <td className="px-2 py-1.5 text-center border border-slate-200">{i + 1}</td>
-                                      <td className="px-2 py-1.5 border border-slate-200">
-                                        <div className="font-semibold text-slate-900">{item.description}</div>
-                                        {item.account_code && (
-                                          <div className="text-[10px] text-slate-400 font-mono">{item.account_code} — {allAccounts[item.account_code] || ''}</div>
-                                        )}
-                                      </td>
-                                      <td className="px-2 py-1.5 text-center border border-slate-200">{qty}</td>
-                                      <td className="px-2 py-1.5 text-center border border-slate-200">{item.unit || '-'}</td>
-                                      <td className="px-2 py-1.5 text-right border border-slate-200 font-mono">{formatRupiah(item.unit_price || 0)}</td>
-                                      <td className="px-2 py-1.5 text-right border border-slate-200 font-mono font-bold text-slate-900">{formatRupiah(amt)}</td>
-                                      <td className="px-2 py-1.5 text-center border border-slate-200">
-                                        <span className="text-[9px] leading-tight">
-                                          {(item.realization_months || []).map(m => MONTHS_FULL[m - 1].slice(0, 3)).join(', ')}
-                                        </span>
-                                      </td>
-                                    </tr>
-                                  )
-                                })}
+                                ) : !isGroupedByAccount ? (
+                                  (reviewPeriod === 'yearly' ? allExpenses : monthExpenses).map((item, i) => {
+                                    const qty = reviewPeriod === 'yearly' ? item.quantity : Math.round((item.quantity ?? 0) / Math.max(item.realization_months?.length || 1, 1));
+                                    const amt = reviewPeriod === 'yearly' ? item.amount : Math.round((item.amount) / Math.max(item.realization_months?.length || 1, 1));
+                                    return (
+                                      <tr key={item.id} className={i % 2 === 0 ? 'bg-white' : 'bg-slate-50/60'}>
+                                        <td className="px-2 py-1.5 text-center border border-slate-200">{i + 1}</td>
+                                        <td className="px-2 py-1.5 border border-slate-200">
+                                          <div className="font-semibold text-slate-900">{item.description}</div>
+                                          {item.account_code && (
+                                            <div className="text-[10px] text-slate-400 font-mono">{item.account_code} — {allAccounts[item.account_code] || ''}</div>
+                                          )}
+                                        </td>
+                                        <td className="px-2 py-1.5 text-center border border-slate-200">{qty}</td>
+                                        <td className="px-2 py-1.5 text-center border border-slate-200">{item.unit || '-'}</td>
+                                        <td className="px-2 py-1.5 text-right border border-slate-200 font-mono">{formatRupiah(item.unit_price || 0)}</td>
+                                        <td className="px-2 py-1.5 text-right border border-slate-200 font-mono font-bold text-slate-900">{formatRupiah(amt)}</td>
+                                        <td className="px-2 py-1.5 text-center border border-slate-200">
+                                          <span className="text-[9px] leading-tight">
+                                            {(item.realization_months || []).map(m => MONTHS_FULL[m - 1].slice(0, 3)).join(', ')}
+                                          </span>
+                                        </td>
+                                      </tr>
+                                    )
+                                  })
+                                ) : (
+                                  groupedExpenses.map(([code, items], groupIdx) => (
+                                    <React.Fragment key={code}>
+                                      <tr className="bg-slate-100/80">
+                                        <td colSpan={7} className="px-2 py-1.5 border border-slate-200">
+                                          <div className="flex items-center gap-2">
+                                            <span className="bg-slate-800 text-white text-[9px] font-black px-1.5 py-0.5 rounded font-mono">{code}</span>
+                                            <span className="text-xs font-black text-slate-800 uppercase tracking-tight">{allAccounts[code] || 'Tanpa Kode Rekening'}</span>
+                                          </div>
+                                        </td>
+                                      </tr>
+                                      {items.map((item, i) => {
+                                        const qty = reviewPeriod === 'yearly' ? item.quantity : Math.round((item.quantity ?? 0) / Math.max(item.realization_months?.length || 1, 1));
+                                        const amt = reviewPeriod === 'yearly' ? item.amount : Math.round((item.amount) / Math.max(item.realization_months?.length || 1, 1));
+                                        return (
+                                          <tr key={item.id} className="bg-white">
+                                            <td className="px-2 py-1 text-center border border-slate-200 text-slate-400">{i + 1}</td>
+                                            <td className="px-2 py-1 border border-slate-200 pl-4">
+                                              <div className="text-[11px] font-medium text-slate-700">{item.description}</div>
+                                            </td>
+                                            <td className="px-2 py-1 text-center border border-slate-200">{qty}</td>
+                                            <td className="px-2 py-1 text-center border border-slate-200">{item.unit || '-'}</td>
+                                            <td className="px-2 py-1 text-right border border-slate-200 font-mono">{formatRupiah(item.unit_price || 0)}</td>
+                                            <td className="px-2 py-1 text-right border border-slate-200 font-mono font-bold text-slate-900">{formatRupiah(amt)}</td>
+                                            <td className="px-2 py-1 text-center border border-slate-200">
+                                              <span className="text-[9px]">
+                                                {(item.realization_months || []).map(m => MONTHS_FULL[m - 1].slice(0, 3)).join(', ')}
+                                              </span>
+                                            </td>
+                                          </tr>
+                                        )
+                                      })}
+                                      <tr className="bg-slate-50 font-bold border-b-2 border-slate-200">
+                                        <td colSpan={5} className="px-2 py-1 text-right border border-slate-200 text-[10px] text-slate-500 italic">Subtotal {code}</td>
+                                        <td className="px-2 py-1 text-right border border-slate-200 font-mono text-blue-700">
+                                          {formatRupiah(items.reduce((s, it) => s + (reviewPeriod === 'yearly' ? it.amount : Math.round(it.amount / Math.max(it.realization_months?.length || 1, 1))), 0))}
+                                        </td>
+                                        <td className="border border-slate-200" />
+                                      </tr>
+                                    </React.Fragment>
+                                  ))
+                                )}
                                 {(reviewPeriod === 'yearly' ? allExpenses : monthExpenses).length > 0 && (
                                   <tr className="bg-slate-800 text-white font-bold">
                                     <td colSpan={5} className="px-2 py-2 text-right border border-slate-600 uppercase tracking-widest text-[10px]">
@@ -1164,27 +1242,61 @@ const BudgetPlanning: React.FC<BudgetPlanningProps> = ({ data, profile, onAdd, o
                                       Belum ada data anggaran
                                     </td>
                                   </tr>
-                                ) : (reviewPeriod === 'yearly' ? allExpenses : monthExpenses).map((item, i) => {
-                                  const qty = reviewPeriod === 'yearly' ? item.quantity : Math.round((item.quantity ?? 0) / Math.max(item.realization_months?.length || 1, 1));
-                                  const amt = reviewPeriod === 'yearly' ? item.amount : Math.round((item.amount) / Math.max(item.realization_months?.length || 1, 1));
-                                  return (
-                                    <tr key={item.id} className={i % 2 === 0 ? 'bg-white' : 'bg-emerald-50/40'}>
-                                      <td className="px-2 py-1.5 border border-slate-200 text-center text-slate-500">{i + 1}</td>
-                                      <td className="px-2 py-1.5 border border-slate-200">
-                                        <span className="text-teal-700 font-semibold truncate block max-w-[108px]">{item.category}</span>
-                                      </td>
-                                      <td className="px-2 py-1.5 border border-slate-200">
-                                        <span className="text-slate-500 font-semibold truncate block max-w-[88px]">{allAccounts[item.account_code || ''] || '-'}</span>
-                                      </td>
-                                      <td className="px-2 py-1.5 border border-slate-200 font-mono text-[10px] text-blue-600">{item.account_code || '-'}</td>
-                                      <td className="px-2 py-1.5 border border-slate-200 font-semibold text-slate-800">{item.description}</td>
-                                      <td className="px-2 py-1.5 border border-slate-200 text-center">{qty}</td>
-                                      <td className="px-2 py-1.5 border border-slate-200 text-center text-slate-600">{item.unit || '-'}</td>
-                                      <td className="px-2 py-1.5 border border-slate-200 text-right font-mono">{formatRupiah(item.unit_price || 0)}</td>
-                                      <td className="px-2 py-1.5 border border-slate-200 text-right font-mono font-bold text-emerald-800">{formatRupiah(amt)}</td>
-                                    </tr>
-                                  )
-                                })}
+                                ) : !isGroupedByAccount ? (
+                                  (reviewPeriod === 'yearly' ? allExpenses : monthExpenses).map((item, i) => {
+                                    const qty = reviewPeriod === 'yearly' ? item.quantity : Math.round((item.quantity ?? 0) / Math.max(item.realization_months?.length || 1, 1));
+                                    const amt = reviewPeriod === 'yearly' ? item.amount : Math.round((item.amount) / Math.max(item.realization_months?.length || 1, 1));
+                                    return (
+                                      <tr key={item.id} className={i % 2 === 0 ? 'bg-white' : 'bg-emerald-50/40'}>
+                                        <td className="px-2 py-1.5 border border-slate-200 text-center text-slate-500">{i + 1}</td>
+                                        <td className="px-2 py-1.5 border border-slate-200">
+                                          <span className="text-teal-700 font-semibold truncate block max-w-[108px]">{item.category}</span>
+                                        </td>
+                                        <td className="px-2 py-1.5 border border-slate-200">
+                                          <span className="text-slate-500 font-semibold truncate block max-w-[88px]">{allAccounts[item.account_code || ''] || '-'}</span>
+                                        </td>
+                                        <td className="px-2 py-1.5 border border-slate-200 font-mono text-[10px] text-blue-600">{item.account_code || '-'}</td>
+                                        <td className="px-2 py-1.5 border border-slate-200 font-semibold text-slate-800">{item.description}</td>
+                                        <td className="px-2 py-1.5 border border-slate-200 text-center">{qty}</td>
+                                        <td className="px-2 py-1.5 border border-slate-200 text-center text-slate-600">{item.unit || '-'}</td>
+                                        <td className="px-2 py-1.5 border border-slate-200 text-right font-mono">{formatRupiah(item.unit_price || 0)}</td>
+                                        <td className="px-2 py-1.5 border border-slate-200 text-right font-mono font-bold text-emerald-800">{formatRupiah(amt)}</td>
+                                      </tr>
+                                    )
+                                  })
+                                ) : (
+                                  groupedExpenses.map(([code, items]) => (
+                                    <React.Fragment key={code}>
+                                      <tr className="bg-emerald-100/50 font-bold border-y border-emerald-200">
+                                        <td colSpan={4} className="px-2 py-1 border border-slate-200 text-emerald-800 font-mono text-[10px]">{code}</td>
+                                        <td colSpan={5} className="px-2 py-1 border border-slate-200 text-emerald-900 uppercase tracking-tight">{allAccounts[code] || 'Tanpa Kode Rekening'}</td>
+                                      </tr>
+                                      {items.map((item, i) => {
+                                        const qty = reviewPeriod === 'yearly' ? item.quantity : Math.round((item.quantity ?? 0) / Math.max(item.realization_months?.length || 1, 1));
+                                        const amt = reviewPeriod === 'yearly' ? item.amount : Math.round((item.amount) / Math.max(item.realization_months?.length || 1, 1));
+                                        return (
+                                          <tr key={item.id} className="bg-white">
+                                            <td className="px-2 py-1 border border-slate-200 text-center text-slate-400">{i + 1}</td>
+                                            <td className="px-2 py-1 border border-slate-200 text-slate-400 truncate max-w-[80px]">{item.category}</td>
+                                            <td className="px-2 py-1 border border-slate-200 text-slate-400 truncate max-w-[70px] font-semibold">{allAccounts[code]?.split(' ').slice(0, 2).join(' ')}...</td>
+                                            <td className="px-2 py-1 border border-slate-200 font-mono text-[9px] text-slate-400">{code}</td>
+                                            <td className="px-2 py-1 border border-slate-200 pl-4 text-slate-700">{item.description}</td>
+                                            <td className="px-2 py-1 border border-slate-200 text-center">{qty}</td>
+                                            <td className="px-2 py-1 border border-slate-200 text-center">{item.unit || '-'}</td>
+                                            <td className="px-2 py-1 border border-slate-200 text-right font-mono">{formatRupiah(item.unit_price || 0)}</td>
+                                            <td className="px-2 py-1 border border-slate-200 text-right font-mono font-bold text-emerald-700">{formatRupiah(amt)}</td>
+                                          </tr>
+                                        )
+                                      })}
+                                      <tr className="bg-emerald-50/50 font-bold">
+                                        <td colSpan={8} className="px-2 py-1 text-right border border-slate-200 text-[10px] text-emerald-600 italic uppercase">Subtotal {code}</td>
+                                        <td className="px-2 py-1 text-right border border-slate-200 font-mono text-emerald-800">
+                                          {formatRupiah(items.reduce((s, it) => s + (reviewPeriod === 'yearly' ? it.amount : Math.round(it.amount / Math.max(it.realization_months?.length || 1, 1))), 0))}
+                                        </td>
+                                      </tr>
+                                    </React.Fragment>
+                                  ))
+                                )}
                                 {(reviewPeriod === 'yearly' ? allExpenses : monthExpenses).length > 0 && (
                                   <tr className="bg-emerald-700 text-white font-bold">
                                     <td colSpan={8} className="px-3 py-2 text-right border border-emerald-600 text-[10px] uppercase tracking-widest">TOTAL ANGGARAN {reviewPeriod === 'monthly' ? 'BULAN INI' : ''}</td>

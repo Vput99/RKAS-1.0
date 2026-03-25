@@ -7,7 +7,8 @@
     "dev": "vite",
     "build": "vite build",
     "lint": "tsc && vite build",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "sync": "git add . && git commit -m \"update: budget planning enhancements\" && git push origin main"
   },
   "dependencies": {
     "@google/genai": "^1.37.0",
