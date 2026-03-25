@@ -151,12 +151,28 @@ const SPJRealization: React.FC<SPJRealizationProps> = ({ data, profile, onUpdate
       ? [...item.realization_months].sort((a, b) => a - b)
       : [1];
 
-    const totalAmount = item.amount;
-    const plannedAmountPerMonth = totalAmount / plannedMonths.length;
-    const passedPlannedMonths = plannedMonths.filter(m => m <= month);
+    let totalPlannedUntilNow = 0;
+    
+    // Support for specific month_quantities if available
+    if (item.month_quantities && Object.keys(item.month_quantities).length > 0) {
+      const unitPrice = item.unit_price || (item.quantity ? item.amount / item.quantity : 0);
+      Object.entries(item.month_quantities).forEach(([mStr, qty]) => {
+        const m = parseInt(mStr);
+        if (m <= month) {
+          totalPlannedUntilNow += qty * unitPrice;
+        }
+      });
+    } else {
+      // Fallback to average distribution
+      const totalAmount = item.amount;
+      const plannedAmountPerMonth = totalAmount / plannedMonths.length;
+      const passedPlannedMonths = plannedMonths.filter(m => m <= month);
+      
+      if (passedPlannedMonths.length > 0) {
+        totalPlannedUntilNow = plannedAmountPerMonth * passedPlannedMonths.length;
+      }
+    }
 
-    if (passedPlannedMonths.length === 0) return 0;
-    const totalPlannedUntilNow = plannedAmountPerMonth * passedPlannedMonths.length;
     const totalRealizedUntilNow = item.realizations?.reduce((s, r) => s + r.amount, 0) || 0;
     const available = Math.max(0, totalPlannedUntilNow - totalRealizedUntilNow);
     const realizedThisMonth = item.realizations?.filter(r => r.month === month).reduce((s, r) => s + r.amount, 0) || 0;
