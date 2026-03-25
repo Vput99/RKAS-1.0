@@ -1507,13 +1507,9 @@ const BudgetPlanning: React.FC<BudgetPlanningProps> = ({ data, profile, onAdd, o
                     </button>
                     <motion.button
                       type="submit"
-                      disabled={isEligible === false}
-                      whileHover={{ scale: isEligible === false ? 1 : 1.02 }}
-                      whileTap={{ scale: isEligible === false ? 1 : 0.98 }}
-                      className={`flex items-center gap-2 px-5 py-2.5 text-sm font-bold text-white rounded-lg transition-all shadow-sm ${isEligible === false
-                        ? 'bg-slate-300 cursor-not-allowed shadow-none'
-                        : 'bg-slate-900 hover:bg-slate-700 shadow-slate-400/30'
-                        }`}
+                      whileHover={{ scale: 1.02 }}
+                      whileTap={{ scale: 0.98 }}
+                      className="flex items-center gap-2 px-5 py-2.5 text-sm font-bold text-white rounded-lg transition-all shadow-sm bg-slate-900 hover:bg-slate-700 shadow-slate-400/30"
                     >
                       <Plus size={15} strokeWidth={2.5} />
                       Masukkan ke Anggaran
