@@ -614,8 +614,7 @@ const BudgetPlanning: React.FC<BudgetPlanningProps> = ({ data, profile, onAdd, o
             <table className="w-full text-left text-sm table-fixed min-w-[900px]">
               <colgroup>
                 <col className="w-9" />         {/* No */}
-                <col className="w-36" />        {/* Program Kegiatan */}
-                <col className="w-32" />        {/* Kegiatan */}
+                <col className="w-40" />        {/* Kegiatan */}
                 <col className="w-36" />        {/* Rekening Belanja */}
                 <col className="w-auto" />      {/* Uraian — flex */}
                 <col className="w-16" />        {/* Jumlah */}
@@ -628,7 +627,6 @@ const BudgetPlanning: React.FC<BudgetPlanningProps> = ({ data, profile, onAdd, o
               <thead>
                 <tr className="bg-slate-50/80 border-b border-slate-200/60">
                   <th className="px-3 py-3 text-[10px] font-black uppercase tracking-widest text-slate-500">#</th>
-                  <th className="px-3 py-3 text-[10px] font-black uppercase tracking-widest text-slate-500">Program Kegiatan</th>
                   <th className="px-3 py-3 text-[10px] font-black uppercase tracking-widest text-slate-500">Kegiatan</th>
                   <th className="px-3 py-3 text-[10px] font-black uppercase tracking-widest text-slate-500">Rekening Belanja</th>
                   <th className="px-3 py-3 text-[10px] font-black uppercase tracking-widest text-slate-500">Uraian</th>
@@ -649,7 +647,7 @@ const BudgetPlanning: React.FC<BudgetPlanningProps> = ({ data, profile, onAdd, o
                       animate={{ opacity: 1 }}
                       exit={{ opacity: 0 }}
                     >
-                      <td colSpan={10} className="px-6 py-16 text-center">
+                      <td colSpan={9} className="px-6 py-16 text-center">
                         <div className="flex flex-col items-center justify-center text-slate-400 gap-3">
                           <div className="w-16 h-16 rounded-2xl bg-slate-100 flex items-center justify-center">
                             <FileText size={32} strokeWidth={1.2} className="opacity-40" />
@@ -688,16 +686,6 @@ const BudgetPlanning: React.FC<BudgetPlanningProps> = ({ data, profile, onAdd, o
                         {/* No */}
                         <td className="px-3 py-3 text-xs font-bold text-slate-400 text-center">
                           {index + 1}
-                        </td>
-
-                        {/* Program Kegiatan (BOSP Component) */}
-                        <td className="px-3 py-3">
-                          <span
-                            title={item.bosp_component || '-'}
-                            className="block truncate text-xs font-semibold text-indigo-700 bg-indigo-50 border border-indigo-100 px-2 py-1 rounded-lg"
-                          >
-                            {item.bosp_component || '-'}
-                          </span>
                         </td>
 
                         {/* Kegiatan (SNP/Category) */}
@@ -829,7 +817,7 @@ const BudgetPlanning: React.FC<BudgetPlanningProps> = ({ data, profile, onAdd, o
               {monthExpenses.length > 0 && (
                 <tfoot>
                   <tr className="bg-gradient-to-r from-slate-50 to-blue-50/80 border-t-2 border-blue-100">
-                    <td colSpan={8} className="px-3 py-2.5 text-[10px] font-black uppercase tracking-widest text-slate-500 text-right">
+                    <td colSpan={7} className="px-3 py-2.5 text-[10px] font-black uppercase tracking-widest text-slate-500 text-right">
                       Total {MONTHS_FULL[activeMonth - 1]}
                     </td>
                     <td className="px-3 py-2.5 text-right">
@@ -1134,7 +1122,7 @@ const BudgetPlanning: React.FC<BudgetPlanningProps> = ({ data, profile, onAdd, o
                               <thead>
                                 <tr className="bg-emerald-600 text-white">
                                   <th className="w-8 px-2 py-2 border border-emerald-500 text-center">No</th>
-                                  <th className="w-28 px-2 py-2 border border-emerald-500 text-left">Komponen</th>
+                                  <th className="w-28 px-2 py-2 border border-emerald-500 text-left">Kegiatan</th>
                                   <th className="w-24 px-2 py-2 border border-emerald-500 text-left">Rekening</th>
                                   <th className="w-20 px-2 py-2 border border-emerald-500 text-left">Kode Akun</th>
                                   <th className="px-2 py-2 border border-emerald-500 text-left">Uraian Kegiatan</th>
@@ -1158,10 +1146,10 @@ const BudgetPlanning: React.FC<BudgetPlanningProps> = ({ data, profile, onAdd, o
                                     <tr key={item.id} className={i % 2 === 0 ? 'bg-white' : 'bg-emerald-50/40'}>
                                       <td className="px-2 py-1.5 border border-slate-200 text-center text-slate-500">{i + 1}</td>
                                       <td className="px-2 py-1.5 border border-slate-200">
-                                        <span className="text-indigo-700 font-semibold truncate block max-w-[108px]">{item.bosp_component}</span>
+                                        <span className="text-teal-700 font-semibold truncate block max-w-[108px]">{item.category}</span>
                                       </td>
                                       <td className="px-2 py-1.5 border border-slate-200">
-                                        <span className="text-teal-700 font-semibold truncate block max-w-[88px]">{item.category}</span>
+                                        <span className="text-slate-500 font-semibold truncate block max-w-[88px]">{allAccounts[item.account_code || ''] || '-'}</span>
                                       </td>
                                       <td className="px-2 py-1.5 border border-slate-200 font-mono text-[10px] text-blue-600">{item.account_code || '-'}</td>
                                       <td className="px-2 py-1.5 border border-slate-200 font-semibold text-slate-800">{item.description}</td>

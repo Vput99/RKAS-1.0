@@ -90,7 +90,8 @@ const filterRelevantAccounts = (query: string, accounts: Record<string, string>)
     queryLower.includes('pelatih') ||
     queryLower.includes('pembina') ||
     queryLower.includes('narasumber') ||
-    queryLower.includes('tukang');
+    queryLower.includes('tukang') ||
+    queryLower.includes('tenaga');
 
   // Keywords specific for Extracurricular/Experts
   const isEskulQuery =
@@ -100,6 +101,14 @@ const filterRelevantAccounts = (query: string, accounts: Record<string, string>)
     queryLower.includes('tari') ||
     queryLower.includes('drumband') ||
     queryLower.includes('basket') ||
+    queryLower.includes('silat') ||
+    queryLower.includes('bola') ||
+    queryLower.includes('renang') ||
+    queryLower.includes('karate') ||
+    queryLower.includes('pencak') ||
+    queryLower.includes('tahfidz') ||
+    queryLower.includes('mengaji') ||
+    queryLower.includes('lukis') ||
     queryLower.includes('ahli') ||
     queryLower.includes('instruktur');
 
@@ -127,10 +136,15 @@ const filterRelevantAccounts = (query: string, accounts: Record<string, string>)
       if (nameLower.includes('tenaga')) score += 20;
     }
 
-    // If user asks for Extracurricular/Scouts, Heavily Boost "Narasumber/Instruktur" or "Tenaga Ahli"
+    // If user asks for Extracurricular/Scouts, Heavily Boost "Tenaga Ahli" (5.1.02.02.01.0029)
     if (isEskulQuery) {
-      if (code === '5.1.02.02.01.0003' || nameLower.includes('narasumber') || nameLower.includes('instruktur') || nameLower.includes('ahli')) {
-        score += 300; // Massive boost to ensure visibility
+      // PRIMARY: Tenaga Ahli is the CORRECT code for honor ekstrakurikuler
+      if (code === '5.1.02.02.01.0029' || nameLower.includes('tenaga ahli')) {
+        score += 500; // Highest boost — this is the correct mapping
+      }
+      // SECONDARY: Narasumber/Instruktur as alternative
+      if (code === '5.1.02.02.01.0003' || nameLower.includes('narasumber') || nameLower.includes('instruktur')) {
+        score += 200;
       }
       if (nameLower.includes('pendidikan') && code.startsWith('5.1.02.02')) {
         score += 100;
@@ -206,47 +220,52 @@ export const analyzeBudgetEntry = async (description: string, availableAccounts:
         systemInstruction: `Anda adalah Auditor Senior BOSP & Ahli Implementasi ARKAS (Indonesia).
 Tugas Anda adalah memetakan narasi kegiatan sekolah ke dalam Standar Nasional Pendidikan (SNP) dan Kode Rekening Belanja yang sesuai dengan Juknis BOSP 2026.
 
-SNP STANDARDS & SCHOOL-SPECIFIC MAPPING (PANDUAN SDN TEMPUREJO 1):
+⚠️ ATURAN PEMETAAN WAJIB (PRIORITAS TERTINGGI — IKUTI TANPA PENGECUALIAN):
+Untuk setiap kegiatan, Anda HARUS mengisi KEDUA field: snp_standard DAN account_code sesuai tabel di bawah.
 
-1. **1. Pengembangan Kompetensi Lulusan**: 
-   - Fokus: Pengembangan prestasi & karakter. 
-   - Contoh: Pramuka, O2SN, FLS2N, Try Out, Pesantren Kilat.
-   - Rekening: 5.1.02.01.01.0026 (ATK/Sertifikat), 5.1.02.01.01.0052/53 (Konsumsi).
+FORMAT TABEL: Kegiatan → snp_standard | account_code
 
-2. **2. Pengembangan Standar Isi**: 
-   - Fokus: Perangkat pembelajaran & kurikulum. 
-   - Contoh: Penyusunan Kurikulum/KOSP, Workshop IKM.
-   - Rekening: 5.1.02.01.01.0026 (ATK), 5.1.02.02.01.0003 (Honor Narasumber).
+HONOR & UPAH:
+- Honor Ekstrakurikuler (Pramuka, Tari, Drumband, Silat, Basket, Renang, Karate, Tahfidz, Lukis, Catur, dll) → snp_standard: "1. Pengembangan Kompetensi Lulusan" | account_code: 5.1.02.02.01.0029
+- Honor Guru Honorer / GTT (bulanan) → snp_standard: "7. Pengembangan Standar Pembiayaan" | account_code: 5.1.02.02.01.0013
+- Honor Narasumber / Pembicara / Moderator → snp_standard: "4. Pengembangan Pendidik dan Tenaga Kependidikan" | account_code: 5.1.02.02.01.0003
+- Honor Penyelenggara Ujian (PTS/PAS/ANBK) → snp_standard: "8. Pengembangan dan Implementasi Sistem Penilaian" | account_code: 5.1.02.02.01.0009
+- Honor TU / Admin → snp_standard: "7. Pengembangan Standar Pembiayaan" | account_code: 5.1.02.02.01.0026
+- Honor Penjaga / Keamanan → snp_standard: "7. Pengembangan Standar Pembiayaan" | account_code: 5.1.02.02.01.0031
+- Honor Kebersihan → snp_standard: "7. Pengembangan Standar Pembiayaan" | account_code: 5.1.02.02.01.0030
+- Upah Tukang / Reparasi → snp_standard: "5. Pengembangan Sarana dan Prasarana" | account_code: 5.1.02.02.01.0016
+- Honor Operator Komputer → snp_standard: "7. Pengembangan Standar Pembiayaan" | account_code: 5.1.02.02.01.0027
+- Honor Pelatihan / IHT / Workshop / KKG → snp_standard: "4. Pengembangan Pendidik dan Tenaga Kependidikan" | account_code: 5.1.02.02.01.0011
+- Honor Laboratorium → snp_standard: "3. Pengembangan Standar Proses" | account_code: 5.1.02.02.01.0015
+- Honor Kesenian / Kebudayaan → snp_standard: "1. Pengembangan Kompetensi Lulusan" | account_code: 5.1.02.02.01.0025
 
-3. **3. Pengembangan Standar Proses**: 
-   - Fokus: KBM harian. 
-   - Contoh: Alat peraga, Buku tulis, Bahan praktik keterampilan.
-   - Rekening: 5.1.02.01.01.0024 (Kapur/Spidol), 5.1.02.01.01.0012 (Bahan Konstruksi Praktik).
+BELANJA BARANG & JASA:
+- ATK untuk ulangan/ujian → snp_standard: "8. Pengembangan dan Implementasi Sistem Penilaian" | account_code: 5.1.02.01.01.0024
+- ATK untuk kantor/admin → snp_standard: "6. Pengembangan Standar Pengelolaan" | account_code: 5.1.02.01.01.0024
+- Kertas/Cover untuk ujian → snp_standard: "8. Pengembangan dan Implementasi Sistem Penilaian" | account_code: 5.1.02.01.01.0025
+- Fotocopy/Cetak soal → snp_standard: "8. Pengembangan dan Implementasi Sistem Penilaian" | account_code: 5.1.02.01.01.0026
+- Konsumsi Rapat → snp_standard: "6. Pengembangan Standar Pengelolaan" | account_code: 5.1.02.01.01.0052
+- Konsumsi Kegiatan/Peserta didik → snp_standard: "1. Pengembangan Kompetensi Lulusan" | account_code: 5.1.02.01.01.0055
+- Bahan Praktik/Alat Peraga → snp_standard: "3. Pengembangan Standar Proses" | account_code: 5.1.02.01.01.0005
+- Listrik → snp_standard: "5. Pengembangan Sarana dan Prasarana" | account_code: 5.1.02.02.01.0061
+- Air → snp_standard: "5. Pengembangan Sarana dan Prasarana" | account_code: 5.1.02.02.01.0060
+- Internet/Wifi → snp_standard: "5. Pengembangan Sarana dan Prasarana" | account_code: 5.1.02.02.01.0063
+- Telepon → snp_standard: "5. Pengembangan Sarana dan Prasarana" | account_code: 5.1.02.02.01.0059
+- Pemeliharaan Gedung → snp_standard: "5. Pengembangan Sarana dan Prasarana" | account_code: 5.1.02.03.02.0111
+- Buku/Perpustakaan → snp_standard: "2. Pengembangan Standar Isi" | account_code: 5.2.02.13.01.0001
+- PPDB / Pendaftaran → snp_standard: "6. Pengembangan Standar Pengelolaan" | account_code: 5.1.02.01.01.0026
+- Penyusunan Kurikulum / KOSP → snp_standard: "2. Pengembangan Standar Isi" | account_code: 5.1.02.01.01.0024
+- Perjalanan Dinas Guru → snp_standard: "4. Pengembangan Pendidik dan Tenaga Kependidikan" | account_code: 5.1.02.04.01.0001
 
-4. **4. Pengembangan Pendidik dan Tenaga Kependidikan**: 
-   - Fokus: Peningkatan kualitas guru/tendik. 
-   - Contoh: KKG, Pelatihan IKM, In-House Training (IHT).
-   - Rekening: 5.1.02.04.01.0001 (Transport Guru), 5.1.02.01.01.0052 (Konsumsi Rapat).
-
-5. **5. Pengembangan Sarana dan Prasarana**: 
-   - Fokus: Fasilitas & perbaikan fisik. 
-   - Contoh: Pengecatan (Ringan), Atap bocor, Perbaikan bangku, Listrik, Internet.
-   - Rekening: 5.1.02.02.01.0061 (Listrik), 5.1.02.02.01.0063 (Internet), 5.1.02.03.02.0111 (Pemeliharaan Bangunan), 5.1.02.03.03.0041 (Servis Printer/Laptop).
-
-6. **6. Pengembangan Standar Pengelolaan**: 
-   - Fokus: Admin kantor, PPDB, Perencanaan. 
-   - Contoh: PPDB, Penyusunan RKAS, Majalah/Koran.
-   - Rekening: 5.1.02.02.01.0026 (Cetak Banner), 5.1.02.01.01.0027 (Materai).
-
-7. **7. Pengembangan Standar Pembiayaan**: 
-   - Fokus: Gaji/Honor pegawai NON-ASN. 
-   - Contoh: Pembayaran Honorarium GTT & PTT.
-   - Rekening: 5.1.02.02.01.0013 (Honor Guru), 5.1.02.02.01.0014 (Honor TU/Penjaga).
-
-8. **8. Pengembangan dan Implementasi Sistem Penilaian**: 
-   - Fokus: Evaluasi & Ujian. 
-   - Contoh: Ulangan Harian, PTS, PAS, ANBK.
-   - Rekening: 5.1.02.02.01.0013 (Fotokopi Soal), 5.1.02.01.01.0025 (Kertas/Cover).
+DAFTAR SNP (gunakan PERSIS string ini untuk field snp_standard):
+1. "1. Pengembangan Kompetensi Lulusan"
+2. "2. Pengembangan Standar Isi"
+3. "3. Pengembangan Standar Proses"
+4. "4. Pengembangan Pendidik dan Tenaga Kependidikan"
+5. "5. Pengembangan Sarana dan Prasarana"
+6. "6. Pengembangan Standar Pengelolaan"
+7. "7. Pengembangan Standar Pembiayaan"
+8. "8. Pengembangan dan Implementasi Sistem Penilaian"
 
 DATABASE REKENING (Hanya pilih kode dari list ini):
 ${relevantAccountsList}
