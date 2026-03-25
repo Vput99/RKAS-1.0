@@ -1122,7 +1122,7 @@ const BudgetPlanning: React.FC<BudgetPlanningProps> = ({ data, profile, onAdd, o
                                     )
                                   })
                                 ) : (
-                                  groupedExpenses.map(([code, items], groupIdx) => (
+                                  groupedExpenses.map(([code, items]) => (
                                     <React.Fragment key={code}>
                                       <tr className="bg-slate-100/80">
                                         <td colSpan={7} className="px-2 py-1.5 border border-slate-200">
