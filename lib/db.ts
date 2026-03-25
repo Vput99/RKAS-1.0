@@ -568,25 +568,25 @@ export const getStoredAccounts = async (): Promise<Record<string, string>> => {
     if (supabase) {
         try {
             const userId = await getCurrentUserId();
+            
+            // If no user session yet, skip DB query and use fallback
+            if (!userId) {
+                const local = localStorage.getItem(CUSTOM_ACCOUNTS_KEY);
+                const localMap = local ? JSON.parse(local) : {};
+                return { ...AccountCodes, ...localMap };
+            }
+            
             // Fetch both system accounts (NULL user_id) and current user's accounts
-            let query = supabase
+            const { data, error } = await supabase
                 .from('account_codes')
                 .select('*')
+                .or(`user_id.is.null,user_id.eq.${userId}`)
                 .order('code', { ascending: true });
-
-            if (userId) {
-                query = query.or(`user_id.is.null,user_id.eq.${userId}`);
-            } else {
-                query = query.is('user_id', null);
-            }
-
-            const { data, error } = await query;
 
             if (data && !error) {
                 const dbMap: Record<string, string> = {};
                 
-                // Sort data to ensure user-owned accounts override system ones if the code is the same
-                // We'll process NULL user_ids first, then user_ids
+                // Sort data to ensure user-owned accounts override system ones
                 const sorted = [...data].sort((a, b) => {
                     if (a.user_id === b.user_id) return 0;
                     return a.user_id === null ? -1 : 1;
@@ -596,13 +596,10 @@ export const getStoredAccounts = async (): Promise<Record<string, string>> => {
                     dbMap[item.code] = item.name;
                 });
 
-                // If the user has specific accounts, we might want to prioritize them 
-                // but still include the system ones they haven't overridden.
-                // If the user wants a CLEAN list from DB only, we return just dbMap.
-                // To support the USER request of "management", we use the DB as source of truth.
-                
-                // If we have data in DB, we rely on it.
+                // If we have data in DB, use it as source of truth
                 if (Object.keys(dbMap).length > 0) {
+                    // Cache to localStorage for offline use
+                    localStorage.setItem(CUSTOM_ACCOUNTS_KEY, JSON.stringify(dbMap));
                     return dbMap;
                 }
             }
