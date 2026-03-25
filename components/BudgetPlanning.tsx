@@ -94,11 +94,29 @@ const BudgetPlanning: React.FC<BudgetPlanningProps> = ({ data, profile, onAdd, o
   const [allAccounts, setAllAccounts] = useState<Record<string, string>>(AccountCodes);
   const dropdownRef = useRef<HTMLDivElement>(null);
   const tabsRef = useRef<HTMLDivElement>(null);
+  const accountsLoadedRef = useRef(false);
 
+  // Load accounts eagerly on mount so all DB codes are available
+  useEffect(() => {
+    const load = async () => {
+      try {
+        const accs = await getStoredAccounts();
+        if (Object.keys(accs).length > 0) {
+          setAllAccounts(accs);
+          accountsLoadedRef.current = true;
+        }
+      } catch (e) {
+        console.warn("Failed to load accounts from DB, using defaults");
+      }
+    };
+    load();
+  }, []);
+
+  // Reload accounts when modal opens (in case new ones were added)
   useEffect(() => {
     const load = async () => {
       const accs = await getStoredAccounts();
-      setAllAccounts(accs);
+      if (Object.keys(accs).length > 0) setAllAccounts(accs);
     };
     if (isModalOpen) load();
   }, [isModalOpen]);
