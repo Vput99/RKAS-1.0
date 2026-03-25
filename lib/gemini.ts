@@ -302,7 +302,7 @@ REWRITE: Tulis ulang "suggestion" menjadi nama kegiatan formal seperti di ARKAS.
       realization_months_estimate: [1],
       suggestion: description,
       suggestion_logic: "Gagal memproses narasi AI.",
-      is_eligible: true,
+      is_eligible: false,
       warning: "Gagal memproses respon AI (Format Invalid)."
     };
   } catch (error) {
@@ -317,7 +317,7 @@ REWRITE: Tulis ulang "suggestion" menjadi nama kegiatan formal seperti di ARKAS.
       realization_months_estimate: [1],
       suggestion: description,
       suggestion_logic: "Gangguan koneksi API.",
-      is_eligible: true,
+      is_eligible: false,
       warning: "Koneksi AI Gagal (Timeout/Limit)."
     };
   }
