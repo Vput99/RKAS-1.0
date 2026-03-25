@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useEffect } from 'react';
+import React, { useState, useMemo, useEffect, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import { motion, AnimatePresence, Variants } from 'framer-motion';
 import { Budget, TransactionType, SchoolProfile, TransferDetail, WithdrawalHistory } from '../types';
@@ -45,6 +45,7 @@ const BankWithdrawal: React.FC<BankWithdrawalProps> = ({ data, profile, onUpdate
     const [withdrawDate, setWithdrawDate] = useState(new Date().toISOString().split('T')[0]);
 
     const [historyList, setHistoryList] = useState<WithdrawalHistory[]>([]);
+    const debounceTimer = useRef<NodeJS.Timeout|null>(null);
 
     const [suratNo, setSuratNo] = useState('');
     const [ksName, setKsName] = useState('');
@@ -119,7 +120,8 @@ const BankWithdrawal: React.FC<BankWithdrawalProps> = ({ data, profile, onUpdate
         const newDetails = { ...recipientDetails };
         let changed = false;
         filteredRealizations.forEach(item => {
-            if (!newDetails[item.id]) {
+            // Only initialize if we don't have local edits yet, or if the budget item has data we haven't loaded
+            if (!newDetails[item.id] || (item.original.transfer_details && newDetails[item.id].account === '' && item.original.transfer_details.account !== '')) {
                 if (item.vendor || item.vendor_account) {
                     newDetails[item.id] = { name: item.vendor || '', account: item.vendor_account || '', ppn: 0, pph21: 0, pph22: 0, pph23: 0, pajakDaerah: 0 };
                     changed = true;
@@ -190,10 +192,24 @@ const BankWithdrawal: React.FC<BankWithdrawalProps> = ({ data, profile, onUpdate
     const toggleSelectAll = () => isAllSelected ? setSelectedBudgetIds([]) : setSelectedBudgetIds(filteredRealizations.map(d => d.id));
 
     const handleRecipientChange = (id: string, field: string, value: string | number) => {
+        const item = filteredRealizations.find(r => r.id === id);
+        if (!item) return;
+
+        const updatedDetail = { 
+            ...recipientDetails[id] || { name: '', account: '', ppn: 0, pph21: 0, pph22: 0, pph23: 0, pajakDaerah: 0 }, 
+            [field]: value 
+        };
+
         setRecipientDetails(prev => ({
             ...prev,
-            [id]: { ...prev[id] || { name: '', account: '', ppn: 0, pph21: 0, pph22: 0, pph23: 0, pajakDaerah: 0 }, [field]: value }
+            [id]: updatedDetail
         }));
+
+        // Debounced Save to Parent/DB
+        if (debounceTimer.current) clearTimeout(debounceTimer.current);
+        debounceTimer.current = setTimeout(() => {
+            onUpdate(item.budgetId, { transfer_details: updatedDetail });
+        }, 1000);
     };
 
     const applyBulkRecipient = () => {
@@ -201,6 +217,12 @@ const BankWithdrawal: React.FC<BankWithdrawalProps> = ({ data, profile, onUpdate
             const newState = { ...prev };
             selectedBudgetIds.forEach(id => {
                 newState[id] = { ...newState[id], name: bulkName, account: bulkAccount };
+                
+                // Persist each updated item
+                const realItem = filteredRealizations.find(r => r.id === id);
+                if (realItem) {
+                    onUpdate(realItem.budgetId, { transfer_details: newState[id] });
+                }
             });
             return newState;
         });
