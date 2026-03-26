@@ -1,22 +1,64 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, lazy, Suspense, memo } from 'react';
 import { LayoutDashboard, Wallet, FileCheck, Settings as SettingsIcon, Menu, User, BookOpen, FileBarChart, LogOut, Download, Share, PlusSquare, X, School, TrendingUp, Landmark, FileText, ShoppingBag } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
-import Dashboard from './components/Dashboard';
-import TransactionTable from './components/TransactionTable';
-import BudgetPlanning from './components/BudgetPlanning';
-import SPJRealization from './components/SPJRealization';
-import Reports from './components/Reports';
-import Settings from './components/Settings';
-import ChatAssistant from './components/ChatAssistant';
-import RaporPendidikan from './components/RaporPendidikan';
-import BankWithdrawal from './components/BankWithdrawal';
-import EvidenceTemplates from './components/EvidenceTemplates';
-import InventoryReports from './components/InventoryReports';
+
+// Code Splitting - Lazy Load heavy components
+const Dashboard = lazy(() => import('./components/Dashboard'));
+const TransactionTable = lazy(() => import('./components/TransactionTable'));
+const BudgetPlanning = lazy(() => import('./components/BudgetPlanning'));
+const SPJRealization = lazy(() => import('./components/SPJRealization'));
+const Reports = lazy(() => import('./components/Reports'));
+const Settings = lazy(() => import('./components/Settings'));
+const ChatAssistant = lazy(() => import('./components/ChatAssistant'));
+const RaporPendidikan = lazy(() => import('./components/RaporPendidikan'));
+const BankWithdrawal = lazy(() => import('./components/BankWithdrawal'));
+const EvidenceTemplates = lazy(() => import('./components/EvidenceTemplates'));
+const InventoryReports = lazy(() => import('./components/InventoryReports'));
+const BKU = lazy(() => import('./components/BKU'));
+
 import Auth from './components/Auth';
-import BKU from './components/BKU';
 import { getBudgets, addBudget, updateBudget, deleteBudget, getSchoolProfile, checkDatabaseConnection, clearLocalData } from './lib/db';
 import { supabase } from './lib/supabase';
 import { Budget, TransactionType, SchoolProfile } from './types';
+
+type AppTab = 'dashboard' | 'income' | 'planning' | 'spj' | 'reports' | 'rapor' | 'settings' | 'withdrawal' | 'evidence' | 'inventory' | 'bku';
+
+// Memoized NavItem to prevent unnecessary re-renders
+const NavItem = memo(({ 
+  id, 
+  label, 
+  icon: Icon, 
+  activeTab, 
+  isSidebarOpen, 
+  onSelect 
+}: { 
+  id: AppTab, 
+  label: string, 
+  icon: any, 
+  activeTab: AppTab, 
+  isSidebarOpen: boolean, 
+  onSelect: (id: AppTab) => void 
+}) => (
+  <button
+    onClick={() => onSelect(id)}
+    className={`w-full flex items-center ${!isSidebarOpen ? 'lg:justify-center' : 'gap-3 px-4'} py-3 rounded-2xl transition-all duration-300 relative group overflow-hidden ${
+      activeTab === id 
+        ? 'text-indigo-700 font-bold' 
+        : 'text-slate-600 hover:text-indigo-600 hover:bg-indigo-50/50'
+    }`}
+    title={label}
+  >
+    {activeTab === id && (
+       <motion.div 
+          layoutId="activeTabIndicator"
+          className="absolute inset-0 bg-indigo-100/80 backdrop-blur border border-indigo-200 shadow-sm rounded-2xl -z-10"
+          transition={{ type: "spring", stiffness: 300, damping: 30 }}
+       />
+    )}
+    <Icon size={20} className={`transition-transform duration-300 flex-shrink-0 ${activeTab === id ? 'scale-110 drop-shadow-sm' : 'group-hover:scale-110'}`} />
+    <span className={`font-semibold tracking-tight whitespace-nowrap transition-opacity duration-300 ${!isSidebarOpen ? 'lg:hidden' : ''}`}>{label}</span>
+  </button>
+));
 
 function App() {
   const [session, setSession] = useState<any>(null);
@@ -183,27 +225,7 @@ function App() {
     return () => window.removeEventListener('resize', handleResize);
   }, []);
 
-  const NavItem = ({ id, label, icon: Icon }: { id: typeof activeTab, label: string, icon: any }) => (
-    <button
-      onClick={() => { setActiveTab(id); if (window.innerWidth < 1024) setSidebarOpen(false); }}
-      className={`w-full flex items-center ${!isSidebarOpen ? 'lg:justify-center' : 'gap-3 px-4'} py-3 rounded-2xl transition-all duration-300 relative group overflow-hidden ${
-        activeTab === id 
-          ? 'text-indigo-700 font-bold' 
-          : 'text-slate-600 hover:text-indigo-600 hover:bg-indigo-50/50'
-      }`}
-      title={label}
-    >
-      {activeTab === id && (
-         <motion.div 
-            layoutId="activeTabIndicator"
-            className="absolute inset-0 bg-indigo-100/80 backdrop-blur border border-indigo-200 shadow-sm rounded-2xl -z-10"
-            transition={{ type: "spring", stiffness: 300, damping: 30 }}
-         />
-      )}
-      <Icon size={20} className={`transition-transform duration-300 flex-shrink-0 ${activeTab === id ? 'scale-110 drop-shadow-sm' : 'group-hover:scale-110'}`} />
-      <span className={`font-semibold tracking-tight whitespace-nowrap transition-opacity duration-300 ${!isSidebarOpen ? 'lg:hidden' : ''}`}>{label}</span>
-    </button>
-  );
+
 
   if (!authChecked) {
       return (
@@ -259,31 +281,31 @@ function App() {
 
           <nav className="px-4 space-y-1.5 flex-1 overflow-y-auto scrollbar-hide py-2 pb-8 relative z-10">
             <div className="space-y-1">
-              <NavItem id="dashboard" label="Dashboard Utama" icon={LayoutDashboard} />
-              <NavItem id="rapor" label="Rapor Pendidikan" icon={TrendingUp} />
+              <NavItem id="dashboard" label="Dashboard Utama" icon={LayoutDashboard} activeTab={activeTab} isSidebarOpen={isSidebarOpen} onSelect={(id: AppTab) => { setActiveTab(id); if (window.innerWidth < 1024) setSidebarOpen(false); }} />
+              <NavItem id="rapor" label="Rapor Pendidikan" icon={TrendingUp} activeTab={activeTab} isSidebarOpen={isSidebarOpen} onSelect={(id: AppTab) => { setActiveTab(id); if (window.innerWidth < 1024) setSidebarOpen(false); }} />
               
               <div className={`pt-6 pb-2 px-4 transition-all duration-300 ${!isSidebarOpen ? 'lg:hidden' : ''}`}>
                 <span className="text-[10px] font-black text-slate-400 uppercase tracking-[0.25em]">M. Anggaran</span>
               </div>
               
-              <NavItem id="income" label="Pendapatan BOS" icon={Wallet} />
-              <NavItem id="planning" label="Penganggaran RKAS" icon={BookOpen} />
-              <NavItem id="withdrawal" label="Pencairan Bank" icon={Landmark} />
+              <NavItem id="income" label="Pendapatan BOS" icon={Wallet} activeTab={activeTab} isSidebarOpen={isSidebarOpen} onSelect={(id: AppTab) => { setActiveTab(id); if (window.innerWidth < 1024) setSidebarOpen(false); }} />
+              <NavItem id="planning" label="Penganggaran RKAS" icon={BookOpen} activeTab={activeTab} isSidebarOpen={isSidebarOpen} onSelect={(id: AppTab) => { setActiveTab(id); if (window.innerWidth < 1024) setSidebarOpen(false); }} />
+              <NavItem id="withdrawal" label="Pencairan Bank" icon={Landmark} activeTab={activeTab} isSidebarOpen={isSidebarOpen} onSelect={(id: AppTab) => { setActiveTab(id); if (window.innerWidth < 1024) setSidebarOpen(false); }} />
               
               <div className={`pt-6 pb-2 px-4 transition-all duration-300 ${!isSidebarOpen ? 'lg:hidden' : ''}`}>
                 <span className="text-[10px] font-black text-slate-400 uppercase tracking-[0.25em]">Aktivitas</span>
               </div>
 
-              <NavItem id="spj" label="Pencatatan SPJ" icon={FileCheck} />
-              <NavItem id="evidence" label="Manajemen Bukti" icon={FileText} />
-              <NavItem id="inventory" label="Stok Opname" icon={ShoppingBag} />
+              <NavItem id="spj" label="Pencatatan SPJ" icon={FileCheck} activeTab={activeTab} isSidebarOpen={isSidebarOpen} onSelect={(id: AppTab) => { setActiveTab(id); if (window.innerWidth < 1024) setSidebarOpen(false); }} />
+              <NavItem id="evidence" label="Manajemen Bukti" icon={FileText} activeTab={activeTab} isSidebarOpen={isSidebarOpen} onSelect={(id: AppTab) => { setActiveTab(id); if (window.innerWidth < 1024) setSidebarOpen(false); }} />
+              <NavItem id="inventory" label="Stok Opname" icon={ShoppingBag} activeTab={activeTab} isSidebarOpen={isSidebarOpen} onSelect={(id: AppTab) => { setActiveTab(id); if (window.innerWidth < 1024) setSidebarOpen(false); }} />
               
               <div className={`pt-6 pb-2 px-4 transition-all duration-300 ${!isSidebarOpen ? 'lg:hidden' : ''}`}>
                  <span className="text-[10px] font-black text-slate-400 uppercase tracking-[0.25em]">Pelaporan Resmi</span>
               </div>
 
-              <NavItem id="bku" label="Buku Kas Umum" icon={FileText} />
-              <NavItem id="reports" label="Laporan BOS" icon={FileBarChart} />
+              <NavItem id="bku" label="Buku Kas Umum" icon={FileText} activeTab={activeTab} isSidebarOpen={isSidebarOpen} onSelect={(id: AppTab) => { setActiveTab(id); if (window.innerWidth < 1024) setSidebarOpen(false); }} />
+              <NavItem id="reports" label="Laporan BOS" icon={FileBarChart} activeTab={activeTab} isSidebarOpen={isSidebarOpen} onSelect={(id: AppTab) => { setActiveTab(id); if (window.innerWidth < 1024) setSidebarOpen(false); }} />
             </div>
             
             <div className="pt-6 mt-6 border-t border-slate-200/50 space-y-2 mb-6">
@@ -383,26 +405,33 @@ function App() {
                   </div>
                 ) : (
                   <AnimatePresence mode="wait">
-                    <motion.div
-                      key={activeTab}
-                      initial={{ opacity: 0, y: 15, scale: 0.99 }}
-                      animate={{ opacity: 1, y: 0, scale: 1 }}
-                      exit={{ opacity: 0, y: -15, scale: 0.99 }}
-                      transition={{ duration: 0.3, ease: [0.22, 1, 0.36, 1] }}
-                      className="min-h-full pb-10"
-                    >
-                      {activeTab === 'dashboard' && <Dashboard data={data} profile={schoolProfile} />}
-                      {activeTab === 'rapor' && <RaporPendidikan onAddBudget={handleAdd} budgetData={data} profile={schoolProfile} />}
-                      {activeTab === 'income' && <TransactionTable type={TransactionType.INCOME} data={data} onAdd={handleAdd} onDelete={handleDelete} />}
-                      {activeTab === 'planning' && <BudgetPlanning data={data} profile={schoolProfile} onAdd={handleAdd} onUpdate={handleUpdate} onDelete={handleDelete} />}
-                      {activeTab === 'withdrawal' && <BankWithdrawal data={data} profile={schoolProfile} onUpdate={handleUpdate} />}
-                      {activeTab === 'spj' && <SPJRealization data={data} profile={schoolProfile} onUpdate={handleUpdate} />}
-                      {activeTab === 'evidence' && <EvidenceTemplates budgets={data} onUpdate={handleUpdate} />}
-                      {activeTab === 'reports' && <Reports data={data} />}
-                      {activeTab === 'inventory' && <InventoryReports budgets={data} schoolProfile={schoolProfile!} />}
-                      {activeTab === 'bku' && <BKU data={data} profile={schoolProfile} onBack={() => setActiveTab('dashboard')} />}
-                      {activeTab === 'settings' && <Settings onProfileUpdate={(updated) => setSchoolProfile(updated)} />}
-                    </motion.div>
+                    <Suspense fallback={
+                      <div className="flex flex-col items-center justify-center h-full gap-4 text-indigo-400 animate-in fade-in zoom-in duration-500">
+                        <div className="w-12 h-12 border-4 border-indigo-200 border-t-indigo-600 rounded-full animate-spin"></div>
+                        <p className="font-bold tracking-widest uppercase text-xs animate-pulse">Menyiapkan Tampilan...</p>
+                      </div>
+                    }>
+                      <motion.div
+                        key={activeTab}
+                        initial={{ opacity: 0, y: 15, scale: 0.99 }}
+                        animate={{ opacity: 1, y: 0, scale: 1 }}
+                        exit={{ opacity: 0, y: -15, scale: 0.99 }}
+                        transition={{ duration: 0.3, ease: [0.22, 1, 0.36, 1] }}
+                        className="min-h-full pb-10"
+                      >
+                        {activeTab === 'dashboard' && <Dashboard data={data} profile={schoolProfile} />}
+                        {activeTab === 'rapor' && <RaporPendidikan onAddBudget={handleAdd} budgetData={data} profile={schoolProfile} />}
+                        {activeTab === 'income' && <TransactionTable type={TransactionType.INCOME} data={data} onAdd={handleAdd} onDelete={handleDelete} />}
+                        {activeTab === 'planning' && <BudgetPlanning data={data} profile={schoolProfile} onAdd={handleAdd} onUpdate={handleUpdate} onDelete={handleDelete} />}
+                        {activeTab === 'withdrawal' && <BankWithdrawal data={data} profile={schoolProfile} onUpdate={handleUpdate} />}
+                        {activeTab === 'spj' && <SPJRealization data={data} profile={schoolProfile} onUpdate={handleUpdate} />}
+                        {activeTab === 'evidence' && <EvidenceTemplates budgets={data} onUpdate={handleUpdate} />}
+                        {activeTab === 'reports' && <Reports data={data} />}
+                        {activeTab === 'inventory' && <InventoryReports budgets={data} schoolProfile={schoolProfile!} />}
+                        {activeTab === 'bku' && <BKU data={data} profile={schoolProfile} onBack={() => setActiveTab('dashboard')} />}
+                        {activeTab === 'settings' && <Settings onProfileUpdate={(updated) => setSchoolProfile(updated)} />}
+                      </motion.div>
+                    </Suspense>
                   </AnimatePresence>
                 )}
              </div>
@@ -411,7 +440,9 @@ function App() {
       </main>
 
       {/* AI Chat Bot */}
-      <ChatAssistant budgets={data} />
+      <Suspense fallback={null}>
+        <ChatAssistant budgets={data} />
+      </Suspense>
 
       {/* IOS Install Instructions Modal */}
       <AnimatePresence>
