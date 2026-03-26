@@ -42,7 +42,11 @@ const BKU: React.FC<BKUProps> = ({ data, profile, onBack }) => {
       if (item.type !== TransactionType.EXPENSE || !item.realizations) return;
 
       item.realizations.forEach((real, _idx) => {
-        if (real.month === selectedMonth) {
+        // Extract month from real.date (YYYY-MM-DD)
+        const realDate = new Date(real.date);
+        const realMonth = realDate.getMonth() + 1; // getMonth() is 0-indexed
+
+        if (realMonth === selectedMonth) {
           list.push({
             date: real.date,
             kegiatan: item.description,
@@ -81,7 +85,12 @@ const BKU: React.FC<BKUProps> = ({ data, profile, onBack }) => {
 
     const totalIncome = data.filter(d => d.type === TransactionType.INCOME).reduce((s, i) => s + i.amount, 0);
     const totalExpenseAllTime = data.filter(d => d.type === TransactionType.EXPENSE).reduce((s, e) => {
-      return s + (e.realizations?.filter(r => r.month <= selectedMonth).reduce((acc, r) => acc + r.amount, 0) || 0);
+      const expensesUpToMonth = e.realizations?.filter(r => {
+        const rDate = new Date(r.date);
+        const rMonth = rDate.getMonth() + 1;
+        return rMonth <= selectedMonth;
+      }).reduce((acc, r) => acc + r.amount, 0) || 0;
+      return s + expensesUpToMonth;
     }, 0);
 
     const targetBudget = data.filter(d => d.type === TransactionType.EXPENSE).reduce((s, e) => s + e.amount, 0);
