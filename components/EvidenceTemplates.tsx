@@ -6,7 +6,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import autoTable from 'jspdf-autotable';
 import { getSchoolProfile, uploadEvidenceFile, getWithdrawalHistory, updateWithdrawalHistory } from '../lib/db';
 import { SchoolProfile, Budget, EvidenceFile, WithdrawalHistory } from '../types';
-import { suggestEvidenceList } from '../lib/gemini';
+import { suggestEvidenceList, isAiConfigured } from '../lib/gemini';
 
 const MONTHS = [
   'Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni', 
@@ -412,7 +412,17 @@ const EvidenceTemplates = ({ budgets: allBudgets, onUpdate }: EvidenceTemplatesP
 
     setIsAiLoading(true);
     try {
-      let list = await suggestEvidenceList(combinedDescription);
+      let list: string[] = [];
+      
+      // Only call AI if configured
+      if (isAiConfigured()) {
+        list = await suggestEvidenceList(combinedDescription, combinedAccountCodes);
+      }
+      
+      // Fallback to local logic if AI returns nothing or is unconfigured
+      if (!list || list.length === 0) {
+        list = getEvidenceList(combinedDescription, combinedAccountCodes);
+      }
       
       if (isSiplah) {
         list = Array.from(new Set([...siplahItems, ...list]));
@@ -422,7 +432,8 @@ const EvidenceTemplates = ({ budgets: allBudgets, onUpdate }: EvidenceTemplatesP
       // Update cache
       setAiCache(prev => ({ ...prev, [combinedDescription]: list }));
     } catch (error) {
-      // Fallback to local logic
+      console.error("AI Analysis Error:", error);
+      // Fallback to local logic on error
       let fallback = getEvidenceList(combinedDescription, combinedAccountCodes);
       if (isSiplah) {
         fallback = Array.from(new Set([...siplahItems, ...fallback]));
@@ -2184,11 +2195,20 @@ const EvidenceTemplates = ({ budgets: allBudgets, onUpdate }: EvidenceTemplatesP
                   </div>
 
                   <div className="mb-6 p-4 bg-amber-50 border border-amber-100 rounded-lg">
-                    <h4 className="text-xs font-bold text-amber-800 flex items-center gap-2 mb-1">
-                      <AlertCircle size={14} /> Analisis Bukti Fisik Dibutuhkan:
-                    </h4>
+                    <div className="flex justify-between items-start mb-1">
+                        <h4 className="text-xs font-bold text-amber-800 flex items-center gap-2">
+                            <AlertCircle size={14} /> Analisis Bukti Fisik Dibutuhkan:
+                        </h4>
+                        {!isAiConfigured() && (
+                            <span className="text-[9px] bg-amber-200/50 text-amber-700 px-2 py-0.5 rounded-full font-bold border border-amber-200 flex items-center gap-1">
+                                <Sparkles size={8} /> Mode Aturan Lokal
+                            </span>
+                        )}
+                    </div>
                     <p className="text-[11px] text-amber-700 leading-relaxed">
-                      Berdasarkan Juknis BOSP 2026, transaksi ini memerlukan dokumen berikut untuk dinyatakan sah dalam audit.
+                      {isAiConfigured() 
+                        ? "Berdasarkan analisis AI dan Juknis BOSP 2026, transaksi ini memerlukan dokumen berikut untuk dinyatakan sah dalam audit."
+                        : "Berdasarkan Smart Rules Juknis BOSP 2026, transaksi ini memerlukan dokumen berikut untuk dinyatakan sah dalam audit."}
                     </p>
                   </div>
 
