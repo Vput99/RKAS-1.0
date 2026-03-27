@@ -705,8 +705,21 @@ const BankWithdrawal: React.FC<BankWithdrawalProps> = ({ data, profile, onUpdate
                                                         {h.file_url ? <a href={h.file_url} target="_blank" className="text-xs bg-red-50 text-red-600 px-2 py-1 rounded-lg">PDF</a> : '-'}
                                                     </td>
                                                     <td className="p-4 text-right gap-2 flex justify-end">
-                                                        <button onClick={()=>handleRestoreFromHistory(h)} className="p-1.5 bg-blue-50 text-blue-600 rounded-lg"><RefreshCcw size={14}/></button>
-                                                        <button onClick={()=>handleDeleteHistory(h.id)} className="p-1.5 bg-rose-50 text-rose-600 rounded-lg"><Trash2 size={14}/></button>
+                                                        <button 
+                                                            onClick={()=>handleRestoreFromHistory(h)} 
+                                                            className="flex items-center gap-1.5 px-3 py-1.5 bg-blue-50 text-blue-600 rounded-xl text-[10px] font-bold hover:bg-blue-100 transition-all border border-blue-100 shadow-sm"
+                                                            title="Edit Ulang (Gunakan data ini kembali)"
+                                                        >
+                                                            <RefreshCcw size={12}/>
+                                                            <span>Edit Ulang</span>
+                                                        </button>
+                                                        <button 
+                                                            onClick={()=>handleDeleteHistory(h.id)} 
+                                                            className="p-2 bg-rose-50 text-rose-600 rounded-xl hover:bg-rose-100 transition-all border border-rose-100 shadow-sm"
+                                                            title="Hapus Riwayat"
+                                                        >
+                                                            <Trash2 size={14}/>
+                                                        </button>
                                                     </td>
                                                 </tr>
                                             ))}
