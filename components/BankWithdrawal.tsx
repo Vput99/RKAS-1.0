@@ -143,67 +143,59 @@ const BankWithdrawal: React.FC<BankWithdrawalProps> = ({ data, profile, onUpdate
 
     const getGroupedData = () => {
         const selectedItems = filteredRealizations.filter(d => selectedBudgetIds.includes(d.id));
-        
-        if (isGroupingEnabled) {
-            // GABUNG: Kelompokkan berdasarkan Nama & No Rekening (Case-Insensitive)
-            // Ini memungkinkan user mencetak beberapa grup sekaligus jika store-nya berbeda, 
-            // tapi tetap menggabung item yang tokonya sama.
-            if (selectedItems.length === 0) return [];
+        if (selectedItems.length === 0) return [];
+
+        const groups: Record<string, {
+            name: string; account: string; amount: number; descriptions: string[];
+            taxes: { ppn: number; pph21: number; pph22: number; pph23: number; pajakDaerah: number; }
+        }> = {};
+
+        selectedItems.forEach(item => {
+            const detail = recipientDetails[item.id] || { name: '', account: '', ppn: 0, pph21: 0, pph22: 0, pph23: 0, pajakDaerah: 0 };
             
-            const groups: Record<string, {
-                name: string; account: string; amount: number; descriptions: string[];
-                taxes: { ppn: number; pph21: number; pph22: number; pph23: number; pajakDaerah: number; }
-            }> = {};
+            // PENTING: Nomor Rekening adalah kunci penggabungan UTAMA
+            const rawAccount = (detail.account?.trim() || bulkAccount.trim() || '');
+            const normalizedAccount = rawAccount.replace(/[\s-]/g, '');
+            const name = (detail.name?.trim() || bulkName.trim() || 'Penerima Belum Diisi');
 
-            selectedItems.forEach(item => {
-                const detail = recipientDetails[item.id] || { name: '', account: '', ppn: 0, pph21: 0, pph22: 0, pph23: 0, pajakDaerah: 0 };
-                
-                // PENTING: Gunakan Nomor Rekening sebagai kunci penggabungan UTAMA
-                const account = (detail.account?.trim() || bulkAccount.trim() || '-');
-                const name = (detail.name?.trim() || bulkName.trim() || 'Penerima Belum Diisi');
-                
-                // Key hanya berdasarkan nomor rekening (bersihkan spasi)
-                const key = account.replace(/[\s-]/g, ''); 
-
-                if (!groups[key]) {
-                    groups[key] = {
-                        name, // Pakai nama pertama yang ditemukan untuk grup ini
-                        account,
-                        amount: 0,
-                        descriptions: [],
-                        taxes: { ppn: 0, pph21: 0, pph22: 0, pph23: 0, pajakDaerah: 0 }
-                    };
+            // SMART GROUPING LOGIC:
+            // 1. Jika ada Mode Gabungan -> Semua digabung berdasarkan Account (atau '-' jika kosong)
+            // 2. Jika Mode Terpisah -> Hanya digabung jika Account Number sama & tidak kosong
+            
+            let key = '';
+            if (isGroupingEnabled) {
+                // Semua digabung berdasarkan account (normalized)
+                key = normalizedAccount || 'no_account_group';
+            } else {
+                // Hanya digabung jika account tersedia (bukan empty/default)
+                if (normalizedAccount && normalizedAccount !== '') {
+                    key = `grouped_${normalizedAccount}`;
+                } else {
+                    // Jika tidak ada account, biarkan terpisah (key unik per item)
+                    key = `individual_${item.id}`;
                 }
+            }
 
-                groups[key].amount += item.amount;
-                groups[key].descriptions.push(item.description);
-                groups[key].taxes.ppn += (detail.ppn || 0);
-                groups[key].taxes.pph21 += (detail.pph21 || 0);
-                groups[key].taxes.pph22 += (detail.pph22 || 0);
-                groups[key].taxes.pph23 += (detail.pph23 || 0);
-                groups[key].taxes.pajakDaerah += (detail.pajakDaerah || 0);
-            });
-
-            return Object.values(groups);
-        } else {
-            // PISAH: Setiap item yang dicentang → punya toko & rekening sendiri
-            const groups: Record<string, {
-                name: string; account: string; amount: number; descriptions: string[];
-                taxes: { ppn: number; pph21: number; pph22: number; pph23: number; pajakDaerah: number; }
-            }> = {};
-            selectedItems.forEach(item => {
-                const detail = recipientDetails[item.id] || { name: '', account: '', ppn: 0, pph21: 0, pph22: 0, pph23: 0, pajakDaerah: 0 };
-                const key = `individual_${item.id}`;
+            if (!groups[key]) {
                 groups[key] = {
-                    name: detail.name?.trim() || '',
-                    account: detail.account?.trim() || '',
-                    amount: item.amount,
-                    descriptions: [item.description],
-                    taxes: { ppn: detail.ppn || 0, pph21: detail.pph21 || 0, pph22: detail.pph22 || 0, pph23: detail.pph23 || 0, pajakDaerah: detail.pajakDaerah || 0 }
+                    name,
+                    account: rawAccount || '-',
+                    amount: 0,
+                    descriptions: [],
+                    taxes: { ppn: 0, pph21: 0, pph22: 0, pph23: 0, pajakDaerah: 0 }
                 };
-            });
-            return Object.values(groups);
-        }
+            }
+
+            groups[key].amount += item.amount;
+            groups[key].descriptions.push(item.description);
+            groups[key].taxes.ppn += (detail.ppn || 0);
+            groups[key].taxes.pph21 += (detail.pph21 || 0);
+            groups[key].taxes.pph22 += (detail.pph22 || 0);
+            groups[key].taxes.pph23 += (detail.pph23 || 0);
+            groups[key].taxes.pajakDaerah += (detail.pajakDaerah || 0);
+        });
+
+        return Object.values(groups);
     };
 
     const toggleSelection = (id: string) => setSelectedBudgetIds(prev => prev.includes(id) ? prev.filter(i => i !== id) : [...prev, id]);
