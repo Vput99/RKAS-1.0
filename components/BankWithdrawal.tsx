@@ -157,14 +157,16 @@ const BankWithdrawal: React.FC<BankWithdrawalProps> = ({ data, profile, onUpdate
             selectedItems.forEach(item => {
                 const detail = recipientDetails[item.id] || { name: '', account: '', ppn: 0, pph21: 0, pph22: 0, pph23: 0, pajakDaerah: 0 };
                 
-                // Gunakan info dari baris rincian, atau fallback ke bulkName jika rincian baris kosong
-                const name = (detail.name?.trim() || bulkName.trim() || 'Penerima Belum Diisi');
+                // PENTING: Gunakan Nomor Rekening sebagai kunci penggabungan UTAMA
                 const account = (detail.account?.trim() || bulkAccount.trim() || '-');
-                const key = `${name.toLowerCase()}_${account}`;
+                const name = (detail.name?.trim() || bulkName.trim() || 'Penerima Belum Diisi');
+                
+                // Key hanya berdasarkan nomor rekening (bersihkan spasi)
+                const key = account.replace(/[\s-]/g, ''); 
 
                 if (!groups[key]) {
                     groups[key] = {
-                        name,
+                        name, // Pakai nama pertama yang ditemukan untuk grup ini
                         account,
                         amount: 0,
                         descriptions: [],
