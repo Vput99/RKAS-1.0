@@ -539,8 +539,8 @@ const BankWithdrawal: React.FC<BankWithdrawalProps> = ({ data, profile, onUpdate
                     <button
                         onClick={() => setIsGroupingEnabled(!isGroupingEnabled)}
                         className={`group flex items-center gap-3 px-6 py-4 rounded-[1.5rem] text-[10px] uppercase tracking-[0.2em] font-black transition-all duration-300 active:scale-95 ${isGroupingEnabled
-                                ? 'bg-indigo-600 text-white shadow-xl shadow-indigo-500/20 ring-4 ring-indigo-500/10'
-                                : 'bg-white text-slate-500 hover:text-slate-800 border border-slate-200'
+                            ? 'bg-indigo-600 text-white shadow-xl shadow-indigo-500/20 ring-4 ring-indigo-500/10'
+                            : 'bg-white text-slate-500 hover:text-slate-800 border border-slate-200'
                             }`}
                     >
                         {isGroupingEnabled ? <Users size={16} /> : <List size={16} />}
@@ -664,8 +664,8 @@ const BankWithdrawal: React.FC<BankWithdrawalProps> = ({ data, profile, onUpdate
                                                 <button
                                                     onClick={(e) => { e.stopPropagation(); setIsTaxModalOpen(true); }}
                                                     className={`px-3 py-1.5 rounded-xl text-[10px] font-black tracking-tight transition-all active:scale-95 flex items-center gap-2 mx-auto ${totalPot > 0
-                                                            ? 'bg-amber-100 text-amber-700 shadow-sm hover:bg-amber-200'
-                                                            : 'bg-slate-100 text-slate-400 hover:bg-slate-200'
+                                                        ? 'bg-amber-100 text-amber-700 shadow-sm hover:bg-amber-200'
+                                                        : 'bg-slate-100 text-slate-400 hover:bg-slate-200'
                                                         }`}
                                                 >
                                                     <Calculator size={12} />
@@ -748,9 +748,9 @@ const BankWithdrawal: React.FC<BankWithdrawalProps> = ({ data, profile, onUpdate
                             </div>
 
                             <div>
-                                <h3 className="text-4xl 2xl:text-5xl font-black tracking-tighter mb-4 drop-shadow-lg leading-none">
+                                <h2 className="text-4xl 2xl:text-3xl font-black tracking-tighter mb-4 drop-shadow-lg leading-none">
                                     {formatRupiah(totalSelectedAmount)}
-                                </h3>
+                                </h2>
                                 <div className="p-4 bg-black/20 backdrop-blur-sm rounded-2xl border border-white/5">
                                     <p className="text-[11px] text-indigo-100 font-bold italic leading-relaxed uppercase tracking-tight opacity-90">
                                         "# {getTerbilang(totalSelectedAmount)} Rupiah #"
