@@ -146,7 +146,12 @@ const BankWithdrawal: React.FC<BankWithdrawalProps> = ({ data, profile, onUpdate
         if (selectedItems.length === 0) return [];
 
         const groups: Record<string, {
-            name: string; account: string; amount: number; descriptions: string[];
+            key: string;
+            name: string;
+            account: string;
+            amount: number;
+            descriptions: string[];
+            items: any[];
             taxes: { ppn: number; pph21: number; pph22: number; pph23: number; pajakDaerah: number; }
         }> = {};
 
@@ -178,16 +183,24 @@ const BankWithdrawal: React.FC<BankWithdrawalProps> = ({ data, profile, onUpdate
 
             if (!groups[key]) {
                 groups[key] = {
+                    key, // Add key to the object for easier identification
                     name,
                     account: rawAccount || '-',
                     amount: 0,
                     descriptions: [],
+                    items: [], // Store full item objects for metadata persistence
                     taxes: { ppn: 0, pph21: 0, pph22: 0, pph23: 0, pajakDaerah: 0 }
                 };
             }
 
             groups[key].amount += item.amount;
             groups[key].descriptions.push(item.description);
+            groups[key].items.push({
+                budgetId: item.budgetId,
+                budgetDescription: item.description,
+                accountCode: item.account_code,
+                amount: item.amount
+            });
             groups[key].taxes.ppn += (detail.ppn || 0);
             groups[key].taxes.pph21 += (detail.pph21 || 0);
             groups[key].taxes.pph22 += (detail.pph22 || 0);

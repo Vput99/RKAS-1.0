@@ -267,10 +267,15 @@ const EvidenceTemplates = ({ budgets: allBudgets, onUpdate }: EvidenceTemplatesP
               date: record.letter_date,
               month: new Date(record.letter_date).getMonth() + 1,
               totalAmount: recipient.amount,
-              items: recipient.descriptions.map((desc: string) => ({
+              // Use persisted items if available (New format), otherwise fallback to descriptions (Old format)
+              items: recipient.items ? recipient.items.map((it: any) => ({
+                budgetDescription: it.budgetDescription,
+                amount: it.amount,
+                accountCode: it.accountCode
+              })) : (recipient.descriptions?.map((desc: string) => ({
                 budgetDescription: desc,
-                amount: recipient.amount / recipient.descriptions.length // Rough estimate
-              })),
+                amount: recipient.amount / (recipient.descriptions.length || 1)
+              })) || []),
               evidence_files: recipient.evidence_files || [],
               isHistory: true,
               historyId: record.id
@@ -348,6 +353,12 @@ const EvidenceTemplates = ({ budgets: allBudgets, onUpdate }: EvidenceTemplatesP
 
   // Sync selectedBudget with updated allBudgets from props
   useEffect(() => {
+    if (selectedGroup) {
+      handleProcessAi(selectedGroup);
+    }
+  }, [selectedGroup?.key]); // Use key as dependency for history groups
+
+  useEffect(() => {
     if (selectedBudget) {
       const updated = allBudgets.find(b => b.id === selectedBudget.id);
       if (updated) {
@@ -414,9 +425,14 @@ const EvidenceTemplates = ({ budgets: allBudgets, onUpdate }: EvidenceTemplatesP
     try {
       let list: string[] = [];
       
-      // Only call AI if configured
-      if (isAiConfigured()) {
-        list = await suggestEvidenceList(combinedDescription, combinedAccountCodes);
+      // Only call AI if configured AND description is not empty
+      if (isAiConfigured() && combinedDescription.trim() !== '') {
+        try {
+          list = await suggestEvidenceList(combinedDescription, combinedAccountCodes);
+        } catch (aiErr) {
+          console.error("AI Service Error:", aiErr);
+          list = [];
+        }
       }
       
       // Fallback to local logic if AI returns nothing or is unconfigured
@@ -424,6 +440,15 @@ const EvidenceTemplates = ({ budgets: allBudgets, onUpdate }: EvidenceTemplatesP
         list = getEvidenceList(combinedDescription, combinedAccountCodes);
       }
       
+      // Safety check: if list is STILL empty (should not happen with getEvidenceList), use absolute default
+      if (!list || list.length === 0) {
+        list = [
+            "Nota / Kuitansi Sah",
+            "Bukti Pembayaran / Transfer",
+            "Foto Dokumentasi Kegiatan/Barang"
+        ];
+      }
+
       if (isSiplah) {
         list = Array.from(new Set([...siplahItems, ...list]));
       }
@@ -432,14 +457,13 @@ const EvidenceTemplates = ({ budgets: allBudgets, onUpdate }: EvidenceTemplatesP
       // Update cache
       setAiCache(prev => ({ ...prev, [combinedDescription]: list }));
     } catch (error) {
-      console.error("AI Analysis Error:", error);
-      // Fallback to local logic on error
+      console.error("Critical AI Analysis Error:", error);
+      // Absolute fallback to local logic on error
       let fallback = getEvidenceList(combinedDescription, combinedAccountCodes);
       if (isSiplah) {
         fallback = Array.from(new Set([...siplahItems, ...fallback]));
       }
       setSuggestedEvidence(fallback);
-      setAiCache(prev => ({ ...prev, [combinedDescription]: fallback }));
     } finally {
       setIsAiLoading(false);
     }
