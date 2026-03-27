@@ -1,0 +1,17 @@
+model_list:
+  - model_name: gemini-1.5-flash
+    litellm_params:
+      model: google/gemini-1.5-flash
+      api_key: os.environ/GEMINI_API_KEY
+  - model_name: groq-llama3
+    litellm_params:
+      model: groq/llama3-70b-8192
+      api_key: os.environ/GROQ_API_KEY
+  - model_name: deepseek-chat
+    litellm_params:
+      model: deepseek/deepseek-chat
+      api_key: os.environ/DEEPSEEK_API_KEY
+
+litellm_settings:
+  drop_params: true
+  set_verbose: false
