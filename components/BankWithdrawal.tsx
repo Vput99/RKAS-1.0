@@ -2,7 +2,7 @@ import React, { useState, useMemo, useEffect, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import { motion, AnimatePresence, Variants } from 'framer-motion';
 import { Budget, TransactionType, SchoolProfile, TransferDetail, WithdrawalHistory } from '../types';
-import { Printer, Landmark, CheckSquare, Square, Calendar, Users, Archive, RefreshCcw, Trash2, Calculator, Percent, List, Search } from 'lucide-react';
+import { Printer, Landmark, CheckSquare, Square, Calendar, Users, Archive, RefreshCcw, Trash2, Calculator, Percent, List, Search, FileText } from 'lucide-react';
 import { jsPDF } from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import { getWithdrawalHistory, saveWithdrawalHistory, deleteWithdrawalHistory, uploadWithdrawalFile } from '../lib/db';
@@ -505,33 +505,55 @@ const BankWithdrawal: React.FC<BankWithdrawalProps> = ({ data, profile, onUpdate
     const budgetTableContent = (
         <motion.div variants={itemVariants} className="space-y-4">
             {/* ── Filter Modern ── */}
-            <div className="flex flex-col lg:flex-row items-center gap-4 p-4 mt-6 bg-white/70 backdrop-blur-2xl rounded-[1.5rem] shadow-[0_8px_30px_rgb(0,0,0,0.04)] border border-white/80 transition-all hover:bg-white/90">
-                <div className="flex w-full lg:w-auto p-1.5 bg-slate-100/50 rounded-[1.2rem] border border-slate-200">
-                    <div className="flex items-center gap-3 w-full px-3 py-2 bg-white rounded-xl shadow-sm text-sm font-bold text-slate-700">
-                        <Calendar size={15} className="text-blue-500" />
-                        <select className="bg-transparent outline-none focus:text-blue-600 appearance-none pr-2 cursor-pointer transition-colors" value={startMonth} onChange={(e) => setStartMonth(Number(e.target.value))}>
-                            {MONTHS.map((m, i) => <option key={i+1} value={i+1}>{m}</option>)}
-                        </select>
-                        <span className="text-slate-300 font-medium">-</span>
-                        <select className="bg-transparent outline-none focus:text-blue-600 appearance-none cursor-pointer transition-colors" value={endMonth} onChange={(e) => setEndMonth(Number(e.target.value))}>
-                            {MONTHS.map((m, i) => <option key={i+1} value={i+1}>{m}</option>)}
-                        </select>
+            <div className="flex flex-col lg:flex-row items-center gap-6 p-6 mt-6 bg-white/40 backdrop-blur-2xl rounded-[2.5rem] border border-white/60 shadow-[0_8px_30px_rgba(0,0,0,0.02)] transition-all">
+                <div className="flex-shrink-0">
+                    <div className="flex items-center gap-3 px-6 py-4 bg-slate-50/50 border border-slate-200/60 rounded-[1.5rem] shadow-sm">
+                        <Calendar size={16} className="text-indigo-500" />
+                        <div className="flex items-center gap-2">
+                            <select className="bg-transparent outline-none font-bold text-xs text-slate-700 cursor-pointer hover:text-indigo-600 transition-colors appearance-none" value={startMonth} onChange={(e) => setStartMonth(Number(e.target.value))}>
+                                {MONTHS.map((m, i) => <option key={i+1} value={i+1}>{m}</option>)}
+                            </select>
+                            <span className="text-slate-300 font-medium">→</span>
+                            <select className="bg-transparent outline-none font-bold text-xs text-slate-700 cursor-pointer hover:text-indigo-600 transition-colors appearance-none" value={endMonth} onChange={(e) => setStartMonth(Number(e.target.value))}>
+                                {MONTHS.map((m, i) => <option key={i+1} value={i+1}>{m}</option>)}
+                            </select>
+                        </div>
                     </div>
                 </div>
                 
-                <div className="flex flex-1 items-center gap-3 w-full">
+                <div className="flex flex-1 items-center gap-4 w-full">
                     <div className="relative flex-1">
-                        <Search size={15} className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" />
-                        <input type="text" className="w-full pl-10 pr-4 py-3 bg-slate-100/50 hover:bg-white focus:bg-white border border-slate-200 focus:border-blue-400 rounded-2xl text-sm outline-none focus:ring-4 focus:ring-blue-500/10 transition-all shadow-sm font-semibold text-slate-700 placeholder:text-slate-400 placeholder:font-normal" placeholder="Cari Uraian..." value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} />
+                        <Search size={16} className="absolute left-5 top-1/2 -translate-y-1/2 text-slate-400" />
+                        <input 
+                            type="text" 
+                            className="w-full pl-12 pr-6 py-4 bg-slate-50/50 hover:bg-white focus:bg-white border border-slate-200/60 rounded-[1.5rem] text-sm outline-none focus:ring-4 focus:ring-indigo-500/5 transition-all shadow-sm font-bold text-slate-700 placeholder:text-slate-400 placeholder:font-medium" 
+                            placeholder="Cari Uraian Transaksi..." 
+                            value={searchTerm} 
+                            onChange={(e) => setSearchTerm(e.target.value)} 
+                        />
                     </div>
-                    <div className="relative w-1/3 min-w-[130px]">
-                        <input type="text" className="w-full pl-4 pr-4 py-3 bg-slate-100/50 hover:bg-white focus:bg-white border border-slate-200 focus:border-blue-400 rounded-2xl text-sm outline-none focus:ring-4 focus:ring-blue-500/10 transition-all shadow-sm font-mono font-bold text-slate-700 placeholder:text-slate-400 placeholder:font-sans placeholder:font-normal" placeholder="Filter Kode Rek" value={accountCodeFilter} onChange={(e) => setAccountCodeFilter(e.target.value)} />
+                    <div className="relative w-1/4 min-w-[150px]">
+                        <input 
+                            type="text" 
+                            className="w-full px-6 py-4 bg-slate-50/50 hover:bg-white focus:bg-white border border-slate-200/60 rounded-[1.5rem] text-sm outline-none focus:ring-4 focus:ring-indigo-500/5 transition-all shadow-sm font-mono font-bold text-slate-700 placeholder:text-slate-400 placeholder:font-sans placeholder:font-medium text-center" 
+                            placeholder="Kode Rek." 
+                            value={accountCodeFilter} 
+                            onChange={(e) => setAccountCodeFilter(e.target.value)} 
+                        />
                     </div>
                 </div>
 
-                <div className="flex w-full lg:w-auto items-center gap-2 justify-end shrink-0">
-                    <button onClick={() => setIsGroupingEnabled(!isGroupingEnabled)} className={`flex items-center gap-2 px-5 py-3 rounded-2xl text-[11px] uppercase tracking-wider font-bold transition-all ${isGroupingEnabled ? 'bg-gradient-to-r from-blue-600 to-indigo-600 text-white shadow-lg shadow-indigo-600/30 ring-2 ring-indigo-600/50 ring-offset-2' : 'bg-slate-100 text-slate-500 hover:bg-slate-200'}`}>
-                        {isGroupingEnabled ? <Users size={14} /> : <List size={14} />} {isGroupingEnabled ? 'Gabungkan' : 'Pisah Item'}
+                <div className="flex-shrink-0">
+                    <button 
+                        onClick={() => setIsGroupingEnabled(!isGroupingEnabled)} 
+                        className={`group flex items-center gap-3 px-6 py-4 rounded-[1.5rem] text-[10px] uppercase tracking-[0.2em] font-black transition-all duration-300 active:scale-95 ${
+                            isGroupingEnabled 
+                            ? 'bg-indigo-600 text-white shadow-xl shadow-indigo-500/20 ring-4 ring-indigo-500/10' 
+                            : 'bg-white text-slate-500 hover:text-slate-800 border border-slate-200'
+                        }`}
+                    >
+                        {isGroupingEnabled ? <Users size={16} /> : <List size={16} />}
+                        <span>{isGroupingEnabled ? 'Mode Gabungan' : 'Mode Terpisah'}</span>
                     </button>
                 </div>
             </div>
@@ -562,67 +584,113 @@ const BankWithdrawal: React.FC<BankWithdrawalProps> = ({ data, profile, onUpdate
                 </motion.div>
             )}
 
-            <div className="glass-panel overflow-hidden rounded-[1.5rem] border border-white/60 shadow-xl shadow-slate-200/40 relative max-h-[500px] overflow-y-auto custom-scrollbar">
+            <div className="glass-panel overflow-hidden rounded-[2.5rem] border border-white/60 shadow-2xl shadow-slate-200/40 relative max-h-[600px] overflow-y-auto custom-scrollbar">
                 <table className="w-full text-left text-sm text-slate-600 border-collapse">
-                    <thead className="bg-slate-50/80 backdrop-blur-md sticky top-0 z-10 font-bold border-b border-slate-100 uppercase tracking-widest text-[10px] text-slate-500">
+                    <thead className="bg-slate-50/80 backdrop-blur-md sticky top-0 z-10 border-b border-slate-100 uppercase tracking-[0.2em] text-[10px] text-slate-400 font-black">
                         <tr>
-                            <th className="p-3 w-10 text-center"><button onClick={toggleSelectAll} className="hover:text-blue-600 transition">{isAllSelected ? <CheckSquare size={16} className="text-blue-600" /> : <Square size={16} />}</button></th>
-                            <th className="p-3">
-                                <div className="flex items-center gap-2">Uraian 
-                                    {selectedBudgetIds.length > 0 && <button onClick={() => setIsTaxModalOpen(true)} className="ml-2 bg-emerald-100 text-emerald-700 px-2 py-1 rounded-lg flex items-center gap-1 shadow-sm"><Calculator size={12}/> Pajak</button>}
-                                </div>
+                            <th className="p-5 w-14 text-center">
+                                <button onClick={toggleSelectAll} className="hover:text-indigo-600 transition-all active:scale-90">
+                                    {isAllSelected ? <CheckSquare size={18} className="text-indigo-600" /> : <Square size={18} className="text-slate-300" />}
+                                </button>
                             </th>
+                            <th className="p-5">Uraian Transaksi</th>
                             {!isGroupingEnabled && (
                                 <>
-                                    <th className="p-3">
-                                        <div className="flex items-center justify-between">Penerima
-                                            {selectedBudgetIds.length > 1 && <button onClick={() => setIsBulkEditOpen(true)} className="ml-2 bg-indigo-100 text-indigo-700 px-2 py-1 rounded-lg flex items-center gap-1 shadow-sm"><Users size={12}/> Isi Masal</button>}
-                                        </div>
-                                    </th>
-                                    <th className="p-3">No.Rekening</th>
+                                    <th className="p-5">Penerima</th>
+                                    <th className="p-5">No. Rekening</th>
                                 </>
                             )}
-                            <th className="p-2 text-center text-[9px] w-16">PPh 21</th>
-                            <th className="p-2 text-center text-[9px] w-16">PPh 22</th>
-                            <th className="p-2 text-center text-[9px] w-16">PPh 23</th>
-                            <th className="p-2 text-center text-[9px] w-16">Daerah</th>
-                            <th className="p-3 text-right">SPJ Cair</th>
-                            <th className="p-3 text-right bg-blue-50/50">Bersih</th>
+                            <th className="p-5 text-center">Pajak</th>
+                            <th className="p-5 text-right">Nominal SPJ</th>
+                            <th className="p-5 text-right w-40 bg-indigo-50/30">Total Bersih</th>
                         </tr>
                     </thead>
                     <tbody className="divide-y divide-slate-100/60 bg-white/40">
                         {filteredRealizations.length === 0 ? (
-                            <tr><td colSpan={isGroupingEnabled ? 8 : 10} className="p-8 text-center text-slate-400 font-medium">Tidak ada realisasi.</td></tr>
+                            <tr><td colSpan={isGroupingEnabled ? 5 : 7} className="p-20 text-center">
+                                <div className="flex flex-col items-center gap-4 opacity-30">
+                                    <Archive size={48} />
+                                    <p className="font-bold tracking-widest uppercase text-xs">Data tidak ditemukan</p>
+                                </div>
+                            </td></tr>
                         ) : (
                             filteredRealizations.map((item) => {
                                 const detail = recipientDetails[item.id] || { name: '', account: '', ppn:0, pph21:0, pph22:0, pph23:0, pajakDaerah:0 };
                                 const totalPot = detail.ppn + detail.pph21 + detail.pph22 + detail.pph23 + detail.pajakDaerah;
                                 const isSel = selectedBudgetIds.includes(item.id);
                                 return (
-                                    <motion.tr key={item.id} className={`transition-colors ${isSel ? 'bg-blue-50/50' : 'hover:bg-white'}`}>
-                                        <td className="p-3 text-center cursor-pointer" onClick={() => toggleSelection(item.id)}>
-                                            {isSel ? <CheckSquare size={16} className="text-blue-600" /> : <Square size={16} className="text-slate-300" />}
+                                    <motion.tr 
+                                        key={item.id} 
+                                        whileHover={{ backgroundColor: "rgba(255,255,255,0.8)" }}
+                                        className={`transition-all duration-200 ${isSel ? 'bg-indigo-50/40' : ''}`}
+                                    >
+                                        <td className="p-5 text-center cursor-pointer" onClick={() => toggleSelection(item.id)}>
+                                            <div className="flex justify-center">
+                                                {isSel ? (
+                                                    <div className="w-5 h-5 bg-indigo-600 rounded-lg flex items-center justify-center text-white shadow-lg shadow-indigo-200">
+                                                        <CheckSquare size={14} />
+                                                    </div>
+                                                ) : (
+                                                    <div className="w-5 h-5 border-2 border-slate-200 rounded-lg group-hover:border-indigo-300 transition-colors" />
+                                                )}
+                                            </div>
                                         </td>
-                                        <td className="p-3 cursor-pointer text-xs" onClick={() => toggleSelection(item.id)}>
-                                            <div className="font-bold text-slate-800">{item.description}</div>
-                                            <div className="text-[10px] text-slate-400 font-mono mt-0.5">{item.account_code}</div>
+                                        <td className="p-5 cursor-pointer group" onClick={() => toggleSelection(item.id)}>
+                                            <div className={`font-bold transition-colors ${isSel ? 'text-indigo-900' : 'text-slate-700 group-hover:text-indigo-600'}`}>{item.description}</div>
+                                            <div className="flex items-center gap-2 mt-1.5">
+                                                <span className="text-[10px] px-2 py-0.5 bg-slate-100 text-slate-500 rounded-full font-mono font-bold tracking-tight">{item.account_code}</span>
+                                                <span className="text-[10px] text-slate-400 font-medium italic">{new Date(item.date).toLocaleDateString('id', { day: 'numeric', month: 'short' })}</span>
+                                            </div>
                                         </td>
                                         {!isGroupingEnabled && (
                                             <>
-                                                <td className="p-2">
-                                                    {isSel ? <input type="text" className="w-full bg-white border border-slate-200 rounded-lg px-2 py-1.5 text-xs outline-none focus:ring-2 focus:ring-blue-500 shadow-sm" value={detail.name} onChange={(e) => handleRecipientChange(item.id, 'name', e.target.value)} placeholder="Nama Toko" /> : <span className="text-slate-400">-</span>}
+                                                <td className="p-4">
+                                                    {isSel ? (
+                                                        <input 
+                                                            type="text" 
+                                                            className="w-full bg-white border border-slate-200 rounded-[1rem] px-4 py-2 text-xs outline-none focus:ring-4 focus:ring-indigo-500/10 font-bold text-slate-700 shadow-sm transition-all focus:border-indigo-400" 
+                                                            value={detail.name} 
+                                                            onChange={(e) => handleRecipientChange(item.id, 'name', e.target.value)} 
+                                                            placeholder="Nama Toko" 
+                                                        />
+                                                    ) : <span className="text-slate-300 font-medium text-xs">—</span>}
                                                 </td>
-                                                <td className="p-2">
-                                                    {isSel ? <input type="text" className="w-full bg-white border border-slate-200 rounded-lg px-2 py-1.5 text-xs outline-none focus:ring-2 focus:ring-blue-500 shadow-sm" value={detail.account} onChange={(e) => handleRecipientChange(item.id, 'account', e.target.value)} placeholder="No. Rekening" /> : <span className="text-slate-400">-</span>}
+                                                <td className="p-4">
+                                                    {isSel ? (
+                                                        <input 
+                                                            type="text" 
+                                                            className="w-full bg-white border border-slate-200 rounded-[1rem] px-4 py-2 text-xs outline-none focus:ring-4 focus:ring-indigo-500/10 font-mono font-bold text-slate-700 shadow-sm transition-all focus:border-indigo-400" 
+                                                            value={detail.account} 
+                                                            onChange={(e) => handleRecipientChange(item.id, 'account', e.target.value)} 
+                                                            placeholder="No. Rekening" 
+                                                        />
+                                                    ) : <span className="text-slate-300 font-medium text-xs">—</span>}
                                                 </td>
                                             </>
                                         )}
-                                        <td className="p-1">{isSel && <input type="number" className="w-full bg-white border border-slate-200 rounded text-right text-[10px] p-1 outline-none" value={detail.pph21||''} onChange={e=>handleRecipientChange(item.id, 'pph21', Number(e.target.value))}/>}</td>
-                                        <td className="p-1">{isSel && <input type="number" className="w-full bg-white border border-slate-200 rounded text-right text-[10px] p-1 outline-none" value={detail.pph22||''} onChange={e=>handleRecipientChange(item.id, 'pph22', Number(e.target.value))}/>}</td>
-                                        <td className="p-1">{isSel && <input type="number" className="w-full bg-white border border-slate-200 rounded text-right text-[10px] p-1 outline-none" value={detail.pph23||''} onChange={e=>handleRecipientChange(item.id, 'pph23', Number(e.target.value))}/>}</td>
-                                        <td className="p-1">{isSel && <input type="number" className="w-full bg-white border border-slate-200 rounded text-right text-[10px] p-1 outline-none" value={detail.pajakDaerah||''} onChange={e=>handleRecipientChange(item.id, 'pajakDaerah', Number(e.target.value))}/>}</td>
-                                        <td className="p-3 text-right font-mono font-bold text-slate-500 text-xs">{formatRupiah(item.amount)}</td>
-                                        <td className="p-3 text-right font-mono font-black text-emerald-600 bg-emerald-50/30 text-xs">{formatRupiah(item.amount - totalPot)}</td>
+                                        <td className="p-5 text-center">
+                                            {isSel ? (
+                                                <button 
+                                                    onClick={(e) => { e.stopPropagation(); setIsTaxModalOpen(true); }}
+                                                    className={`px-3 py-1.5 rounded-xl text-[10px] font-black tracking-tight transition-all active:scale-95 flex items-center gap-2 mx-auto ${
+                                                        totalPot > 0 
+                                                        ? 'bg-amber-100 text-amber-700 shadow-sm hover:bg-amber-200' 
+                                                        : 'bg-slate-100 text-slate-400 hover:bg-slate-200'
+                                                    }`}
+                                                >
+                                                    <Calculator size={12} />
+                                                    {totalPot > 0 ? formatRupiah(totalPot) : 'Atur Pajak'}
+                                                </button>
+                                            ) : (
+                                                <div className="w-1 h-1 bg-slate-200 rounded-full mx-auto" />
+                                            )}
+                                        </td>
+                                        <td className="p-5 text-right font-mono font-bold text-slate-500 text-xs">
+                                            {formatRupiah(item.amount)}
+                                        </td>
+                                        <td className={`p-5 text-right font-mono font-black text-xs transition-colors ${isSel ? 'text-indigo-600 bg-indigo-50/20' : 'text-slate-800'}`}>
+                                            {formatRupiah(item.amount - totalPot)}
+                                        </td>
                                     </motion.tr>
                                 );
                             })
@@ -636,25 +704,31 @@ const BankWithdrawal: React.FC<BankWithdrawalProps> = ({ data, profile, onUpdate
     return (
         <motion.div variants={containerVariants} initial="hidden" animate="show" className="relative space-y-6 pb-12 w-full max-w-[1500px] mx-auto min-h-[90vh]">
             {/* Background Ambience / Blobs */}
-            <div className="absolute top-0 right-0 w-full h-[600px] bg-gradient-to-b from-indigo-50/80 via-blue-50/50 to-transparent pointer-events-none -z-10 rounded-t-[3rem]" />
-            <div className="absolute -top-[5%] -right-[5%] w-[50vh] h-[50vh] bg-blue-300/20 rounded-full blur-[100px] pointer-events-none -z-10" />
-            <div className="absolute top-[20%] -left-[5%] w-[40vh] h-[40vh] bg-indigo-300/20 rounded-full blur-[100px] pointer-events-none -z-10" />
+            <div className="absolute top-0 right-0 w-full h-[800px] bg-gradient-to-b from-indigo-50/40 via-blue-50/20 to-transparent pointer-events-none -z-10 rounded-t-[4rem]" />
+            <div className="absolute -top-[10%] -right-[10%] w-[60vh] h-[60vh] bg-blue-400/10 rounded-full blur-[120px] pointer-events-none -z-10 animate-pulse" />
+            <div className="absolute top-[30%] -left-[10%] w-[50vh] h-[50vh] bg-indigo-400/10 rounded-full blur-[120px] pointer-events-none -z-10 animate-blob" />
 
             {/* Header Master */}
-            <motion.div variants={itemVariants} className="flex flex-col md:flex-row md:items-center justify-between bg-white/60 backdrop-blur-3xl p-8 rounded-[2rem] border border-white/80 shadow-[0_8px_30px_rgb(0,0,0,0.04)] relative overflow-hidden">
-                <div className="relative z-10 flex flex-col md:flex-row md:items-center gap-6">
-                    <div className="p-4 bg-gradient-to-br from-blue-600 to-indigo-700 rounded-3xl shadow-xl shadow-blue-500/30 text-white shrink-0">
-                        <Landmark size={32} className="drop-shadow-sm" strokeWidth={2.5} />
+            <motion.div variants={itemVariants} className="flex flex-col md:flex-row md:items-center justify-between bg-white/40 backdrop-blur-2xl p-8 rounded-[2.5rem] border border-white/60 shadow-[0_8px_40px_rgba(0,0,0,0.03)] relative overflow-hidden group">
+                <div className="relative z-10 flex flex-col md:flex-row md:items-center gap-8">
+                    <div className="relative">
+                        <div className="absolute inset-0 bg-blue-600 blur-2xl opacity-20 group-hover:opacity-30 transition-opacity" />
+                        <div className="p-5 bg-gradient-to-br from-blue-600 via-blue-700 to-indigo-800 rounded-3xl shadow-xl shadow-blue-500/20 text-white shrink-0 relative">
+                            <Landmark size={36} className="drop-shadow-md" strokeWidth={2} />
+                        </div>
                     </div>
                     <div>
-                        <div className="flex items-center gap-2 mb-2">
-                            <span className="px-3 py-1 bg-blue-50/80 backdrop-blur border border-blue-100 text-blue-700 text-[10px] font-black uppercase tracking-[0.2em] rounded-lg shadow-sm">Modul Pencairan Bank</span>
+                        <div className="flex items-center gap-3 mb-3">
+                            <span className="px-3 py-1 bg-indigo-50/50 backdrop-blur border border-indigo-100 text-indigo-600 text-[10px] font-black uppercase tracking-[0.3em] rounded-full shadow-sm">Modul Keuangan</span>
+                            <div className="w-1.5 h-1.5 rounded-full bg-slate-300" />
+                            <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Pencairan Bank</span>
                         </div>
-                        <h2 className="text-3xl lg:text-4xl font-black text-slate-800 tracking-tight drop-shadow-sm">Pengajuan Pencairan BOSP</h2>
+                        <h2 className="text-3xl lg:text-4xl font-black text-slate-900 tracking-tight leading-tight">Pengajuan Pencairan <span className="text-transparent bg-clip-text bg-gradient-to-r from-blue-600 to-indigo-600">BOSP</span></h2>
+                        <p className="text-sm text-slate-500 font-medium mt-1">Kelola dan cetak rincian transfer bank dengan aman dan sistematis.</p>
                     </div>
                 </div>
-                <div className="hidden lg:block absolute right-0 top-0 opacity-5 pointer-events-none">
-                    <Landmark size={250} className="-mt-16 rotate-12" />
+                <div className="hidden lg:block absolute -right-12 -top-12 opacity-[0.03] pointer-events-none group-hover:scale-110 group-hover:-rotate-3 transition-transform duration-1000">
+                    <Landmark size={320} />
                 </div>
             </motion.div>
 
@@ -662,24 +736,72 @@ const BankWithdrawal: React.FC<BankWithdrawalProps> = ({ data, profile, onUpdate
                 {/* Left Panel Sidebar */}
                 <motion.div variants={itemVariants} className="xl:col-span-1 flex flex-col gap-6">
                     {/* Total Card Premium */}
-                    <motion.div whileHover={{ scale: 1.02, y: -5 }} className="bg-gradient-to-br from-[#4f46e5] via-[#4338ca] to-[#7c3aed] p-8 rounded-[2rem] shadow-2xl shadow-indigo-500/30 text-white relative overflow-hidden flex flex-col justify-center min-h-[220px] group transition-all duration-300 border border-white/10 cursor-default">
-                        <Landmark size={180} className="absolute -right-8 -bottom-8 text-white/10 rotate-12 group-hover:rotate-6 group-hover:scale-110 transition-transform duration-700 ease-out" />
-                        <div className="absolute top-0 right-0 p-5 opacity-50 text-white"><Calculator size={24}/></div>
+                    <motion.div 
+                        whileHover={{ y: -8, scale: 1.01 }} 
+                        className="bg-slate-900 rounded-[2.5rem] p-8 shadow-2xl shadow-indigo-900/20 text-white relative overflow-hidden flex flex-col justify-center min-h-[240px] group transition-all duration-500 border border-white/10"
+                    >
+                        {/* Interactive Gradients */}
+                        <div className="absolute top-0 right-0 w-full h-full bg-gradient-to-br from-indigo-600 via-blue-700 to-purple-800 opacity-80 group-hover:opacity-100 transition-opacity duration-500" />
+                        <div className="absolute -top-24 -right-24 w-64 h-64 bg-white/10 rounded-full blur-3xl group-hover:scale-125 transition-transform duration-1000" />
+                        
+                        <Landmark size={200} className="absolute -right-12 -bottom-12 text-white/5 rotate-12 group-hover:rotate-6 group-hover:scale-110 transition-transform duration-700 ease-out z-0" />
+                        
                         <div className="relative z-10 flex flex-col h-full justify-between">
-                            <p className="text-[10px] font-black text-indigo-200 uppercase tracking-[0.2em] mb-4 opacity-100 drop-shadow-sm flex items-center gap-2">Total Terpilih</p>
+                            <div className="flex items-center justify-between mb-6">
+                                <p className="text-[10px] font-black text-indigo-100 uppercase tracking-[0.3em] flex items-center gap-2">
+                                    <span className="w-1.5 h-1.5 rounded-full bg-indigo-300 animate-pulse" />
+                                    Total Terpilih
+                                </p>
+                                <div className="p-2.5 bg-white/10 backdrop-blur-md rounded-2xl border border-white/10">
+                                    <Calculator size={18} className="text-indigo-200" />
+                                </div>
+                            </div>
+                            
                             <div>
-                                <h3 className="text-4xl xl:text-4xl 2xl:text-5xl font-black drop-shadow-[0_2px_10px_rgba(0,0,0,0.3)] tracking-tight mb-2 truncate">{formatRupiah(totalSelectedAmount)}</h3>
-                                <p className="text-[12px] text-indigo-100 font-medium italic opacity-90 leading-snug">{getTerbilang(totalSelectedAmount)} Rupiah</p>
+                                <h3 className="text-4xl 2xl:text-5xl font-black tracking-tighter mb-4 drop-shadow-lg leading-none">
+                                    {formatRupiah(totalSelectedAmount)}
+                                </h3>
+                                <div className="p-4 bg-black/20 backdrop-blur-sm rounded-2xl border border-white/5">
+                                    <p className="text-[11px] text-indigo-100 font-bold italic leading-relaxed uppercase tracking-tight opacity-90">
+                                        "# {getTerbilang(totalSelectedAmount)} Rupiah #"
+                                    </p>
+                                </div>
                             </div>
                         </div>
                     </motion.div>
 
                     {/* Info Cek Card */}
-                    <div className="glass-panel p-6 rounded-[2rem] border border-white/90 shadow-xl shadow-slate-200/50 bg-white/70 backdrop-blur-2xl transition-all hover:bg-white/80">
-                        <h3 className="font-black text-slate-800 mb-5 flex items-center gap-2 text-sm uppercase tracking-widest"><Calendar size={18} className="text-blue-600"/> Detail Cek / Giro</h3>
-                        <div className="space-y-5">
-                            <div><label className="text-[10px] font-bold text-slate-500 uppercase tracking-[0.15em] mb-2 block">No Cek / Giro</label><input type="text" className="w-full px-4 py-3 bg-slate-50 hover:bg-white focus:bg-white border border-slate-200 rounded-2xl outline-none focus:ring-4 focus:ring-blue-500/10 transition-all font-mono text-sm shadow-sm focus:border-blue-400 placeholder:font-sans placeholder:text-slate-400" value={chequeNo} onChange={e=>setChequeNo(e.target.value)} placeholder="Opsional"/></div>
-                            <div><label className="text-[10px] font-bold text-slate-500 uppercase tracking-[0.15em] mb-2 block">Tanggal Pencairan</label><input type="date" className="w-full px-4 py-3 bg-slate-50 hover:bg-white focus:bg-white border border-slate-200 rounded-2xl outline-none focus:ring-4 focus:ring-blue-500/10 transition-all font-mono text-sm shadow-sm focus:border-blue-400 cursor-pointer" value={withdrawDate} onChange={e=>setWithdrawDate(e.target.value)}/></div>
+                    <div className="bg-white/40 backdrop-blur-2xl p-8 rounded-[2.5rem] border border-white/60 shadow-[0_8px_30px_rgba(0,0,0,0.02)] transition-all hover:bg-white/60 group">
+                        <div className="flex items-center gap-3 mb-8">
+                            <div className="p-2.5 bg-indigo-50 rounded-2xl text-indigo-600 group-hover:scale-110 transition-transform">
+                                <Calendar size={20} strokeWidth={2.5}/>
+                            </div>
+                            <h3 className="font-black text-slate-800 text-xs uppercase tracking-[0.2em]">Detail Cek / Giro</h3>
+                        </div>
+                        
+                        <div className="space-y-6">
+                            <div className="relative">
+                                <label className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] mb-2.5 ml-1 block">No Cek / Giro</label>
+                                <input 
+                                    type="text" 
+                                    className="w-full px-5 py-4 bg-slate-50/50 hover:bg-white focus:bg-white border border-slate-200/60 rounded-[1.5rem] outline-none focus:ring-4 focus:ring-indigo-500/10 transition-all font-mono text-sm shadow-sm focus:border-indigo-400 placeholder:font-sans placeholder:text-slate-300 placeholder:font-medium" 
+                                    value={chequeNo} 
+                                    onChange={e=>setChequeNo(e.target.value)} 
+                                    placeholder="Masukkan No. Cek"
+                                />
+                            </div>
+                            <div className="relative">
+                                <label className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] mb-2.5 ml-1 block">Tanggal Pencairan</label>
+                                <div className="relative group/input">
+                                    <input 
+                                        type="date" 
+                                        className="w-full px-5 py-4 bg-slate-50/50 hover:bg-white focus:bg-white border border-slate-200/60 rounded-[1.5rem] outline-none focus:ring-4 focus:ring-indigo-500/10 transition-all font-mono text-sm shadow-sm focus:border-indigo-400 cursor-pointer appearance-none" 
+                                        value={withdrawDate} 
+                                        onChange={e=>setWithdrawDate(e.target.value)}
+                                    />
+                                    <Calendar size={16} className="absolute right-5 top-1/2 -translate-y-1/2 text-slate-300 pointer-events-none group-hover/input:text-indigo-500 transition-colors" />
+                                </div>
+                            </div>
                         </div>
                     </div>
                 </motion.div>
@@ -687,11 +809,19 @@ const BankWithdrawal: React.FC<BankWithdrawalProps> = ({ data, profile, onUpdate
                 {/* Right Panel Main Area */}
                 <motion.div variants={itemVariants} className="xl:col-span-3 space-y-6">
                     <div className="glass-panel rounded-[2rem] border border-white/90 shadow-2xl shadow-indigo-900/5 bg-white/60 backdrop-blur-3xl overflow-hidden flex flex-col min-h-[600px]">
-                        <div className="flex flex-wrap border-b border-slate-100 bg-white/40 p-2 gap-2 relative">
+                        <div className="flex flex-wrap bg-slate-50/50 p-2 gap-2 relative border-b border-slate-100">
                             {['rincian', 'surat_kuasa', 'pemindahbukuan', 'riwayat'].map(tab => (
-                                <button key={tab} onClick={() => setActiveTab(tab as any)} className={`relative flex-1 min-w-[120px] py-3 text-xs font-bold uppercase tracking-widest transition-all rounded-xl overflow-hidden ${activeTab === tab ? 'text-white' : 'text-slate-500 hover:text-slate-800 hover:bg-slate-100/50'}`}>
+                                <button 
+                                    key={tab} 
+                                    onClick={() => setActiveTab(tab as any)} 
+                                    className={`relative flex-1 min-w-[140px] py-4 text-[10px] font-black uppercase tracking-[0.2em] transition-all rounded-2xl overflow-hidden group/tab ${activeTab === tab ? 'text-white' : 'text-slate-400 hover:text-slate-600'}`}
+                                >
                                     {activeTab === tab && (
-                                        <motion.div layoutId="activeTabPencairan" className="absolute inset-0 bg-gradient-to-r from-blue-600 to-indigo-600 rounded-xl" transition={{ type: 'spring', stiffness: 300, damping: 25 }} />
+                                        <motion.div 
+                                            layoutId="activeTabPencairan" 
+                                            className="absolute inset-0 bg-gradient-to-r from-indigo-600 via-indigo-700 to-blue-700 shadow-lg shadow-indigo-200" 
+                                            transition={{ type: 'spring', stiffness: 400, damping: 30 }} 
+                                        />
                                     )}
                                     <span className="relative z-10">{tab.replace('_', ' ')}</span>
                                 </button>
@@ -700,52 +830,73 @@ const BankWithdrawal: React.FC<BankWithdrawalProps> = ({ data, profile, onUpdate
                         <div className="p-6">
                             {activeTab === 'rincian' && (
                                 <div className="space-y-4">
-                                    <div className="flex justify-end gap-3 mb-4">
-                                        <button onClick={handleArchiveData} disabled={isSaving} className="px-4 py-2 bg-slate-100 text-slate-600 rounded-xl text-xs font-bold font-mono tracking-tight hover:bg-slate-200 flex items-center gap-2"><Archive size={14}/> Simpan Arsip</button>
+                                    <div className="flex justify-end items-center gap-4 mb-6">
+                                        <button 
+                                            onClick={handleArchiveData} 
+                                            disabled={isSaving} 
+                                            className="px-6 py-3 bg-white border border-slate-200 text-slate-500 rounded-2xl text-[10px] font-black uppercase tracking-widest hover:bg-slate-50 hover:text-slate-800 transition-all flex items-center gap-3 shadow-sm active:scale-95"
+                                        >
+                                            <Archive size={16}/> Simpan Draft
+                                        </button>
                                         <button 
                                             onClick={() => setIsPreviewOpen(true)}
                                             disabled={selectedBudgetIds.length === 0}
-                                            className="flex items-center gap-2 px-6 py-2.5 bg-gray-100 text-gray-700 rounded-xl font-bold hover:bg-gray-200 transition-all shadow-sm active:scale-95 disabled:opacity-50"
+                                            className="flex items-center gap-3 px-8 py-3 bg-white border border-slate-200 text-slate-700 rounded-2xl text-[10px] font-black uppercase tracking-widest hover:bg-slate-50 transition-all shadow-sm active:scale-95 disabled:opacity-30"
                                         >
-                                            <Search size={18} />
+                                            <Search size={16} />
                                             Preview
                                         </button>
-                                        <button onClick={handlePrintAndArchive} disabled={totalSelectedAmount===0||isSaving} className="px-4 py-2 bg-gradient-to-r from-blue-600 to-indigo-600 text-white rounded-xl text-xs font-bold shadow-lg flex items-center gap-2"><Printer size={14}/> Cetak Rincian</button>
+                                        <button 
+                                            onClick={handlePrintAndArchive} 
+                                            disabled={totalSelectedAmount===0||isSaving} 
+                                            className="px-8 py-3 bg-gradient-to-r from-indigo-600 to-blue-700 text-white rounded-2xl text-[10px] font-black uppercase tracking-widest shadow-xl shadow-indigo-200 flex items-center gap-3 hover:shadow-2xl hover:-translate-y-0.5 transition-all active:scale-95 disabled:opacity-50"
+                                        >
+                                            <Printer size={16}/> Cetak & Arsipkan
+                                        </button>
                                     </div>
                                     {budgetTableContent}
                                 </div>
                             )}
 
                             {activeTab === 'riwayat' && (
-                                <div className="space-y-4 border border-slate-100 rounded-[1.5rem] overflow-hidden bg-white/40">
-                                    <table className="w-full text-sm text-left">
-                                        <thead className="bg-slate-50 uppercase tracking-widest text-[10px] text-slate-500 font-bold border-b border-slate-100">
-                                            <tr><th className="p-4">Tgl</th><th className="p-4">Nomor</th><th className="p-4 text-right">Total</th><th className="p-4 text-center">Berkas</th><th className="p-4 text-right">Opsi</th></tr>
+                                <div className="space-y-4 border border-slate-100/60 rounded-[2.5rem] overflow-hidden bg-white/40 shadow-inner">
+                                    <table className="w-full text-sm text-left border-collapse">
+                                        <thead className="bg-slate-50/80 backdrop-blur-md uppercase tracking-[0.2em] text-[10px] text-slate-400 font-black border-b border-slate-100">
+                                            <tr><th className="p-5">Tanggal</th><th className="p-5">Nomor Surat</th><th className="p-5 text-right">Total Nominal</th><th className="p-5 text-center">Status Berkas</th><th className="p-5 text-right">Opsi</th></tr>
                                         </thead>
                                         <tbody className="divide-y divide-slate-100/60">
-                                            {historyList.map(h => (
-                                                <tr key={h.id} className="hover:bg-white transition-colors">
-                                                    <td className="p-4 text-xs text-slate-600">{new Date(h.letter_date).toLocaleDateString('id')}</td>
-                                                    <td className="p-4 font-mono text-xs">{h.letter_number}</td>
-                                                    <td className="p-4 text-right font-bold text-slate-800">{formatRupiah(h.total_amount)}</td>
-                                                    <td className="p-4 text-center">
-                                                        {h.file_url ? <a href={h.file_url} target="_blank" className="text-xs bg-red-50 text-red-600 px-2 py-1 rounded-lg">PDF</a> : '-'}
+                                            {historyList.length === 0 ? (
+                                                <tr><td colSpan={5} className="p-20 text-center text-slate-300 font-bold uppercase tracking-widest text-xs">Belum ada riwayat</td></tr>
+                                            ) : historyList.map(h => (
+                                                <tr key={h.id} className="hover:bg-white transition-all duration-200">
+                                                    <td className="p-5">
+                                                        <div className="font-bold text-slate-700">{new Date(h.letter_date).toLocaleDateString('id', { day: 'numeric', month: 'long', year: 'numeric' })}</div>
+                                                        <div className="text-[10px] text-slate-400 mt-0.5">Disimpan {new Date(h.created_at || '').toLocaleTimeString('id', { hour: '2-digit', minute: '2-digit' })}</div>
                                                     </td>
-                                                    <td className="p-4 text-right gap-2 flex justify-end">
+                                                    <td className="p-5 font-mono text-xs font-bold text-indigo-600 bg-indigo-50/30">{h.letter_number}</td>
+                                                    <td className="p-5 text-right font-black text-slate-900">{formatRupiah(h.total_amount)}</td>
+                                                    <td className="p-5 text-center">
+                                                        {h.file_url ? (
+                                                            <a href={h.file_url} target="_blank" className="inline-flex items-center gap-2 px-3 py-1.5 bg-rose-50 text-rose-600 rounded-xl text-[10px] font-black border border-rose-100 hover:bg-rose-100 transition-colors uppercase tracking-tight">
+                                                                <FileText size={12}/> PDF Ready
+                                                            </a>
+                                                        ) : (
+                                                            <span className="text-[10px] text-slate-300 font-bold uppercase">No File</span>
+                                                        )}
+                                                    </td>
+                                                    <td className="p-5 text-right flex justify-end gap-3">
                                                         <button 
                                                             onClick={()=>handleRestoreFromHistory(h)} 
-                                                            className="flex items-center gap-1.5 px-3 py-1.5 bg-blue-50 text-blue-600 rounded-xl text-[10px] font-bold hover:bg-blue-100 transition-all border border-blue-100 shadow-sm"
-                                                            title="Edit Ulang (Gunakan data ini kembali)"
+                                                            className="flex items-center gap-2 px-4 py-2 bg-indigo-50 text-indigo-600 rounded-xl text-[10px] font-black hover:bg-indigo-600 hover:text-white transition-all border border-indigo-100 shadow-sm uppercase tracking-tight active:scale-95"
                                                         >
                                                             <RefreshCcw size={12}/>
-                                                            <span>Edit Ulang</span>
+                                                            <span>Pulihkan</span>
                                                         </button>
                                                         <button 
                                                             onClick={()=>handleDeleteHistory(h.id)} 
-                                                            className="p-2 bg-rose-50 text-rose-600 rounded-xl hover:bg-rose-100 transition-all border border-rose-100 shadow-sm"
-                                                            title="Hapus Riwayat"
+                                                            className="p-2.5 bg-white text-rose-500 rounded-xl hover:bg-rose-500 hover:text-white transition-all border border-slate-100 shadow-sm active:scale-95"
                                                         >
-                                                            <Trash2 size={14}/>
+                                                            <Trash2 size={16}/>
                                                         </button>
                                                     </td>
                                                 </tr>
