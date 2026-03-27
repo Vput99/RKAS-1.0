@@ -226,9 +226,12 @@ const BankWithdrawal: React.FC<BankWithdrawalProps> = ({ data, profile, onUpdate
             });
             return newState;
         });
+
+        // CRITICAL: When bulk applying, force the "Gabungkan" mode to ensure "1 transaksi, 1 rekening"
+        setIsGroupingEnabled(true);
+        
         setIsBulkEditOpen(false);
-        setBulkName('');
-        setBulkAccount('');
+        // Do not clear bulkName/bulkAccount because they are used by the grouping panel now
     };
 
     const applyAutoTax = (type: string) => {
