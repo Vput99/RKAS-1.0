@@ -46,7 +46,7 @@ const BankWithdrawal: React.FC<BankWithdrawalProps> = ({ data, profile, onUpdate
     const [withdrawDate, setWithdrawDate] = useState(new Date().toISOString().split('T')[0]);
 
     const [historyList, setHistoryList] = useState<WithdrawalHistory[]>([]);
-    const debounceTimer = useRef<NodeJS.Timeout|null>(null);
+    const debounceTimer = useRef<NodeJS.Timeout | null>(null);
 
     const [suratNo, setSuratNo] = useState('');
     const [ksName, setKsName] = useState('');
@@ -111,7 +111,7 @@ const BankWithdrawal: React.FC<BankWithdrawalProps> = ({ data, profile, onUpdate
         let finalItems = Object.values(aggregatedMap);
         if (accountCodeFilter) finalItems = finalItems.filter(item => item.account_code.startsWith(accountCodeFilter));
         if (searchTerm) {
-            const lower=searchTerm.toLowerCase();
+            const lower = searchTerm.toLowerCase();
             finalItems = finalItems.filter(item => item.description.toLowerCase().includes(lower) || item.account_code.includes(searchTerm));
         }
         return finalItems.sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
@@ -152,7 +152,7 @@ const BankWithdrawal: React.FC<BankWithdrawalProps> = ({ data, profile, onUpdate
 
         selectedItems.forEach(item => {
             const detail = recipientDetails[item.id] || { name: '', account: '', ppn: 0, pph21: 0, pph22: 0, pph23: 0, pajakDaerah: 0 };
-            
+
             // PENTING: Nomor Rekening adalah kunci penggabungan UTAMA
             const rawAccount = (detail.account?.trim() || bulkAccount.trim() || '');
             const normalizedAccount = rawAccount.replace(/[\s-]/g, '');
@@ -161,7 +161,7 @@ const BankWithdrawal: React.FC<BankWithdrawalProps> = ({ data, profile, onUpdate
             // SMART GROUPING LOGIC:
             // 1. Jika ada Mode Gabungan -> Semua digabung berdasarkan Account (atau '-' jika kosong)
             // 2. Jika Mode Terpisah -> Hanya digabung jika Account Number sama & tidak kosong
-            
+
             let key = '';
             if (isGroupingEnabled) {
                 // Semua digabung berdasarkan account (normalized)
@@ -206,9 +206,9 @@ const BankWithdrawal: React.FC<BankWithdrawalProps> = ({ data, profile, onUpdate
         const item = filteredRealizations.find(r => r.id === id);
         if (!item) return;
 
-        const updatedDetail = { 
-            ...recipientDetails[id] || { name: '', account: '', ppn: 0, pph21: 0, pph22: 0, pph23: 0, pajakDaerah: 0 }, 
-            [field]: value 
+        const updatedDetail = {
+            ...recipientDetails[id] || { name: '', account: '', ppn: 0, pph21: 0, pph22: 0, pph23: 0, pajakDaerah: 0 },
+            [field]: value
         };
 
         setRecipientDetails(prev => ({
@@ -228,7 +228,7 @@ const BankWithdrawal: React.FC<BankWithdrawalProps> = ({ data, profile, onUpdate
             const newState = { ...prev };
             selectedBudgetIds.forEach(id => {
                 newState[id] = { ...newState[id], name: bulkName, account: bulkAccount };
-                
+
                 // Persist each updated item
                 const realItem = filteredRealizations.find(r => r.id === id);
                 if (realItem) {
@@ -240,7 +240,7 @@ const BankWithdrawal: React.FC<BankWithdrawalProps> = ({ data, profile, onUpdate
 
         // CRITICAL: When bulk applying, force the "Gabungkan" mode to ensure "1 transaksi, 1 rekening"
         setIsGroupingEnabled(true);
-        
+
         setIsBulkEditOpen(false);
         // Do not clear bulkName/bulkAccount because they are used by the grouping panel now
     };
@@ -253,7 +253,7 @@ const BankWithdrawal: React.FC<BankWithdrawalProps> = ({ data, profile, onUpdate
                 if (!item) return;
                 const amount = item.amount;
                 let newTax = { ppn: 0, pph21: 0, pph22: 0, pph23: 0, pajakDaerah: 0 };
-                
+
                 switch (type) {
                     case 'barang_pkp': const dpp = Math.round(amount / 1.11); newTax.ppn = Math.round(dpp * 0.11); newTax.pph22 = Math.round(dpp * 0.015); break;
                     case 'mamin_daerah': newTax.pajakDaerah = Math.round(amount * 0.10); break;
@@ -375,7 +375,7 @@ const BankWithdrawal: React.FC<BankWithdrawalProps> = ({ data, profile, onUpdate
     };
 
     const generateHeader = (doc: jsPDF) => {
-        if (profile?.headerImage) try { doc.addImage(profile.headerImage, 'PNG', 15, 10, 25, 25); } catch {}
+        if (profile?.headerImage) try { doc.addImage(profile.headerImage, 'PNG', 15, 10, 25, 25); } catch { }
         doc.setFont('times', 'normal'); doc.setFontSize(12);
         doc.text(`PEMERINTAH ${profile?.city || 'KAB/KOTA'}`, 105, 15, { align: 'center' });
         doc.text('DINAS PENDIDIKAN', 105, 20, { align: 'center' });
@@ -396,38 +396,38 @@ const BankWithdrawal: React.FC<BankWithdrawalProps> = ({ data, profile, onUpdate
         doc.setFont('times', 'bold'); doc.setFontSize(12); doc.text('SURAT KUASA', 105, 55, { align: 'center' });
         doc.setLineWidth(0.5); doc.line(85, 56, 125, 56);
         doc.setFont('times', 'normal'); doc.text(`NOMOR : ${suratNo}`, 105, 62, { align: 'center' });
-        
+
         const branchDisplay = profile?.bankBranch?.toUpperCase().includes('CABANG') ? profile.bankBranch : `CABANG ${profile?.bankBranch}`;
         let startY = 70; doc.text("Yang bertanda tangan dibawah ini :", 20, startY); startY += 8;
-        doc.text(`1. Nama      : ${ksName}`, 20, startY); doc.text(`   Jabatan   : ${ksTitle} ${profile?.name || ''}`, 20, startY+6); doc.text(`   Alamat    : ${ksAddress}`, 20, startY+12);
+        doc.text(`1. Nama      : ${ksName}`, 20, startY); doc.text(`   Jabatan   : ${ksTitle} ${profile?.name || ''}`, 20, startY + 6); doc.text(`   Alamat    : ${ksAddress}`, 20, startY + 12);
         startY += 24;
-        doc.text(`2. Nama      : ${trName}`, 20, startY); doc.text(`   Jabatan   : ${trTitle}`, 20, startY+6); doc.text(`   Alamat    : ${trAddress}`, 20, startY+12);
-        
+        doc.text(`2. Nama      : ${trName}`, 20, startY); doc.text(`   Jabatan   : ${trTitle}`, 20, startY + 6); doc.text(`   Alamat    : ${trAddress}`, 20, startY + 12);
+
         startY += 24;
         const textKuasa = `Bertindak untuk dan atas nama ${profile?.name || 'Sekolah'} ${getCityName(true)}. Dengan ini memberikan kuasa penuh yang tidak dapat di cabut kembali dengan substitusi kepada :`;
         doc.text(doc.splitTextToSize(textKuasa, 170), 20, startY);
-        
+
         startY += 15; doc.setFont('times', 'bold'); doc.text(`${profile?.bankName || 'BANK'} ${branchDisplay}`, 105, startY, { align: 'center' });
-        doc.setFont('times', 'normal'); doc.text(`Berkedudukan di ${profile?.bankAddress || 'ALAMAT BANK'}`, 105, startY+5, { align: 'center' });
-        
-        startY += 15; doc.setFont('times', 'bold'); doc.text("KHUSUS", 105, startY, { align: 'center' }); doc.setLineWidth(0.5); doc.line(90, startY+1, 120, startY+1);
-        
+        doc.setFont('times', 'normal'); doc.text(`Berkedudukan di ${profile?.bankAddress || 'ALAMAT BANK'}`, 105, startY + 5, { align: 'center' });
+
+        startY += 15; doc.setFont('times', 'bold'); doc.text("KHUSUS", 105, startY, { align: 'center' }); doc.setLineWidth(0.5); doc.line(90, startY + 1, 120, startY + 1);
+
         startY += 8; doc.setFont('times', 'normal');
         const mainContent = `Untuk memindahbukuan dari rekening Giro/ Tabungan kami yang ada di ${profile?.bankName} ${branchDisplay} dengan nomor rekening ${profile?.accountNo} atas nama ${profile?.name} untuk dilimpahkan kepada rekening terlampir yang tidak terpisahkan dari surat kuasa ini sebanyak ${uniqueRecipientCount} ( ${getTerbilang(uniqueRecipientCount)} ) rekening dengan total nominal Rp ${formatRupiah(totalSelectedAmount).replace('Rp', '').trim()}- ( ${getTerbilang(totalSelectedAmount)} Rupiah), Dengan data sesuai Lampiran.`;
         doc.text(doc.splitTextToSize(mainContent, 170), 20, startY);
-        
+
         startY += 25;
         const closingText = `Demikian surat kuasa ini dibuat untuk dipergunakan sebagaimana mestinya. Segala akibat yang timbul atas pemberian kuasa ini menajdi tanggung jawab pemberi kuasa sepenuhnya dengan membebaskan bank dari segala akibat tuntutan.`;
         doc.text(doc.splitTextToSize(closingText, 170), 20, startY);
-        
+
         startY += 20; const d = new Date(withdrawDate); doc.text(`${getCityName()}, ${d.getDate()} ${MONTHS[d.getMonth()]} ${d.getFullYear()}`, 150, startY, { align: 'center' });
         startY += 6; doc.text("Yang diberi Kuasa", 35, startY, { align: 'center' }); doc.text(ksTitle, 85, startY, { align: 'center' }); doc.text(trTitle, 150, startY, { align: 'center' });
         startY += 5; doc.text(profile?.bankName || '', 35, startY, { align: 'center' }); doc.text(profile?.name || 'Sekolah', 85, startY, { align: 'center' });
         startY += 5; doc.text(branchDisplay, 35, startY, { align: 'center' });
-        
+
         startY += 30; doc.setFont('times', 'bold'); doc.text(ksName, 85, startY, { align: 'center' }); doc.text(trName, 150, startY, { align: 'center' });
-        doc.setLineWidth(0.2); doc.line(65, startY+1, 105, startY+1); doc.line(130, startY+1, 170, startY+1);
-        doc.setFont('times', 'normal'); doc.text(`NIP. ${ksNip}`, 85, startY+5, { align: 'center' }); doc.text(`NIP. ${trNip}`, 150, startY+5, { align: 'center' });
+        doc.setLineWidth(0.2); doc.line(65, startY + 1, 105, startY + 1); doc.line(130, startY + 1, 170, startY + 1);
+        doc.setFont('times', 'normal'); doc.text(`NIP. ${ksNip}`, 85, startY + 5, { align: 'center' }); doc.text(`NIP. ${trNip}`, 150, startY + 5, { align: 'center' });
         return doc;
     };
 
@@ -436,23 +436,23 @@ const BankWithdrawal: React.FC<BankWithdrawalProps> = ({ data, profile, onUpdate
         generateHeader(doc);
         const branchDisplay = profile?.bankBranch?.toUpperCase().includes('CABANG') ? profile.bankBranch : `CABANG ${profile?.bankBranch}`;
         const bankShort = (profile?.bankName || '').replace('PT. ', '').replace('BANK PEMBANGUNAN DAERAH JAWA TIMUR', 'BANK JATIM');
-        
+
         doc.setFont('times', 'normal'); doc.setFontSize(12); doc.text(`NOMOR : ${suratNo}`, 105, 55, { align: 'center' });
         doc.text('Kepada Yth : Bapak Direktur', 20, 65); doc.text(`${bankShort} ${branchDisplay}`, 20, 70);
         doc.text('DI', 20, 75); doc.text(getCityName().toUpperCase(), 20, 80);
-        
+
         doc.text('Perihal : ', 20, 90); doc.text("Kuasa Pemindahbukuan", 37, 90); doc.setLineWidth(0.3); doc.line(37, 91, 75, 91);
         const body1 = `Sehubungan dengan adanya rekening kami di ${bankShort} ${branchDisplay} atas nama ${profile?.name} nomor rekening ${profile?.accountNo} bersama ini kami mengajukan kuasa pemindahbukuan. (Terlampir)`;
         doc.text(doc.splitTextToSize(body1, 170), 20, 100);
         const body2 = `Kami harap dengan adanya kuasa tersebut dapat dilakukan pemindahbukuan secara otomatis dari rekening Giro kami yang ada di ${bankShort} ${branchDisplay}`;
         doc.text(doc.splitTextToSize(body2, 170), 20, 115);
         doc.text('Demikian atas kerja sama yang baik sampaikan terima kasih.', 20, 130);
-        
+
         const d = new Date(withdrawDate); doc.text(`${getCityName()}, ${d.getDate()} ${MONTHS[d.getMonth()]} ${d.getFullYear()}`, 140, 140);
-        
+
         doc.setFont('times', 'bold'); doc.text(profile?.name || 'SEKOLAH', 105, 146, { align: 'center' });
         doc.setFont('times', 'normal'); doc.text(ksTitle, 60, 152, { align: 'center' }); doc.text('Bendahara', 150, 152, { align: 'center' });
-        
+
         doc.setFont('times', 'bold'); doc.text(ksName, 60, 182, { align: 'center' }); doc.text(trName, 150, 182, { align: 'center' });
         doc.line(40, 183, 80, 183); doc.line(130, 183, 170, 183);
         doc.setFont('times', 'normal'); doc.text(`NIP. ${ksNip}`, 60, 187, { align: 'center' }); doc.text(`NIP. ${trNip}`, 150, 187, { align: 'center' });
@@ -465,32 +465,32 @@ const BankWithdrawal: React.FC<BankWithdrawalProps> = ({ data, profile, onUpdate
         doc.text(`${(profile?.name || 'SEKOLAH').toUpperCase()}`, 148, 20, { align: 'center' }); doc.text((profile?.city || 'KOTA').toUpperCase(), 148, 25, { align: 'center' });
         const monthLabel = startMonth === endMonth ? `Bulan ${MONTHS[startMonth - 1]}` : `Bulan ${MONTHS[startMonth - 1]} - ${MONTHS[endMonth - 1]}`;
         doc.setFont('helvetica', 'italic'); doc.setFontSize(10); doc.text(`${monthLabel} (Realisasi)`, 15, 35);
-        
-        let tp1=0, tp2=0, tp3=0, tpd=0, tpAll=0, tbAll=0;
+
+        let tp1 = 0, tp2 = 0, tp3 = 0, tpd = 0, tpAll = 0, tbAll = 0;
         const tableBody = getGroupedData().map((item, idx) => {
             let mDesc = item.descriptions.join(', '); if (mDesc.length > 50) mDesc = `${item.descriptions[0]} dan ${item.descriptions.length - 1} item lain`;
             const tTax = item.taxes.ppn + item.taxes.pph21 + item.taxes.pph22 + item.taxes.pph23 + item.taxes.pajakDaerah; const net = item.amount - tTax;
-            tp1+=item.taxes.pph21; tp2+=item.taxes.pph22; tp3+=item.taxes.pph23; tpd+=item.taxes.pajakDaerah; tpAll+=tTax; tbAll+=net;
+            tp1 += item.taxes.pph21; tp2 += item.taxes.pph22; tp3 += item.taxes.pph23; tpd += item.taxes.pajakDaerah; tpAll += tTax; tbAll += net;
             return [idx + 1, item.name, item.account, formatRupiah(item.amount), formatRupiah(item.taxes.ppn), formatRupiah(item.taxes.pph21), formatRupiah(item.taxes.pph22), formatRupiah(item.taxes.pph23), formatRupiah(item.taxes.pajakDaerah), formatRupiah(tTax), formatRupiah(net), mDesc];
         });
         tableBody.push(['', 'JUMLAH', '', formatRupiah(totalSelectedAmount), '', formatRupiah(tp1), formatRupiah(tp2), formatRupiah(tp3), formatRupiah(tpd), formatRupiah(tpAll), formatRupiah(tbAll), '']);
-        
+
         autoTable(doc, {
-            startY: 40, theme: 'grid', styles: { fontSize: 7, cellPadding: 2, lineColor: [0,0,0], lineWidth: 0.1 }, headStyles: { fillColor: [255,255,255], textColor: [0,0,0] },
+            startY: 40, theme: 'grid', styles: { fontSize: 7, cellPadding: 2, lineColor: [0, 0, 0], lineWidth: 0.1 }, headStyles: { fillColor: [255, 255, 255], textColor: [0, 0, 0] },
             head: [
-                [{content:'No.',rowSpan:2},{content:'Nama',rowSpan:2},{content:'Nomor Rekening',rowSpan:2},{content:'Nominal',rowSpan:2},{content:'Potongan Pajak',colSpan:5,styles:{fillColor:[255,255,0]}},{content:'Jml Potongan',rowSpan:2,styles:{fillColor:[255,255,0]}},{content:'Jumlah Bersih',rowSpan:2,styles:{fillColor:[200,200,255]}},{content:'Keterangan',rowSpan:2}],
-                [{content:'PPN',styles:{fillColor:[255,255,0]}},{content:'PPh 21',styles:{fillColor:[255,255,0]}},{content:'PPh 22',styles:{fillColor:[255,255,0]}},{content:'PPh 23',styles:{fillColor:[255,255,0]}},{content:'Daerah',styles:{fillColor:[255,255,0]}}]
+                [{ content: 'No.', rowSpan: 2 }, { content: 'Nama', rowSpan: 2 }, { content: 'Nomor Rekening', rowSpan: 2 }, { content: 'Nominal', rowSpan: 2 }, { content: 'Potongan Pajak', colSpan: 5, styles: { fillColor: [255, 255, 0] } }, { content: 'Jml Potongan', rowSpan: 2, styles: { fillColor: [255, 255, 0] } }, { content: 'Jumlah Bersih', rowSpan: 2, styles: { fillColor: [200, 200, 255] } }, { content: 'Keterangan', rowSpan: 2 }],
+                [{ content: 'PPN', styles: { fillColor: [255, 255, 0] } }, { content: 'PPh 21', styles: { fillColor: [255, 255, 0] } }, { content: 'PPh 22', styles: { fillColor: [255, 255, 0] } }, { content: 'PPh 23', styles: { fillColor: [255, 255, 0] } }, { content: 'Daerah', styles: { fillColor: [255, 255, 0] } }]
             ],
             body: tableBody,
-            columnStyles: { 0:{cellWidth:8}, 1:{cellWidth:35}, 2:{cellWidth:20}, 3:{cellWidth:22,halign:'right'}, 4:{cellWidth:15,halign:'right'}, 5:{cellWidth:15,halign:'right'}, 6:{cellWidth:15,halign:'right'}, 7:{cellWidth:15,halign:'right'}, 8:{cellWidth:15,halign:'right'}, 9:{cellWidth:20,halign:'right'}, 10:{cellWidth:22,halign:'right',fillColor:[200,200,255]}, 11:{cellWidth:'auto'} }
+            columnStyles: { 0: { cellWidth: 8 }, 1: { cellWidth: 35 }, 2: { cellWidth: 20 }, 3: { cellWidth: 22, halign: 'right' }, 4: { cellWidth: 15, halign: 'right' }, 5: { cellWidth: 15, halign: 'right' }, 6: { cellWidth: 15, halign: 'right' }, 7: { cellWidth: 15, halign: 'right' }, 8: { cellWidth: 15, halign: 'right' }, 9: { cellWidth: 20, halign: 'right' }, 10: { cellWidth: 22, halign: 'right', fillColor: [200, 200, 255] }, 11: { cellWidth: 'auto' } }
         });
-        
+
         const finalY = (doc as any).lastAutoTable.finalY + 10;
         doc.setFontSize(10); doc.setFont('helvetica', 'bold'); doc.text(profile?.name || 'SEKOLAH', 148, finalY, { align: 'center' });
-        doc.setFont('helvetica', 'normal'); doc.text('Kuasa Pengguna Anggaran', 40, finalY+5, { align: 'center' }); doc.text('Diterima Pihak Bank', 148, finalY+5, { align: 'center' }); doc.text('Bendahara BOP', 240, finalY+5, { align: 'center' });
-        doc.text('( .................... )', 148, finalY+30, { align: 'center' });
-        doc.setFont('helvetica', 'bold'); doc.text(ksName, 40, finalY+30, { align: 'center' }); doc.text(trName, 240, finalY+30, { align: 'center' });
-        doc.setFont('helvetica', 'normal'); doc.text(`NIP. ${ksNip}`, 40, finalY+35, { align: 'center' }); doc.text(`NIP. ${trNip}`, 240, finalY+35, { align: 'center' });
+        doc.setFont('helvetica', 'normal'); doc.text('Kuasa Pengguna Anggaran', 40, finalY + 5, { align: 'center' }); doc.text('Diterima Pihak Bank', 148, finalY + 5, { align: 'center' }); doc.text('Bendahara BOP', 240, finalY + 5, { align: 'center' });
+        doc.text('( .................... )', 148, finalY + 30, { align: 'center' });
+        doc.setFont('helvetica', 'bold'); doc.text(ksName, 40, finalY + 30, { align: 'center' }); doc.text(trName, 240, finalY + 30, { align: 'center' });
+        doc.setFont('helvetica', 'normal'); doc.text(`NIP. ${ksNip}`, 40, finalY + 35, { align: 'center' }); doc.text(`NIP. ${trNip}`, 240, finalY + 35, { align: 'center' });
         return doc;
     };
 
@@ -503,46 +503,45 @@ const BankWithdrawal: React.FC<BankWithdrawalProps> = ({ data, profile, onUpdate
                         <Calendar size={16} className="text-indigo-500" />
                         <div className="flex items-center gap-2">
                             <select className="bg-transparent outline-none font-bold text-xs text-slate-700 cursor-pointer hover:text-indigo-600 transition-colors appearance-none" value={startMonth} onChange={(e) => setStartMonth(Number(e.target.value))}>
-                                {MONTHS.map((m, i) => <option key={i+1} value={i+1}>{m}</option>)}
+                                {MONTHS.map((m, i) => <option key={i + 1} value={i + 1}>{m}</option>)}
                             </select>
                             <span className="text-slate-300 font-medium">→</span>
                             <select className="bg-transparent outline-none font-bold text-xs text-slate-700 cursor-pointer hover:text-indigo-600 transition-colors appearance-none" value={endMonth} onChange={(e) => setStartMonth(Number(e.target.value))}>
-                                {MONTHS.map((m, i) => <option key={i+1} value={i+1}>{m}</option>)}
+                                {MONTHS.map((m, i) => <option key={i + 1} value={i + 1}>{m}</option>)}
                             </select>
                         </div>
                     </div>
                 </div>
-                
+
                 <div className="flex flex-1 items-center gap-4 w-full">
                     <div className="relative flex-1">
                         <Search size={16} className="absolute left-5 top-1/2 -translate-y-1/2 text-slate-400" />
-                        <input 
-                            type="text" 
-                            className="w-full pl-12 pr-6 py-4 bg-slate-50/50 hover:bg-white focus:bg-white border border-slate-200/60 rounded-[1.5rem] text-sm outline-none focus:ring-4 focus:ring-indigo-500/5 transition-all shadow-sm font-bold text-slate-700 placeholder:text-slate-400 placeholder:font-medium" 
-                            placeholder="Cari Uraian Transaksi..." 
-                            value={searchTerm} 
-                            onChange={(e) => setSearchTerm(e.target.value)} 
+                        <input
+                            type="text"
+                            className="w-full pl-12 pr-6 py-4 bg-slate-50/50 hover:bg-white focus:bg-white border border-slate-200/60 rounded-[1.5rem] text-sm outline-none focus:ring-4 focus:ring-indigo-500/5 transition-all shadow-sm font-bold text-slate-700 placeholder:text-slate-400 placeholder:font-medium"
+                            placeholder="Cari Uraian Transaksi..."
+                            value={searchTerm}
+                            onChange={(e) => setSearchTerm(e.target.value)}
                         />
                     </div>
                     <div className="relative w-1/4 min-w-[150px]">
-                        <input 
-                            type="text" 
-                            className="w-full px-6 py-4 bg-slate-50/50 hover:bg-white focus:bg-white border border-slate-200/60 rounded-[1.5rem] text-sm outline-none focus:ring-4 focus:ring-indigo-500/5 transition-all shadow-sm font-mono font-bold text-slate-700 placeholder:text-slate-400 placeholder:font-sans placeholder:font-medium text-center" 
-                            placeholder="Kode Rek." 
-                            value={accountCodeFilter} 
-                            onChange={(e) => setAccountCodeFilter(e.target.value)} 
+                        <input
+                            type="text"
+                            className="w-full px-6 py-4 bg-slate-50/50 hover:bg-white focus:bg-white border border-slate-200/60 rounded-[1.5rem] text-sm outline-none focus:ring-4 focus:ring-indigo-500/5 transition-all shadow-sm font-mono font-bold text-slate-700 placeholder:text-slate-400 placeholder:font-sans placeholder:font-medium text-center"
+                            placeholder="Kode Rek."
+                            value={accountCodeFilter}
+                            onChange={(e) => setAccountCodeFilter(e.target.value)}
                         />
                     </div>
                 </div>
 
                 <div className="flex-shrink-0">
-                    <button 
-                        onClick={() => setIsGroupingEnabled(!isGroupingEnabled)} 
-                        className={`group flex items-center gap-3 px-6 py-4 rounded-[1.5rem] text-[10px] uppercase tracking-[0.2em] font-black transition-all duration-300 active:scale-95 ${
-                            isGroupingEnabled 
-                            ? 'bg-indigo-600 text-white shadow-xl shadow-indigo-500/20 ring-4 ring-indigo-500/10' 
-                            : 'bg-white text-slate-500 hover:text-slate-800 border border-slate-200'
-                        }`}
+                    <button
+                        onClick={() => setIsGroupingEnabled(!isGroupingEnabled)}
+                        className={`group flex items-center gap-3 px-6 py-4 rounded-[1.5rem] text-[10px] uppercase tracking-[0.2em] font-black transition-all duration-300 active:scale-95 ${isGroupingEnabled
+                                ? 'bg-indigo-600 text-white shadow-xl shadow-indigo-500/20 ring-4 ring-indigo-500/10'
+                                : 'bg-white text-slate-500 hover:text-slate-800 border border-slate-200'
+                            }`}
                     >
                         {isGroupingEnabled ? <Users size={16} /> : <List size={16} />}
                         <span>{isGroupingEnabled ? 'Mode Gabungan' : 'Mode Terpisah'}</span>
@@ -552,12 +551,12 @@ const BankWithdrawal: React.FC<BankWithdrawalProps> = ({ data, profile, onUpdate
 
             {/* ── Panel Penerima Gabungan (hanya muncul saat mode Gabung + ada item dicentang) ── */}
             {isGroupingEnabled && selectedBudgetIds.length > 0 && (
-                <motion.div 
-                    initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }} 
+                <motion.div
+                    initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }}
                     className="p-5 bg-gradient-to-r from-blue-50 to-indigo-50 border-2 border-blue-200 rounded-2xl shadow-sm"
                 >
                     <div className="flex items-center gap-2 mb-4">
-                        <div className="p-2 bg-blue-600 rounded-xl text-white"><Users size={16}/></div>
+                        <div className="p-2 bg-blue-600 rounded-xl text-white"><Users size={16} /></div>
                         <div>
                             <h4 className="font-bold text-sm text-blue-900">Penerima Gabungan</h4>
                             <p className="text-[10px] text-blue-600">{selectedBudgetIds.length} item dicentang → akan digabung menjadi 1 transaksi</p>
@@ -607,12 +606,12 @@ const BankWithdrawal: React.FC<BankWithdrawalProps> = ({ data, profile, onUpdate
                             </td></tr>
                         ) : (
                             filteredRealizations.map((item) => {
-                                const detail = recipientDetails[item.id] || { name: '', account: '', ppn:0, pph21:0, pph22:0, pph23:0, pajakDaerah:0 };
+                                const detail = recipientDetails[item.id] || { name: '', account: '', ppn: 0, pph21: 0, pph22: 0, pph23: 0, pajakDaerah: 0 };
                                 const totalPot = detail.ppn + detail.pph21 + detail.pph22 + detail.pph23 + detail.pajakDaerah;
                                 const isSel = selectedBudgetIds.includes(item.id);
                                 return (
-                                    <motion.tr 
-                                        key={item.id} 
+                                    <motion.tr
+                                        key={item.id}
                                         whileHover={{ backgroundColor: "rgba(255,255,255,0.8)" }}
                                         className={`transition-all duration-200 ${isSel ? 'bg-indigo-50/40' : ''}`}
                                     >
@@ -638,23 +637,23 @@ const BankWithdrawal: React.FC<BankWithdrawalProps> = ({ data, profile, onUpdate
                                             <>
                                                 <td className="p-4">
                                                     {isSel ? (
-                                                        <input 
-                                                            type="text" 
-                                                            className="w-full bg-white border border-slate-200 rounded-[1rem] px-4 py-2 text-xs outline-none focus:ring-4 focus:ring-indigo-500/10 font-bold text-slate-700 shadow-sm transition-all focus:border-indigo-400" 
-                                                            value={detail.name} 
-                                                            onChange={(e) => handleRecipientChange(item.id, 'name', e.target.value)} 
-                                                            placeholder="Nama Toko" 
+                                                        <input
+                                                            type="text"
+                                                            className="w-full bg-white border border-slate-200 rounded-[1rem] px-4 py-2 text-xs outline-none focus:ring-4 focus:ring-indigo-500/10 font-bold text-slate-700 shadow-sm transition-all focus:border-indigo-400"
+                                                            value={detail.name}
+                                                            onChange={(e) => handleRecipientChange(item.id, 'name', e.target.value)}
+                                                            placeholder="Nama Toko"
                                                         />
                                                     ) : <span className="text-slate-300 font-medium text-xs">—</span>}
                                                 </td>
                                                 <td className="p-4">
                                                     {isSel ? (
-                                                        <input 
-                                                            type="text" 
-                                                            className="w-full bg-white border border-slate-200 rounded-[1rem] px-4 py-2 text-xs outline-none focus:ring-4 focus:ring-indigo-500/10 font-mono font-bold text-slate-700 shadow-sm transition-all focus:border-indigo-400" 
-                                                            value={detail.account} 
-                                                            onChange={(e) => handleRecipientChange(item.id, 'account', e.target.value)} 
-                                                            placeholder="No. Rekening" 
+                                                        <input
+                                                            type="text"
+                                                            className="w-full bg-white border border-slate-200 rounded-[1rem] px-4 py-2 text-xs outline-none focus:ring-4 focus:ring-indigo-500/10 font-mono font-bold text-slate-700 shadow-sm transition-all focus:border-indigo-400"
+                                                            value={detail.account}
+                                                            onChange={(e) => handleRecipientChange(item.id, 'account', e.target.value)}
+                                                            placeholder="No. Rekening"
                                                         />
                                                     ) : <span className="text-slate-300 font-medium text-xs">—</span>}
                                                 </td>
@@ -662,13 +661,12 @@ const BankWithdrawal: React.FC<BankWithdrawalProps> = ({ data, profile, onUpdate
                                         )}
                                         <td className="p-5 text-center">
                                             {isSel ? (
-                                                <button 
+                                                <button
                                                     onClick={(e) => { e.stopPropagation(); setIsTaxModalOpen(true); }}
-                                                    className={`px-3 py-1.5 rounded-xl text-[10px] font-black tracking-tight transition-all active:scale-95 flex items-center gap-2 mx-auto ${
-                                                        totalPot > 0 
-                                                        ? 'bg-amber-100 text-amber-700 shadow-sm hover:bg-amber-200' 
-                                                        : 'bg-slate-100 text-slate-400 hover:bg-slate-200'
-                                                    }`}
+                                                    className={`px-3 py-1.5 rounded-xl text-[10px] font-black tracking-tight transition-all active:scale-95 flex items-center gap-2 mx-auto ${totalPot > 0
+                                                            ? 'bg-amber-100 text-amber-700 shadow-sm hover:bg-amber-200'
+                                                            : 'bg-slate-100 text-slate-400 hover:bg-slate-200'
+                                                        }`}
                                                 >
                                                     <Calculator size={12} />
                                                     {totalPot > 0 ? formatRupiah(totalPot) : 'Atur Pajak'}
@@ -728,16 +726,16 @@ const BankWithdrawal: React.FC<BankWithdrawalProps> = ({ data, profile, onUpdate
                 {/* Left Panel Sidebar */}
                 <motion.div variants={itemVariants} className="xl:col-span-1 flex flex-col gap-6">
                     {/* Total Card Premium */}
-                    <motion.div 
-                        whileHover={{ y: -8, scale: 1.01 }} 
+                    <motion.div
+                        whileHover={{ y: -8, scale: 1.01 }}
                         className="bg-slate-900 rounded-[2.5rem] p-8 shadow-2xl shadow-indigo-900/20 text-white relative overflow-hidden flex flex-col justify-center min-h-[240px] group transition-all duration-500 border border-white/10"
                     >
                         {/* Interactive Gradients */}
                         <div className="absolute top-0 right-0 w-full h-full bg-gradient-to-br from-indigo-600 via-blue-700 to-purple-800 opacity-80 group-hover:opacity-100 transition-opacity duration-500" />
                         <div className="absolute -top-24 -right-24 w-64 h-64 bg-white/10 rounded-full blur-3xl group-hover:scale-125 transition-transform duration-1000" />
-                        
+
                         <Landmark size={200} className="absolute -right-12 -bottom-12 text-white/5 rotate-12 group-hover:rotate-6 group-hover:scale-110 transition-transform duration-700 ease-out z-0" />
-                        
+
                         <div className="relative z-10 flex flex-col h-full justify-between">
                             <div className="flex items-center justify-between mb-6">
                                 <p className="text-[10px] font-black text-indigo-100 uppercase tracking-[0.3em] flex items-center gap-2">
@@ -745,10 +743,10 @@ const BankWithdrawal: React.FC<BankWithdrawalProps> = ({ data, profile, onUpdate
                                     Total Terpilih
                                 </p>
                                 <div className="p-2.5 bg-white/10 backdrop-blur-md rounded-2xl border border-white/10">
-                                    <Calculator size={18} className="text-indigo-200" />
+                                    <Calculator size={15} className="text-indigo-200" />
                                 </div>
                             </div>
-                            
+
                             <div>
                                 <h3 className="text-4xl 2xl:text-5xl font-black tracking-tighter mb-4 drop-shadow-lg leading-none">
                                     {formatRupiah(totalSelectedAmount)}
@@ -766,30 +764,30 @@ const BankWithdrawal: React.FC<BankWithdrawalProps> = ({ data, profile, onUpdate
                     <div className="bg-white/40 backdrop-blur-2xl p-8 rounded-[2.5rem] border border-white/60 shadow-[0_8px_30px_rgba(0,0,0,0.02)] transition-all hover:bg-white/60 group">
                         <div className="flex items-center gap-3 mb-8">
                             <div className="p-2.5 bg-indigo-50 rounded-2xl text-indigo-600 group-hover:scale-110 transition-transform">
-                                <Calendar size={20} strokeWidth={2.5}/>
+                                <Calendar size={20} strokeWidth={2.5} />
                             </div>
                             <h3 className="font-black text-slate-800 text-xs uppercase tracking-[0.2em]">Detail Cek / Giro</h3>
                         </div>
-                        
+
                         <div className="space-y-6">
                             <div className="relative">
                                 <label className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] mb-2.5 ml-1 block">No Cek / Giro</label>
-                                <input 
-                                    type="text" 
-                                    className="w-full px-5 py-4 bg-slate-50/50 hover:bg-white focus:bg-white border border-slate-200/60 rounded-[1.5rem] outline-none focus:ring-4 focus:ring-indigo-500/10 transition-all font-mono text-sm shadow-sm focus:border-indigo-400 placeholder:font-sans placeholder:text-slate-300 placeholder:font-medium" 
-                                    value={chequeNo} 
-                                    onChange={e=>setChequeNo(e.target.value)} 
+                                <input
+                                    type="text"
+                                    className="w-full px-5 py-4 bg-slate-50/50 hover:bg-white focus:bg-white border border-slate-200/60 rounded-[1.5rem] outline-none focus:ring-4 focus:ring-indigo-500/10 transition-all font-mono text-sm shadow-sm focus:border-indigo-400 placeholder:font-sans placeholder:text-slate-300 placeholder:font-medium"
+                                    value={chequeNo}
+                                    onChange={e => setChequeNo(e.target.value)}
                                     placeholder="Masukkan No. Cek"
                                 />
                             </div>
                             <div className="relative">
                                 <label className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] mb-2.5 ml-1 block">Tanggal Pencairan</label>
                                 <div className="relative group/input">
-                                    <input 
-                                        type="date" 
-                                        className="w-full px-5 py-4 bg-slate-50/50 hover:bg-white focus:bg-white border border-slate-200/60 rounded-[1.5rem] outline-none focus:ring-4 focus:ring-indigo-500/10 transition-all font-mono text-sm shadow-sm focus:border-indigo-400 cursor-pointer appearance-none" 
-                                        value={withdrawDate} 
-                                        onChange={e=>setWithdrawDate(e.target.value)}
+                                    <input
+                                        type="date"
+                                        className="w-full px-5 py-4 bg-slate-50/50 hover:bg-white focus:bg-white border border-slate-200/60 rounded-[1.5rem] outline-none focus:ring-4 focus:ring-indigo-500/10 transition-all font-mono text-sm shadow-sm focus:border-indigo-400 cursor-pointer appearance-none"
+                                        value={withdrawDate}
+                                        onChange={e => setWithdrawDate(e.target.value)}
                                     />
                                     <Calendar size={16} className="absolute right-5 top-1/2 -translate-y-1/2 text-slate-300 pointer-events-none group-hover/input:text-indigo-500 transition-colors" />
                                 </div>
@@ -803,16 +801,16 @@ const BankWithdrawal: React.FC<BankWithdrawalProps> = ({ data, profile, onUpdate
                     <div className="glass-panel rounded-[2rem] border border-white/90 shadow-2xl shadow-indigo-900/5 bg-white/60 backdrop-blur-3xl overflow-hidden flex flex-col min-h-[600px]">
                         <div className="flex flex-wrap bg-slate-50/50 p-2 gap-2 relative border-b border-slate-100">
                             {['rincian', 'surat_kuasa', 'pemindahbukuan', 'riwayat'].map(tab => (
-                                <button 
-                                    key={tab} 
-                                    onClick={() => setActiveTab(tab as any)} 
+                                <button
+                                    key={tab}
+                                    onClick={() => setActiveTab(tab as any)}
                                     className={`relative flex-1 min-w-[140px] py-4 text-[10px] font-black uppercase tracking-[0.2em] transition-all rounded-2xl overflow-hidden group/tab ${activeTab === tab ? 'text-white' : 'text-slate-400 hover:text-slate-600'}`}
                                 >
                                     {activeTab === tab && (
-                                        <motion.div 
-                                            layoutId="activeTabPencairan" 
-                                            className="absolute inset-0 bg-gradient-to-r from-indigo-600 via-indigo-700 to-blue-700 shadow-lg shadow-indigo-200" 
-                                            transition={{ type: 'spring', stiffness: 400, damping: 30 }} 
+                                        <motion.div
+                                            layoutId="activeTabPencairan"
+                                            className="absolute inset-0 bg-gradient-to-r from-indigo-600 via-indigo-700 to-blue-700 shadow-lg shadow-indigo-200"
+                                            transition={{ type: 'spring', stiffness: 400, damping: 30 }}
                                         />
                                     )}
                                     <span className="relative z-10">{tab.replace('_', ' ')}</span>
@@ -823,14 +821,14 @@ const BankWithdrawal: React.FC<BankWithdrawalProps> = ({ data, profile, onUpdate
                             {activeTab === 'rincian' && (
                                 <div className="space-y-4">
                                     <div className="flex justify-end items-center gap-4 mb-6">
-                                        <button 
-                                            onClick={handleArchiveData} 
-                                            disabled={isSaving} 
+                                        <button
+                                            onClick={handleArchiveData}
+                                            disabled={isSaving}
                                             className="px-6 py-3 bg-white border border-slate-200 text-slate-500 rounded-2xl text-[10px] font-black uppercase tracking-widest hover:bg-slate-50 hover:text-slate-800 transition-all flex items-center gap-3 shadow-sm active:scale-95"
                                         >
-                                            <Archive size={16}/> Simpan Draft
+                                            <Archive size={16} /> Simpan Draft
                                         </button>
-                                        <button 
+                                        <button
                                             onClick={() => setIsPreviewOpen(true)}
                                             disabled={selectedBudgetIds.length === 0}
                                             className="flex items-center gap-3 px-8 py-3 bg-white border border-slate-200 text-slate-700 rounded-2xl text-[10px] font-black uppercase tracking-widest hover:bg-slate-50 transition-all shadow-sm active:scale-95 disabled:opacity-30"
@@ -838,12 +836,12 @@ const BankWithdrawal: React.FC<BankWithdrawalProps> = ({ data, profile, onUpdate
                                             <Search size={16} />
                                             Preview
                                         </button>
-                                        <button 
-                                            onClick={handlePrintAndArchive} 
-                                            disabled={totalSelectedAmount===0||isSaving} 
+                                        <button
+                                            onClick={handlePrintAndArchive}
+                                            disabled={totalSelectedAmount === 0 || isSaving}
                                             className="px-8 py-3 bg-gradient-to-r from-indigo-600 to-blue-700 text-white rounded-2xl text-[10px] font-black uppercase tracking-widest shadow-xl shadow-indigo-200 flex items-center gap-3 hover:shadow-2xl hover:-translate-y-0.5 transition-all active:scale-95 disabled:opacity-50"
                                         >
-                                            <Printer size={16}/> Cetak & Arsipkan
+                                            <Printer size={16} /> Cetak & Arsipkan
                                         </button>
                                     </div>
                                     {budgetTableContent}
@@ -870,25 +868,25 @@ const BankWithdrawal: React.FC<BankWithdrawalProps> = ({ data, profile, onUpdate
                                                     <td className="p-5 text-center">
                                                         {h.file_url ? (
                                                             <a href={h.file_url} target="_blank" className="inline-flex items-center gap-2 px-3 py-1.5 bg-rose-50 text-rose-600 rounded-xl text-[10px] font-black border border-rose-100 hover:bg-rose-100 transition-colors uppercase tracking-tight">
-                                                                <FileText size={12}/> PDF Ready
+                                                                <FileText size={12} /> PDF Ready
                                                             </a>
                                                         ) : (
                                                             <span className="text-[10px] text-slate-300 font-bold uppercase">No File</span>
                                                         )}
                                                     </td>
                                                     <td className="p-5 text-right flex justify-end gap-3">
-                                                        <button 
-                                                            onClick={()=>handleRestoreFromHistory(h)} 
+                                                        <button
+                                                            onClick={() => handleRestoreFromHistory(h)}
                                                             className="flex items-center gap-2 px-4 py-2 bg-indigo-50 text-indigo-600 rounded-xl text-[10px] font-black hover:bg-indigo-600 hover:text-white transition-all border border-indigo-100 shadow-sm uppercase tracking-tight active:scale-95"
                                                         >
-                                                            <RefreshCcw size={12}/>
+                                                            <RefreshCcw size={12} />
                                                             <span>Pulihkan</span>
                                                         </button>
-                                                        <button 
-                                                            onClick={()=>handleDeleteHistory(h.id)} 
+                                                        <button
+                                                            onClick={() => handleDeleteHistory(h.id)}
                                                             className="p-2.5 bg-white text-rose-500 rounded-xl hover:bg-rose-500 hover:text-white transition-all border border-slate-100 shadow-sm active:scale-95"
                                                         >
-                                                            <Trash2 size={16}/>
+                                                            <Trash2 size={16} />
                                                         </button>
                                                     </td>
                                                 </tr>
@@ -908,169 +906,169 @@ const BankWithdrawal: React.FC<BankWithdrawalProps> = ({ data, profile, onUpdate
                                     </div>
                                     {activeTab === 'surat_kuasa' && (
                                         <div className="space-y-4">
-                                            <input type="text" className="w-full px-4 py-3 rounded-xl border border-slate-200 font-mono text-sm bg-white" placeholder="Nomor Surat" value={suratNo} onChange={e=>setSuratNo(e.target.value)} />
+                                            <input type="text" className="w-full px-4 py-3 rounded-xl border border-slate-200 font-mono text-sm bg-white" placeholder="Nomor Surat" value={suratNo} onChange={e => setSuratNo(e.target.value)} />
                                             <div className="grid grid-cols-2 gap-4">
                                                 <div className="space-y-2 p-4 bg-slate-50 rounded-xl">
                                                     <p className="text-[10px] font-bold text-slate-400 uppercase">Pihak 1 (KS)</p>
-                                                    <input type="text" className="w-full px-3 py-2 text-xs rounded border border-slate-200" value={ksName} onChange={e=>setKsName(e.target.value)} />
-                                                    <input type="text" className="w-full px-3 py-2 text-xs rounded border border-slate-200" value={ksNip} onChange={e=>setKsNip(e.target.value)} />
+                                                    <input type="text" className="w-full px-3 py-2 text-xs rounded border border-slate-200" value={ksName} onChange={e => setKsName(e.target.value)} />
+                                                    <input type="text" className="w-full px-3 py-2 text-xs rounded border border-slate-200" value={ksNip} onChange={e => setKsNip(e.target.value)} />
                                                 </div>
                                                 <div className="space-y-2 p-4 bg-slate-50 rounded-xl">
                                                     <p className="text-[10px] font-bold text-slate-400 uppercase">Pihak 2 (Bendahara)</p>
-                                                    <input type="text" className="w-full px-3 py-2 text-xs rounded border border-slate-200" value={trName} onChange={e=>setTrName(e.target.value)} />
-                                                    <input type="text" className="w-full px-3 py-2 text-xs rounded border border-slate-200" value={trNip} onChange={e=>setTrNip(e.target.value)} />
+                                                    <input type="text" className="w-full px-3 py-2 text-xs rounded border border-slate-200" value={trName} onChange={e => setTrName(e.target.value)} />
+                                                    <input type="text" className="w-full px-3 py-2 text-xs rounded border border-slate-200" value={trNip} onChange={e => setTrNip(e.target.value)} />
                                                 </div>
                                             </div>
                                         </div>
                                     )}
-                                    <button onClick={()=>{
+                                    <button onClick={() => {
                                         const doc = activeTab === 'surat_kuasa' ? createSuratKuasaDoc() : createPemindahbukuanDoc();
-                                        if(doc) doc.save(`${activeTab}.pdf`);
-                                    }} className="w-full bg-blue-600 text-white font-bold py-3 rounded-xl flex justify-center items-center gap-2 shadow-lg"><Printer size={18}/> Download PDF</button>
+                                        if (doc) doc.save(`${activeTab}.pdf`);
+                                    }} className="w-full bg-blue-600 text-white font-bold py-3 rounded-xl flex justify-center items-center gap-2 shadow-lg"><Printer size={18} /> Download PDF</button>
                                 </div>
                             )}
                         </div>
                     </div>
                 </motion.div>
             </div>
-            
-            {typeof document !== 'undefined' && createPortal(
-            <AnimatePresence>
-                {/* Modals are kept minimal or matching original structure with glass styling */}
-                {isBulkEditOpen && (
-                    <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-                        <motion.div initial={{opacity:0, scale:0.95, y:20}} animate={{opacity:1, scale:1, y:0}} exit={{opacity:0, scale:0.95, y:20}} className="bg-white rounded-[2rem] p-6 w-full max-w-md shadow-2xl relative z-10">
-                            <h3 className="font-bold text-lg mb-4 text-slate-800 tracking-tight">Set Penerima Massal</h3>
-                            <input type="text" placeholder="Nama Penerima" className="w-full border border-slate-200 focus:ring-2 focus:ring-blue-500/50 outline-none rounded-xl px-4 py-3 text-sm mb-3 bg-slate-50 transition-all font-semibold text-slate-700" value={bulkName} onChange={e=>setBulkName(e.target.value)} />
-                            <input type="text" placeholder="No Rekening" className="w-full border border-slate-200 focus:ring-2 focus:ring-blue-500/50 outline-none rounded-xl px-4 py-3 text-sm mb-4 bg-slate-50 transition-all font-mono font-bold text-slate-700" value={bulkAccount} onChange={e=>setBulkAccount(e.target.value)} />
-                            <div className="flex gap-3 mt-2">
-                                <button onClick={()=>setIsBulkEditOpen(false)} className="flex-1 px-4 py-3.5 border border-slate-200 hover:bg-slate-100/80 rounded-xl text-sm font-bold text-slate-600 transition-colors">Batal</button>
-                                <button onClick={applyBulkRecipient} className="flex-1 px-4 py-3.5 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white rounded-xl text-sm font-bold shadow-lg shadow-blue-500/30 transition-all transform active:scale-95">Terapkan</button>
-                            </div>
-                        </motion.div>
-                    </div>
-                )}
-                {isTaxModalOpen && (
-                    <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-                        <motion.div initial={{opacity:0, scale:0.95, y:20}} animate={{opacity:1, scale:1, y:0}} exit={{opacity:0, scale:0.95, y:20}} className="bg-white rounded-[2rem] p-6 w-full max-w-md shadow-2xl border border-white/50 relative z-10">
-                            <h3 className="font-bold text-lg mb-4 text-slate-800 tracking-tight flex items-center gap-2"><Calculator size={20} className="text-emerald-500"/> Otomatisasi Pajak</h3>
-                            <div className="space-y-2 mt-2">
-                                <button onClick={()=>applyAutoTax('barang_pkp')} className="w-full p-3.5 text-left border border-slate-200 rounded-xl text-sm hover:bg-emerald-50 hover:border-emerald-200 hover:text-emerald-700 font-bold transition-all flex items-center justify-between group">
-                                    <span>Barang {'>'} 2 Juta (PPN & PPh22)</span>
-                                    <Percent size={14} className="text-slate-300 group-hover:text-emerald-500 transition-colors"/>
-                                </button>
-                                <button onClick={()=>applyAutoTax('mamin_daerah')} className="w-full p-3.5 text-left border border-slate-200 rounded-xl text-sm hover:bg-emerald-50 hover:border-emerald-200 hover:text-emerald-700 font-bold transition-all flex items-center justify-between group">
-                                    <span>Mamin Resto (PB1 10%)</span>
-                                    <Percent size={14} className="text-slate-300 group-hover:text-emerald-500 transition-colors"/>
-                                </button>
-                                <button onClick={()=>applyAutoTax('jasa')} className="w-full p-3.5 text-left border border-slate-200 rounded-xl text-sm hover:bg-emerald-50 hover:border-emerald-200 hover:text-emerald-700 font-bold transition-all flex items-center justify-between group">
-                                    <span>Jasa (PPh23 2%)</span>
-                                    <Percent size={14} className="text-slate-300 group-hover:text-emerald-500 transition-colors"/>
-                                </button>
-                                <button onClick={()=>applyAutoTax('honor_5')} className="w-full p-3.5 text-left border border-slate-200 rounded-xl text-sm hover:bg-emerald-50 hover:border-emerald-200 hover:text-emerald-700 font-bold transition-all flex items-center justify-between group">
-                                    <span>Honor ASN/Ber-NPWP (PPh21 5%)</span>
-                                    <Percent size={14} className="text-slate-300 group-hover:text-emerald-500 transition-colors"/>
-                                </button>
-                            </div>
-                            <button onClick={()=>setIsTaxModalOpen(false)} className="w-full mt-6 px-4 py-3.5 border border-slate-200 hover:bg-slate-100/80 rounded-xl text-sm font-bold text-slate-600 transition-colors">Tutup</button>
-                        </motion.div>
-                    </div>
-                )}
-                
-                {isPreviewOpen && (
-                    <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-md z-50 flex items-center justify-center p-4 animate-in fade-in duration-300">
-                        <motion.div 
-                            initial={{ opacity: 0, scale: 0.9, y: 20 }}
-                            animate={{ opacity: 1, scale: 1, y: 0 }}
-                            exit={{ opacity: 0, scale: 0.9, y: 20 }}
-                            className="bg-white/95 w-full max-w-5xl rounded-[2.5rem] shadow-2xl overflow-hidden border border-white/20 relative z-10"
-                        >
-                            <div className="p-8 border-b border-slate-100 flex items-center justify-between bg-slate-50/50">
-                                <div>
-                                    <div className="flex items-center gap-2 mb-1">
-                                        <span className="px-2 py-0.5 bg-blue-100 text-blue-700 text-[9px] font-black uppercase tracking-widest rounded-md">Print Preview</span>
-                                    </div>
-                                    <h3 className="text-2xl font-black text-slate-800 tracking-tight">Pratinjau Daftar Rincian Transfer</h3>
-                                    <p className="text-xs text-slate-400 font-medium">Pastikan penggabungan nominal dan data rekening sudah sesuai</p>
-                                </div>
-                                <button onClick={() => setIsPreviewOpen(false)} className="p-3 hover:bg-white rounded-2xl transition-all shadow-sm border border-transparent hover:border-slate-200">
-                                    <List size={20} className="text-slate-400" />
-                                </button>
-                            </div>
-                            
-                            <div className="p-8 max-h-[60vh] overflow-y-auto custom-scrollbar bg-white/30">
-                                <table className="w-full border-separate border-spacing-0">
-                                    <thead>
-                                        <tr className="bg-slate-100/80">
-                                            <th className="p-4 border-y border-l rounded-tl-2xl text-left text-[10px] font-black text-slate-500 uppercase tracking-widest">No</th>
-                                            <th className="p-4 border-y text-left text-[10px] font-black text-slate-500 uppercase tracking-widest">Penerima</th>
-                                            <th className="p-4 border-y text-left text-[10px] font-black text-slate-500 uppercase tracking-widest">No. Rekening</th>
-                                            <th className="p-4 border-y text-right text-[10px] font-black text-slate-500 uppercase tracking-widest">Total Nominal</th>
-                                            <th className="p-4 border-y border-r rounded-tr-2xl text-left text-[10px] font-black text-slate-500 uppercase tracking-widest">Keterangan</th>
-                                        </tr>
-                                    </thead>
-                                    <tbody className="divide-y divide-slate-100">
-                                        {getGroupedData().map((item, idx) => {
-                                            const tTax = item.taxes.ppn + item.taxes.pph21 + item.taxes.pph22 + item.taxes.pph23 + item.taxes.pajakDaerah;
-                                            return (
-                                                <tr key={idx} className="hover:bg-slate-50/50 transition-colors">
-                                                    <td className="p-4 text-xs text-center text-slate-400 font-mono">{idx + 1}</td>
-                                                    <td className="p-4 text-sm font-black text-slate-800 uppercase tracking-tight">{item.name}</td>
-                                                    <td className="p-4 text-xs font-mono font-bold text-blue-600">{item.account}</td>
-                                                    <td className="p-4 text-right">
-                                                        <div className="text-sm font-black text-slate-900">{formatRupiah(item.amount)}</div>
-                                                        {tTax > 0 && <div className="text-[9px] text-rose-500 font-bold">- Pot. Pajak {formatRupiah(tTax)}</div>}
-                                                    </td>
-                                                    <td className="p-4 text-[10px] text-slate-500 max-w-xs leading-relaxed italic">
-                                                        {item.descriptions.join(', ').length > 120 
-                                                            ? `${item.descriptions[0]} dan ${item.descriptions.length - 1} rincian lainnya`
-                                                            : item.descriptions.join(', ')
-                                                        }
-                                                    </td>
-                                                </tr>
-                                            );
-                                        })}
-                                    </tbody>
-                                </table>
-                                {getGroupedData().length === 0 && (
-                                    <div className="p-20 text-center">
-                                        <div className="inline-block p-4 bg-slate-50 rounded-full mb-4">
-                                            <Search size={32} className="text-slate-300" />
-                                        </div>
-                                        <p className="text-sm text-slate-400 font-medium">Belum ada data yang dipilih untuk pratinjau</p>
-                                    </div>
-                                )}
-                            </div>
 
-                            <div className="p-8 bg-slate-50/80 border-t border-slate-100 flex flex-col sm:flex-row justify-between items-center gap-4">
-                                <div className="text-left">
-                                    <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Grand Total Pencairan</p>
-                                    <p className="text-2xl font-black text-blue-600">{formatRupiah(totalSelectedAmount)}</p>
+            {typeof document !== 'undefined' && createPortal(
+                <AnimatePresence>
+                    {/* Modals are kept minimal or matching original structure with glass styling */}
+                    {isBulkEditOpen && (
+                        <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+                            <motion.div initial={{ opacity: 0, scale: 0.95, y: 20 }} animate={{ opacity: 1, scale: 1, y: 0 }} exit={{ opacity: 0, scale: 0.95, y: 20 }} className="bg-white rounded-[2rem] p-6 w-full max-w-md shadow-2xl relative z-10">
+                                <h3 className="font-bold text-lg mb-4 text-slate-800 tracking-tight">Set Penerima Massal</h3>
+                                <input type="text" placeholder="Nama Penerima" className="w-full border border-slate-200 focus:ring-2 focus:ring-blue-500/50 outline-none rounded-xl px-4 py-3 text-sm mb-3 bg-slate-50 transition-all font-semibold text-slate-700" value={bulkName} onChange={e => setBulkName(e.target.value)} />
+                                <input type="text" placeholder="No Rekening" className="w-full border border-slate-200 focus:ring-2 focus:ring-blue-500/50 outline-none rounded-xl px-4 py-3 text-sm mb-4 bg-slate-50 transition-all font-mono font-bold text-slate-700" value={bulkAccount} onChange={e => setBulkAccount(e.target.value)} />
+                                <div className="flex gap-3 mt-2">
+                                    <button onClick={() => setIsBulkEditOpen(false)} className="flex-1 px-4 py-3.5 border border-slate-200 hover:bg-slate-100/80 rounded-xl text-sm font-bold text-slate-600 transition-colors">Batal</button>
+                                    <button onClick={applyBulkRecipient} className="flex-1 px-4 py-3.5 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white rounded-xl text-sm font-bold shadow-lg shadow-blue-500/30 transition-all transform active:scale-95">Terapkan</button>
                                 </div>
-                                <div className="flex gap-3 w-full sm:w-auto">
-                                    <button 
-                                        onClick={() => setIsPreviewOpen(false)}
-                                        className="flex-1 sm:flex-none px-8 py-3.5 bg-white text-slate-600 rounded-2xl font-bold border border-slate-200 hover:bg-slate-50 transition-all shadow-sm active:scale-95"
-                                    >
-                                        Kembali
+                            </motion.div>
+                        </div>
+                    )}
+                    {isTaxModalOpen && (
+                        <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+                            <motion.div initial={{ opacity: 0, scale: 0.95, y: 20 }} animate={{ opacity: 1, scale: 1, y: 0 }} exit={{ opacity: 0, scale: 0.95, y: 20 }} className="bg-white rounded-[2rem] p-6 w-full max-w-md shadow-2xl border border-white/50 relative z-10">
+                                <h3 className="font-bold text-lg mb-4 text-slate-800 tracking-tight flex items-center gap-2"><Calculator size={20} className="text-emerald-500" /> Otomatisasi Pajak</h3>
+                                <div className="space-y-2 mt-2">
+                                    <button onClick={() => applyAutoTax('barang_pkp')} className="w-full p-3.5 text-left border border-slate-200 rounded-xl text-sm hover:bg-emerald-50 hover:border-emerald-200 hover:text-emerald-700 font-bold transition-all flex items-center justify-between group">
+                                        <span>Barang {'>'} 2 Juta (PPN & PPh22)</span>
+                                        <Percent size={14} className="text-slate-300 group-hover:text-emerald-500 transition-colors" />
                                     </button>
-                                    <button 
-                                        onClick={() => {
-                                            createRincianDoc();
-                                            setIsPreviewOpen(false);
-                                        }}
-                                        className="flex-1 sm:flex-none px-10 py-3.5 bg-gradient-to-r from-blue-600 to-indigo-700 text-white rounded-2xl font-black transition-all shadow-xl shadow-blue-500/20 active:scale-95 flex items-center justify-center gap-2"
-                                    >
-                                        <Printer size={20} />
-                                        Cetak PDF Sekarang
+                                    <button onClick={() => applyAutoTax('mamin_daerah')} className="w-full p-3.5 text-left border border-slate-200 rounded-xl text-sm hover:bg-emerald-50 hover:border-emerald-200 hover:text-emerald-700 font-bold transition-all flex items-center justify-between group">
+                                        <span>Mamin Resto (PB1 10%)</span>
+                                        <Percent size={14} className="text-slate-300 group-hover:text-emerald-500 transition-colors" />
+                                    </button>
+                                    <button onClick={() => applyAutoTax('jasa')} className="w-full p-3.5 text-left border border-slate-200 rounded-xl text-sm hover:bg-emerald-50 hover:border-emerald-200 hover:text-emerald-700 font-bold transition-all flex items-center justify-between group">
+                                        <span>Jasa (PPh23 2%)</span>
+                                        <Percent size={14} className="text-slate-300 group-hover:text-emerald-500 transition-colors" />
+                                    </button>
+                                    <button onClick={() => applyAutoTax('honor_5')} className="w-full p-3.5 text-left border border-slate-200 rounded-xl text-sm hover:bg-emerald-50 hover:border-emerald-200 hover:text-emerald-700 font-bold transition-all flex items-center justify-between group">
+                                        <span>Honor ASN/Ber-NPWP (PPh21 5%)</span>
+                                        <Percent size={14} className="text-slate-300 group-hover:text-emerald-500 transition-colors" />
                                     </button>
                                 </div>
-                            </div>
-                        </motion.div>
-                    </div>
-                )}
-            </AnimatePresence>,
-            document.body
+                                <button onClick={() => setIsTaxModalOpen(false)} className="w-full mt-6 px-4 py-3.5 border border-slate-200 hover:bg-slate-100/80 rounded-xl text-sm font-bold text-slate-600 transition-colors">Tutup</button>
+                            </motion.div>
+                        </div>
+                    )}
+
+                    {isPreviewOpen && (
+                        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-md z-50 flex items-center justify-center p-4 animate-in fade-in duration-300">
+                            <motion.div
+                                initial={{ opacity: 0, scale: 0.9, y: 20 }}
+                                animate={{ opacity: 1, scale: 1, y: 0 }}
+                                exit={{ opacity: 0, scale: 0.9, y: 20 }}
+                                className="bg-white/95 w-full max-w-5xl rounded-[2.5rem] shadow-2xl overflow-hidden border border-white/20 relative z-10"
+                            >
+                                <div className="p-8 border-b border-slate-100 flex items-center justify-between bg-slate-50/50">
+                                    <div>
+                                        <div className="flex items-center gap-2 mb-1">
+                                            <span className="px-2 py-0.5 bg-blue-100 text-blue-700 text-[9px] font-black uppercase tracking-widest rounded-md">Print Preview</span>
+                                        </div>
+                                        <h3 className="text-2xl font-black text-slate-800 tracking-tight">Pratinjau Daftar Rincian Transfer</h3>
+                                        <p className="text-xs text-slate-400 font-medium">Pastikan penggabungan nominal dan data rekening sudah sesuai</p>
+                                    </div>
+                                    <button onClick={() => setIsPreviewOpen(false)} className="p-3 hover:bg-white rounded-2xl transition-all shadow-sm border border-transparent hover:border-slate-200">
+                                        <List size={20} className="text-slate-400" />
+                                    </button>
+                                </div>
+
+                                <div className="p-8 max-h-[60vh] overflow-y-auto custom-scrollbar bg-white/30">
+                                    <table className="w-full border-separate border-spacing-0">
+                                        <thead>
+                                            <tr className="bg-slate-100/80">
+                                                <th className="p-4 border-y border-l rounded-tl-2xl text-left text-[10px] font-black text-slate-500 uppercase tracking-widest">No</th>
+                                                <th className="p-4 border-y text-left text-[10px] font-black text-slate-500 uppercase tracking-widest">Penerima</th>
+                                                <th className="p-4 border-y text-left text-[10px] font-black text-slate-500 uppercase tracking-widest">No. Rekening</th>
+                                                <th className="p-4 border-y text-right text-[10px] font-black text-slate-500 uppercase tracking-widest">Total Nominal</th>
+                                                <th className="p-4 border-y border-r rounded-tr-2xl text-left text-[10px] font-black text-slate-500 uppercase tracking-widest">Keterangan</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody className="divide-y divide-slate-100">
+                                            {getGroupedData().map((item, idx) => {
+                                                const tTax = item.taxes.ppn + item.taxes.pph21 + item.taxes.pph22 + item.taxes.pph23 + item.taxes.pajakDaerah;
+                                                return (
+                                                    <tr key={idx} className="hover:bg-slate-50/50 transition-colors">
+                                                        <td className="p-4 text-xs text-center text-slate-400 font-mono">{idx + 1}</td>
+                                                        <td className="p-4 text-sm font-black text-slate-800 uppercase tracking-tight">{item.name}</td>
+                                                        <td className="p-4 text-xs font-mono font-bold text-blue-600">{item.account}</td>
+                                                        <td className="p-4 text-right">
+                                                            <div className="text-sm font-black text-slate-900">{formatRupiah(item.amount)}</div>
+                                                            {tTax > 0 && <div className="text-[9px] text-rose-500 font-bold">- Pot. Pajak {formatRupiah(tTax)}</div>}
+                                                        </td>
+                                                        <td className="p-4 text-[10px] text-slate-500 max-w-xs leading-relaxed italic">
+                                                            {item.descriptions.join(', ').length > 120
+                                                                ? `${item.descriptions[0]} dan ${item.descriptions.length - 1} rincian lainnya`
+                                                                : item.descriptions.join(', ')
+                                                            }
+                                                        </td>
+                                                    </tr>
+                                                );
+                                            })}
+                                        </tbody>
+                                    </table>
+                                    {getGroupedData().length === 0 && (
+                                        <div className="p-20 text-center">
+                                            <div className="inline-block p-4 bg-slate-50 rounded-full mb-4">
+                                                <Search size={32} className="text-slate-300" />
+                                            </div>
+                                            <p className="text-sm text-slate-400 font-medium">Belum ada data yang dipilih untuk pratinjau</p>
+                                        </div>
+                                    )}
+                                </div>
+
+                                <div className="p-8 bg-slate-50/80 border-t border-slate-100 flex flex-col sm:flex-row justify-between items-center gap-4">
+                                    <div className="text-left">
+                                        <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Grand Total Pencairan</p>
+                                        <p className="text-2xl font-black text-blue-600">{formatRupiah(totalSelectedAmount)}</p>
+                                    </div>
+                                    <div className="flex gap-3 w-full sm:w-auto">
+                                        <button
+                                            onClick={() => setIsPreviewOpen(false)}
+                                            className="flex-1 sm:flex-none px-8 py-3.5 bg-white text-slate-600 rounded-2xl font-bold border border-slate-200 hover:bg-slate-50 transition-all shadow-sm active:scale-95"
+                                        >
+                                            Kembali
+                                        </button>
+                                        <button
+                                            onClick={() => {
+                                                createRincianDoc();
+                                                setIsPreviewOpen(false);
+                                            }}
+                                            className="flex-1 sm:flex-none px-10 py-3.5 bg-gradient-to-r from-blue-600 to-indigo-700 text-white rounded-2xl font-black transition-all shadow-xl shadow-blue-500/20 active:scale-95 flex items-center justify-center gap-2"
+                                        >
+                                            <Printer size={20} />
+                                            Cetak PDF Sekarang
+                                        </button>
+                                    </div>
+                                </div>
+                            </motion.div>
+                        </div>
+                    )}
+                </AnimatePresence>,
+                document.body
             )}
         </motion.div>
     );
