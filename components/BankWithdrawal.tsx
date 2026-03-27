@@ -144,28 +144,44 @@ const BankWithdrawal: React.FC<BankWithdrawalProps> = ({ data, profile, onUpdate
         const selectedItems = filteredRealizations.filter(d => selectedBudgetIds.includes(d.id));
         
         if (isGroupingEnabled) {
-            // GABUNG: Semua item yang dicentang → 1 transaksi, 1 toko, 1 rekening
+            // GABUNG: Kelompokkan berdasarkan Nama & No Rekening (Case-Insensitive)
+            // Ini memungkinkan user mencetak beberapa grup sekaligus jika store-nya berbeda, 
+            // tapi tetap menggabung item yang tokonya sama.
             if (selectedItems.length === 0) return [];
-            const totalTaxes = { ppn: 0, pph21: 0, pph22: 0, pph23: 0, pajakDaerah: 0 };
-            let totalAmount = 0;
-            const allDescriptions: string[] = [];
+            
+            const groups: Record<string, {
+                name: string; account: string; amount: number; descriptions: string[];
+                taxes: { ppn: number; pph21: number; pph22: number; pph23: number; pajakDaerah: number; }
+            }> = {};
+
             selectedItems.forEach(item => {
-                const detail = recipientDetails[item.id] || { ppn: 0, pph21: 0, pph22: 0, pph23: 0, pajakDaerah: 0 };
-                totalAmount += item.amount;
-                allDescriptions.push(item.description);
-                totalTaxes.ppn += (detail.ppn || 0);
-                totalTaxes.pph21 += (detail.pph21 || 0);
-                totalTaxes.pph22 += (detail.pph22 || 0);
-                totalTaxes.pph23 += (detail.pph23 || 0);
-                totalTaxes.pajakDaerah += (detail.pajakDaerah || 0);
+                const detail = recipientDetails[item.id] || { name: '', account: '', ppn: 0, pph21: 0, pph22: 0, pph23: 0, pajakDaerah: 0 };
+                
+                // Gunakan info dari baris rincian, atau fallback ke bulkName jika rincian baris kosong
+                const name = (detail.name?.trim() || bulkName.trim() || 'Penerima Belum Diisi');
+                const account = (detail.account?.trim() || bulkAccount.trim() || '-');
+                const key = `${name.toLowerCase()}_${account}`;
+
+                if (!groups[key]) {
+                    groups[key] = {
+                        name,
+                        account,
+                        amount: 0,
+                        descriptions: [],
+                        taxes: { ppn: 0, pph21: 0, pph22: 0, pph23: 0, pajakDaerah: 0 }
+                    };
+                }
+
+                groups[key].amount += item.amount;
+                groups[key].descriptions.push(item.description);
+                groups[key].taxes.ppn += (detail.ppn || 0);
+                groups[key].taxes.pph21 += (detail.pph21 || 0);
+                groups[key].taxes.pph22 += (detail.pph22 || 0);
+                groups[key].taxes.pph23 += (detail.pph23 || 0);
+                groups[key].taxes.pajakDaerah += (detail.pajakDaerah || 0);
             });
-            return [{
-                name: bulkName.trim(),
-                account: bulkAccount.trim(),
-                amount: totalAmount,
-                descriptions: allDescriptions,
-                taxes: totalTaxes
-            }];
+
+            return Object.values(groups);
         } else {
             // PISAH: Setiap item yang dicentang → punya toko & rekening sendiri
             const groups: Record<string, {
