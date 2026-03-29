@@ -715,6 +715,92 @@ export const initializeUserAccounts = async (): Promise<Record<string, string>> 
 
 // --- DANGER ZONE: Reset Data ---
 
+// --- System Health & Usage Monitoring ---
+
+export interface SystemUsage {
+    databaseBytes: number;
+    databaseLimit: number;
+    storageBytes: number;
+    storageLimit: number;
+    fileCount: number;
+}
+
+export const getSystemUsage = async (): Promise<SystemUsage> => {
+    const DEFAULT_USAGE: SystemUsage = {
+        databaseBytes: 0,
+        databaseLimit: 50 * 1024 * 1024, // 50MB for Free Tier Warning
+        storageBytes: 0,
+        storageLimit: 400 * 1024 * 1024, // 400MB for Free Tier Warning (1GB limit)
+        fileCount: 0
+    };
+
+    if (!supabase) return DEFAULT_USAGE;
+
+    try {
+        const userId = await getCurrentUserId();
+        if (!userId) return DEFAULT_USAGE;
+
+        // 1. Fetch data for DB estimation
+        const [budgets, history, reports, bank, accounts] = await Promise.all([
+            supabase.from('budgets').select('id, realizations').eq('user_id', userId),
+            supabase.from('withdrawal_history').select('id, file_path').eq('user_id', userId),
+            supabase.from('rapor_pendidikan').select('id').eq('user_id', userId),
+            supabase.from('bank_statements').select('id, file_path').eq('user_id', userId),
+            supabase.from('account_codes').select('id').eq('user_id', userId)
+        ]);
+
+        // Estimated row sizes (Heuristic)
+        const budgetCount = budgets.data?.length || 0;
+        const historyCount = history.data?.length || 0;
+        const reportCount = reports.data?.length || 0;
+        const bankCount = bank.data?.length || 0;
+        const accountCount = accounts.data?.length || 0;
+
+        // Weighted Calculation (Average row size in bytes)
+        const dbSize = (budgetCount * 5000) + (historyCount * 10000) + (reportCount * 1000) + (bankCount * 2000) + (accountCount * 500);
+
+        // 2. Storage Estimation (Count files referenced)
+        let storageSize = 0;
+        let fileCount = 0;
+
+        // Files in Budgets
+        budgets.data?.forEach(b => {
+           if (b.realizations && Array.isArray(b.realizations)) {
+               b.realizations.forEach((r: any) => {
+                   if (r.evidence_files && Array.isArray(r.evidence_files)) {
+                       fileCount += r.evidence_files.length;
+                   }
+               });
+           }
+        });
+
+        // Files in Withdrawal History
+        history.data?.forEach(h => {
+            if (h.file_path) fileCount++;
+        });
+
+        // Files in Bank Statements
+        bank.data?.forEach(b => {
+            if (b.file_path) fileCount++;
+        });
+
+        // Average file size assumption: 800KB (Mixed Images/PDFs)
+        storageSize = fileCount * 800 * 1024;
+
+        return {
+            databaseBytes: dbSize,
+            databaseLimit: 50 * 1024 * 1024, 
+            storageBytes: storageSize,
+            storageLimit: 400 * 1024 * 1024,
+            fileCount
+        };
+
+    } catch (error) {
+        console.error("Usage monitoring error:", error);
+        return DEFAULT_USAGE;
+    }
+};
+
 export const resetAllData = async (): Promise<boolean> => {
     if (supabase) {
         try {

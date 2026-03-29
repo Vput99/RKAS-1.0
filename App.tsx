@@ -15,6 +15,7 @@ const BankWithdrawal = lazy(() => import('./components/BankWithdrawal'));
 const EvidenceTemplates = lazy(() => import('./components/EvidenceTemplates'));
 const InventoryReports = lazy(() => import('./components/InventoryReports'));
 const BKU = lazy(() => import('./components/BKU'));
+const SystemMonitor = lazy(() => import('./components/SystemMonitor'));
 
 import Auth from './components/Auth';
 import { getBudgets, addBudget, updateBudget, deleteBudget, getSchoolProfile, checkDatabaseConnection, clearLocalData } from './lib/db';
@@ -500,9 +501,14 @@ function App() {
           </motion.div>
         )}
       </AnimatePresence>
+      {/* System Resource Monitor */}
+      <Suspense fallback={null}>
+        <SystemMonitor />
+      </Suspense>
     </div>
   );
 }
 
 export default App;
+
 
