@@ -1830,13 +1830,13 @@ const EvidenceTemplates = ({ budgets: allBudgets, onUpdate }: EvidenceTemplatesP
   const renderAlbumGallery = () => {
     if (allEvidenceFiles.length === 0) {
         return (
-            <div className="bg-white rounded-xl border border-gray-200 shadow-sm flex flex-col items-center justify-center p-12 text-center h-full min-h-[500px] animate-fade-in-up">
-                <div className="w-20 h-20 bg-gray-50 rounded-full flex items-center justify-center mb-6">
-                  <ImageIcon className="text-gray-300" size={40} />
+            <div className="bg-slate-50/50 rounded-[2.5rem] border-2 border-dashed border-slate-200 flex flex-col items-center justify-center p-12 text-center h-full min-h-[500px] animate-in fade-in zoom-in duration-500">
+                <div className="w-24 h-24 bg-white rounded-full flex items-center justify-center mb-6 shadow-xl shadow-slate-200/50">
+                  <ImageIcon className="text-slate-300" size={48} />
                 </div>
-                <h3 className="text-lg font-bold text-gray-800 mb-2">Album Kosong</h3>
-                <p className="text-sm text-gray-500 max-w-md mx-auto">
-                    Belum ada bukti fisik yang diunggah. Silakan unggah setidaknya satu bukti fisik pada tab Upload terlebih dahulu.
+                <h3 className="text-xl font-black text-slate-800 mb-2 tracking-tight">Album Digital Kosong</h3>
+                <p className="text-sm font-semibold text-slate-400 max-w-sm mx-auto leading-relaxed">
+                    Belum ada bukti fisik yang diarsip. Silakan unggah bukti fisik pada tab <span className="text-blue-600 font-black">Upload</span> untuk melihatnya di sini.
                 </p>
             </div>
         );
@@ -1846,30 +1846,30 @@ const EvidenceTemplates = ({ budgets: allBudgets, onUpdate }: EvidenceTemplatesP
 
     // --- BREADCRUMBS ---
     const renderBreadcrumbs = () => (
-        <div className="flex items-center gap-2 mb-8 bg-white/50 backdrop-blur-sm p-3 rounded-2xl border border-white/80 shadow-sm w-fit">
+        <div className="flex items-center gap-2 mb-8 bg-slate-100/50 backdrop-blur-md p-2 rounded-2xl border border-slate-200/50 shadow-inner w-fit">
             <button 
                 onClick={() => setAlbumView({ month: null, transactionKey: null })}
-                className={`text-xs font-bold px-3 py-1.5 rounded-lg transition-all ${!month ? 'bg-blue-600 text-white shadow-md' : 'text-gray-500 hover:bg-gray-100'}`}
+                className={`text-[10px] font-black uppercase tracking-widest px-4 py-2 rounded-xl transition-all duration-300 ${!month ? 'bg-white text-blue-600 shadow-lg shadow-blue-900/5' : 'text-slate-500 hover:text-slate-800'}`}
             >
-                Semua Bulan
+                Arsip Pusat
             </button>
             {month && (
                 <>
-                    <ChevronRight size={14} className="text-gray-300" />
+                    <ChevronRight size={14} className="text-slate-300" />
                     <button 
                          onClick={() => setAlbumView({ month, transactionKey: null })}
-                         className={`text-xs font-bold px-3 py-1.5 rounded-lg transition-all ${month && !transactionKey ? 'bg-blue-600 text-white shadow-md' : 'text-gray-500 hover:bg-gray-100'}`}
+                         className={`text-[10px] font-black uppercase tracking-widest px-4 py-2 rounded-xl transition-all duration-300 ${month && !transactionKey ? 'bg-white text-blue-600 shadow-lg shadow-blue-900/5' : 'text-slate-500 hover:text-slate-800'}`}
                     >
-                        Bulan {MONTHS[month - 1]}
+                        {MONTHS[month - 1]}
                     </button>
                 </>
             )}
             {transactionKey && (
                 <>
-                    <ChevronRight size={14} className="text-gray-300" />
-                    <span className="text-xs font-bold px-3 py-1.5 bg-blue-600 text-white shadow-md rounded-lg">
+                    <ChevronRight size={14} className="text-slate-300" />
+                    <div className="text-[10px] font-black uppercase tracking-widest px-4 py-2 bg-blue-600 text-white shadow-lg shadow-blue-500/30 rounded-xl border border-blue-500">
                         {groupedAlbum[month!]?.[transactionKey]?.vendor || 'Detail Transaksi'}
-                    </span>
+                    </div>
                 </>
             )}
         </div>
@@ -1879,29 +1879,34 @@ const EvidenceTemplates = ({ budgets: allBudgets, onUpdate }: EvidenceTemplatesP
     if (!month) {
         const availableMonths = Object.keys(groupedAlbum).map(m => parseInt(m)).sort((a, b) => a - b);
         return (
-            <div className="animate-fade-in">
+            <div className="animate-in fade-in slide-in-from-bottom-4 duration-500">
                 {renderBreadcrumbs()}
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-8">
                     {availableMonths.map(m => (
                         <motion.div
                             key={m}
-                            whileHover={{ y: -5, scale: 1.02 }}
+                            whileHover={{ y: -8, scale: 1.02 }}
                             whileTap={{ scale: 0.98 }}
                             onClick={() => setAlbumView({ month: m, transactionKey: null })}
-                            className="bg-white p-6 rounded-[24px] border border-gray-100 shadow-sm hover:shadow-xl hover:border-blue-200 transition-all cursor-pointer group relative overflow-hidden"
+                            className="bg-white p-8 rounded-[2.5rem] border border-slate-100 shadow-xl shadow-blue-900/5 hover:shadow-2xl hover:border-blue-100 transition-all cursor-pointer group relative overflow-hidden"
                         >
-                            <div className="absolute top-0 right-0 p-4 opacity-5 group-hover:opacity-10 transition-opacity">
-                                <Folder size={80} className="text-blue-600" />
+                            <div className="absolute top-0 right-0 p-6 opacity-[0.03] group-hover:opacity-[0.07] transition-opacity duration-500">
+                                <Folder size={120} className="text-blue-600 -rotate-12" />
                             </div>
-                            <div className="w-14 h-14 bg-blue-50 rounded-2xl flex items-center justify-center text-blue-600 mb-4 group-hover:bg-blue-600 group-hover:text-white transition-colors duration-300 shadow-inner">
-                                <Folder size={28} />
+                            <div className="w-16 h-16 bg-blue-50 rounded-2xl flex items-center justify-center text-blue-600 mb-6 group-hover:bg-blue-600 group-hover:text-white transition-all duration-500 shadow-inner group-hover:rotate-6 group-hover:shadow-blue-500/30">
+                                <Folder size={32} />
                             </div>
-                            <h3 className="text-lg font-black text-gray-800 mb-1">SPJ Bulan {MONTHS[m - 1]}</h3>
-                            <p className="text-xs font-bold text-gray-400 uppercase tracking-widest">
-                                {Object.keys(groupedAlbum[m]).length} Transaksi
-                            </p>
-                            <div className="mt-6 flex items-center text-blue-600 text-[10px] font-black uppercase tracking-widest group-hover:translate-x-2 transition-transform">
-                                Buka Folder <ChevronRight size={14} />
+                            <h3 className="text-xl font-black text-slate-800 mb-2 tracking-tight">Bukti {MONTHS[m - 1]}</h3>
+                            <div className="flex items-center gap-2 mb-6">
+                                <span className="px-2 py-1 bg-slate-100 text-slate-500 text-[9px] font-black uppercase tracking-widest rounded-lg border border-slate-200">
+                                    {Object.keys(groupedAlbum[m]).length} Transaksi
+                                </span>
+                            </div>
+                            <div className="pt-6 border-t border-slate-50 flex items-center justify-between text-blue-600 text-[10px] font-black uppercase tracking-widest group-hover:text-blue-700">
+                                <span>Buka Folder</span>
+                                <div className="p-1.5 bg-blue-50 rounded-lg group-hover:bg-blue-600 group-hover:text-white transition-all">
+                                  <ChevronRight size={14} />
+                                </div>
                             </div>
                         </motion.div>
                     ))}
@@ -1912,44 +1917,47 @@ const EvidenceTemplates = ({ budgets: allBudgets, onUpdate }: EvidenceTemplatesP
 
     // --- RENDER LEVEL 1: TRANSACTIONS IN MONTH ---
     if (month && !transactionKey) {
-        const transactions = Object.values(groupedAlbum[month] || {}).sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+        const transactions = Object.values(groupedAlbum[month] || {}).sort((a: any, b: any) => new Date(b.date).getTime() - new Date(a.date).getTime());
         return (
-            <div className="animate-fade-in">
+            <div className="animate-in fade-in slide-in-from-bottom-4 duration-500">
                 {renderBreadcrumbs()}
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-                    {transactions.map(t => (
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-8">
+                    {transactions.map((t: any) => (
                         <motion.div
                             key={t.key}
-                            whileHover={{ y: -5, scale: 1.02 }}
+                            whileHover={{ y: -8, scale: 1.02 }}
                             whileTap={{ scale: 0.98 }}
-                            onClick={() => setAlbumView({ month, transactionKey: t.key })}
-                            className="bg-white p-6 rounded-[24px] border border-gray-100 shadow-sm hover:shadow-xl hover:border-blue-200 transition-all cursor-pointer group relative overflow-hidden"
+                            onClick={() => setAlbumView({ month: month, transactionKey: t.key })}
+                            className="bg-white p-8 rounded-[2.5rem] border border-slate-100 shadow-xl shadow-blue-900/5 hover:shadow-2xl hover:border-indigo-100 transition-all cursor-pointer group relative overflow-hidden"
                         >
-                            <div className="flex items-center gap-3 mb-4">
-                                <div className="p-3 bg-indigo-50 rounded-xl text-indigo-600 group-hover:bg-indigo-600 group-hover:text-white transition-colors shadow-inner">
-                                    <ShoppingCart size={20} />
+                            <div className="flex items-center gap-4 mb-6">
+                                <div className="p-4 bg-indigo-50 rounded-2xl text-indigo-600 group-hover:bg-indigo-600 group-hover:text-white transition-all duration-500 shadow-inner group-hover:rotate-6">
+                                    <ShoppingCart size={24} />
                                 </div>
-                                <div>
-                                    <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest">
+                                <div className="flex-1 min-w-0">
+                                    <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">
                                         {new Date(t.date).toLocaleDateString('id-ID', { day: '2-digit', month: 'short', year: 'numeric' })}
                                     </p>
-                                    <h3 className="text-sm font-black text-gray-800 line-clamp-1">{t.vendor}</h3>
+                                    <h3 className="text-base font-black text-slate-800 truncate leading-none">{t.vendor}</h3>
                                 </div>
                             </div>
-                            <div className="space-y-3">
-                                <div className="flex justify-between items-center text-[10px] font-bold text-gray-500 bg-gray-50 p-2 rounded-lg border border-gray-100">
-                                    <span>Total SPJ:</span>
-                                    <span className="text-indigo-600 font-mono">
+                            <div className="space-y-3 bg-slate-50/50 p-4 rounded-2xl border border-slate-100">
+                                <div className="flex justify-between items-center text-[10px] font-black text-slate-400 uppercase tracking-widest">
+                                    <span>Nominal SPJ</span>
+                                    <span className="text-indigo-600 text-xs">
                                         {new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', maximumFractionDigits: 0 }).format(t.totalAmount)}
                                     </span>
                                 </div>
-                                <div className="flex justify-between items-center text-[10px] font-bold text-gray-500">
-                                    <span>Bukti Fisik:</span>
-                                    <span className="bg-blue-100 text-blue-700 px-2 py-0.5 rounded-full">{t.files.length} File</span>
+                                <div className="flex justify-between items-center text-[10px] font-black text-slate-400 uppercase tracking-widest">
+                                    <span>Arsip Bukti</span>
+                                    <span className="bg-white text-emerald-600 px-3 py-1 rounded-lg border border-emerald-100 shadow-sm">{t.files.length} Berkas</span>
                                 </div>
                             </div>
-                            <div className="mt-6 flex items-center text-indigo-600 text-[10px] font-black uppercase tracking-widest group-hover:translate-x-2 transition-transform">
-                                Lihat Berkas <ChevronRight size={14} />
+                            <div className="mt-8 flex items-center justify-between text-indigo-600 text-[10px] font-black uppercase tracking-widest group-hover:text-indigo-700">
+                                <span>Periksa Arsip</span>
+                                <div className="p-1.5 bg-indigo-50 rounded-lg group-hover:bg-indigo-600 group-hover:text-white transition-all">
+                                  <ChevronRight size={14} />
+                                </div>
                             </div>
                         </motion.div>
                     ))}
@@ -1959,12 +1967,12 @@ const EvidenceTemplates = ({ budgets: allBudgets, onUpdate }: EvidenceTemplatesP
     }
 
     // --- RENDER LEVEL 2: FILES IN TRANSACTION ---
-    const filesInTransaction = groupedAlbum[month]?.[transactionKey]?.files || [];
+    const filesInTransaction = groupedAlbum[month!]?.[transactionKey!]?.files || [];
     return (
-      <div className="relative animate-fade-in">
+      <div className="relative animate-in fade-in slide-in-from-bottom-4 duration-500">
         {renderBreadcrumbs()}
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-            {filesInTransaction.map((file, idx) => {
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-8">
+            {filesInTransaction.map((file: any, idx: number) => {
                 const isImage = file.name.match(/\.(jpeg|jpg|gif|png|webp)$/i);
                 return (
                     <motion.div 
@@ -1974,37 +1982,47 @@ const EvidenceTemplates = ({ budgets: allBudgets, onUpdate }: EvidenceTemplatesP
                         initial={{ opacity: 0, scale: 0.9, y: 20 }}
                         animate={{ opacity: 1, scale: 1, y: 0 }}
                         transition={{ duration: 0.4, delay: idx * 0.05 }}
-                        className="bg-white rounded-[24px] shadow-sm border border-gray-100 overflow-hidden group cursor-pointer hover:shadow-xl hover:-translate-y-1 transition-all duration-300 flex flex-col"
+                        className="bg-white rounded-[2.5rem] shadow-xl shadow-blue-900/5 border border-slate-100 overflow-hidden group cursor-pointer hover:shadow-2xl hover:-translate-y-2 transition-all duration-500 flex flex-col relative"
                     >
-                        <motion.div layoutId={`image-container-${file.url}-${idx}`} className="relative h-48 bg-gray-100 flex items-center justify-center overflow-hidden border-b border-gray-100">
+                        <motion.div layoutId={`image-container-${file.url}-${idx}`} className="relative h-56 bg-slate-50 flex items-center justify-center overflow-hidden border-b border-slate-50">
                             {isImage ? (
-                                <motion.img layoutId={`image-${file.url}-${idx}`} src={file.url} alt={file.name} className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-700" />
+                                <motion.img layoutId={`image-${file.url}-${idx}`} src={file.url} alt={file.name} className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-1000" />
                             ) : (
-                                <motion.div layoutId={`image-${file.url}-${idx}`} className="text-red-400 flex flex-col items-center group-hover:scale-110 transition-transform duration-700">
-                                    <FileText size={48} />
-                                    <span className="text-[10px] mt-2 font-bold text-gray-500 line-clamp-1 max-w-[80%] text-center">{file.name}</span>
+                                <motion.div layoutId={`image-${file.url}-${idx}`} className="text-blue-400 flex flex-col items-center group-hover:scale-110 transition-transform duration-1000">
+                                    <div className="p-4 bg-white rounded-2xl shadow-lg shadow-blue-900/5">
+                                      <FileText size={48} />
+                                    </div>
+                                    <span className="text-[10px] mt-4 font-black text-slate-400 uppercase tracking-widest line-clamp-1 max-w-[80%] text-center px-4">{file.name}</span>
                                 </motion.div>
                             )}
-                            <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex items-end p-4">
-                                <span className="bg-white/95 text-gray-800 text-xs font-bold px-3 py-1.5 rounded-full flex items-center gap-2 shadow-lg scale-90 group-hover:scale-100 transition-transform">
-                                    <Eye size={12} className="text-blue-600" /> Lihat Detail
+                            <div className="absolute inset-0 bg-gradient-to-t from-slate-900/80 via-slate-900/20 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex items-end justify-center pb-8 p-6">
+                                <span className="bg-white text-slate-900 text-[10px] font-black uppercase tracking-widest px-6 py-3 rounded-2xl flex items-center gap-2 shadow-2xl scale-90 group-hover:scale-100 transition-transform duration-500">
+                                    <Eye size={16} className="text-blue-600" /> Buka Berkas
                                 </span>
+                            </div>
+                            
+                            {/* Badges on top of image */}
+                            <div className="absolute top-4 left-4 z-10">
+                              <span className="text-[9px] font-black text-white bg-blue-600/80 backdrop-blur-md px-3 py-1.5 rounded-xl uppercase tracking-widest shadow-lg border border-white/20">
+                                  {file.type}
+                              </span>
                             </div>
                         </motion.div>
 
-                        <motion.div layoutId={`info-${file.url}-${idx}`} className="p-5 bg-white flex-1 flex flex-col">
-                            <div className="flex justify-between items-start mb-2">
-                                <span className="text-[10px] font-black text-blue-600 bg-blue-50 px-2.5 py-1 rounded-lg uppercase tracking-wider line-clamp-1 max-w-[60%] truncate">
-                                    {file.type}
-                                </span>
-                            </div>
-                            <h4 className="text-sm font-black text-gray-800 mb-1 line-clamp-1" title={file.vendor}>{file.vendor}</h4>
-                            <p className="text-[10px] font-medium text-gray-500 line-clamp-2 mb-4 leading-relaxed flex-1" title={file.description}>{file.description}</p>
+                        <motion.div layoutId={`info-${file.url}-${idx}`} className="p-8 bg-white flex-1 flex flex-col">
+                            <h4 className="text-base font-black text-slate-800 mb-2 tracking-tight line-clamp-1" title={file.vendor}>{file.vendor}</h4>
+                            <p className="text-xs font-semibold text-slate-400 line-clamp-2 mb-6 leading-relaxed flex-1 opacity-80" title={file.description}>{file.description}</p>
                             
-                            <div className="flex justify-between items-center pt-3 border-t border-gray-50 mt-auto">
-                                <span className="text-xs font-mono font-black text-indigo-600 bg-indigo-50 px-2.5 py-1 rounded-lg">
-                                    {new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', maximumFractionDigits: 0 }).format(file.amount)}
-                                </span>
+                            <div className="flex justify-between items-center pt-6 border-t border-slate-50 mt-auto">
+                                <div className="flex flex-col">
+                                  <span className="text-[8px] font-black text-slate-400 uppercase tracking-[0.2em] mb-1">Nominal Bukti</span>
+                                  <span className="text-sm font-black text-indigo-600 bg-indigo-50 px-3 py-1.5 rounded-xl border border-indigo-100">
+                                      {new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', maximumFractionDigits: 0 }).format(file.amount)}
+                                  </span>
+                                </div>
+                                <div className="p-3 bg-slate-50 text-slate-400 rounded-xl group-hover:bg-blue-50 group-hover:text-blue-600 transition-colors">
+                                  <Download size={18} />
+                                </div>
                             </div>
                         </motion.div>
                     </motion.div>
@@ -2019,38 +2037,36 @@ const EvidenceTemplates = ({ budgets: allBudgets, onUpdate }: EvidenceTemplatesP
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
-              className="fixed inset-0 z-[100] flex items-center justify-center p-4 sm:p-8 md:p-12 bg-black/60 backdrop-blur-md"
+              className="fixed inset-0 z-[100] flex items-center justify-center p-4 sm:p-8 md:p-12 bg-slate-900/80 backdrop-blur-lg"
               onClick={() => setSelectedFile(null)}
             >
-              {/* Close Button Outer */}
               <button 
                   onClick={() => setSelectedFile(null)}
-                  className="absolute top-4 right-4 z-[110] p-3 bg-white/10 text-white hover:bg-white/20 hover:scale-110 rounded-full transition-all backdrop-blur-sm shadow-xl"
+                  className="absolute top-8 right-8 z-[110] p-4 bg-white/10 text-white hover:bg-white/20 hover:scale-110 rounded-2xl transition-all backdrop-blur-md shadow-2xl border border-white/10"
               >
                   <X size={24} />
               </button>
 
               <motion.div
                 layoutId={`card-${selectedFile.url}-${selectedFile.idx}`}
-                className="relative w-full max-w-5xl bg-white rounded-2xl shadow-2xl overflow-hidden flex flex-col md:flex-row max-h-[90vh]"
+                className="relative w-full max-w-6xl bg-white rounded-[3rem] shadow-2xl overflow-hidden flex flex-col md:flex-row max-h-[90vh] border border-white/20"
                 onClick={(e) => e.stopPropagation()}
               >
                  {/* Image/PDF Section */}
-                 <motion.div layoutId={`image-container-${selectedFile.url}-${selectedFile.idx}`} className="flex-1 bg-black relative flex items-center justify-center min-h-[40vh] md:min-h-0">
+                 <motion.div layoutId={`image-container-${selectedFile.url}-${selectedFile.idx}`} className="flex-1 bg-slate-50 relative flex items-center justify-center min-h-[40vh] md:min-h-0 border-r border-slate-100">
                     {selectedFile.isImage ? (
-                        <motion.img layoutId={`image-${selectedFile.url}-${selectedFile.idx}`} src={selectedFile.url} className="w-full h-full object-contain" />
+                        <motion.img layoutId={`image-${selectedFile.url}-${selectedFile.idx}`} src={selectedFile.url} className="w-full h-full object-contain p-8" />
                     ) : (
-                        <motion.iframe layoutId={`image-${selectedFile.url}-${selectedFile.idx}`} src={selectedFile.url} className="absolute inset-0 w-full h-full border-0 bg-gray-100" title="PDF Document" />
+                        <motion.iframe layoutId={`image-${selectedFile.url}-${selectedFile.idx}`} src={selectedFile.url} className="absolute inset-0 w-full h-full border-0 bg-white" title="PDF Document" />
                     )}
                     
-                    {/* Action Toolbar overlay */}
-                    <div className="absolute bottom-6 right-6 flex gap-3 z-10">
+                    <div className="absolute bottom-8 right-8 flex gap-4 z-10">
                         <button 
                             onClick={() => window.open(selectedFile.url, '_blank')}
-                            className="p-3 bg-white/10 hover:bg-white/20 text-white backdrop-blur-md rounded-full transition-all shadow-xl hover:scale-110 border border-white/20"
-                            title="Unduh / Buka di Tab Baru"
+                            className="p-4 bg-white/90 hover:bg-white text-slate-800 backdrop-blur-xl rounded-2xl transition-all shadow-2xl hover:scale-110 border border-slate-200 group/btn flex items-center gap-3 pr-6"
                         >
-                            <Download size={18} />
+                            <div className="p-2 bg-blue-50 text-blue-600 rounded-xl group-hover/btn:bg-blue-600 group-hover/btn:text-white transition-colors"><Download size={20} /></div>
+                            <span className="text-xs font-black uppercase tracking-widest">Unduh</span>
                         </button>
                         <button 
                             onClick={(e) => {
@@ -2058,53 +2074,59 @@ const EvidenceTemplates = ({ budgets: allBudgets, onUpdate }: EvidenceTemplatesP
                                 const win = window.open(selectedFile.url, '_blank');
                                 if (win) win.onload = () => win.print();
                             }}
-                            className="p-3 bg-blue-600/90 hover:bg-blue-600 text-white backdrop-blur-md rounded-full transition-all shadow-xl hover:scale-110 border border-blue-500/50"
-                            title="Print File"
+                            className="p-4 bg-slate-900 text-white backdrop-blur-xl rounded-2xl transition-all shadow-2xl hover:scale-110 border border-slate-800 group/btn flex items-center gap-3 pr-6"
                         >
-                            <Printer size={18} />
+                            <div className="p-2 bg-slate-800 text-blue-400 rounded-xl group-hover/btn:bg-blue-600 group-hover/btn:text-white transition-colors"><Printer size={20} /></div>
+                            <span className="text-xs font-black uppercase tracking-widest">Cetak</span>
                         </button>
                     </div>
                  </motion.div>
 
                  {/* Information Panes (Bento Style) */}
-                 <motion.div layoutId={`info-${selectedFile.url}-${selectedFile.idx}`} className="w-full md:w-[350px] lg:w-[400px] bg-white p-6 md:p-8 flex flex-col overflow-y-auto">
-                    <div className="mb-6">
-                        <span className="inline-block text-[10px] font-bold text-white bg-gradient-to-r from-blue-600 to-teal-500 px-3 py-1 rounded-full uppercase tracking-wider mb-4 shadow-sm">
-                            {selectedFile.type}
-                        </span>
-                        <h2 className="text-xl md:text-2xl font-bold text-gray-900 mb-2 leading-tight">{selectedFile.vendor}</h2>
-                        <p className="text-xs font-bold text-gray-500 flex items-center gap-1.5 mb-6 bg-gray-50 w-fit px-3 py-1.5 rounded-lg border border-gray-100">
-                            <BookOpen size={14} className="text-blue-500" /> Sumber: {selectedFile.sourceType}
-                        </p>
+                 <motion.div layoutId={`info-${selectedFile.url}-${selectedFile.idx}`} className="w-full md:w-[400px] lg:w-[450px] bg-white p-10 md:p-12 flex flex-col overflow-y-auto custom-scrollbar">
+                    <div className="mb-8">
+                        <div className="flex items-center gap-3 mb-6">
+                          <span className="inline-block text-[10px] font-black text-white bg-blue-600 px-4 py-1.5 rounded-xl uppercase tracking-[0.2em] shadow-lg shadow-blue-500/20">
+                              {selectedFile.type}
+                          </span>
+                        </div>
+                        <h2 className="text-3xl font-black text-slate-800 mb-4 leading-tight tracking-tight">{selectedFile.vendor}</h2>
+                        <div className="flex items-center gap-2 mb-10">
+                          <div className="p-2 bg-slate-100 text-slate-500 rounded-lg"><BookOpen size={16} /></div>
+                          <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Sumber: <span className="text-blue-600">{selectedFile.sourceType}</span></span>
+                        </div>
                         
-                        <div className="space-y-5">
-                            <div className="bg-gray-50 p-4 rounded-xl border border-gray-100/50">
-                                <h4 className="text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-2 flex items-center gap-1.5"><ClipboardList size={12}/> Detail Transaksi</h4>
-                                <div className="space-y-3">
-                                  <div className="flex justify-between items-center pb-2 border-b border-gray-100">
-                                      <span className="text-xs text-gray-500">Tanggal</span>
-                                      <span className="text-xs font-bold text-gray-800">
+                        <div className="space-y-6">
+                            <div className="bg-slate-50 p-8 rounded-[2rem] border border-slate-100">
+                                <h4 className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-6 flex items-center gap-3">
+                                  <div className="p-2 bg-white rounded-lg shadow-sm text-indigo-500"><ClipboardList size={14}/></div>
+                                  Detail Transaksi
+                                </h4>
+                                <div className="space-y-5">
+                                  <div className="flex justify-between items-center pb-4 border-b border-slate-200/50">
+                                      <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Tanggal</span>
+                                      <span className="text-xs font-black text-slate-800">
                                           {new Date(selectedFile.date).toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' })}
                                       </span>
                                   </div>
-                                  <div className="flex justify-between items-center pb-2 border-b border-gray-100">
-                                      <span className="text-xs text-gray-500">Nominal</span>
-                                      <span className="text-xs font-mono font-bold text-teal-600">
+                                  <div className="flex justify-between items-center pb-4 border-b border-slate-200/50">
+                                      <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Nominal</span>
+                                      <span className="text-sm font-black text-emerald-600 bg-white px-3 py-1.5 rounded-xl shadow-sm border border-emerald-50">
                                           {new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', maximumFractionDigits: 0 }).format(selectedFile.amount)}
                                       </span>
                                   </div>
                                   <div>
-                                      <span className="text-xs text-gray-500 mb-1 block">Uraian</span>
-                                      <span className="text-xs text-gray-700 leading-relaxed block bg-white p-2 rounded shadow-sm border border-gray-50 mt-1">
-                                          {selectedFile.description}
-                                      </span>
+                                      <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-3 block">Uraian SPJ</span>
+                                      <div className="text-sm font-semibold text-slate-600 leading-relaxed bg-white p-6 rounded-2xl shadow-inner border border-slate-50 italic">
+                                          "{selectedFile.description}"
+                                      </div>
                                   </div>
                                 </div>
                             </div>
                         </div>
                     </div>
                     
-                    <div className="mt-auto pt-4 flex gap-3">
+                    <div className="mt-auto pt-8 flex flex-col gap-4">
                         <button 
                             onClick={async () => {
                                 const response = await fetch(selectedFile.url);
@@ -2117,10 +2139,11 @@ const EvidenceTemplates = ({ budgets: allBudgets, onUpdate }: EvidenceTemplatesP
                                 link.click();
                                 document.body.removeChild(link);
                             }}
-                            className="flex-1 py-3 border-2 border-gray-200 hover:border-gray-300 hover:bg-gray-50 text-gray-700 font-bold text-xs rounded-xl transition-all flex items-center justify-center gap-2"
+                            className="w-full py-5 bg-blue-600 hover:bg-blue-700 text-white font-black text-[11px] uppercase tracking-[0.2em] rounded-[1.5rem] transition-all flex items-center justify-center gap-3 shadow-xl shadow-blue-500/30 group/main"
                         >
-                            <Download size={16} /> Unduh Instan
+                            <Download size={18} className="group-hover:translate-y-0.5 transition-transform" /> Unduh Arsip Digital
                         </button>
+                        <p className="text-[9px] text-center text-slate-400 font-bold uppercase tracking-widest opacity-60">Dokumen tersimpan aman di Cloud RKAS Pintar</p>
                     </div>
                  </motion.div>
               </motion.div>
@@ -2132,136 +2155,178 @@ const EvidenceTemplates = ({ budgets: allBudgets, onUpdate }: EvidenceTemplatesP
   };
 
   return (
-    <div className="space-y-6 pb-10">
-      <div className="flex flex-col md:flex-row justify-between items-end gap-4">
-        <div>
-           <h2 className="text-xl font-bold text-gray-800 flex items-center gap-2">
-             <BookOpen className="text-blue-600" /> Generator Bukti Fisik
-           </h2>
-           <p className="text-sm text-gray-500">
-             Buat dokumen pendukung SPJ secara otomatis. Data sekolah akan terisi sendiri.
-           </p>
-        </div>
+    <div className="space-y-8 pb-10 animate-in fade-in duration-700">
+      {/* MODERN GLASS HEADER & NAV */}
+      <div className="relative group">
+        <div className="absolute -inset-1 bg-gradient-to-r from-blue-600/20 to-indigo-600/20 rounded-[2.5rem] blur opacity-25 group-hover:opacity-40 transition duration-1000 group-hover:duration-200"></div>
+        <div className="relative flex flex-col lg:flex-row justify-between items-center gap-6 bg-white/60 backdrop-blur-xl p-8 rounded-[2.5rem] border border-white/80 shadow-2xl shadow-blue-900/5 overflow-hidden">
+          <div className="absolute top-0 right-0 w-64 h-64 bg-blue-100/30 rounded-full blur-[80px] -mr-32 -mt-32 opacity-50"></div>
+          
+          <div className="relative z-10 flex-1">
+             <div className="flex items-center gap-3 mb-3">
+                <div className="p-2.5 bg-blue-500 rounded-2xl text-white shadow-lg shadow-blue-500/30">
+                  <BookOpen size={24} />
+                </div>
+                <span className="px-3 py-1 bg-blue-50 text-blue-600 text-[10px] font-black uppercase tracking-[0.2em] rounded-lg border border-blue-100 shadow-sm">Audit-Ready</span>
+             </div>
+             <h2 className="text-3xl font-black text-slate-800 tracking-tight leading-none mb-2">
+               Manajemen Bukti <span className="text-transparent bg-clip-text bg-gradient-to-r from-blue-600 to-indigo-600">Digital</span>
+             </h2>
+             <p className="text-sm font-semibold text-slate-500">
+               Automasi dokumen pendukung dan arsip bukti fisik SIPLah.
+             </p>
+          </div>
 
-        <div className="flex bg-gray-100 p-1 rounded-lg self-start">
-          <button
-            onClick={() => setActiveTab('templates')}
-            className={`px-4 py-2 text-sm font-medium rounded-md transition-all ${
-              activeTab === 'templates' 
-                ? 'bg-white text-blue-600 shadow-sm' 
-                : 'text-gray-500 hover:text-gray-700'
-            }`}
-          >
-            Template Dokumen
-          </button>
-          <button
-            onClick={() => setActiveTab('upload')}
-            className={`px-4 py-2 text-sm font-medium rounded-md transition-all ${
-              activeTab === 'upload' 
-                ? 'bg-white text-blue-600 shadow-sm' 
-                : 'text-gray-500 hover:text-gray-700'
-            }`}
-          >
-            Upload Bukti Realisasi
-          </button>
-          <button
-            onClick={() => setActiveTab('album')}
-            className={`px-4 py-2 text-sm font-medium rounded-md transition-all ${
-              activeTab === 'album' 
-                ? 'bg-white text-blue-600 shadow-sm' 
-                : 'text-gray-500 hover:text-gray-700'
-            }`}
-          >
-            Album Bukti Fisik
-          </button>
+          <div className="relative z-10 flex bg-white/40 backdrop-blur-2xl p-1.5 rounded-[1.5rem] border border-white/60 shadow-xl shadow-blue-900/5">
+            {[
+              { id: 'templates', label: 'Template', icon: FileText },
+              { id: 'upload', label: 'Upload', icon: Upload },
+              { id: 'album', label: 'Album', icon: ImageIcon }
+            ].map((tab) => (
+              <button
+                key={tab.id}
+                onClick={() => setActiveTab(tab.id as any)}
+                className={`relative px-6 py-3 text-xs font-black uppercase tracking-widest rounded-xl transition-all duration-300 flex items-center gap-2 ${
+                  activeTab === tab.id 
+                    ? 'bg-white text-blue-600 shadow-xl shadow-blue-900/10' 
+                    : 'text-slate-500 hover:text-slate-800 hover:bg-white/40'
+                }`}
+              >
+                <tab.icon size={16} className={activeTab === tab.id ? 'text-blue-500' : 'text-slate-400'} />
+                {tab.label}
+                {activeTab === tab.id && (
+                  <motion.div layoutId="activeTabGlow" className="absolute inset-0 bg-blue-500/5 rounded-xl blur-md" />
+                )}
+              </button>
+            ))}
+          </div>
         </div>
       </div>
       {activeTab === 'templates' ? (
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
            {/* LEFT COLUMN: Categories */}
-           <div className="lg:col-span-1 space-y-3">
-              <p className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-2">Pilih Jenis Belanja</p>
-              {TEMPLATE_CATEGORIES.map((cat) => (
-                  <button
-                     key={cat.id}
-                     onClick={() => setActiveCategory(cat.id)}
-                     className={`w-full text-left p-4 rounded-xl border transition-all flex items-center justify-between group ${
-                         activeCategory === cat.id 
-                         ? 'bg-blue-600 text-white border-blue-600 shadow-lg scale-[1.02]' 
-                         : 'bg-white border-gray-200 text-gray-700 hover:border-blue-300 hover:bg-blue-50'
-                     }`}
-                  >
-                     <div className="flex items-center gap-3">
-                        <div className={`p-2 rounded-lg ${activeCategory === cat.id ? 'bg-white/20 text-white' : `${cat.bg} ${cat.color}`}`}>
-                           <cat.icon size={20} />
-                        </div>
-                        <div>
-                           <p className="font-bold text-sm">{cat.title}</p>
-                           <p className={`text-[10px] line-clamp-1 ${activeCategory === cat.id ? 'text-blue-100' : 'text-gray-400'}`}>
-                              {cat.description}
-                           </p>
-                        </div>
-                     </div>
-                     <ChevronRight size={16} className={`transition-transform ${activeCategory === cat.id ? 'text-white' : 'text-gray-300 group-hover:text-blue-400'}`} />
-                  </button>
-              ))}
+           <div className="lg:col-span-4 space-y-6">
+              <div className="bg-white/40 backdrop-blur-md p-6 rounded-[2rem] border border-white/80 shadow-xl shadow-blue-900/5">
+                <p className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] mb-4 ml-2">Kategori Belanja</p>
+                <div className="space-y-3">
+                  {TEMPLATE_CATEGORIES.map((cat) => (
+                      <button
+                         key={cat.id}
+                         onClick={() => setActiveCategory(cat.id)}
+                         className={`w-full text-left p-4 rounded-2xl border transition-all duration-300 flex items-center justify-between group relative overflow-hidden ${
+                             activeCategory === cat.id 
+                             ? 'bg-blue-600 text-white border-blue-600 shadow-xl shadow-blue-500/40 scale-[1.02]' 
+                             : 'bg-white border-slate-100 text-slate-700 hover:border-blue-200 hover:bg-blue-50/50 hover:shadow-lg'
+                         }`}
+                      >
+                         <div className="flex items-center gap-4 relative z-10">
+                            <div className={`p-3 rounded-xl transition-colors duration-300 ${activeCategory === cat.id ? 'bg-white/20 text-white shadow-inner' : `${cat.bg} ${cat.color} group-hover:scale-110`}`}>
+                               <cat.icon size={20} />
+                            </div>
+                            <div className="flex-1">
+                               <p className="font-black text-sm tracking-tight">{cat.title}</p>
+                               <p className={`text-[10px] font-semibold line-clamp-1 mt-0.5 ${activeCategory === cat.id ? 'text-blue-100' : 'text-slate-400'}`}>
+                                  {cat.description}
+                               </p>
+                            </div>
+                         </div>
+                         <ChevronRight size={18} className={`relative z-10 transition-all duration-300 ${activeCategory === cat.id ? 'text-white translate-x-0' : 'text-slate-200 group-hover:text-blue-400 group-hover:translate-x-1'}`} />
+                         
+                         {activeCategory === cat.id && (
+                           <div className="absolute top-0 right-0 -mt-4 -mr-4 w-16 h-16 bg-white/10 rounded-full blur-xl" />
+                         )}
+                      </button>
+                  ))}
+                </div>
+              </div>
               
               {/* Quick Template Downloads */}
-              <div className="bg-white border border-gray-200 rounded-xl p-4 mt-6">
-                  <h4 className="text-sm font-bold text-gray-700 mb-3 flex items-center gap-2">
-                      <Printer size={16} className="text-gray-500" /> Cetak Dokumen
+              <div className="bg-slate-900 text-white p-6 rounded-[2rem] border border-slate-800 shadow-2xl relative overflow-hidden group">
+                  <div className="absolute top-0 right-0 w-32 h-32 bg-blue-500/10 rounded-full blur-3xl -mr-16 -mt-16 group-hover:bg-blue-500/20 transition-colors"></div>
+                  <h4 className="text-sm font-black text-white mb-4 flex items-center gap-2 relative z-10">
+                      <div className="p-1.5 bg-slate-800 rounded-lg"><Printer size={16} className="text-blue-400" /></div>
+                      Cetak Cepat
                   </h4>
-                  <div className="space-y-2">
+                  <div className="space-y-2 relative z-10">
                       {renderTemplateButtons()}
                   </div>
+                  <p className="text-[9px] text-slate-500 mt-6 font-bold uppercase tracking-widest text-center opacity-70">Pilih kategori untuk daftar cetak</p>
               </div>
            </div>
 
            {/* RIGHT COLUMN: Details & Preview */}
-           <div className="lg:col-span-2">
+           <div className="lg:col-span-8">
               {activeCategory ? (
                   (() => {
                       const cat = TEMPLATE_CATEGORIES.find(c => c.id === activeCategory);
                       if (!cat) return null;
                       return (
-                          <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden animate-fade-in-up">
-                              <div className={`p-6 border-b border-gray-100 ${cat.bg}`}>
-                                  <div className="flex items-center gap-3 mb-2">
-                                      <cat.icon size={24} className={cat.color} />
-                                      <h3 className={`text-lg font-bold ${cat.color}`}>{cat.title}</h3>
+                          <div className="bg-white rounded-[2.5rem] shadow-2xl shadow-blue-900/5 border border-slate-100 overflow-hidden animate-in fade-in slide-in-from-right-4 duration-500">
+                              <div className={`p-10 border-b border-slate-100 relative overflow-hidden ${cat.bg}`}>
+                                  <div className="absolute top-0 right-0 w-64 h-64 bg-white/20 rounded-full blur-3xl -mr-32 -mt-32"></div>
+                                  <div className="relative z-10">
+                                    <div className="flex items-center gap-4 mb-4">
+                                        <div className={`p-4 rounded-2xl bg-white shadow-xl ${cat.color}`}>
+                                          <cat.icon size={28} />
+                                        </div>
+                                        <div>
+                                          <span className={`px-3 py-1 bg-white/50 backdrop-blur-sm rounded-lg text-[9px] font-black uppercase tracking-widest border border-white/50 mb-2 inline-block ${cat.color}`}>Kategori Terpilih</span>
+                                          <h3 className="text-2xl font-black text-slate-800 tracking-tight">{cat.title}</h3>
+                                        </div>
+                                    </div>
+                                    <p className="text-sm font-semibold text-slate-600 leading-relaxed max-w-2xl">{cat.description}</p>
                                   </div>
-                                  <p className="text-sm text-gray-600">{cat.description}</p>
                               </div>
                               
-                              <div className="p-6">
-                                  <h4 className="font-bold text-gray-800 mb-4 flex items-center gap-2">
-                                      <CheckCircle2 size={18} className="text-green-600" />
-                                      Kelengkapan Bukti Fisik SPJ
-                                  </h4>
+                              <div className="p-10">
+                                  <div className="flex items-center justify-between mb-8">
+                                    <h4 className="font-black text-slate-800 flex items-center gap-3">
+                                        <div className="p-2 bg-emerald-50 text-emerald-500 rounded-xl">
+                                          <CheckCircle2 size={20} />
+                                        </div>
+                                        Checklist Audit BOSP 2026
+                                    </h4>
+                                    <span className="text-[10px] bg-slate-100 text-slate-500 px-3 py-1.5 rounded-full font-black uppercase tracking-widest border border-slate-200">Wajib Dilengkapi</span>
+                                  </div>
                                   
-                                  <div className="space-y-0">
+                                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                                       {cat.requirements.map((req, idx) => (
-                                          <div key={idx} className="flex items-start gap-3 p-3 hover:bg-gray-50 rounded-lg border-b border-gray-50 last:border-0">
-                                              <div className="min-w-[24px] h-6 flex items-center justify-center bg-gray-100 text-gray-500 rounded-full text-xs font-bold mt-0.5">
+                                          <div key={idx} className="group flex items-start gap-4 p-5 bg-slate-50/50 hover:bg-white hover:shadow-xl hover:shadow-blue-900/5 rounded-2xl border border-transparent hover:border-blue-100 transition-all duration-300">
+                                              <div className="min-w-[32px] h-8 flex items-center justify-center bg-white text-blue-600 shadow-sm rounded-xl text-xs font-black mt-0.5 group-hover:bg-blue-600 group-hover:text-white transition-colors duration-300">
                                                   {idx + 1}
                                               </div>
-                                              <p className="text-sm text-gray-700">{req}</p>
+                                              <p className="text-sm font-bold text-slate-600 group-hover:text-slate-800 transition-colors leading-snug">{req}</p>
                                           </div>
                                       ))}
+                                  </div>
+
+                                  <div className="mt-12 p-6 bg-blue-50/50 rounded-2xl border border-blue-100 flex items-center gap-4">
+                                     <div className="p-3 bg-blue-600 text-white rounded-xl shadow-lg shadow-blue-500/30">
+                                        <Sparkles size={20} />
+                                     </div>
+                                     <div>
+                                        <p className="text-xs font-black text-blue-600 uppercase tracking-widest mb-1">Tips Kelengkapan</p>
+                                        <p className="text-[11px] font-bold text-slate-500">Pastikan semua dokumen di atas memiliki stempel basah dan tanda tangan asli sebelum di-scan.</p>
+                                     </div>
                                   </div>
                               </div>
                           </div>
                       );
                   })()
               ) : (
-                  <div className="h-full min-h-[400px] flex flex-col items-center justify-center bg-gray-50 rounded-xl border-2 border-dashed border-gray-200 text-center p-8">
-                      <div className="bg-white p-4 rounded-full shadow-sm mb-4">
-                          <FileText size={40} className="text-gray-300" />
+                  <div className="h-full min-h-[500px] flex flex-col items-center justify-center bg-slate-50 rounded-[2.5rem] border-2 border-dashed border-slate-200 text-center p-12 group">
+                      <div className="bg-white p-8 rounded-full shadow-xl shadow-slate-200/50 mb-6 group-hover:scale-110 transition-transform duration-500">
+                          <FileText size={56} className="text-slate-300 group-hover:text-blue-400 transition-colors" />
                       </div>
-                      <h3 className="text-lg font-bold text-gray-600 mb-2">Pilih Kategori Belanja</h3>
-                      <p className="text-sm text-gray-400 max-w-xs">
-                          Klik salah satu jenis belanja di sebelah kiri untuk membuat dokumen pendukung.
+                      <h3 className="text-xl font-black text-slate-700 mb-3 tracking-tight">Kategori Belum Dipilih</h3>
+                      <p className="text-sm font-semibold text-slate-400 max-w-xs leading-relaxed">
+                          Silakan pilih jenis belanja di panel kiri untuk melihat detail dokumen pendukung yang dibutuhkan untuk audit.
                       </p>
+                      <div className="mt-8 flex gap-2">
+                        <div className="w-2 h-2 rounded-full bg-slate-200 animate-bounce delay-0"></div>
+                        <div className="w-2 h-2 rounded-full bg-slate-200 animate-bounce delay-150"></div>
+                        <div className="w-2 h-2 rounded-full bg-slate-200 animate-bounce delay-300"></div>
+                      </div>
                   </div>
                )}
            </div>
@@ -2269,88 +2334,94 @@ const EvidenceTemplates = ({ budgets: allBudgets, onUpdate }: EvidenceTemplatesP
       ) : activeTab === 'album' ? (
         renderAlbumGallery()
       ) : (
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 animate-slide-up">
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start animate-in fade-in slide-in-from-bottom-6 duration-700">
           {/* Left: Budget List */}
-          <div className="lg:col-span-4 space-y-4">
-            <div className="bg-white p-4 rounded-xl border border-gray-200 shadow-sm">
-              <div className="flex bg-gray-100 p-1 rounded-lg mb-4">
+          <div className="lg:col-span-4 space-y-6">
+            <div className="bg-white/40 backdrop-blur-md p-6 rounded-[2.5rem] border border-white/80 shadow-2xl shadow-blue-900/5">
+              <div className="flex bg-slate-100/50 p-1.5 rounded-2xl mb-6 shadow-inner">
                 <button
                   onClick={() => setDataSource('realization')}
-                  className={`flex-1 py-1.5 text-[10px] font-bold rounded-md transition-all ${
+                  className={`flex-1 py-2.5 text-[10px] font-black uppercase tracking-widest rounded-xl transition-all duration-300 ${
                     dataSource === 'realization' 
-                      ? 'bg-white text-blue-600 shadow-sm' 
-                      : 'text-gray-500 hover:text-gray-700'
+                      ? 'bg-white text-blue-600 shadow-lg shadow-blue-500/10' 
+                      : 'text-slate-500 hover:text-slate-800'
                   }`}
                 >
-                  Realisasi Langsung
+                  Realise
                 </button>
                 <button
                   onClick={() => setDataSource('history')}
-                  className={`flex-1 py-1.5 text-[10px] font-bold rounded-md transition-all ${
+                  className={`flex-1 py-2.5 text-[10px] font-black uppercase tracking-widest rounded-xl transition-all duration-300 ${
                     dataSource === 'history' 
-                      ? 'bg-white text-blue-600 shadow-sm' 
-                      : 'text-gray-500 hover:text-gray-700'
+                      ? 'bg-white text-blue-600 shadow-lg shadow-blue-500/10' 
+                      : 'text-slate-500 hover:text-slate-800'
                   }`}
                 >
-                  Riwayat Pencairan
+                  Riwayat
                 </button>
               </div>
 
-              <div className="relative mb-4">
-                <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={18} />
+              <div className="relative mb-6 group">
+                <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-blue-500 transition-colors" size={18} />
                 <input
                   type="text"
-                  placeholder="Cari SPJ..."
-                  className="w-full pl-10 pr-4 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none text-sm"
+                  placeholder="Cari transaksi..."
+                  className="w-full pl-12 pr-4 py-3.5 bg-white border border-slate-100 rounded-2xl focus:ring-4 focus:ring-blue-500/10 focus:border-blue-500/50 outline-none text-sm font-semibold text-slate-700 placeholder:text-slate-400 shadow-sm transition-all"
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
                 />
               </div>
 
-              <div className="space-y-2 max-h-[600px] overflow-y-auto pr-2 custom-scrollbar">
+              <div className="space-y-3 max-h-[600px] overflow-y-auto pr-2 custom-scrollbar">
                 {isLoading ? (
-                  <div className="py-10 text-center">
-                    <Loader2 className="animate-spin text-blue-500 mx-auto mb-2" />
-                    <p className="text-xs text-gray-400">Memuat data SPJ...</p>
+                  <div className="py-20 text-center">
+                    <Loader2 className="animate-spin text-blue-600 mx-auto mb-4" size={32} />
+                    <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Sinkronisasi Data...</p>
                   </div>
                 ) : filteredGroups.length === 0 ? (
-                  <div className="py-10 text-center border-2 border-dashed border-gray-100 rounded-lg">
-                    <p className="text-xs text-gray-400">Tidak ada data nota ditemukan.</p>
+                  <div className="py-20 text-center border-2 border-dashed border-slate-100 rounded-[2rem] bg-slate-50/30">
+                    <p className="text-xs font-bold text-slate-400">Tidak ada transaksi ditemukan.</p>
                   </div>
                 ) : (
                   filteredGroups.map(group => (
                     <button
                       key={group.key}
                       onClick={() => handleSelectGroup(group)}
-                      className={`w-full text-left p-3 rounded-lg border transition-all ${
+                      className={`w-full text-left p-4 rounded-[1.5rem] border transition-all duration-300 group ${
                         selectedGroup?.key === group.key
-                          ? 'border-blue-500 bg-blue-50 shadow-sm'
-                          : 'border-gray-100 hover:border-blue-200 hover:bg-gray-50'
+                          ? 'border-blue-200 bg-white shadow-xl shadow-blue-900/10 scale-[1.02]'
+                          : 'border-transparent hover:bg-white/60 hover:border-slate-100'
                       }`}
                     >
-                      <div className="flex items-center justify-between mb-1">
-                        <div className="flex items-center gap-2">
-                            <span className="text-[10px] font-bold text-blue-600 uppercase tracking-wider">
-                              {group.vendor}
+                      <div className="flex items-start justify-between mb-3">
+                        <div className="flex flex-col gap-1">
+                            <div className="flex items-center gap-2">
+                              <span className={`text-[9px] font-black px-2 py-0.5 rounded-md uppercase tracking-widest ${selectedGroup?.key === group.key ? 'bg-blue-600 text-white' : 'bg-slate-100 text-slate-500'}`}>
+                                {group.vendor}
+                              </span>
+                              {(group.vendor.toLowerCase().includes('siplah') || group.items.some((i: any) => i.budgetDescription.toLowerCase().includes('siplah'))) && (
+                                  <span className="bg-emerald-100 text-emerald-700 text-[8px] px-1.5 py-0.5 rounded-md font-black uppercase tracking-tighter border border-emerald-200">SIPLah</span>
+                              )}
+                            </div>
+                            <span className="text-[10px] font-bold text-slate-400">
+                              {new Date(group.date).toLocaleDateString('id-ID', { day: 'numeric', month: 'short' })} • Bulan {MONTHS[group.month - 1]}
                             </span>
-                            {(group.vendor.toLowerCase().includes('siplah') || group.items.some((i: any) => i.budgetDescription.toLowerCase().includes('siplah'))) && (
-                                <span className="bg-blue-100 text-blue-700 text-[8px] px-1.5 py-0.5 rounded font-bold uppercase">SIPLah</span>
-                            )}
                         </div>
-                        <span className="text-[10px] text-gray-400">
-                          {new Date(group.date).toLocaleDateString('id-ID')}
-                        </span>
+                        {selectedGroup?.key === group.key && (
+                          <div className="w-2 h-2 rounded-full bg-blue-500 animate-pulse" />
+                        )}
                       </div>
-                      <div className="text-xs font-medium text-gray-800 line-clamp-2">
+                      <div className={`text-xs font-black text-slate-800 leading-snug line-clamp-2 ${selectedGroup?.key === group.key ? '' : 'text-slate-600'}`}>
                         {group.items.map((i: any) => i.budgetDescription).join(', ')}
                       </div>
-                      <div className="flex items-center justify-between mt-2">
-                        <span className="text-[10px] text-gray-500">
-                          {group.items.length} Item • {new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', maximumFractionDigits: 0 }).format(group.totalAmount)}
+                      <div className="mt-4 flex items-center justify-between pt-3 border-t border-slate-100/50">
+                        <span className="text-[10px] font-black text-indigo-600">
+                          {new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', maximumFractionDigits: 0 }).format(group.totalAmount)}
                         </span>
-                        <span className="text-[10px] font-bold text-gray-400">
-                          Bulan {MONTHS[group.month - 1]}
-                        </span>
+                        <div className="flex items-center gap-1.5">
+                           <FileText size={10} className="text-slate-300" />
+                           <span className="text-[10px] font-black text-slate-400 uppercase tracking-tighter">{group.items.length} Item</span>
+                        </div>
                       </div>
                     </button>
                   ))
@@ -2362,124 +2433,145 @@ const EvidenceTemplates = ({ budgets: allBudgets, onUpdate }: EvidenceTemplatesP
           {/* Right: Upload Interface */}
           <div className="lg:col-span-8">
             {selectedGroup ? (
-              <div className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden min-h-[500px]">
-                <div className="bg-gray-50 px-6 py-4 border-b border-gray-200 flex items-center justify-between">
+              <div className="bg-white rounded-[2.5rem] border border-slate-100 shadow-2xl shadow-blue-900/5 overflow-hidden min-h-[600px] animate-in slide-in-from-right-8 duration-700">
+                <div className="bg-slate-50/80 backdrop-blur-md px-10 py-8 border-b border-slate-100 flex flex-col md:flex-row md:items-center justify-between gap-6">
                   <div>
-                    <h3 className="font-bold text-gray-800">{selectedGroup.vendor}</h3>
-                    <p className="text-xs text-gray-500">
-                      Nota Tanggal {new Date(selectedGroup.date).toLocaleDateString('id-ID')} • {selectedGroup.items.length} Item
+                    <div className="flex items-center gap-3 mb-2">
+                       <div className="p-2.5 bg-white rounded-xl shadow-lg shadow-blue-900/5 text-blue-600">
+                          <ShoppingCart size={20} />
+                       </div>
+                       <h3 className="text-2xl font-black text-slate-800 tracking-tight">{selectedGroup.vendor}</h3>
+                    </div>
+                    <p className="text-sm font-semibold text-slate-500">
+                      Transaksi <span className="text-slate-800 underline decoration-blue-500/30 underline-offset-4">{new Date(selectedGroup.date).toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' })}</span> • {selectedGroup.items.length} Item terdeteksi
                     </p>
                   </div>
-                  <div className="flex items-center gap-2">
+                  <div className="flex items-center gap-3">
                     <button 
                       onClick={() => handleProcessAi(selectedGroup)}
                       disabled={isAiLoading}
-                      className="flex items-center gap-2 px-3 py-1.5 bg-blue-50 text-blue-600 rounded-lg text-xs font-medium hover:bg-blue-100 transition-colors disabled:opacity-50"
+                      className="group flex items-center gap-3 px-6 py-3 bg-white text-blue-600 border border-blue-100 rounded-2xl text-[10px] font-black uppercase tracking-widest hover:bg-blue-600 hover:text-white transition-all duration-500 shadow-xl shadow-blue-900/5 disabled:opacity-50"
                     >
-                      {isAiLoading ? <Loader2 size={14} className="animate-spin" /> : <Sparkles size={14} />}
-                      Refresh Analisis AI
+                      {isAiLoading ? <Loader2 size={16} className="animate-spin" /> : <Sparkles size={16} className="group-hover:rotate-12 transition-transform" />}
+                      Analisis Ulang AI
                     </button>
                   </div>
                 </div>
 
-                <div className="p-6">
-                  {/* Quick Document Generation */}
-                  <div className="mb-6 p-4 bg-indigo-50 border border-indigo-100 rounded-lg">
-                    <h4 className="text-xs font-bold text-indigo-800 flex items-center gap-2 mb-3">
-                      <Printer size={14} /> Buat Dokumen Pendukung (Otomatis):
-                    </h4>
-                    <div className="flex flex-wrap gap-2">
-                       <button onClick={() => openPrintModal('kuitansi', selectedGroup)} className="px-3 py-1.5 bg-white border border-indigo-200 text-indigo-600 rounded-lg text-[10px] font-bold hover:bg-indigo-100 transition-all flex items-center gap-1.5 shadow-sm">
-                          <Receipt size={12} /> Kuitansi
-                       </button>
-                       <button onClick={() => openPrintModal('daftar_hadir', selectedGroup)} className="px-3 py-1.5 bg-white border border-indigo-200 text-indigo-600 rounded-lg text-[10px] font-bold hover:bg-indigo-100 transition-all flex items-center gap-1.5 shadow-sm">
-                          <ClipboardList size={12} /> Daftar Hadir
-                       </button>
-                       <button onClick={() => openPrintModal('surat_tugas', selectedGroup)} className="px-3 py-1.5 bg-white border border-indigo-200 text-indigo-600 rounded-lg text-[10px] font-bold hover:bg-indigo-100 transition-all flex items-center gap-1.5 shadow-sm">
-                          <FileSignature size={12} /> Surat Tugas
-                       </button>
-                    </div>
-                    <p className="text-[9px] text-indigo-400 mt-2 italic">Data vendor, nominal, dan uraian akan terisi otomatis dari SPJ.</p>
-                  </div>
-
-                  <div className="mb-6 p-4 bg-blue-50 border border-blue-100 rounded-lg">
-                    <div className="flex justify-between items-start mb-2">
-                        <h4 className="text-xs font-bold text-blue-800 flex items-center gap-2">
-                            <ShoppingCart size={14} /> Daftar Belanja dalam Nota:
-                        </h4>
-                        <span className="text-xs font-bold text-blue-900">
-                            Total: {new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', maximumFractionDigits: 0 }).format(selectedGroup.totalAmount)}
-                        </span>
-                    </div>
-                    <div className="space-y-1">
-                      {selectedGroup.items.map((item: any, idx: number) => (
-                        <div key={idx} className="flex justify-between text-[11px] text-blue-700 border-b border-blue-100/50 pb-1 last:border-0">
-                            <span>{item.budgetDescription}</span>
-                            <span className="font-mono">{new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', maximumFractionDigits: 0 }).format(item.amount)}</span>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-
-                  <div className="mb-6 p-4 bg-amber-50 border border-amber-100 rounded-lg">
-                    <div className="flex justify-between items-start mb-1">
-                        <h4 className="text-xs font-bold text-amber-800 flex items-center gap-2">
-                            <AlertCircle size={14} /> Analisis Bukti Fisik Dibutuhkan:
-                        </h4>
-                        {!isAiConfigured() && (
-                            <span className="text-[9px] bg-amber-200/50 text-amber-700 px-2 py-0.5 rounded-full font-bold border border-amber-200 flex items-center gap-1">
-                                <Sparkles size={8} /> Mode Aturan Lokal
+                <div className="p-10">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-10">
+                    {/* Items Bento Card */}
+                    <div className="bg-blue-600 p-8 rounded-[2rem] text-white shadow-2xl shadow-blue-500/20 relative overflow-hidden group">
+                        <div className="absolute top-0 right-0 w-32 h-32 bg-white/10 rounded-full blur-3xl -mr-16 -mt-16 group-hover:scale-150 transition-transform duration-1000"></div>
+                        <div className="flex justify-between items-start mb-6 border-b border-white/10 pb-4">
+                            <h4 className="text-[10px] font-black uppercase tracking-[0.2em] opacity-80 flex items-center gap-2">
+                                <Receipt size={14} /> Detail Belanja
+                            </h4>
+                            <span className="text-xl font-black">
+                                {new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', maximumFractionDigits: 0 }).format(selectedGroup.totalAmount)}
                             </span>
-                        )}
+                        </div>
+                        <div className="space-y-3">
+                          {selectedGroup.items.slice(0, 3).map((item: any, idx: number) => (
+                            <div key={idx} className="flex justify-between items-center text-[11px] font-bold opacity-90">
+                                <span className="truncate max-w-[180px]">{item.budgetDescription}</span>
+                                <span className="font-mono whitespace-nowrap bg-white/10 px-2 py-0.5 rounded">{new Intl.NumberFormat('id-ID', { maximumFractionDigits: 0 }).format(item.amount)}</span>
+                            </div>
+                          ))}
+                          {selectedGroup.items.length > 3 && (
+                            <p className="text-[9px] font-black opacity-60 text-center pt-2 uppercase tracking-widest">+ {selectedGroup.items.length - 3} Item Lainnya</p>
+                          )}
+                        </div>
                     </div>
-                    <p className="text-[11px] text-amber-700 leading-relaxed">
-                      {isAiConfigured() 
-                        ? "Berdasarkan analisis AI dan Juknis BOSP 2026, transaksi ini memerlukan dokumen berikut untuk dinyatakan sah dalam audit."
-                        : "Berdasarkan Smart Rules Juknis BOSP 2026, transaksi ini memerlukan dokumen berikut untuk dinyatakan sah dalam audit."}
-                    </p>
+
+                    {/* Quick Docs Bento Card */}
+                    <div className="bg-slate-900 p-8 rounded-[2rem] text-white shadow-2xl shadow-slate-900/20 relative overflow-hidden group">
+                        <div className="absolute bottom-0 right-0 w-32 h-32 bg-indigo-500/10 rounded-full blur-3xl -mr-16 -mb-16 group-hover:scale-150 transition-transform duration-1000"></div>
+                        <h4 className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-400 mb-6 flex items-center gap-2">
+                             <Sparkles size={14} className="text-indigo-400" /> Generator Dokumen
+                        </h4>
+                        <div className="grid grid-cols-2 gap-3">
+                           <button onClick={() => openPrintModal('kuitansi', selectedGroup)} className="p-4 bg-slate-800/50 hover:bg-blue-600 border border-slate-700 hover:border-blue-500 rounded-2xl transition-all duration-300 group/btn flex flex-col items-center gap-2">
+                              <Receipt size={20} className="text-blue-400 group-hover/btn:text-white" />
+                              <span className="text-[9px] font-black uppercase tracking-widest">Kuitansi</span>
+                           </button>
+                           <button onClick={() => openPrintModal('daftar_hadir', selectedGroup)} className="p-4 bg-slate-800/50 hover:bg-indigo-600 border border-slate-700 hover:border-indigo-500 rounded-2xl transition-all duration-300 group/btn flex flex-col items-center gap-2">
+                              <Users size={20} className="text-indigo-400 group-hover/btn:text-white" />
+                              <span className="text-[9px] font-black uppercase tracking-widest">Absensi</span>
+                           </button>
+                        </div>
+                        <p className="text-[9px] text-slate-500 mt-6 font-bold uppercase tracking-widest text-center">Data SPJ akan diinject otomatis</p>
+                    </div>
                   </div>
 
-                  <div className="space-y-4">
+                  {/* AI Analysis Alert */}
+                  <div className="mb-10 p-8 bg-amber-50 rounded-[2.5rem] border border-amber-100/50 relative overflow-hidden flex flex-col md:flex-row md:items-center gap-6">
+                    <div className="absolute top-0 right-0 p-8 opacity-5">
+                       <Sparkles size={120} className="text-amber-600" />
+                    </div>
+                    <div className="p-5 bg-white rounded-3xl shadow-xl shadow-amber-900/5 text-amber-500 border border-amber-50">
+                        <CheckCircle2 size={32} />
+                    </div>
+                    <div className="relative z-10">
+                        <div className="flex items-center gap-3 mb-2">
+                            <h4 className="text-base font-black text-amber-900 tracking-tight">Requirement Audit Digital 2026</h4>
+                            {!isAiConfigured() && (
+                                <span className="text-[8px] font-black bg-amber-200/50 text-amber-700 px-2 py-1 rounded-lg uppercase tracking-widest border border-amber-200">Local Rules</span>
+                            )}
+                        </div>
+                        <p className="text-[11px] font-bold text-amber-700 opacity-80 leading-relaxed max-w-2xl">
+                          {isAiConfigured() 
+                            ? "AI telah memetakan standar dokumen pendukung berdasarkan Juknis BOSP terbaru. Pastikan semua file di bawah telah terunggah dengan resolusi tinggi."
+                            : "Sistem Smart-Rules telah otomatis menentukan daftar kelengkapan bukti fisik yang wajib Anda siapkan untuk transaksi belanja ini."}
+                        </p>
+                    </div>
+                  </div>
+
+                  {/* Evidence Requirement List */}
+                  <div className="space-y-6">
+                    <p className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] ml-2 mb-4">Daftar Berkas Wajib</p>
                     {suggestedEvidence.map((evidence, idx) => {
                       const files = (selectedGroup.evidence_files || []).filter((f: any) => f.type === evidence);
                       const isUploading = uploadProgress[evidence];
 
                       return (
-                        <div key={idx} className="p-4 rounded-xl border border-gray-100 bg-gray-50/50 hover:bg-white hover:border-blue-200 transition-all">
-                          <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-                            <div className="flex items-start gap-3">
-                              <div className={`mt-0.5 p-1.5 rounded-lg ${files.length > 0 ? 'bg-green-100 text-green-600' : 'bg-gray-100 text-gray-400'}`}>
-                                {files.length > 0 ? <CheckCircle2 size={16} /> : <FileText size={16} />}
+                        <div key={idx} className="group p-6 rounded-[2rem] border border-slate-100 bg-slate-50/30 hover:bg-white hover:shadow-2xl hover:shadow-blue-900/5 hover:border-blue-100 transition-all duration-500">
+                          <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
+                            <div className="flex items-center gap-5">
+                              <div className={`p-4 rounded-2xl transition-all duration-500 ${files.length > 0 ? 'bg-emerald-50 text-emerald-600 shadow-xl shadow-emerald-900/5 rotate-6' : 'bg-white text-slate-300 border border-slate-50'}`}>
+                                {files.length > 0 ? <CheckCircle2 size={24} /> : <FileText size={24} />}
                               </div>
                               <div>
-                                <div className="text-sm font-bold text-gray-700">{evidence}</div>
-                                {files.length > 0 ? (
-                                  <div className="flex items-center gap-2 mt-1">
-                                    <span className="text-[10px] text-green-600 font-bold flex items-center gap-1">
-                                      <CheckCircle2 size={10} /> {files.length} File Terunggah
+                                <div className="text-base font-black text-slate-800 tracking-tight mb-1">{evidence}</div>
+                                <div className="flex items-center gap-3">
+                                  {files.length > 0 ? (
+                                    <span className="text-[10px] font-black text-emerald-600 uppercase tracking-widest flex items-center gap-1.5">
+                                      <CheckCircle2 size={12} /> {files.length} Arsip Tersimpan
                                     </span>
-                                  </div>
-                                ) : (
-                                  <div className="text-[10px] text-gray-400 mt-1 italic">Belum ada file</div>
-                                )}
+                                  ) : (
+                                    <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest italic flex items-center gap-1.5">
+                                      <AlertCircle size={12} /> Belum Ada Berkas
+                                    </span>
+                                  )}
+                                </div>
                               </div>
                             </div>
 
-                            <label className={`flex items-center gap-2 px-4 py-2 rounded-lg text-xs font-bold cursor-pointer transition-all w-fit self-end md:self-center ${
+                            <label className={`relative overflow-hidden group/btn px-8 py-4 rounded-2xl text-[10px] font-black uppercase tracking-widest cursor-pointer transition-all duration-500 w-full md:w-auto text-center ${
                               isUploading 
-                                ? 'bg-gray-100 text-gray-400 cursor-not-allowed' 
-                                : 'bg-blue-600 text-white hover:bg-blue-700 shadow-sm'
+                                ? 'bg-slate-100 text-slate-400 cursor-not-allowed' 
+                                : 'bg-blue-600 text-white hover:bg-blue-700 shadow-xl shadow-blue-500/30'
                             }`}>
                               {isUploading ? (
-                                <>
-                                  <Loader2 size={14} className="animate-spin" />
-                                  Mengunggah...
-                                </>
+                                <div className="flex items-center justify-center gap-3">
+                                  <Loader2 size={16} className="animate-spin" />
+                                  Proses...
+                                </div>
                               ) : (
-                                <>
-                                  <Upload size={14} />
-                                  Upload Bukti
-                                </>
+                                <div className="flex items-center justify-center gap-3">
+                                  <Upload size={16} className="group-hover/btn:-translate-y-1 transition-transform" />
+                                  Unggah Bukti
+                                </div>
                               )}
                               <input 
                                 type="file" 
@@ -2495,41 +2587,22 @@ const EvidenceTemplates = ({ budgets: allBudgets, onUpdate }: EvidenceTemplatesP
                             </label>
                           </div>
 
-                          {/* File List for this type */}
+                          {/* File Preview list */}
                           {files.length > 0 && (
-                            <div className="mt-3 grid grid-cols-1 sm:grid-cols-2 gap-2 pl-10">
+                            <div className="mt-8 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 pl-0 md:pl-20">
                               {files.map((file: any, fIdx: number) => (
-                                <div key={fIdx} className="flex items-center justify-between p-2 bg-white border border-gray-100 rounded-lg group/file">
-                                  <div className="flex items-center gap-2 min-w-0">
-                                    <FileText size={14} className="text-blue-500 shrink-0" />
-                                    <span className="text-[10px] text-gray-600 truncate">{file.name}</span>
+                                <div key={fIdx} className="flex items-center justify-between p-4 bg-white border border-slate-100 rounded-2xl group/file hover:border-blue-200 transition-all shadow-sm">
+                                  <div className="flex items-center gap-3 min-w-0">
+                                    <div className="p-2 bg-slate-50 rounded-lg text-blue-500 group-hover/file:bg-blue-600 group-hover/file:text-white transition-colors">
+                                      <FileText size={16} className="shrink-0" />
+                                    </div>
+                                    <span className="text-[10px] font-bold text-slate-600 truncate">{file.name}</span>
                                   </div>
-                                  <div className="flex items-center gap-1 opacity-0 group-hover/file:opacity-100 transition-opacity">
-                                    <a 
-                                      href={file.url} 
-                                      target="_blank" 
-                                      rel="noopener noreferrer"
-                                      className="p-1 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded"
-                                      title="Lihat File"
-                                    >
-                                      <Eye size={14} />
-                                    </a>
-                                    <button 
-                                      onClick={() => {
-                                          const win = window.open(file.url, '_blank');
-                                          if (win) {
-                                              win.onload = () => win.print();
-                                          }
-                                      }}
-                                      className="p-1 text-gray-400 hover:text-teal-600 hover:bg-teal-50 rounded"
-                                      title="Cetak File"
-                                    >
-                                      <Printer size={14} />
-                                    </button>
+                                  <div className="flex items-center gap-2 opacity-0 group-hover/file:opacity-100 transition-opacity">
                                     <button 
                                       onClick={() => handleDeleteFile(evidence, file.path)}
-                                      className="p-1 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded"
-                                      title="Hapus File"
+                                      className="p-2 text-slate-300 hover:text-red-500 hover:bg-red-50 rounded-xl transition-all"
+                                      title="Hapus"
                                     >
                                       <Trash2 size={14} />
                                     </button>
@@ -2545,30 +2618,34 @@ const EvidenceTemplates = ({ budgets: allBudgets, onUpdate }: EvidenceTemplatesP
                 </div>
               </div>
             ) : (
-              <div className="bg-white rounded-xl border border-gray-200 shadow-sm flex flex-col items-center justify-center p-12 text-center h-full min-h-[500px]">
-                <div className="w-20 h-20 bg-blue-50 rounded-full flex items-center justify-center mb-6">
-                  <Upload className="text-blue-200" size={40} />
+              <div className="bg-white/40 backdrop-blur-md rounded-[3rem] border-2 border-dashed border-slate-200 flex flex-col items-center justify-center p-20 text-center h-full min-h-[600px] group transition-all duration-700 hover:bg-white/60 hover:border-blue-200">
+                <div className="relative mb-10">
+                   <div className="absolute inset-0 bg-blue-500 rounded-full blur-3xl opacity-10 group-hover:scale-150 transition-transform duration-1000"></div>
+                   <div className="relative w-32 h-32 bg-white rounded-full flex items-center justify-center shadow-2xl shadow-blue-900/5 group-hover:rotate-12 transition-transform duration-500">
+                      <div className="p-6 bg-blue-50 rounded-[2rem] text-blue-500">
+                        <Upload size={56} />
+                      </div>
+                   </div>
                 </div>
-                <h3 className="text-lg font-bold text-gray-800 mb-2">Pilih Realisasi SPJ</h3>
-                <p className="text-sm text-gray-500 max-w-md mx-auto">
-                  Silakan pilih salah satu item realisasi dari daftar di sebelah kiri untuk mulai mengunggah bukti fisik pendukung.
+                <h3 className="text-3xl font-black text-slate-800 mb-4 tracking-tight">Mulai Pengarsipan <span className="text-blue-600">Digital</span></h3>
+                <p className="text-sm font-semibold text-slate-400 max-w-sm mx-auto leading-relaxed mb-12">
+                  Pilih transaksi SPJ di panel samping untuk memverifikasi dan mengunggah bukti fisik yang dibutuhkan audit.
                 </p>
-                <div className="mt-8 grid grid-cols-1 md:grid-cols-3 gap-4 w-full max-w-2xl">
-                  <div className="p-4 rounded-xl bg-gray-50 border border-gray-100">
-                    <div className="text-blue-600 font-bold text-lg mb-1">1</div>
-                    <div className="text-[10px] text-gray-500 uppercase tracking-wider font-bold">Pilih Item</div>
-                    <div className="text-xs text-gray-400 mt-1">Pilih belanja yang sudah direalisasikan</div>
-                  </div>
-                  <div className="p-4 rounded-xl bg-gray-50 border border-gray-100">
-                    <div className="text-blue-600 font-bold text-lg mb-1">2</div>
-                    <div className="text-[10px] text-gray-500 uppercase tracking-wider font-bold">Analisis AI</div>
-                    <div className="text-xs text-gray-400 mt-1">AI akan menentukan bukti fisik yang sah</div>
-                  </div>
-                  <div className="p-4 rounded-xl bg-gray-50 border border-gray-100">
-                    <div className="text-blue-600 font-bold text-lg mb-1">3</div>
-                    <div className="text-[10px] text-gray-500 uppercase tracking-wider font-bold">Upload & Simpan</div>
-                    <div className="text-xs text-gray-400 mt-1">Unggah foto/PDF bukti ke database</div>
-                  </div>
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-6 w-full max-w-4xl">
+                  {[
+                    { step: 1, title: 'Input Data', desc: 'Pilih realisasi belanja aktif', icon: Search },
+                    { step: 2, title: 'Verifikasi AI', desc: 'Sistem cek kelengkapan dokumen', icon: Sparkles },
+                    { step: 3, title: 'Finalisasi', desc: 'Upload berkas digital aman', icon: CheckCircle2 }
+                  ].map((s, i) => (
+                    <div key={i} className="p-8 rounded-[2rem] bg-white border border-slate-100 shadow-xl shadow-blue-900/5 hover:-translate-y-2 transition-all duration-500 group/card">
+                      <div className="w-12 h-12 bg-slate-50 rounded-2xl flex items-center justify-center text-slate-400 mb-6 group-hover/card:bg-blue-600 group-hover/card:text-white transition-all duration-500 font-black">
+                        <s.icon size={20} />
+                      </div>
+                      <div className="text-[10px] text-blue-600 uppercase tracking-widest font-black mb-2">Step {s.step}</div>
+                      <div className="text-base font-black text-slate-800 mb-2">{s.title}</div>
+                      <div className="text-[11px] font-semibold text-slate-400 leading-relaxed">{s.desc}</div>
+                    </div>
+                  ))}
                 </div>
               </div>
             )}
@@ -2577,33 +2654,71 @@ const EvidenceTemplates = ({ budgets: allBudgets, onUpdate }: EvidenceTemplatesP
       )}
 
       {/* MODAL INPUT DATA */}
-      {isPrintModalOpen && (
-          <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
-              <div className="bg-white rounded-xl shadow-xl w-full max-w-lg overflow-hidden animate-fade-in-up flex flex-col max-h-[90vh]">
-                  <div className="px-6 py-4 border-b border-gray-100 flex justify-between items-center bg-gray-50">
-                      <h3 className="font-bold text-gray-800 flex items-center gap-2">
-                          <Printer size={18} className="text-blue-600" /> Isi Data Dokumen
-                      </h3>
-                      <button onClick={() => setIsPrintModalOpen(false)} className="text-gray-400 hover:text-gray-600"><X size={20}/></button>
-                  </div>
-                  
-                  <div className="flex-1 overflow-y-auto p-6">
-                      <form id="printForm" onSubmit={handlePrint}>
-                          {renderFormFields()}
-                      </form>
-                  </div>
-                  
-                  <div className="p-6 border-t border-gray-100 bg-white">
-                      <div className="flex gap-3">
-                          <button type="button" onClick={() => setIsPrintModalOpen(false)} className="flex-1 py-2 border border-gray-300 rounded-lg text-gray-600 font-bold hover:bg-gray-50">Batal</button>
-                          <button type="submit" form="printForm" className="flex-1 py-2 bg-blue-600 text-white rounded-lg font-bold hover:bg-blue-700 flex items-center justify-center gap-2">
-                              <Download size={18} /> Generate PDF
-                          </button>
-                      </div>
-                  </div>
-              </div>
-          </div>
-      )}
+      <AnimatePresence>
+        {isPrintModalOpen && (
+            <motion.div 
+               initial={{ opacity: 0 }}
+               animate={{ opacity: 1 }}
+               exit={{ opacity: 0 }}
+               className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-[100] flex items-center justify-center p-4"
+            >
+                <motion.div 
+                    initial={{ scale: 0.9, opacity: 0, y: 20 }}
+                    animate={{ scale: 1, opacity: 1, y: 0 }}
+                    exit={{ scale: 0.9, opacity: 0, y: 20 }}
+                    className="bg-white rounded-[2.5rem] shadow-[0_32px_64px_-12px_rgba(0,0,0,0.14)] w-full max-w-lg overflow-hidden flex flex-col max-h-[90vh] border border-white"
+                >
+                    <div className="px-10 py-8 border-b border-slate-100 flex justify-between items-center bg-slate-50/50">
+                        <div className="flex items-center gap-4">
+                            <div className="p-3 bg-blue-600 text-white rounded-2xl shadow-lg shadow-blue-500/20">
+                                <Printer size={20} />
+                            </div>
+                            <div>
+                                <h3 className="text-xl font-black text-slate-800 tracking-tight">Generate Dokumen</h3>
+                                <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mt-0.5">Automasi Berkas Audit</p>
+                            </div>
+                        </div>
+                        <button 
+                            onClick={(e) => {
+                                e.preventDefault();
+                                e.stopPropagation();
+                                setIsPrintModalOpen(false);
+                            }} 
+                            className="p-3 text-slate-400 hover:text-slate-800 hover:bg-white rounded-2xl transition-all"
+                        >
+                            <X size={24}/>
+                        </button>
+                    </div>
+                    
+                    <div className="flex-1 overflow-y-auto px-10 py-8 custom-scrollbar">
+                        <form id="printForm" onSubmit={handlePrint} className="space-y-6">
+                            {renderFormFields()}
+                        </form>
+                    </div>
+                    
+                    <div className="p-10 border-t border-slate-100 bg-white/80 backdrop-blur-md">
+                        <div className="flex gap-4">
+                            <button 
+                                type="button" 
+                                onClick={() => setIsPrintModalOpen(false)} 
+                                className="flex-1 py-4 px-6 border border-slate-200 rounded-2xl text-[11px] font-black uppercase tracking-widest text-slate-500 hover:bg-slate-50 transition-all font-black"
+                            >
+                                Batal
+                            </button>
+                            <button 
+                                type="submit" 
+                                form="printForm" 
+                                className="flex-1 py-4 px-6 bg-blue-600 text-white rounded-2xl text-[11px] font-black uppercase tracking-widest hover:bg-blue-700 flex items-center justify-center gap-3 shadow-xl shadow-blue-500/20 transition-all group"
+                            >
+                                <Sparkles size={18} className="group-hover:rotate-12 transition-transform" /> 
+                                Generate PDF
+                            </button>
+                        </div>
+                    </div>
+                </motion.div>
+            </motion.div>
+        )}
+      </AnimatePresence>
 
       {/* Style Injection for Template Buttons */}
       <style>{`

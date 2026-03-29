@@ -1,11 +1,12 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { motion, AnimatePresence, Variants } from 'framer-motion';
-import { Budget, TransactionType, RealizationDetail, SchoolProfile } from '../types';
-import { FileText, Save, X, Search, CheckCircle2, FileCheck2, CheckSquare, Square, Sparkles, Loader2, Filter, TrendingUp, ListChecks, ArrowRightCircle, Printer } from 'lucide-react';
+import { Budget, TransactionType, RealizationDetail, SchoolProfile, WithdrawalHistory } from '../types';
+import { FileText, Save, X, Search, CheckCircle2, FileCheck2, CheckSquare, Square, Sparkles, Loader2, Filter, TrendingUp, ListChecks, ArrowRightCircle, Printer, Landmark, AlertCircle, Check } from 'lucide-react';
 import { suggestEvidenceList } from '../lib/gemini';
 import { generatePDFHeader, generateSignatures, formatCurrency, defaultTableStyles } from '../lib/pdfUtils';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
+import { getWithdrawalHistory } from '../lib/db';
 
 interface SPJRealizationProps {
   data: Budget[];
@@ -49,16 +50,19 @@ const getEvidenceList = (description: string, accountCode?: string): string[] =>
     text.includes('atk') || text.includes('bahan') || text.includes('alat tulis') ||
     text.includes('kertas') || text.includes('kebersihan') || text.includes('spanduk') ||
     text.includes('cetak') || text.includes('penggandaan') ||
-    text.includes('lampu') || text.includes('kabel') || text.includes('alat listrik') || text.includes('saklar')
+    text.includes('lampu') || text.includes('kabel') || text.includes('alat listrik') || text.includes('saklar') ||
+    text.includes('siplah')
   ) {
     return [
-      "Dokumen Cetak Pesanan SIPLah",
-      "Invoice / Faktur Penjualan (Dari SIPLah)",
+      "Dokumen Cetak Pesanan (PO) Digital dari SIPLah",
+      "Invoice / Faktur Penjualan Definitif (Dari SIPLah)",
       "Berita Acara Serah Terima (BAST) Digital SIPLah",
-      "Bukti Transfer ke Rekening Marketplace (Bukan Rekening Penjual)",
-      "Bukti Setor / Pungut Pajak (Oleh Marketplace SIPLah)",
-      "Foto Dokumentasi Barang yang diterima",
-      "Kuitansi Manual (Hanya jika pembelian Non-SIPLah / Mendesak < Rp 200rb)"
+      "Berita Acara Pemeriksaan Barang (Oleh Tim Pemeriksa Sekolah)",
+      "Bukti Transfer ke Virtual Account Marketplace SIPLah",
+      "Bukti Pajak (Otomatis dari SIPLah / Manual jika Perlu)",
+      "Foto Dokumentasi Barang Terkirim (Fisik di Sekolah)",
+      "Fotokopi Pencatatan di Buku Persediaan / KIB",
+      "Kuitansi Manual Sekolah (Sebagai Pendukung)"
     ];
   }
   if (text.includes('makan') || text.includes('minum') || text.includes('konsumsi') || text.includes('rapat') || text.includes('snack')) {
@@ -145,6 +149,15 @@ const SPJRealization: React.FC<SPJRealizationProps> = ({ data, profile, onUpdate
   const [evidenceItems, setEvidenceItems] = useState<string[]>([]);
   const [checkedEvidence, setCheckedEvidence] = useState<string[]>([]);
   const [isAiLoading, setIsAiLoading] = useState(false);
+  const [historyList, setHistoryList] = useState<WithdrawalHistory[]>([]);
+
+  useEffect(() => {
+    const loadHistory = async () => {
+      const h = await getWithdrawalHistory();
+      setHistoryList(h);
+    };
+    loadHistory();
+  }, []);
 
   const calculateMonthlyAllocation = (item: Budget, month: number) => {
     const plannedMonths = item.realization_months && item.realization_months.length > 0
@@ -213,6 +226,36 @@ const SPJRealization: React.FC<SPJRealizationProps> = ({ data, profile, onUpdate
     const visualPaguBase = Math.max(totalPaguBulanIni, totalRealized);
     return { totalPotensiBulanIni, totalRealized, totalPaguBulanIni: visualPaguBase };
   }, [expensesInMonth, viewMonth]);
+
+  const cumulativeStats = useMemo(() => {
+    let totalRealized = 0;
+    let totalPagu = 0;
+    data.forEach(item => {
+      if (item.type === TransactionType.EXPENSE && item.status !== 'rejected') {
+        const realizedUntilNow = item.realizations?.filter(r => r.month <= viewMonth).reduce((s, r) => s + r.amount, 0) || 0;
+        totalRealized += realizedUntilNow;
+        
+        // Cumulative Pagu calculation
+        const plannedMonths = item.realization_months?.filter(m => m <= viewMonth) || [];
+        if (plannedMonths.length > 0) {
+            const totalPlanned = (item.amount / (item.realization_months?.length || 1)) * plannedMonths.length;
+            totalPagu += totalPlanned;
+        }
+      }
+    });
+    return { totalRealized, totalPagu };
+  }, [data, viewMonth]);
+
+  const bankSyncStats = useMemo(() => {
+    const totalWithdrawn = historyList.reduce((acc, h) => {
+        const d = new Date(h.letter_date);
+        if (d.getFullYear() === 2026 && d.getMonth() + 1 <= viewMonth) {
+            return acc + h.total_amount;
+        }
+        return acc;
+    }, 0);
+    return { totalWithdrawn, isSynced: totalWithdrawn === cumulativeStats.totalRealized };
+  }, [historyList, viewMonth, cumulativeStats.totalRealized]);
 
   const handleOpenSPJ = (item: Budget) => {
     setSelectedBudget(item);
@@ -494,40 +537,65 @@ const SPJRealization: React.FC<SPJRealizationProps> = ({ data, profile, onUpdate
         })}
       </motion.div>
 
-      <motion.div variants={itemVariants} className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-        <div className="bg-gradient-to-br from-indigo-500 to-blue-600 p-6 rounded-[2rem] border border-blue-400/30 shadow-xl shadow-blue-900/10 text-white relative overflow-hidden">
+      <motion.div variants={itemVariants} className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+        <div className="bg-gradient-to-br from-indigo-500 to-blue-600 p-6 rounded-[2.5rem] border border-blue-400/30 shadow-xl shadow-blue-900/10 text-white relative overflow-hidden group">
           <div className="absolute inset-0 bg-[url('https://www.transparenttextures.com/patterns/cubes.png')] opacity-10 pointer-events-none mix-blend-overlay" />
-          <p className="text-xs font-black text-blue-100 uppercase tracking-widest mb-1 opacity-90">Potensi Belanja</p>
-          <h3 className="text-3xl font-black tracking-tight drop-shadow-md">{formatRupiah(monthStats.totalPotensiBulanIni)}</h3>
-          <p className="text-[10px] text-blue-200 mt-2 font-bold uppercase">Total Pagu: {formatRupiah(monthStats.totalPaguBulanIni)}</p>
+          <p className="text-[10px] font-black text-blue-100 uppercase tracking-widest mb-1 opacity-90">Potensi Sisa Pagu</p>
+          <h3 className="text-2xl font-black tracking-tight drop-shadow-md">{formatRupiah(monthStats.totalPotensiBulanIni)}</h3>
+          <p className="text-[9px] text-blue-200 mt-2 font-bold uppercase">Bulan {MONTHS[viewMonth - 1]}</p>
         </div>
 
-        <div className="bg-white/80 backdrop-blur-xl p-6 rounded-[2rem] border border-white shadow-xl flex items-center justify-between group">
+        <div className="bg-white/80 backdrop-blur-xl p-6 rounded-[2.5rem] border border-white shadow-xl flex items-center justify-between group transition-all hover:bg-white">
           <div>
-            <p className="text-xs text-slate-400 font-black uppercase tracking-widest mb-1">Sudah Di-SPJ-kan</p>
-            <h3 className={`text-3xl font-black ${monthStats.totalRealized > 0 ? 'text-emerald-500' : 'text-slate-300'}`}>
+            <p className="text-[10px] text-slate-400 font-black uppercase tracking-widest mb-1">Sudah DI-SPJ-KAN</p>
+            <h3 className={`text-2xl font-black ${monthStats.totalRealized > 0 ? 'text-emerald-500' : 'text-slate-300'}`}>
               {formatRupiah(monthStats.totalRealized)}
             </h3>
+            <p className="text-[9px] text-slate-400 mt-1 font-bold">Total Kumulatif: <span className="text-indigo-600 font-black">{formatRupiah(cumulativeStats.totalRealized)}</span></p>
           </div>
-          <div className={`p-4 rounded-2xl transition-colors ${monthStats.totalRealized > 0 ? 'bg-emerald-50 text-emerald-500 group-hover:bg-emerald-100' : 'bg-slate-50 text-slate-300'}`}>
-            <TrendingUp size={28} />
+          <div className={`p-4 rounded-2xl transition-all ${monthStats.totalRealized > 0 ? 'bg-emerald-50 text-emerald-500 group-hover:bg-emerald-100 group-hover:scale-110 shadow-sm' : 'bg-slate-50 text-slate-300'}`}>
+            <TrendingUp size={24} />
           </div>
         </div>
 
-        <div className="bg-white/80 backdrop-blur-xl p-6 rounded-[2rem] border border-white shadow-xl flex flex-col justify-center">
-          <div className="flex justify-between items-center text-xs mb-3">
-            <span className="font-black text-slate-400 uppercase tracking-widest">Serapan</span>
-            <span className="font-black text-blue-600 text-lg">
-              {monthStats.totalPaguBulanIni > 0 ? ((monthStats.totalRealized / monthStats.totalPaguBulanIni) * 100).toFixed(0) : 0}%
+        <div className={`bg-white/80 backdrop-blur-xl p-6 rounded-[2.5rem] border shadow-xl flex items-center justify-between group transition-all hover:bg-white ${bankSyncStats.isSynced ? 'border-emerald-100' : 'border-amber-100'}`}>
+          <div>
+            <p className="text-[10px] text-slate-400 font-black uppercase tracking-widest mb-1">Sinkronisasi Bank</p>
+            <h3 className={`text-2xl font-black ${bankSyncStats.isSynced ? 'text-indigo-600' : 'text-amber-600'}`}>
+              {formatRupiah(bankSyncStats.totalWithdrawn)}
+            </h3>
+            <div className="flex items-center gap-1.5 mt-1">
+               {bankSyncStats.isSynced ? (
+                 <div className="flex items-center gap-1 text-[9px] font-black text-emerald-600 uppercase tracking-tight">
+                    <Check size={12} strokeWidth={3} /> Sinkron
+                 </div>
+               ) : (
+                 <div className="flex items-center gap-1 text-[9px] font-black text-amber-600 uppercase tracking-tight">
+                    <AlertCircle size={10} /> Selisih {formatRupiah(Math.abs(bankSyncStats.totalWithdrawn - cumulativeStats.totalRealized))}
+                 </div>
+               )}
+            </div>
+          </div>
+          <div className={`p-4 rounded-2xl transition-all ${bankSyncStats.isSynced ? 'bg-indigo-50 text-indigo-500' : 'bg-amber-50 text-amber-500'} group-hover:scale-110`}>
+            <Landmark size={24} />
+          </div>
+        </div>
+
+        <div className="bg-white/80 backdrop-blur-xl p-6 rounded-[2.5rem] border border-white shadow-xl flex flex-col justify-center group overflow-hidden relative">
+          <div className="flex justify-between items-center text-[10px] mb-3 relative z-10">
+            <span className="font-black text-slate-400 uppercase tracking-widest">Serapan Kumulatif</span>
+            <span className="font-black text-blue-600 text-base">
+              {cumulativeStats.totalPagu > 0 ? ((cumulativeStats.totalRealized / cumulativeStats.totalPagu) * 100).toFixed(0) : 0}%
             </span>
           </div>
-          <div className="w-full bg-slate-100 rounded-full h-3 overflow-hidden shadow-inner">
+          <div className="w-full bg-slate-100 rounded-full h-3 overflow-hidden shadow-inner relative z-10">
             <motion.div
               initial={{ width: 0 }}
-              animate={{ width: `${monthStats.totalPaguBulanIni > 0 ? Math.min((monthStats.totalRealized / monthStats.totalPaguBulanIni) * 100, 100) : 0}%` }}
-              className={`h-full rounded-full ${monthStats.totalRealized >= monthStats.totalPaguBulanIni ? 'bg-emerald-500' : 'bg-blue-500'}`}
+              animate={{ width: `${cumulativeStats.totalPagu > 0 ? Math.min((cumulativeStats.totalRealized / cumulativeStats.totalPagu) * 100, 100) : 0}%` }}
+              className={`h-full rounded-full ${cumulativeStats.totalRealized >= cumulativeStats.totalPagu ? 'bg-emerald-500' : 'bg-blue-600'}`}
             />
           </div>
+          <p className="text-[8px] text-slate-400 mt-2 font-bold uppercase tracking-tight relative z-10 text-right">Target s/d {MONTHS[viewMonth - 1]}</p>
         </div>
       </motion.div>
 
