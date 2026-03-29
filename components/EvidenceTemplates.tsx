@@ -404,11 +404,19 @@ const EvidenceTemplates = ({ budgets: allBudgets, onUpdate }: EvidenceTemplatesP
     const textDesc = combinedDescription.toLowerCase();
     const isVendorSiplah = group.vendor.toLowerCase().includes('siplah') || textDesc.includes('siplah');
     
-    // BOSP 2026: Rekening 5.2.2/5.2.3 and Goods/Capital are mandatory SIPLah
-    const isBospSiplah = combinedAccountCodes.includes('5.2.2') || combinedAccountCodes.includes('5.2.3') || 
+    // BOSP 2026: Rekening 5.2.02 (Modal), 5.1.02.01 (Barang/ATK), and 5.1.02.03 (Pemeliharaan Material) are mandatory SIPLah
+    const isBospSiplah = 
+      combinedAccountCodes.includes('5.2.02') || 
+      combinedAccountCodes.includes('5.1.02.01') || 
+      combinedAccountCodes.includes('5.1.02.03') ||
+      combinedAccountCodes.includes('5.2.2') || 
+      combinedAccountCodes.includes('5.2.3') || 
       textDesc.includes('atk') || textDesc.includes('bahan') || textDesc.includes('alat') || 
       textDesc.includes('kertas') || textDesc.includes('fotocopy') || textDesc.includes('penggandaan') ||
-      textDesc.includes('modal') || textDesc.includes('cetak');
+      textDesc.includes('cat') || textDesc.includes('pintu') || textDesc.includes('kusen') ||
+      textDesc.includes('hvs') || textDesc.includes('lampu') || textDesc.includes('besi') || 
+      textDesc.includes('kayu') || textDesc.includes('semen') || textDesc.includes('modal') || 
+      textDesc.includes('cetak');
 
     const isSiplah = isVendorSiplah || isBospSiplah;
     
