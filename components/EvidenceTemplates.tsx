@@ -388,6 +388,14 @@ const EvidenceTemplates = ({ budgets: allBudgets, onUpdate }: EvidenceTemplatesP
     localStorage.setItem('rkas_ai_evidence_cache', JSON.stringify(aiCache));
   }, [aiCache]);
 
+  useEffect(() => {
+    if (selectedGroup) {
+      handleProcessAi(selectedGroup);
+    } else {
+      setSuggestedEvidence([]);
+    }
+  }, [selectedGroup]);
+
   const handleProcessAi = async (group: any) => {
     // Combine descriptions for context
     const combinedDescription = group.items.map((i: any) => i.budgetDescription).join(', ');
@@ -399,7 +407,8 @@ const EvidenceTemplates = ({ budgets: allBudgets, onUpdate }: EvidenceTemplatesP
     // BOSP 2026: Rekening 5.2.2/5.2.3 and Goods/Capital are mandatory SIPLah
     const isBospSiplah = combinedAccountCodes.includes('5.2.2') || combinedAccountCodes.includes('5.2.3') || 
       textDesc.includes('atk') || textDesc.includes('bahan') || textDesc.includes('alat') || 
-      textDesc.includes('modal') || textDesc.includes('cetak') || textDesc.includes('penggandaan');
+      textDesc.includes('kertas') || textDesc.includes('fotocopy') || textDesc.includes('penggandaan') ||
+      textDesc.includes('modal') || textDesc.includes('cetak');
 
     const isSiplah = isVendorSiplah || isBospSiplah;
     
@@ -412,7 +421,7 @@ const EvidenceTemplates = ({ budgets: allBudgets, onUpdate }: EvidenceTemplatesP
     ];
 
     // Check cache first
-    if (aiCache[combinedDescription]) {
+    if (aiCache[combinedDescription] && aiCache[combinedDescription].length > 0) {
       let list = aiCache[combinedDescription];
       if (isSiplah) {
         list = Array.from(new Set([...siplahItems, ...list]));
