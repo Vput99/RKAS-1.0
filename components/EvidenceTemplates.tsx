@@ -46,27 +46,26 @@ const getEvidenceList = (description: string, accountCode?: string): string[] =>
     ];
   }
 
-  // Rekening Belanja: Modal / Barang / ATK / Cetak (Aturan BOSP 2026: KHUSUS REKENING BELANJA WAJIB SIPLAH)
   if (
-    accCode.startsWith('5.2.2') || accCode.startsWith('5.2.3') ||
+    accCode.startsWith('5.2.2') || accCode.startsWith('5.2.3') || accCode.startsWith('5.2.02') ||
     text.includes('atk') || text.includes('bahan') || text.includes('alat') || 
     text.includes('kertas') || text.includes('kebersihan') || text.includes('spanduk') || 
     text.includes('cetak') || text.includes('penggandaan') || 
     text.includes('modal') || text.includes('buku') || text.includes('laptop') || 
     text.includes('komputer') || text.includes('printer') || text.includes('meja') || 
     text.includes('kursi') || text.includes('aset') || text.includes('elektronik') ||
-    text.includes('belanja')
+    text.includes('belanja') || text.includes('siplah')
   ) {
     return [
       "Dokumen Cetak Pesanan (PO) Digital dari SIPLah",
       "Invoice / Faktur Penjualan Definitif (Dari SIPLah)",
       "Berita Acara Serah Terima (BAST) Digital SIPLah",
       "Berita Acara Pemeriksaan Barang (Oleh Tim Pemeriksa Sekolah)",
-      "Bukti Transfer ke Virtual Account Marketplace SIPLah (Bukan Rekening Pribadi Penjual)",
-      "Bukti Setor/Pungut Pajak (Otomatis oleh Marketplace SIPLah jika rekanan PKP)",
-      "Foto Dokumentasi Barang yang diterima (Fisik di Sekolah)",
-      "Fotokopi Pencatatan di Buku Persediaan / Buku Aset KIB (Khusus Belanja Modal)",
-      "KUITANSI MANUAL (HANYA DIIZINKAN BISA NON-SIPLAH JIKA: Pengecualian Mendesak / Nilai Sangat Kecil / Toko Tidak Tersedia sesuai Juknis BOSP 2026)"
+      "Bukti Transfer ke Virtual Account Marketplace SIPLah",
+      "Bukti Pajak (Otomatis dari SIPLah / Manual jika Perlu)",
+      "Foto Dokumentasi Barang Terkirim (Fisik di Sekolah)",
+      "Fotokopi Pencatatan di Buku Persediaan / KIB",
+      "Kuitansi Manual Sekolah (Sebagai Pendukung)"
     ];
   }
 

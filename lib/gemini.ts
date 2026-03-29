@@ -328,11 +328,25 @@ export const suggestEvidenceList = async (description: string, accountCode: stri
 
   try {
     const response = await ai.models.generateContent({
-      model: 'gemini-3-flash-preview',
-      contents: `Task: List physical evidence (Bukti Fisik SPJ) for BOSP 2026.
-      Expense: "${description}"
-      Code: "${accountCode}"
-      Return JSON Array of strings.`,
+      model: 'gemini-1.5-flash',
+      contents: `Tugas: Berikan daftar bukti fisik SPJ BOSP 2026 yang lengkap dan baku.
+      
+      ATURAN KHUSUS SIPLAH:
+      Jika pengeluaran menggunakan SIPLah (Barang/Bahan/Modal), Anda WAJIB memberikan daftar standar berikut:
+      1. Dokumen Cetak Pesanan (PO) Digital dari SIPLah
+      2. Invoice / Faktur Penjualan Definitif (Dari SIPLah)
+      3. Berita Acara Serah Terima (BAST) Digital SIPLah
+      4. Berita Acara Pemeriksaan Barang (Oleh Tim Pemeriksa Sekolah)
+      5. Bukti Transfer ke Virtual Account Marketplace SIPLah
+      6. Bukti Pajak (Otomatis dari SIPLah / Manual jika perlu)
+      7. Foto Dokumentasi Barang Terkirim (Fisik di Sekolah)
+      8. Fotokopi Pencatatan di Buku Persediaan / KIB
+      9. Kuitansi Manual Sekolah (Sebagai pendukung jika diperlukan)
+
+      Input Pengeluaran: "${description}"
+      Kode Rekening: "${accountCode}"
+      
+      Kembalikan dalam format JSON Array of strings.`,
       config: {
         responseMimeType: "application/json",
         responseSchema: {
