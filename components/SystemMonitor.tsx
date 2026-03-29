@@ -41,7 +41,7 @@ const SystemMonitor: React.FC = () => {
     };
 
     return (
-        <div className="fixed bottom-6 right-6 z-[100] flex flex-col items-end gap-3 pointer-events-none">
+        <div className="fixed bottom-8 right-32 z-[100] flex flex-col items-end gap-3 pointer-events-none">
             {/* ALERT POPUP */}
             <AnimatePresence>
                 {showAlert && (
@@ -85,29 +85,33 @@ const SystemMonitor: React.FC = () => {
             <motion.button 
                 layout
                 onClick={() => setIsOpen(!isOpen)}
-                className={`pointer-events-auto flex items-center gap-3 p-1.5 pr-4 rounded-full border shadow-xl transition-all duration-500 group ${
+                className={`pointer-events-auto flex items-center gap-3 p-2 pr-5 rounded-3xl border shadow-[0_8px_32px_rgba(0,0,0,0.08)] transition-all duration-500 group ${
                     isOpen 
                         ? 'bg-slate-900 text-white border-slate-800' 
                         : isCritical
                             ? 'bg-red-500 text-white border-red-400 animate-pulse'
                             : isWarning 
                                 ? 'bg-amber-500 text-white border-amber-400'
-                                : 'bg-white/60 backdrop-blur-xl text-slate-600 border-white/80 hover:bg-white hover:shadow-2xl'
+                                : 'bg-white/80 backdrop-blur-3xl text-slate-700 border-white/90 hover:bg-white hover:shadow-2xl hover:shadow-blue-900/10'
                 }`}
             >
-                <div className={`p-2.5 rounded-full ${isOpen ? 'bg-white/10' : 'bg-slate-100/50'}`}>
-                    {isCritical ? <AlertTriangle size={18} /> : <Zap size={18} className={isOpen ? 'text-blue-400' : 'text-blue-600'} />}
+                <div className={`p-2.5 rounded-2xl transition-all duration-500 ${isOpen ? 'bg-white/10' : 'bg-slate-100 shadow-inner'}`}>
+                    {isCritical ? <AlertTriangle size={16} /> : <Zap size={16} className={isOpen ? 'text-blue-400' : 'text-blue-600'} />}
                 </div>
                 {!isOpen && (
-                    <div className="flex flex-col items-start leading-tight">
-                        <span className="text-[10px] font-black uppercase tracking-[0.15em]">Health</span>
-                        <span className="text-[9px] font-bold opacity-60">
-                            {isCritical ? 'Critical Space' : isWarning ? 'Low Space' : 'All Clear'}
-                        </span>
+                    <div className="flex flex-col items-start leading-none gap-1">
+                        <span className="text-[9px] font-black uppercase tracking-[0.2em] opacity-80">Health Monitor</span>
+                        <div className="flex items-center gap-2">
+                             <div className="flex items-center gap-0.5">
+                                <div className={`w-1.5 h-1.5 rounded-full ${dbPercent > 90 ? 'bg-red-500' : dbPercent > 70 ? 'bg-amber-500' : 'bg-emerald-500'}`} />
+                                <div className={`w-1.5 h-1.5 rounded-full ${storagePercent > 90 ? 'bg-red-500' : storagePercent > 70 ? 'bg-amber-500' : 'bg-blue-500'}`} />
+                             </div>
+                             <span className="text-[8px] font-black uppercase tracking-widest opacity-60">Status OK</span>
+                        </div>
                     </div>
                 )}
                 {isOpen && (
-                    <span className="text-[10px] font-black uppercase tracking-widest ml-1">Tutup Monitor</span>
+                    <span className="text-[9px] font-black uppercase tracking-widest ml-1">Tutup Monitor</span>
                 )}
             </motion.button>
 
