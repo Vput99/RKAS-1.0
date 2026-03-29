@@ -4,6 +4,7 @@ import { ShoppingBag, FileText, ClipboardList, RefreshCw, Calendar, ArrowRightLe
 import { Budget } from '../types';
 import { analyzeInventoryItems, InventoryItem } from '../lib/gemini';
 import { generatePDFHeader, generateSignatures, formatCurrency, defaultTableStyles } from '../lib/pdfUtils';
+import { getInventoryItems, saveInventoryItem, deleteInventoryItem, getWithdrawalTransactions, saveWithdrawalTransaction, deleteWithdrawalTransaction, getInventoryOverrides, saveInventoryOverride, getMutationOverrides, saveMutationOverride } from '../lib/db';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 
@@ -532,11 +533,67 @@ const InventoryReports: React.FC<InventoryReportsProps> = ({ budgets, schoolProf
   };
 
   useEffect(() => {
-    const localManual = localStorage.getItem('rkas_manual_inventory_v1');
-    if (localManual) setManualInventoryItems(JSON.parse(localManual));
-
-    const localWithdrawals = localStorage.getItem('rkas_withdrawal_transactions_v1');
-    if (localWithdrawals) setWithdrawalTransactions(JSON.parse(localWithdrawals));
+    const loadDataFromDB = async () => {
+      try {
+        const [dbItems, dbWithdrawals, dbOverrides, dbMutationOv] = await Promise.all([
+          getInventoryItems(),
+          getWithdrawalTransactions(),
+          getInventoryOverrides(),
+          getMutationOverrides()
+        ]);
+        if (dbItems.length > 0) {
+          setManualInventoryItems(dbItems.map(d => ({
+            id: d.id,
+            name: d.name,
+            spec: d.spec,
+            quantity: d.quantity,
+            unit: d.unit,
+            price: d.price,
+            total: d.total,
+            subActivityCode: d.sub_activity_code,
+            subActivityName: d.sub_activity_name,
+            accountCode: d.account_code,
+            date: d.date,
+            contractType: d.contract_type,
+            vendor: d.vendor || '',
+            docNumber: d.doc_number,
+            category: d.category,
+            codification: d.codification,
+            usedQuantity: d.used_quantity,
+            lastYearBalance: d.last_year_balance
+          })));
+        } else {
+          const localManual = localStorage.getItem('rkas_manual_inventory_v1');
+          if (localManual) setManualInventoryItems(JSON.parse(localManual));
+        }
+        if (dbWithdrawals.length > 0) {
+          setWithdrawalTransactions(dbWithdrawals.map(d => ({
+            id: d.id,
+            inventoryItemId: d.inventory_item_id,
+            date: d.date,
+            docNumber: d.doc_number,
+            quantity: d.quantity,
+            notes: d.notes
+          })));
+        } else {
+          const localWithdrawals = localStorage.getItem('rkas_withdrawal_transactions_v1');
+          if (localWithdrawals) setWithdrawalTransactions(JSON.parse(localWithdrawals));
+        }
+        if (Object.keys(dbOverrides).length > 0) {
+          setItemOverrides(dbOverrides);
+        }
+        if (Object.keys(dbMutationOv).length > 0) {
+          setMutationOverrides(dbMutationOv);
+        }
+      } catch (e) {
+        console.error('Failed to load inventory from DB, using localStorage fallback', e);
+        const localManual = localStorage.getItem('rkas_manual_inventory_v1');
+        if (localManual) setManualInventoryItems(JSON.parse(localManual));
+        const localWithdrawals = localStorage.getItem('rkas_withdrawal_transactions_v1');
+        if (localWithdrawals) setWithdrawalTransactions(JSON.parse(localWithdrawals));
+      }
+    };
+    loadDataFromDB();
   }, []);
 
   const saveManualItems = (items: InventoryItem[]) => {
@@ -544,9 +601,43 @@ const InventoryReports: React.FC<InventoryReportsProps> = ({ budgets, schoolProf
     localStorage.setItem('rkas_manual_inventory_v1', JSON.stringify(items));
   };
 
+  const saveManualItemToDB = async (item: InventoryItem) => {
+    await saveInventoryItem({
+      id: item.id,
+      name: item.name,
+      spec: item.spec,
+      quantity: item.quantity,
+      unit: item.unit,
+      price: item.price,
+      total: item.total,
+      sub_activity_code: item.subActivityCode,
+      sub_activity_name: item.subActivityName,
+      account_code: item.accountCode,
+      date: item.date,
+      contract_type: item.contractType,
+      vendor: item.vendor,
+      doc_number: item.docNumber,
+      category: item.category,
+      codification: item.codification,
+      used_quantity: item.usedQuantity,
+      last_year_balance: item.lastYearBalance
+    });
+  };
+
   const saveWithdrawals = (txs: WithdrawalTransaction[]) => {
     setWithdrawalTransactions(txs);
     localStorage.setItem('rkas_withdrawal_transactions_v1', JSON.stringify(txs));
+  };
+
+  const saveWithdrawalToDB = async (tx: WithdrawalTransaction) => {
+    await saveWithdrawalTransaction({
+      id: tx.id,
+      inventory_item_id: tx.inventoryItemId,
+      date: tx.date,
+      doc_number: tx.docNumber,
+      quantity: tx.quantity,
+      notes: tx.notes
+    });
   };
 
   const saveOverrides = (newOverrides: typeof itemOverrides) => {
@@ -563,9 +654,10 @@ const InventoryReports: React.FC<InventoryReportsProps> = ({ budgets, schoolProf
       }
     };
     saveOverrides(updated);
+    saveInventoryOverride(itemId, field, value);
   };
 
-  const saveMutationOverrides = (newOverrides: typeof mutationOverrides) => {
+  const saveMutationOverridesLocal = (newOverrides: typeof mutationOverrides) => {
     setMutationOverrides(newOverrides);
     localStorage.setItem('rkas_mutation_overrides_v1', JSON.stringify(newOverrides));
   };
@@ -578,7 +670,8 @@ const InventoryReports: React.FC<InventoryReportsProps> = ({ budgets, schoolProf
         [field]: value
       }
     };
-    saveMutationOverrides(updated);
+    saveMutationOverridesLocal(updated);
+    saveMutationOverride(category, field, value);
   };
 
   const handleAnalyze = async () => {
@@ -654,6 +747,7 @@ const InventoryReports: React.FC<InventoryReportsProps> = ({ budgets, schoolProf
 
     const updated = [newItem, ...manualInventoryItems];
     saveManualItems(updated);
+    saveManualItemToDB(newItem);
     setIsManualModalOpen(false);
     setSelectedBudget(null);
   };
@@ -672,6 +766,7 @@ const InventoryReports: React.FC<InventoryReportsProps> = ({ budgets, schoolProf
     };
 
     saveWithdrawals([...withdrawalTransactions, newTx]);
+    saveWithdrawalToDB(newTx);
     setIsWithdrawalModalOpen(false);
     setSelectedInventoryItem(null);
     setWithdrawalForm({
@@ -684,11 +779,13 @@ const InventoryReports: React.FC<InventoryReportsProps> = ({ budgets, schoolProf
 
   const deleteWithdrawal = (id: string) => {
     saveWithdrawals(withdrawalTransactions.filter(tx => tx.id !== id));
+    deleteWithdrawalTransaction(id);
   };
 
   const deleteManualItem = (id: string) => {
     const updated = manualInventoryItems.filter(item => item.id !== id);
     saveManualItems(updated);
+    deleteInventoryItem(id);
   };
 
 
