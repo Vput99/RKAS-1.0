@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect, useMemo } from 'react';
-import { FileText, Download, CheckCircle2, ChevronRight, BookOpen, Printer, Users, Coffee, Wrench, Bus, ShoppingBag, FileSignature, Handshake, ClipboardList, Receipt, FileCheck, HardHat, Hammer, X, DollarSign, Plus, Trash2, Search, Sparkles, Loader2, Upload, Eye, AlertCircle, ShoppingCart, Image as ImageIcon } from 'lucide-react';
+import { FileText, Download, CheckCircle2, ChevronRight, BookOpen, Printer, Users, Coffee, Wrench, Bus, ShoppingBag, FileSignature, Handshake, ClipboardList, Receipt, FileCheck, HardHat, Hammer, X, DollarSign, Plus, Trash2, Search, Sparkles, Loader2, Upload, Eye, AlertCircle, ShoppingCart, Image as ImageIcon, Folder } from 'lucide-react';
 import jsPDF from 'jspdf';
 import { motion, AnimatePresence } from 'framer-motion';
 import autoTable from 'jspdf-autotable';
@@ -242,6 +242,7 @@ const EvidenceTemplates = ({ budgets: allBudgets, onUpdate }: EvidenceTemplatesP
   const [isAiLoading, setIsAiLoading] = useState(false);
   const [uploadProgress, setUploadProgress] = useState<Record<string, boolean>>({});
   const [searchTerm, setSearchTerm] = useState('');
+  const [albumView, setAlbumView] = useState<{ month: number | null, transactionKey: string | null }>({ month: null, transactionKey: null });
 
   // Grouped Realizations for the Upload Tab
   const groupedRealizations = useMemo(() => {
@@ -1713,8 +1714,19 @@ const EvidenceTemplates = ({ budgets: allBudgets, onUpdate }: EvidenceTemplatesP
     allBudgets.forEach(budget => {
       budget.realizations?.forEach((real) => {
         if (real.evidence_files && real.evidence_files.length > 0) {
+          const vendorName = real.vendor || 'Tanpa Toko/Vendor';
+          const transactionKey = `${vendorName}-${real.date.split('T')[0]}-${real.month}`;
           real.evidence_files.forEach(file => {
-             list.push({ ...file, sourceType: 'Belanja', vendor: real.vendor || 'Tanpa Vendor', date: real.date, description: budget.description, amount: real.amount });
+             list.push({ 
+               ...file, 
+               sourceType: 'Belanja', 
+               vendor: vendorName, 
+               date: real.date, 
+               month: real.month,
+               transactionKey,
+               description: budget.description, 
+               amount: real.amount 
+             });
           });
         }
       });
@@ -1724,21 +1736,97 @@ const EvidenceTemplates = ({ budgets: allBudgets, onUpdate }: EvidenceTemplatesP
         if (typeof snapshot === 'string') { try { snapshot = JSON.parse(snapshot); } catch(e) { snapshot = {}; } }
         if (!snapshot) return;
         if (snapshot.groupedRecipients && Array.isArray(snapshot.groupedRecipients)) {
-          snapshot.groupedRecipients.forEach((recipient: any) => {
+          snapshot.groupedRecipients.forEach((recipient: any, idx: number) => {
             if (recipient.evidence_files && recipient.evidence_files.length > 0) {
-               recipient.evidence_files.forEach((file: any) => list.push({ ...file, sourceType: 'Riwayat Pencairan', vendor: recipient.name || 'Tanpa Nama', date: record.letter_date, description: recipient.descriptions?.join(', ') || 'Pencairan', amount: recipient.amount }));
+               const vendorName = recipient.name || 'Tanpa Nama';
+               const month = new Date(record.letter_date).getMonth() + 1;
+               const transactionKey = `history-${record.id}-${idx}`;
+               recipient.evidence_files.forEach((file: any) => list.push({ 
+                 ...file, 
+                 sourceType: 'Riwayat Pencairan', 
+                 vendor: vendorName, 
+                 date: record.letter_date, 
+                 month,
+                 transactionKey,
+                 description: recipient.descriptions?.join(', ') || 'Pencairan', 
+                 amount: recipient.amount 
+               }));
             }
           });
         } else if (Array.isArray(snapshot)) {
-          snapshot.forEach((recipient: any) => {
+          snapshot.forEach((recipient: any, idx: number) => {
             if (recipient.evidence_files && recipient.evidence_files.length > 0) {
-               recipient.evidence_files.forEach((file: any) => list.push({ ...file, sourceType: 'Riwayat Pencairan', vendor: recipient.name || 'Tanpa Nama', date: record.letter_date, description: recipient.descriptions?.join(', ') || 'Pencairan', amount: recipient.amount }));
+               const vendorName = recipient.name || 'Tanpa Nama';
+               const month = new Date(record.letter_date).getMonth() + 1;
+               const transactionKey = `history-${record.id}-${idx}`;
+               recipient.evidence_files.forEach((file: any) => list.push({ 
+                 ...file, 
+                 sourceType: 'Riwayat Pencairan', 
+                 vendor: vendorName, 
+                 date: record.letter_date, 
+                 month,
+                 transactionKey,
+                 description: recipient.descriptions?.join(', ') || 'Pencairan', 
+                 amount: recipient.amount 
+               }));
             }
           });
         }
     });
     return list.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
   }, [allBudgets, history]);
+
+  const groupedAlbum = useMemo(() => {
+    const months: Record<number, any[]> = {};
+    
+    allEvidenceFiles.forEach(file => {
+      if (!months[file.month]) {
+        months[file.month] = [];
+      }
+      months[file.month].push(file);
+    });
+
+    const result: Record<number, Record<string, any>> = {};
+    Object.keys(months).forEach(mStr => {
+      const m = parseInt(mStr);
+      const transactions: Record<string, any> = {};
+      
+      months[m].forEach(file => {
+        if (!transactions[file.transactionKey]) {
+          transactions[file.transactionKey] = {
+            key: file.transactionKey,
+            vendor: file.vendor,
+            date: file.date,
+            month: file.month,
+            totalAmount: 0,
+            files: []
+          };
+        }
+        transactions[file.transactionKey].files.push(file);
+        // Important: we only add amount once per unique transaction identity, 
+        // but here files are already from realizations. 
+        // Wait, if multiple files per realization, we might double count if we just sum.
+        // Actually, for the folder view, displaying the transaction total is helpful.
+      });
+
+      // Recalculate totals correctly per transaction
+      Object.values(transactions).forEach((t: any) => {
+        const uniqueItems = new Set();
+        t.totalAmount = t.files.reduce((sum: number, f: any) => {
+          const itemIdentity = `${f.vendor}-${f.date}-${f.amount}-${f.description}`;
+          if (!uniqueItems.has(itemIdentity)) {
+            uniqueItems.add(itemIdentity);
+            return sum + f.amount;
+          }
+          return sum;
+        }, 0);
+      });
+
+      result[m] = transactions;
+    });
+
+    return result;
+  }, [allEvidenceFiles]);
 
   const renderAlbumGallery = () => {
     if (allEvidenceFiles.length === 0) {
@@ -1749,16 +1837,135 @@ const EvidenceTemplates = ({ budgets: allBudgets, onUpdate }: EvidenceTemplatesP
                 </div>
                 <h3 className="text-lg font-bold text-gray-800 mb-2">Album Kosong</h3>
                 <p className="text-sm text-gray-500 max-w-md mx-auto">
-                  Belum ada bukti fisik yang diunggah. Silakan unggah setidaknya satu bukti fisik pada tab Upload terlebih dahulu.
+                    Belum ada bukti fisik yang diunggah. Silakan unggah setidaknya satu bukti fisik pada tab Upload terlebih dahulu.
                 </p>
             </div>
         );
     }
 
+    const { month, transactionKey } = albumView;
+
+    // --- BREADCRUMBS ---
+    const renderBreadcrumbs = () => (
+        <div className="flex items-center gap-2 mb-8 bg-white/50 backdrop-blur-sm p-3 rounded-2xl border border-white/80 shadow-sm w-fit">
+            <button 
+                onClick={() => setAlbumView({ month: null, transactionKey: null })}
+                className={`text-xs font-bold px-3 py-1.5 rounded-lg transition-all ${!month ? 'bg-blue-600 text-white shadow-md' : 'text-gray-500 hover:bg-gray-100'}`}
+            >
+                Semua Bulan
+            </button>
+            {month && (
+                <>
+                    <ChevronRight size={14} className="text-gray-300" />
+                    <button 
+                         onClick={() => setAlbumView({ month, transactionKey: null })}
+                         className={`text-xs font-bold px-3 py-1.5 rounded-lg transition-all ${month && !transactionKey ? 'bg-blue-600 text-white shadow-md' : 'text-gray-500 hover:bg-gray-100'}`}
+                    >
+                        Bulan {MONTHS[month - 1]}
+                    </button>
+                </>
+            )}
+            {transactionKey && (
+                <>
+                    <ChevronRight size={14} className="text-gray-300" />
+                    <span className="text-xs font-bold px-3 py-1.5 bg-blue-600 text-white shadow-md rounded-lg">
+                        {groupedAlbum[month!]?.[transactionKey]?.vendor || 'Detail Transaksi'}
+                    </span>
+                </>
+            )}
+        </div>
+    );
+
+    // --- RENDER LEVEL 0: MONTHS ---
+    if (!month) {
+        const availableMonths = Object.keys(groupedAlbum).map(m => parseInt(m)).sort((a, b) => a - b);
+        return (
+            <div className="animate-fade-in">
+                {renderBreadcrumbs()}
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+                    {availableMonths.map(m => (
+                        <motion.div
+                            key={m}
+                            whileHover={{ y: -5, scale: 1.02 }}
+                            whileTap={{ scale: 0.98 }}
+                            onClick={() => setAlbumView({ month: m, transactionKey: null })}
+                            className="bg-white p-6 rounded-[24px] border border-gray-100 shadow-sm hover:shadow-xl hover:border-blue-200 transition-all cursor-pointer group relative overflow-hidden"
+                        >
+                            <div className="absolute top-0 right-0 p-4 opacity-5 group-hover:opacity-10 transition-opacity">
+                                <Folder size={80} className="text-blue-600" />
+                            </div>
+                            <div className="w-14 h-14 bg-blue-50 rounded-2xl flex items-center justify-center text-blue-600 mb-4 group-hover:bg-blue-600 group-hover:text-white transition-colors duration-300 shadow-inner">
+                                <Folder size={28} />
+                            </div>
+                            <h3 className="text-lg font-black text-gray-800 mb-1">SPJ Bulan {MONTHS[m - 1]}</h3>
+                            <p className="text-xs font-bold text-gray-400 uppercase tracking-widest">
+                                {Object.keys(groupedAlbum[m]).length} Transaksi
+                            </p>
+                            <div className="mt-6 flex items-center text-blue-600 text-[10px] font-black uppercase tracking-widest group-hover:translate-x-2 transition-transform">
+                                Buka Folder <ChevronRight size={14} />
+                            </div>
+                        </motion.div>
+                    ))}
+                </div>
+            </div>
+        );
+    }
+
+    // --- RENDER LEVEL 1: TRANSACTIONS IN MONTH ---
+    if (month && !transactionKey) {
+        const transactions = Object.values(groupedAlbum[month] || {}).sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+        return (
+            <div className="animate-fade-in">
+                {renderBreadcrumbs()}
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+                    {transactions.map(t => (
+                        <motion.div
+                            key={t.key}
+                            whileHover={{ y: -5, scale: 1.02 }}
+                            whileTap={{ scale: 0.98 }}
+                            onClick={() => setAlbumView({ month, transactionKey: t.key })}
+                            className="bg-white p-6 rounded-[24px] border border-gray-100 shadow-sm hover:shadow-xl hover:border-blue-200 transition-all cursor-pointer group relative overflow-hidden"
+                        >
+                            <div className="flex items-center gap-3 mb-4">
+                                <div className="p-3 bg-indigo-50 rounded-xl text-indigo-600 group-hover:bg-indigo-600 group-hover:text-white transition-colors shadow-inner">
+                                    <ShoppingCart size={20} />
+                                </div>
+                                <div>
+                                    <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest">
+                                        {new Date(t.date).toLocaleDateString('id-ID', { day: '2-digit', month: 'short', year: 'numeric' })}
+                                    </p>
+                                    <h3 className="text-sm font-black text-gray-800 line-clamp-1">{t.vendor}</h3>
+                                </div>
+                            </div>
+                            <div className="space-y-3">
+                                <div className="flex justify-between items-center text-[10px] font-bold text-gray-500 bg-gray-50 p-2 rounded-lg border border-gray-100">
+                                    <span>Total SPJ:</span>
+                                    <span className="text-indigo-600 font-mono">
+                                        {new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', maximumFractionDigits: 0 }).format(t.totalAmount)}
+                                    </span>
+                                </div>
+                                <div className="flex justify-between items-center text-[10px] font-bold text-gray-500">
+                                    <span>Bukti Fisik:</span>
+                                    <span className="bg-blue-100 text-blue-700 px-2 py-0.5 rounded-full">{t.files.length} File</span>
+                                </div>
+                            </div>
+                            <div className="mt-6 flex items-center text-indigo-600 text-[10px] font-black uppercase tracking-widest group-hover:translate-x-2 transition-transform">
+                                Lihat Berkas <ChevronRight size={14} />
+                            </div>
+                        </motion.div>
+                    ))}
+                </div>
+            </div>
+        );
+    }
+
+    // --- RENDER LEVEL 2: FILES IN TRANSACTION ---
+    const filesInTransaction = groupedAlbum[month]?.[transactionKey]?.files || [];
     return (
-      <div className="relative">
+      <div className="relative animate-fade-in">
+        {renderBreadcrumbs()}
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-            {allEvidenceFiles.map((file, idx) => {
+            {filesInTransaction.map((file, idx) => {
                 const isImage = file.name.match(/\.(jpeg|jpg|gif|png|webp)$/i);
                 return (
                     <motion.div 
@@ -1768,7 +1975,7 @@ const EvidenceTemplates = ({ budgets: allBudgets, onUpdate }: EvidenceTemplatesP
                         initial={{ opacity: 0, scale: 0.9, y: 20 }}
                         animate={{ opacity: 1, scale: 1, y: 0 }}
                         transition={{ duration: 0.4, delay: idx * 0.05 }}
-                        className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden group cursor-pointer hover:shadow-xl hover:-translate-y-1 transition-all duration-300 flex flex-col"
+                        className="bg-white rounded-[24px] shadow-sm border border-gray-100 overflow-hidden group cursor-pointer hover:shadow-xl hover:-translate-y-1 transition-all duration-300 flex flex-col"
                     >
                         <motion.div layoutId={`image-container-${file.url}-${idx}`} className="relative h-48 bg-gray-100 flex items-center justify-center overflow-hidden border-b border-gray-100">
                             {isImage ? (
@@ -1786,20 +1993,17 @@ const EvidenceTemplates = ({ budgets: allBudgets, onUpdate }: EvidenceTemplatesP
                             </div>
                         </motion.div>
 
-                        <motion.div layoutId={`info-${file.url}-${idx}`} className="p-4 bg-white flex-1 flex flex-col">
+                        <motion.div layoutId={`info-${file.url}-${idx}`} className="p-5 bg-white flex-1 flex flex-col">
                             <div className="flex justify-between items-start mb-2">
-                                <span className="text-[10px] font-bold text-blue-600 bg-blue-50 px-2 py-0.5 rounded uppercase tracking-wider line-clamp-1 max-w-[60%] truncate">
+                                <span className="text-[10px] font-black text-blue-600 bg-blue-50 px-2.5 py-1 rounded-lg uppercase tracking-wider line-clamp-1 max-w-[60%] truncate">
                                     {file.type}
                                 </span>
-                                <span className="text-[10px] text-gray-400 font-medium whitespace-nowrap">
-                                    {new Date(file.date).toLocaleDateString('id-ID', { day: '2-digit', month: 'short', year: 'numeric' })}
-                                </span>
                             </div>
-                            <h4 className="text-sm font-bold text-gray-800 mb-1 line-clamp-1" title={file.vendor}>{file.vendor}</h4>
-                            <p className="text-[10px] text-gray-500 line-clamp-2 mb-3 leading-relaxed flex-1" title={file.description}>{file.description}</p>
+                            <h4 className="text-sm font-black text-gray-800 mb-1 line-clamp-1" title={file.vendor}>{file.vendor}</h4>
+                            <p className="text-[10px] font-medium text-gray-500 line-clamp-2 mb-4 leading-relaxed flex-1" title={file.description}>{file.description}</p>
                             
                             <div className="flex justify-between items-center pt-3 border-t border-gray-50 mt-auto">
-                                <span className="text-xs font-mono font-bold text-gray-700 bg-gray-50 px-2 py-1 rounded">
+                                <span className="text-xs font-mono font-black text-indigo-600 bg-indigo-50 px-2.5 py-1 rounded-lg">
                                     {new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', maximumFractionDigits: 0 }).format(file.amount)}
                                 </span>
                             </div>
