@@ -4,7 +4,7 @@ import { ShoppingBag, FileText, ClipboardList, RefreshCw, Calendar, ArrowRightLe
 import { Budget } from '../types';
 import { analyzeInventoryItems, InventoryItem } from '../lib/gemini';
 import { generatePDFHeader, generateSignatures, formatCurrency, defaultTableStyles } from '../lib/pdfUtils';
-import { getInventoryItems, saveInventoryItem, deleteInventoryItem, getWithdrawalTransactions, saveWithdrawalTransaction, deleteWithdrawalTransaction, getInventoryOverrides, saveInventoryOverride, getMutationOverrides, saveMutationOverride } from '../lib/db';
+import { getInventoryItems, saveInventoryItem, deleteInventoryItem, getWithdrawalTransactions, saveWithdrawalTransaction, deleteWithdrawalTransaction, getInventoryOverrides, saveInventoryOverride, getMutationOverrides, saveMutationOverride, migrateLocalStorageToSupabase } from '../lib/db';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 
@@ -105,17 +105,7 @@ const PengadaanView = React.memo(({
       </div>
     </div>
 
-    {combinedItems.length === 0 && !isAnalyzing ? (
-      <div className="p-12 text-center">
-        <div className="max-w-xs mx-auto space-y-4">
-          <div className="w-16 h-16 bg-blue-50 rounded-full flex items-center justify-center mx-auto text-blue-200">
-            <ShoppingBag size={32} />
-          </div>
-          <h4 className="font-bold text-gray-700">Belum Ada Data Teranalisa</h4>
-          <p className="text-xs text-gray-500">Klik tombol di atas untuk mulai menganalisa transaksi SPJ dan mengelompokkannya ke dalam laporan pengadaan.</p>
-        </div>
-      </div>
-    ) : isAnalyzing ? (
+    {isAnalyzing ? (
       <div className="p-12 text-center animate-pulse">
         <RefreshCw size={40} className="mx-auto text-blue-400 animate-spin mb-4" />
         <p className="text-sm font-medium text-gray-600">AI sedang memproses transaksi SPJ Anda...</p>
@@ -153,51 +143,77 @@ const PengadaanView = React.memo(({
             </tr>
           </thead>
           <tbody>
-            {(Object.entries(groupedItems) as [string, InventoryItem[]][]).map(([category, items]) => {
-              if (items.length === 0) return null;
-              const categoryTotal = items.reduce((sum, item) => sum + item.total, 0);
+            {combinedItems.length === 0 ? (
+              // Tampilkan 5 baris kosong saat belum ada data
+              Array.from({ length: 5 }).map((_, idx) => (
+                <tr key={`empty-${idx}`} className="hover:bg-blue-50/30 transition-colors">
+                  <td className="border border-gray-300 p-2 text-center text-gray-300">{idx + 1}</td>
+                  <td className="border border-gray-300 p-2">
+                    {idx === 0 && (
+                      <span className="text-[9px] text-blue-400 italic">Klik "+ TAMBAH MANUAL" untuk mengisi...</span>
+                    )}
+                  </td>
+                  <td className="border border-gray-300 p-2 text-gray-200">—</td>
+                  <td className="border border-gray-300 p-2 text-gray-200 text-center">—</td>
+                  <td className="border border-gray-300 p-2 text-gray-200 text-center">—</td>
+                  <td className="border border-gray-300 p-2 text-gray-200 text-right">—</td>
+                  <td className="border border-gray-300 p-2 text-gray-200 text-right">—</td>
+                  <td className="border border-gray-300 p-2 text-gray-200 text-center">—</td>
+                  <td className="border border-gray-300 p-2 text-gray-200">—</td>
+                  <td className="border border-gray-300 p-2 text-gray-200 text-center">—</td>
+                  <td className="border border-gray-300 p-2 text-gray-200 text-center">—</td>
+                  <td className="border border-gray-300 p-2 text-gray-200 text-center">—</td>
+                  <td className="border border-gray-300 p-2 text-gray-200 italic">—</td>
+                  <td className="border border-gray-300 p-2 text-gray-200 text-center">—</td>
+                </tr>
+              ))
+            ) : (
+              (Object.entries(groupedItems) as [string, InventoryItem[]][]).map(([category, items]) => {
+                if (items.length === 0) return null;
+                const categoryTotal = items.reduce((sum, item) => sum + item.total, 0);
 
-              return (
-                <Fragment key={category}>
-                  <tr className="bg-blue-50/50 font-bold">
-                    <td colSpan={6} className="border border-gray-300 p-2 text-blue-800 uppercase italic">
-                      {category}
-                    </td>
-                    <td className="border border-gray-300 p-2 text-right text-blue-900">{formatRupiah(categoryTotal)}</td>
-                    <td colSpan={7} className="border border-gray-300 p-2 bg-gray-50/20"></td>
-                  </tr>
-
-                  {items.map((item: InventoryItem, idx) => (
-                    <tr key={`${category}-${idx}`} className="hover:bg-gray-50 group">
-                      <td className="border border-gray-300 p-2 text-center text-gray-400">{idx + 1}</td>
-                      <td className="border border-gray-300 p-2 font-medium">{item.name}</td>
-                      <td className="border border-gray-300 p-2 text-gray-500 italic">{item.spec}</td>
-                      <td className="border border-gray-300 p-2 text-center">{item.quantity}</td>
-                      <td className="border border-gray-300 p-2 text-center">{item.unit}</td>
-                      <td className="border border-gray-300 p-2 text-right">{formatRupiah(item.price)}</td>
-                      <td className="border border-gray-300 p-2 text-right font-semibold">{formatRupiah(item.total)}</td>
-                      <td className="border border-gray-300 p-2 text-[8px] text-center font-mono">{item.subActivityCode || '0.00.01'}</td>
-                      <td className="border border-gray-300 p-2 text-[8px] leading-tight">{item.subActivityName || 'Administrasi Sekolah'}</td>
-                      <td className="border border-gray-300 p-2 text-[8px] text-center font-mono">{item.accountCode}</td>
-                      <td className="border border-gray-300 p-2 text-center text-[8px]">{formatDate(item.date)}</td>
-                      <td className="border border-gray-300 p-2 text-center text-[8px]">{item.contractType || 'Kuitansi'}</td>
-                      <td className="border border-gray-300 p-2 text-[8px] italic">{item.vendor}</td>
-                      <td className="border border-gray-300 p-2 text-center text-[8px] font-mono whitespace-nowrap overflow-hidden text-ellipsis max-w-[80px]">
-                        {item.docNumber}
-                        {item.id.startsWith('manual-') && (
-                          <button
-                            onClick={() => onDeleteManual(item.id)}
-                            className="ml-2 text-red-400 hover:text-red-600 opacity-0 group-hover:opacity-100 transition-opacity"
-                          >
-                            <Trash2 size={10} />
-                          </button>
-                        )}
+                return (
+                  <Fragment key={category}>
+                    <tr className="bg-blue-50/50 font-bold">
+                      <td colSpan={6} className="border border-gray-300 p-2 text-blue-800 uppercase italic">
+                        {category}
                       </td>
+                      <td className="border border-gray-300 p-2 text-right text-blue-900">{formatRupiah(categoryTotal)}</td>
+                      <td colSpan={7} className="border border-gray-300 p-2 bg-gray-50/20"></td>
                     </tr>
-                  ))}
-                </Fragment>
-              );
-            })}
+
+                    {items.map((item: InventoryItem, idx) => (
+                      <tr key={`${category}-${idx}`} className="hover:bg-gray-50 group">
+                        <td className="border border-gray-300 p-2 text-center text-gray-400">{idx + 1}</td>
+                        <td className="border border-gray-300 p-2 font-medium">{item.name}</td>
+                        <td className="border border-gray-300 p-2 text-gray-500 italic">{item.spec}</td>
+                        <td className="border border-gray-300 p-2 text-center">{item.quantity}</td>
+                        <td className="border border-gray-300 p-2 text-center">{item.unit}</td>
+                        <td className="border border-gray-300 p-2 text-right">{formatRupiah(item.price)}</td>
+                        <td className="border border-gray-300 p-2 text-right font-semibold">{formatRupiah(item.total)}</td>
+                        <td className="border border-gray-300 p-2 text-[8px] text-center font-mono">{item.subActivityCode || '0.00.01'}</td>
+                        <td className="border border-gray-300 p-2 text-[8px] leading-tight">{item.subActivityName || 'Administrasi Sekolah'}</td>
+                        <td className="border border-gray-300 p-2 text-[8px] text-center font-mono">{item.accountCode}</td>
+                        <td className="border border-gray-300 p-2 text-center text-[8px]">{formatDate(item.date)}</td>
+                        <td className="border border-gray-300 p-2 text-center text-[8px]">{item.contractType || 'Kuitansi'}</td>
+                        <td className="border border-gray-300 p-2 text-[8px] italic">{item.vendor}</td>
+                        <td className="border border-gray-300 p-2 text-center text-[8px] font-mono whitespace-nowrap overflow-hidden text-ellipsis max-w-[80px]">
+                          {item.docNumber}
+                          {item.id.startsWith('manual-') && (
+                            <button
+                              onClick={() => onDeleteManual(item.id)}
+                              className="ml-2 text-red-400 hover:text-red-600 opacity-0 group-hover:opacity-100 transition-opacity"
+                            >
+                              <Trash2 size={10} />
+                            </button>
+                          )}
+                        </td>
+                      </tr>
+                    ))}
+                  </Fragment>
+                );
+              })
+            )}
           </tbody>
         </table>
       </div>
@@ -535,6 +551,9 @@ const InventoryReports: React.FC<InventoryReportsProps> = ({ budgets, schoolProf
   useEffect(() => {
     const loadDataFromDB = async () => {
       try {
+        // Migrasi data localStorage → Supabase (hanya berjalan jika Supabase kosong)
+        await migrateLocalStorageToSupabase();
+
         const [dbItems, dbWithdrawals, dbOverrides, dbMutationOv] = await Promise.all([
           getInventoryItems(),
           getWithdrawalTransactions(),

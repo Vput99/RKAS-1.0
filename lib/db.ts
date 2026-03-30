@@ -934,7 +934,10 @@ export const saveInventoryItem = async (item: InventoryItemDB): Promise<Inventor
             last_year_balance: item.last_year_balance || 0
         };
 
-        const { data, error } = await supabase.from('inventory_items').insert([payload]).select();
+        const { data, error } = await supabase
+            .from('inventory_items')
+            .upsert([payload], { onConflict: 'id' })
+            .select();
         if (error) {
             console.error('Error saving inventory item:', error);
             alert(`Gagal menyimpan inventaris: ${error.message}`);
@@ -1012,7 +1015,10 @@ export const saveWithdrawalTransaction = async (tx: WithdrawalTransactionDB): Pr
             notes: tx.notes
         };
 
-        const { data, error } = await supabase.from('inventory_withdrawals').insert([payload]).select();
+        const { data, error } = await supabase
+            .from('inventory_withdrawals')
+            .upsert([payload], { onConflict: 'id' })
+            .select();
         if (error) {
             console.error('Error saving withdrawal:', error);
             alert(`Gagal menyimpan pengeluaran: ${error.message}`);
@@ -1180,3 +1186,88 @@ export const saveMutationOverride = async (category: string, field: 'awal' | 'ta
     }
     return true;
 };
+
+// --- Migrasi Data localStorage → Supabase (dijalankan satu kali) ---
+
+export const migrateLocalStorageToSupabase = async (): Promise<void> => {
+    if (!supabase) return;
+
+    const userId = await getCurrentUserId();
+    if (!userId) return;
+
+    try {
+        // 1. Cek apakah inventory_items di Supabase sudah ada data
+        const { data: existingItems, error: checkError } = await supabase
+            .from('inventory_items')
+            .select('id')
+            .eq('user_id', userId)
+            .limit(1);
+
+        if (checkError) {
+            console.warn('Inventory table mungkin belum dibuat. Jalankan inventory_migration.sql di Supabase dashboard.');
+            return;
+        }
+
+        // 2. Jika Supabase sudah punya data, tidak perlu migrasi
+        if (existingItems && existingItems.length > 0) return;
+
+        // 3. Ambil data dari localStorage
+        const localItems = localStorage.getItem(INVENTORY_ITEMS_KEY);
+        const localWithdrawals = localStorage.getItem(INVENTORY_WITHDRAWALS_KEY);
+        const localOverrides = localStorage.getItem(INVENTORY_OVERRIDES_KEY);
+        const localMutationOv = localStorage.getItem(MUTATION_OVERRIDES_KEY);
+
+        const hasMigratableData = localItems || localWithdrawals || localOverrides || localMutationOv;
+        if (!hasMigratableData) return;
+
+        console.log('Memulai migrasi data localStorage → Supabase...');
+
+        // 4. Migrasi inventory items
+        if (localItems) {
+            const items: InventoryItemDB[] = JSON.parse(localItems);
+            for (const item of items) {
+                await saveInventoryItem(item);
+            }
+            console.log(`✅ Migrasi ${items.length} inventory items selesai`);
+        }
+
+        // 5. Migrasi withdrawal transactions
+        if (localWithdrawals) {
+            const txs: WithdrawalTransactionDB[] = JSON.parse(localWithdrawals);
+            for (const tx of txs) {
+                await saveWithdrawalTransaction(tx);
+            }
+            console.log(`✅ Migrasi ${txs.length} withdrawal transactions selesai`);
+        }
+
+        // 6. Migrasi overrides
+        if (localOverrides) {
+            const overrides: Record<string, { usedQuantity?: number; lastYearBalance?: number }> = JSON.parse(localOverrides);
+            for (const [itemId, vals] of Object.entries(overrides)) {
+                if (vals.usedQuantity !== undefined) {
+                    await saveInventoryOverride(itemId, 'usedQuantity', vals.usedQuantity);
+                }
+                if (vals.lastYearBalance !== undefined) {
+                    await saveInventoryOverride(itemId, 'lastYearBalance', vals.lastYearBalance);
+                }
+            }
+            console.log(`✅ Migrasi ${Object.keys(overrides).length} inventory overrides selesai`);
+        }
+
+        // 7. Migrasi mutation overrides
+        if (localMutationOv) {
+            const mutOv: Record<string, { awal?: number; tambah?: number; kurang?: number }> = JSON.parse(localMutationOv);
+            for (const [cat, vals] of Object.entries(mutOv)) {
+                if (vals.awal !== undefined) await saveMutationOverride(cat, 'awal', vals.awal);
+                if (vals.tambah !== undefined) await saveMutationOverride(cat, 'tambah', vals.tambah);
+                if (vals.kurang !== undefined) await saveMutationOverride(cat, 'kurang', vals.kurang);
+            }
+            console.log(`✅ Migrasi ${Object.keys(mutOv).length} mutation overrides selesai`);
+        }
+
+        console.log('🎉 Migrasi data stok opname selesai!');
+    } catch (e) {
+        console.warn('Migrasi localStorage → Supabase gagal (tabel mungkin belum dibuat):', e);
+    }
+};
+
