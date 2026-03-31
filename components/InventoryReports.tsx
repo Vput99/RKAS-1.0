@@ -823,8 +823,9 @@ const InventoryReports: React.FC<InventoryReportsProps> = ({ budgets, schoolProf
       price: isManualBalance ? 0 : unitPrice,
       category: 'Alat Atau Bahan Untuk Kegiatan Kantor',
       date: firstRealization?.date || new Date().toISOString().split('T')[0],
-      subActivityCode: subCode,
-      subActivityName: subName,
+      subActivityCode: subCode || '',
+      subActivityName: subName || '',
+      accountCode: budget.account_code || '',
       vendor: firstRealization?.vendor || '',
       docNumber: firstRealization?.notes || '',
       nomor: ''
@@ -1465,12 +1466,16 @@ const InventoryReports: React.FC<InventoryReportsProps> = ({ budgets, schoolProf
 
                       {/* ── NOMOR (BARU) ─────────────────────────── */}
                       <div className="space-y-1">
-                        <label className="text-[10px] font-black text-amber-600 uppercase ml-1">Nomor (Kuitansi/Faktur)</label>
-                        <input
-                          className="w-full bg-amber-50 border border-amber-300 rounded-xl px-4 py-2.5 text-sm font-bold font-mono focus:border-amber-500 outline-none transition-all"
-                          placeholder="Nomor dokumen"
-                          value={(manualForm as any).nomor || ''}
-                          onChange={e => setManualForm({ ...manualForm, nomor: e.target.value } as any)}
+                        <label className="text-[10px] font-black text-amber-600 uppercase ml-1">No (Kuitansi/Faktur)</label>
+                        <input className="w-full bg-amber-50 border border-amber-300 rounded-xl px-4 py-2.5 text-sm font-bold font-mono focus:border-amber-500 outline-none transition-all" placeholder="Nomor dokumen" value={(manualForm as any).nomor || manualForm.docNumber || ''} onChange={e => setManualForm({ ...manualForm, nomor: e.target.value } as any)} />
+                      </div>
+
+                      <div className="space-y-1">
+                        <label className="text-[10px] font-black text-slate-500 uppercase ml-1">Rekening Belanja</label>
+                        <input 
+                          readOnly 
+                          className="w-full bg-slate-100 border border-slate-200 rounded-xl px-4 py-2.5 text-sm font-mono font-bold text-slate-500 cursor-not-allowed" 
+                          value={manualForm.accountCode || ''} 
                         />
                       </div>
 
