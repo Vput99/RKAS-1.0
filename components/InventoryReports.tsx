@@ -81,6 +81,7 @@ const PengadaanView = React.memo(({
   groupedItems, 
   isAnalyzing, 
   onManualAdd, 
+  onEditManual,
   onAnalyze, 
   onDeleteManual,
   onDeleteAll,
@@ -215,15 +216,27 @@ const PengadaanView = React.memo(({
                         <td className="border border-gray-300 p-2 text-center text-[8px]">{item.contractType || 'Kuitansi'}</td>
                         <td className="border border-gray-300 p-2 text-[8px] italic">{item.vendor}</td>
                         <td className="border border-gray-300 p-2 text-center text-[8px] font-mono whitespace-nowrap overflow-hidden text-ellipsis max-w-[80px]">
-                          {item.docNumber}
-                          {item.id.startsWith('manual-') && (
-                            <button
-                              onClick={() => onDeleteManual(item.id)}
-                              className="ml-2 text-red-400 hover:text-red-600 opacity-0 group-hover:opacity-100 transition-opacity"
-                            >
-                              <Trash2 size={10} />
-                            </button>
-                          )}
+                          <div className="flex items-center gap-1 justify-between">
+                            <span>{item.docNumber}</span>
+                            {item.id.startsWith('manual-') && (
+                              <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity shrink-0">
+                                <button
+                                  onClick={() => (onEditManual as any)(item)}
+                                  className="text-blue-400 hover:text-blue-600 p-0.5"
+                                  title="Edit data"
+                                >
+                                  <Edit3 size={10} />
+                                </button>
+                                <button
+                                  onClick={() => onDeleteManual(item.id)}
+                                  className="text-red-400 hover:text-red-600 p-0.5"
+                                  title="Hapus data"
+                                >
+                                  <Trash2 size={10} />
+                                </button>
+                              </div>
+                            )}
+                          </div>
                         </td>
                       </tr>
                     ))}
@@ -489,6 +502,7 @@ const InventoryReports: React.FC<InventoryReportsProps> = ({ budgets, schoolProf
   const [isManualModalOpen, setIsManualModalOpen] = useState(false);
   const [selectedBudget, setSelectedBudget] = useState<Budget | null>(null);
   const [manualForm, setManualForm] = useState<Partial<InventoryItem> & { nomor?: string }>({});
+  const [editingItemId, setEditingItemId] = useState<string | null>(null);
   const [currentSubCategory, setCurrentSubCategory] = useState<string>('');
 
   // Sub Kegiatan DB State
@@ -837,6 +851,41 @@ const InventoryReports: React.FC<InventoryReportsProps> = ({ budgets, schoolProf
     setSelectedSkId(match?.id || '');
   };
 
+  const handleEditManual = (item: InventoryItem) => {
+    setEditingItemId(item.id);
+    
+    // Temukan budget yang sesuai jika ada (opsional, tapi bagus untuk context)
+    const budget = budgets.find(b => b.account_code === item.accountCode && b.description === item.name);
+    setSelectedBudget(budget || { description: item.name, account_code: item.accountCode, amount: item.total, realizations: [] } as any);
+    
+    // Parse category and subcategory
+    const [baseCat, subCat] = item.category.includes(' - ') ? item.category.split(' - ') : [item.category, ''];
+    
+    setManualForm({
+      name: item.name,
+      spec: item.spec,
+      quantity: item.quantity,
+      unit: item.unit,
+      price: item.price,
+      category: baseCat as any,
+      date: item.date,
+      vendor: item.vendor,
+      docSerialNumber: item.docNumber,
+      accountCode: item.accountCode,
+      subActivityCode: item.subActivityCode,
+      subActivityName: item.subActivityName,
+      nomor: item.docNumber
+    } as any);
+
+    if (subCat) {
+      setCurrentSubCategory(subCat);
+    } else if (CATEGORY_SUB_MAP[baseCat]) {
+      setCurrentSubCategory(CATEGORY_SUB_MAP[baseCat][0]);
+    }
+    
+    setIsManualModalOpen(true);
+  };
+
   const submitManualForm = (e: React.FormEvent) => {
     e.preventDefault();
     if (!manualForm.name || !selectedBudget) return;
@@ -862,11 +911,23 @@ const InventoryReports: React.FC<InventoryReportsProps> = ({ budgets, schoolProf
       usedQuantity: Number(manualForm.quantity)
     };
 
-    const updated = [newItem, ...manualInventoryItems];
-    saveManualItems(updated);
-    saveManualItemToDB(newItem);
+    if (editingItemId) {
+      // Update existing
+      const updated = manualInventoryItems.map(item => 
+        item.id === editingItemId ? { ...newItem, id: editingItemId } : item
+      );
+      saveManualItems(updated);
+      saveManualItemToDB({ ...newItem, id: editingItemId });
+    } else {
+      // Add new
+      const updated = [newItem, ...manualInventoryItems];
+      saveManualItems(updated);
+      saveManualItemToDB(newItem);
+    }
+    
     setIsManualModalOpen(false);
     setSelectedBudget(null);
+    setEditingItemId(null);
   };
 
   const submitWithdrawalForm = (e: React.FormEvent) => {
@@ -1199,7 +1260,8 @@ const InventoryReports: React.FC<InventoryReportsProps> = ({ budgets, schoolProf
             combinedItems={combinedItems}
             groupedItems={groupedItems}
             isAnalyzing={isAnalyzing}
-            onManualAdd={() => setIsManualModalOpen(true)}
+            onManualAdd={() => { setEditingItemId(null); setIsManualModalOpen(true); }}
+            onEditManual={handleEditManual}
             onAnalyze={handleAnalyze}
             onDeleteManual={deleteManualItem}
             onDeleteAll={() => setIsDeleteAllOpen(true)}
@@ -1258,11 +1320,13 @@ const InventoryReports: React.FC<InventoryReportsProps> = ({ budgets, schoolProf
               {/* Modal Header */}
               <div className="px-8 py-6 border-b border-slate-100 flex justify-between items-center bg-white shrink-0">
                 <div className="flex items-center gap-4">
-                   <div className="w-12 h-12 bg-blue-600 rounded-2xl flex items-center justify-center text-white shadow-lg shadow-blue-500/20">
-                      <Plus size={24} />
+                   <div className={`w-12 h-12 ${editingItemId ? 'bg-amber-500' : 'bg-blue-600'} rounded-2xl flex items-center justify-center text-white shadow-lg ${editingItemId ? 'shadow-amber-500/20' : 'shadow-blue-500/20'}`}>
+                      {editingItemId ? <Edit3 size={24} /> : <Plus size={24} />}
                    </div>
                    <div>
-                      <h3 className="text-xl font-black text-slate-800 tracking-tight">Input Manual Inventaris</h3>
+                      <h3 className="text-xl font-black text-slate-800 tracking-tight">
+                        {editingItemId ? 'Edit Data Inventaris' : 'Input Manual Inventaris'}
+                      </h3>
                       <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mt-1">
                          Data Anggaran SPJ Terealisasi
                       </p>
@@ -1516,8 +1580,8 @@ const InventoryReports: React.FC<InventoryReportsProps> = ({ budgets, schoolProf
                         type="submit" 
                         className="flex-[2] py-3 px-6 rounded-xl bg-blue-600 text-white font-black hover:bg-blue-700 shadow-lg shadow-blue-500/20 transition-all transform active:scale-95 flex items-center justify-center gap-2 text-xs uppercase tracking-widest"
                       >
-                        <ShoppingBag size={18} />
-                        Simpan Inventaris
+                        {editingItemId ? <Edit3 size={18} /> : <ShoppingBag size={18} />}
+                        {editingItemId ? 'Simpan Perubahan' : 'Simpan Inventaris'}
                       </button>
                     </div>
                   </form>
