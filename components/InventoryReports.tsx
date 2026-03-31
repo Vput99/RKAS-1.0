@@ -807,10 +807,11 @@ const InventoryReports: React.FC<InventoryReportsProps> = ({ budgets, schoolProf
     const subCode = typeof budget?.bosp_component === 'string' ? budget.bosp_component.split(/[.\s]/)[0] : '';
     const subName = typeof budget?.bosp_component === 'string' ? budget.bosp_component.replace(/^\d+[.\s]*/, '') : budget?.bosp_component;
 
-    // Auto-fill harga satuan dari unit_price SPJ atau realisasi pertama
-    const autoPrice = budget.unit_price || firstRealization?.amount || (budgetItem ? budget.amount : 0);
+    // Auto-fill harga satuan dari penganggaran (prioritas) atau realisasi
     const autoQty = budgetItem?.quantity || firstRealization?.quantity || 1;
-    const unitPrice = autoQty > 0 ? Math.round(autoPrice / autoQty) : autoPrice;
+    const budgetedUnitPrice = budget.unit_price || (budget.quantity ? Math.round(budget.amount / budget.quantity) : 0);
+    const realizationUnitPrice = firstRealization ? Math.round(firstRealization.amount / (firstRealization.quantity || 1)) : 0;
+    const unitPrice = budgetedUnitPrice || realizationUnitPrice || 0;
 
     setManualForm({
       name: isManualBalance ? '' : budget.description,
