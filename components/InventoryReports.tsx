@@ -807,8 +807,10 @@ const InventoryReports: React.FC<InventoryReportsProps> = ({ budgets, schoolProf
     const subCode = typeof budget?.bosp_component === 'string' ? budget.bosp_component.split(/[.\s]/)[0] : '';
     const subName = typeof budget?.bosp_component === 'string' ? budget.bosp_component.replace(/^\d+[.\s]*/, '') : budget?.bosp_component;
 
-    // Auto-fill harga satuan dari penganggaran (prioritas) atau realisasi
-    const autoQty = budgetItem?.quantity || firstRealization?.quantity || 1;
+    // Auto-fill harga satuan, jumlah dan satuan dari penganggaran (prioritas) atau realisasi
+    const totalRealizedQty = budget.realizations?.reduce((sum: number, r: any) => sum + (r.quantity || 0), 0) || 0;
+    const autoQty = totalRealizedQty > 0 ? totalRealizedQty : (budget.quantity || 1);
+    const unit = budget.unit || 'Pcs';
     const budgetedUnitPrice = budget.unit_price || (budget.quantity ? Math.round(budget.amount / budget.quantity) : 0);
     const realizationUnitPrice = firstRealization ? Math.round(firstRealization.amount / (firstRealization.quantity || 1)) : 0;
     const unitPrice = budgetedUnitPrice || realizationUnitPrice || 0;
@@ -817,7 +819,7 @@ const InventoryReports: React.FC<InventoryReportsProps> = ({ budgets, schoolProf
       name: isManualBalance ? '' : budget.description,
       spec: isManualBalance ? '' : (budget.notes || firstRealization?.notes || ''),
       quantity: isManualBalance ? 0 : autoQty,
-      unit: firstRealization?.unit || (budgetItem ? budget.unit : 'pcs'),
+      unit: unit,
       price: isManualBalance ? 0 : unitPrice,
       category: 'Alat Atau Bahan Untuk Kegiatan Kantor',
       date: firstRealization?.date || new Date().toISOString().split('T')[0],
