@@ -1,12 +1,21 @@
 import React, { useState, useEffect, useMemo, Fragment } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { ShoppingBag, FileText, ClipboardList, RefreshCw, Calendar, ArrowRightLeft, Package, Download, Printer, Sparkles, Loader2, Plus, Trash2, X, ArrowRight } from 'lucide-react';
+import { ShoppingBag, FileText, ClipboardList, RefreshCw, Calendar, ArrowRightLeft, Package, Download, Printer, Sparkles, Loader2, Plus, Trash2, X, ArrowRight, Database, Edit3, CheckCircle } from 'lucide-react';
 import { Budget } from '../types';
 import { analyzeInventoryItems, InventoryItem } from '../lib/gemini';
 import { generatePDFHeader, generateSignatures, formatCurrency, defaultTableStyles } from '../lib/pdfUtils';
-import { getInventoryItems, saveInventoryItem, deleteInventoryItem, getWithdrawalTransactions, saveWithdrawalTransaction, deleteWithdrawalTransaction, getInventoryOverrides, saveInventoryOverride, getMutationOverrides, saveMutationOverride, migrateLocalStorageToSupabase } from '../lib/db';
+import { getInventoryItems, saveInventoryItem, deleteInventoryItem, getWithdrawalTransactions, saveWithdrawalTransaction, deleteWithdrawalTransaction, getInventoryOverrides, saveInventoryOverride, getMutationOverrides, saveMutationOverride, migrateLocalStorageToSupabase, getSubKegiatanDB, saveSubKegiatanItem, deleteSubKegiatanItem, updateSubKegiatanItem } from '../lib/db';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
+
+// ─── Sub Kegiatan Database Types ──────────────────────────────────────────────
+export interface SubKegiatanEntry {
+  id: string;
+  kode: string;
+  nama: string;
+  createdAt?: string;
+}
+// ──────────────────────────────────────────────────────────────────────────────
 
 interface InventoryReportsProps {
   budgets: Budget[];
@@ -471,8 +480,16 @@ const InventoryReports: React.FC<InventoryReportsProps> = ({ budgets, schoolProf
   // Selection & Modal State
   const [isManualModalOpen, setIsManualModalOpen] = useState(false);
   const [selectedBudget, setSelectedBudget] = useState<Budget | null>(null);
-  const [manualForm, setManualForm] = useState<Partial<InventoryItem>>({});
+  const [manualForm, setManualForm] = useState<Partial<InventoryItem> & { nomor?: string }>({});
   const [currentSubCategory, setCurrentSubCategory] = useState<string>('');
+
+  // Sub Kegiatan DB State
+  const [subKegiatanDB, setSubKegiatanDB] = useState<SubKegiatanEntry[]>([]);
+  const [isSkDBLoading, setIsSkDBLoading] = useState(false);
+  const [isSkDBModalOpen, setIsSkDBModalOpen] = useState(false);
+  const [skForm, setSkForm] = useState({ kode: '', nama: '' });
+  const [skEditId, setSkEditId] = useState<string | null>(null);
+  const [selectedSkId, setSelectedSkId] = useState<string>('');
 
   const [isWithdrawalModalOpen, setIsWithdrawalModalOpen] = useState(false);
   const [selectedInventoryItem, setSelectedInventoryItem] = useState<InventoryItem | null>(null);
@@ -604,12 +621,20 @@ const InventoryReports: React.FC<InventoryReportsProps> = ({ budgets, schoolProf
         if (Object.keys(dbMutationOv).length > 0) {
           setMutationOverrides(dbMutationOv);
         }
+
+        // Muat sub kegiatan dari Supabase
+        const dbSkData = await getSubKegiatanDB();
+        setSubKegiatanDB(dbSkData);
+
       } catch (e) {
         console.error('Failed to load inventory from DB, using localStorage fallback', e);
         const localManual = localStorage.getItem('rkas_manual_inventory_v1');
         if (localManual) setManualInventoryItems(JSON.parse(localManual));
         const localWithdrawals = localStorage.getItem('rkas_withdrawal_transactions_v1');
         if (localWithdrawals) setWithdrawalTransactions(JSON.parse(localWithdrawals));
+        // Fallback sub kegiatan dari localStorage
+        const localSk = localStorage.getItem('rkas_sub_kegiatan_db_v1');
+        if (localSk) setSubKegiatanDB(JSON.parse(localSk));
       }
     };
     loadDataFromDB();
@@ -706,6 +731,54 @@ const InventoryReports: React.FC<InventoryReportsProps> = ({ budgets, schoolProf
     }
   };
 
+  // Sub Kegiatan DB helpers (Supabase + localStorage)
+  const handleAddOrUpdateSk = async () => {
+    if (!skForm.kode.trim() || !skForm.nama.trim()) return;
+    setIsSkDBLoading(true);
+    try {
+      if (skEditId) {
+        await updateSubKegiatanItem(skEditId, skForm.kode.trim(), skForm.nama.trim());
+        setSubKegiatanDB(prev => prev.map(s => s.id === skEditId
+          ? { ...s, kode: skForm.kode.trim(), nama: skForm.nama.trim() }
+          : s
+        ));
+        setSkEditId(null);
+      } else {
+        const entry: SubKegiatanEntry = {
+          id: `sk-${Date.now()}`,
+          kode: skForm.kode.trim(),
+          nama: skForm.nama.trim(),
+          createdAt: new Date().toISOString()
+        };
+        await saveSubKegiatanItem(entry);
+        setSubKegiatanDB(prev => [...prev, entry]);
+      }
+      setSkForm({ kode: '', nama: '' });
+    } finally {
+      setIsSkDBLoading(false);
+    }
+  };
+
+  const handleDeleteSk = async (id: string) => {
+    if (!confirm('Hapus data kode sub kegiatan ini?')) return;
+    setIsSkDBLoading(true);
+    try {
+      await deleteSubKegiatanItem(id);
+      setSubKegiatanDB(prev => prev.filter(s => s.id !== id));
+      if (selectedSkId === id) {
+        setSelectedSkId('');
+        setManualForm(prev => ({ ...prev, subActivityCode: '', subActivityName: '' }));
+      }
+    } finally {
+      setIsSkDBLoading(false);
+    }
+  };
+
+  const handleSelectSk = (sk: SubKegiatanEntry) => {
+    setSelectedSkId(sk.id);
+    setManualForm(prev => ({ ...prev, subActivityCode: sk.kode, subActivityName: sk.nama }));
+  };
+
   const handleManualAdd = (budgetItem: any) => {
     const isManualBalance = !budgetItem;
     const budget = budgetItem || {
@@ -720,23 +793,32 @@ const InventoryReports: React.FC<InventoryReportsProps> = ({ budgets, schoolProf
 
     const firstRealization = budgetItem?.realizations?.[0];
     const subCode = typeof budget?.bosp_component === 'string' ? budget.bosp_component.split(/[.\s]/)[0] : '';
-    const subName = typeof budget?.bosp_component === 'string' ? budget.bosp_component.replace(/^\d+[\.\s]*/, '') : budget?.bosp_component;
+    const subName = typeof budget?.bosp_component === 'string' ? budget.bosp_component.replace(/^\d+[.\s]*/, '') : budget?.bosp_component;
+
+    // Auto-fill harga satuan dari unit_price SPJ atau realisasi pertama
+    const autoPrice = budget.unit_price || firstRealization?.amount || (budgetItem ? budget.amount : 0);
+    const autoQty = budgetItem?.quantity || firstRealization?.quantity || 1;
+    const unitPrice = autoQty > 0 ? Math.round(autoPrice / autoQty) : autoPrice;
 
     setManualForm({
       name: isManualBalance ? '' : budget.description,
       spec: isManualBalance ? '' : (budget.notes || firstRealization?.notes || ''),
-      quantity: isManualBalance ? 0 : (firstRealization?.quantity || budget.quantity || 1),
+      quantity: isManualBalance ? 0 : autoQty,
       unit: firstRealization?.unit || (budgetItem ? budget.unit : 'pcs'),
-      price: firstRealization?.price || (budgetItem ? budget.price : 0),
+      price: isManualBalance ? 0 : unitPrice,
       category: 'Alat Atau Bahan Untuk Kegiatan Kantor',
-      date: new Date().toISOString().split('T')[0],
+      date: firstRealization?.date || new Date().toISOString().split('T')[0],
       subActivityCode: subCode,
       subActivityName: subName,
       vendor: firstRealization?.vendor || '',
-      docNumber: firstRealization?.notes || ''
+      docNumber: firstRealization?.notes || '',
+      nomor: ''
     });
     const defaultSub = CATEGORY_SUB_MAP[budget.category || 'Alat Atau Bahan Untuk Kegiatan Kantor']?.[0] || '';
     setCurrentSubCategory(defaultSub);
+    // Auto-select sub kegiatan jika kode cocok di DB
+    const match = subKegiatanDB.find(s => s.kode === subCode);
+    setSelectedSkId(match?.id || '');
   };
 
   const submitManualForm = (e: React.FormEvent) => {
@@ -755,9 +837,9 @@ const InventoryReports: React.FC<InventoryReportsProps> = ({ budgets, schoolProf
       subActivityName: manualForm.subActivityName,
       accountCode: manualForm.accountCode || '',
       date: manualForm.date!,
-      contractType: manualForm.contractType || 'Invoice',
+      contractType: manualForm.contractType || 'Kuitansi',
       vendor: manualForm.vendor || '',
-      docNumber: manualForm.docNumber || '',
+      docNumber: (manualForm as any).nomor || manualForm.docNumber || '',
       category: manualForm.category && CATEGORY_SUB_MAP[manualForm.category]
         ? `${manualForm.category} - ${currentSubCategory}`
         : (manualForm.category || 'Lainnya'),
@@ -1205,15 +1287,84 @@ const InventoryReports: React.FC<InventoryReportsProps> = ({ budgets, schoolProf
                   </div>
                 ) : (
                   <form onSubmit={submitManualForm} className="space-y-6">
-                    <div className="bg-slate-900 text-white p-6 rounded-2xl shadow-xl space-y-3">
+                    {/* Anggaran Info Banner */}
+                    <div className="bg-slate-900 text-white p-5 rounded-2xl shadow-xl space-y-2">
                       <div className="flex justify-between items-start">
                         <span className="text-[10px] font-black text-blue-400 uppercase tracking-widest">Detail Anggaran</span>
                         <span className="text-[10px] font-mono bg-white/10 px-2 py-1 rounded">{selectedBudget.account_code}</span>
                       </div>
-                      <h4 className="text-lg font-bold leading-tight">{selectedBudget.description}</h4>
+                      <h4 className="text-base font-bold leading-tight">{selectedBudget.description}</h4>
                       <p className="text-sm font-black text-blue-200">{formatRupiah(selectedBudget.amount)}</p>
+                      {selectedBudget.unit_price && (
+                        <p className="text-[10px] text-emerald-400 font-bold">✓ Harga satuan SPJ: {formatRupiah(selectedBudget.unit_price)} / {selectedBudget.unit || 'unit'}</p>
+                      )}
                     </div>
 
+                    {/* ── KODE & SUB KEGIATAN ─────────────────────────── */}
+                    <div className="bg-indigo-50 border border-indigo-200 rounded-2xl p-5 space-y-4">
+                      <div className="flex justify-between items-center">
+                        <div>
+                          <p className="text-xs font-black text-indigo-700 uppercase tracking-widest">Kode & Sub Kegiatan</p>
+                          <p className="text-[10px] text-indigo-500 mt-0.5">Pilih dari database atau kelola daftar sub kegiatan</p>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => setIsSkDBModalOpen(true)}
+                          className="flex items-center gap-1.5 px-3 py-1.5 bg-indigo-600 text-white rounded-lg text-[10px] font-black hover:bg-indigo-700 transition-all shadow-md shadow-indigo-500/20"
+                        >
+                          <Database size={12} /> Kelola DB
+                        </button>
+                      </div>
+
+                      {subKegiatanDB.length > 0 ? (
+                        <div className="grid grid-cols-1 gap-1.5 max-h-32 overflow-y-auto pr-1">
+                          {subKegiatanDB.map(sk => (
+                            <button
+                              type="button"
+                              key={sk.id}
+                              onClick={() => handleSelectSk(sk)}
+                              className={`flex items-center gap-3 px-3 py-2 rounded-lg text-left transition-all border text-xs ${
+                                selectedSkId === sk.id
+                                  ? 'bg-indigo-600 text-white border-indigo-600 shadow-md'
+                                  : 'bg-white border-indigo-100 hover:border-indigo-400 text-slate-700'
+                              }`}
+                            >
+                              {selectedSkId === sk.id && <CheckCircle size={12} className="shrink-0" />}
+                              <span className="font-mono font-black text-[10px] shrink-0">{sk.kode}</span>
+                              <span className="font-medium truncate">{sk.nama}</span>
+                            </button>
+                          ))}
+                        </div>
+                      ) : (
+                        <div className="text-center py-3 text-indigo-400 text-xs">
+                          Belum ada data. Klik <strong>Kelola DB</strong> untuk menambahkan kode sub kegiatan.
+                        </div>
+                      )}
+
+                      {/* Manual override kode dan nama */}
+                      <div className="grid grid-cols-2 gap-3 pt-2 border-t border-indigo-100">
+                        <div className="space-y-1">
+                          <label className="text-[9px] font-black text-indigo-600 uppercase ml-1">Kode (manual)</label>
+                          <input
+                            className="w-full bg-white border border-indigo-200 rounded-lg px-3 py-2 text-xs font-mono font-bold focus:border-indigo-500 outline-none"
+                            placeholder="e.g. 1.01.01"
+                            value={manualForm.subActivityCode || ''}
+                            onChange={e => { setSelectedSkId(''); setManualForm({ ...manualForm, subActivityCode: e.target.value }); }}
+                          />
+                        </div>
+                        <div className="space-y-1">
+                          <label className="text-[9px] font-black text-indigo-600 uppercase ml-1">Nama Sub Kegiatan (manual)</label>
+                          <input
+                            className="w-full bg-white border border-indigo-200 rounded-lg px-3 py-2 text-xs font-bold focus:border-indigo-500 outline-none"
+                            placeholder="Nama sub kegiatan"
+                            value={manualForm.subActivityName || ''}
+                            onChange={e => { setSelectedSkId(''); setManualForm({ ...manualForm, subActivityName: e.target.value }); }}
+                          />
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* ── FIELD UTAMA ─────────────────────────────────── */}
                     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
                       <div className="space-y-1">
                         <label className="text-[10px] font-black text-slate-500 uppercase ml-1">Nama Barang</label>
@@ -1260,15 +1411,61 @@ const InventoryReports: React.FC<InventoryReportsProps> = ({ budgets, schoolProf
                       </div>
 
                       <div className="space-y-1">
-                        <label className="text-[10px] font-black text-slate-500 uppercase ml-1">Harga Satuan</label>
-                        <input required type="number" className="w-full bg-white border border-slate-200 rounded-xl px-4 py-2.5 text-sm font-bold focus:border-blue-500 outline-none" value={manualForm.price || ''} onChange={e => setManualForm({ ...manualForm, price: Number(e.target.value) })} />
+                        <label className="text-[10px] font-black text-emerald-600 uppercase ml-1 flex items-center gap-1">
+                          <CheckCircle size={10} /> Harga Satuan (SPJ)
+                        </label>
+                        <input
+                          required
+                          type="number"
+                          className="w-full bg-emerald-50 border border-emerald-300 rounded-xl px-4 py-2.5 text-sm font-black text-emerald-700 focus:border-emerald-500 outline-none transition-all"
+                          value={manualForm.price || ''}
+                          onChange={e => setManualForm({ ...manualForm, price: Number(e.target.value) })}
+                        />
+                        {manualForm.price && manualForm.price > 0 && (
+                          <p className="text-[9px] text-emerald-600 ml-1 font-bold">{formatRupiah(manualForm.price as number)} / {manualForm.unit || 'unit'}</p>
+                        )}
                       </div>
 
                       <div className="space-y-1">
                         <label className="text-[10px] font-black text-slate-500 uppercase ml-1">Tanggal Perolehan</label>
-                        <input type="date" className="w-full bg-white border border-slate-200 rounded-xl px-4 py-2.5 text-sm font-bold focus:border-blue-500 outline-none" value={manualForm.date?.split('T')[0] || ''} onChange={e => setManualForm({ ...manualForm, date: e.target.value })} />
+                        <input type="date" className="w-full bg-white border border-slate-200 rounded-xl px-4 py-2.5 text-sm font-bold focus:border-blue-500 outline-none" value={(manualForm.date || '').split('T')[0]} onChange={e => setManualForm({ ...manualForm, date: e.target.value })} />
+                      </div>
+
+                      {/* ── NOMOR (BARU) ─────────────────────────── */}
+                      <div className="space-y-1">
+                        <label className="text-[10px] font-black text-amber-600 uppercase ml-1">Nomor (Kuitansi/Faktur)</label>
+                        <input
+                          className="w-full bg-amber-50 border border-amber-300 rounded-xl px-4 py-2.5 text-sm font-bold font-mono focus:border-amber-500 outline-none transition-all"
+                          placeholder="Nomor dokumen"
+                          value={(manualForm as any).nomor || ''}
+                          onChange={e => setManualForm({ ...manualForm, nomor: e.target.value } as any)}
+                        />
+                      </div>
+
+                      <div className="space-y-1">
+                        <label className="text-[10px] font-black text-slate-500 uppercase ml-1">Nama Penyedia</label>
+                        <input className="w-full bg-white border border-slate-200 rounded-xl px-4 py-2.5 text-sm font-bold focus:border-blue-500 outline-none" placeholder="Nama toko/vendor" value={manualForm.vendor || ''} onChange={e => setManualForm({ ...manualForm, vendor: e.target.value })} />
+                      </div>
+
+                      <div className="space-y-1">
+                        <label className="text-[10px] font-black text-slate-500 uppercase ml-1">Bentuk Dokumen</label>
+                        <select className="w-full bg-white border border-slate-200 rounded-xl px-4 py-2.5 text-sm font-bold focus:border-blue-500 outline-none appearance-none" value={manualForm.contractType || 'Kuitansi'} onChange={e => setManualForm({ ...manualForm, contractType: e.target.value })}>
+                          <option>Kuitansi</option>
+                          <option>Faktur/Invoice</option>
+                          <option>BAST</option>
+                          <option>Nota</option>
+                          <option>Kontrak</option>
+                        </select>
                       </div>
                     </div>
+
+                    {/* Preview Total */}
+                    {(manualForm.quantity || 0) > 0 && (manualForm.price || 0) > 0 && (
+                      <div className="bg-blue-600 text-white rounded-xl px-5 py-3 flex justify-between items-center">
+                        <span className="text-xs font-black uppercase tracking-widest">Total Nilai Barang</span>
+                        <span className="text-lg font-black">{formatRupiah(Number(manualForm.quantity) * Number(manualForm.price))}</span>
+                      </div>
+                    )}
 
                     <div className="flex gap-3 pt-4 border-t border-slate-100 shrink-0">
                       <button 
@@ -1415,6 +1612,142 @@ const InventoryReports: React.FC<InventoryReportsProps> = ({ budgets, schoolProf
                     </div>
                   </form>
                 )}
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+
+      {/* ─── Sub Kegiatan DB Modal ─────────────────────────────────────────── */}
+      <AnimatePresence>
+        {isSkDBModalOpen && (
+          <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-[1100] flex items-center justify-center p-4">
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95, y: 20 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.95, y: 20 }}
+              className="bg-white rounded-[2rem] shadow-2xl w-full max-w-2xl max-h-[85vh] overflow-hidden flex flex-col border border-slate-200"
+            >
+              {/* Header */}
+              <div className="px-7 py-5 border-b border-slate-100 flex justify-between items-center bg-gradient-to-r from-indigo-600 to-indigo-800 text-white shrink-0">
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 bg-white/20 rounded-xl flex items-center justify-center">
+                    <Database size={20} />
+                  </div>
+                  <div>
+                    <h3 className="text-lg font-black tracking-tight">Database Kode Sub Kegiatan</h3>
+                    <p className="text-[10px] font-bold text-indigo-200 uppercase tracking-widest">Kelola daftar kode & nama sub kegiatan</p>
+                  </div>
+                </div>
+                <button onClick={() => { setIsSkDBModalOpen(false); setSkEditId(null); setSkForm({ kode: '', nama: '' }); }} className="p-2 hover:bg-white/20 rounded-xl transition-all">
+                  <X size={20} />
+                </button>
+              </div>
+
+              {/* Form Tambah / Edit */}
+              <div className="px-7 py-5 border-b border-slate-100 bg-indigo-50/50 shrink-0">
+                <p className="text-[10px] font-black text-indigo-600 uppercase tracking-widest mb-3">
+                  {skEditId ? '✏️ Edit Data' : '➕ Tambah Kode Baru'}
+                </p>
+                <div className="flex gap-3">
+                  <div className="w-36 shrink-0">
+                    <input
+                      className="w-full bg-white border border-indigo-200 rounded-xl px-3 py-2.5 text-sm font-mono font-bold focus:border-indigo-500 outline-none"
+                      placeholder="Kode (1.01.01)"
+                      value={skForm.kode}
+                      onChange={e => setSkForm({ ...skForm, kode: e.target.value })}
+                    />
+                  </div>
+                  <div className="flex-1">
+                    <input
+                      className="w-full bg-white border border-indigo-200 rounded-xl px-3 py-2.5 text-sm font-bold focus:border-indigo-500 outline-none"
+                      placeholder="Nama sub kegiatan..."
+                      value={skForm.nama}
+                      onChange={e => setSkForm({ ...skForm, nama: e.target.value })}
+                      onKeyDown={e => e.key === 'Enter' && (e.preventDefault(), handleAddOrUpdateSk())}
+                    />
+                  </div>
+                  <div className="flex gap-2">
+                    <button
+                      type="button"
+                      onClick={handleAddOrUpdateSk}
+                      disabled={!skForm.kode.trim() || !skForm.nama.trim() || isSkDBLoading}
+                      className="px-4 py-2.5 bg-indigo-600 text-white rounded-xl text-xs font-black hover:bg-indigo-700 disabled:opacity-40 transition-all shadow-md shadow-indigo-500/20 whitespace-nowrap flex items-center gap-1.5"
+                    >
+                      {isSkDBLoading ? <Loader2 size={12} className="animate-spin" /> : null}
+                      {skEditId ? 'Update' : 'Simpan ke Supabase'}
+                    </button>
+                    {skEditId && (
+                      <button
+                        type="button"
+                        onClick={() => { setSkEditId(null); setSkForm({ kode: '', nama: '' }); }}
+                        className="px-4 py-2.5 bg-slate-200 text-slate-600 rounded-xl text-xs font-bold hover:bg-slate-300 transition-all"
+                      >
+                        Batal
+                      </button>
+                    )}
+                  </div>
+                </div>
+              </div>
+
+              {/* Daftar */}
+              <div className="flex-1 overflow-y-auto p-5 space-y-2 custom-scrollbar">
+                {subKegiatanDB.length === 0 ? (
+                  <div className="py-16 text-center text-slate-400">
+                    <Database size={36} className="mx-auto mb-3 opacity-30" />
+                    <p className="text-sm font-bold">Belum ada data kode sub kegiatan.</p>
+                    <p className="text-xs mt-1">Isi form di atas lalu klik Tambah.</p>
+                  </div>
+                ) : (
+                  subKegiatanDB.map((sk, idx) => (
+                    <motion.div
+                      key={sk.id}
+                      initial={{ opacity: 0, x: -10 }}
+                      animate={{ opacity: 1, x: 0 }}
+                      transition={{ delay: idx * 0.03 }}
+                      className={`flex items-center gap-4 px-4 py-3 rounded-xl border group transition-all ${
+                        skEditId === sk.id ? 'border-indigo-400 bg-indigo-50' : 'border-slate-100 bg-white hover:border-indigo-200 hover:shadow-sm'
+                      }`}
+                    >
+                      <span className="text-xs font-mono font-black text-indigo-600 bg-indigo-50 px-2 py-1 rounded-lg border border-indigo-100 shrink-0 min-w-[70px] text-center">
+                        {sk.kode}
+                      </span>
+                      <span className="flex-1 text-sm font-bold text-slate-700">{sk.nama}</span>
+                      <div className="flex gap-1.5 opacity-0 group-hover:opacity-100 transition-opacity">
+                        <button
+                          type="button"
+                          onClick={() => { setSkEditId(sk.id); setSkForm({ kode: sk.kode, nama: sk.nama }); }}
+                          className="p-1.5 hover:bg-indigo-100 text-indigo-500 rounded-lg transition-all"
+                          title="Edit"
+                        >
+                          <Edit3 size={14} />
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => handleDeleteSk(sk.id)}
+                          className="p-1.5 hover:bg-red-100 text-red-400 rounded-lg transition-all"
+                          title="Hapus"
+                        >
+                          <Trash2 size={14} />
+                        </button>
+                      </div>
+                    </motion.div>
+                  ))
+                )}
+              </div>
+
+              <div className="px-7 py-4 border-t border-slate-100 bg-slate-50/50 shrink-0 flex justify-between items-center">
+                <span className="text-[10px] text-slate-400 font-bold flex items-center gap-1.5">
+                  {isSkDBLoading && <Loader2 size={10} className="animate-spin text-indigo-500" />}
+                  {subKegiatanDB.length} data tersimpan di Supabase
+                </span>
+                <button
+                  type="button"
+                  onClick={() => { setIsSkDBModalOpen(false); setSkEditId(null); setSkForm({ kode: '', nama: '' }); }}
+                  className="px-6 py-2.5 bg-indigo-600 text-white rounded-xl text-xs font-black hover:bg-indigo-700 transition-all"
+                >
+                  Selesai
+                </button>
               </div>
             </motion.div>
           </div>

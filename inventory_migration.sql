@@ -10,6 +10,7 @@ DROP TABLE IF EXISTS public.inventory_withdrawals CASCADE;
 DROP TABLE IF EXISTS public.inventory_overrides CASCADE;
 DROP TABLE IF EXISTS public.inventory_mutation_overrides CASCADE;
 DROP TABLE IF EXISTS public.inventory_items CASCADE;
+DROP TABLE IF EXISTS public.sub_kegiatan_db CASCADE;
 
 -- =========================================================
 -- 1. Tabel Inventory Items (Pengadaan Manual)
@@ -32,6 +33,7 @@ CREATE TABLE public.inventory_items (
     contract_type TEXT,
     vendor TEXT,
     doc_number TEXT,
+    nomor TEXT,                   -- ← BARU: Nomor Kuitansi/Faktur
     category TEXT,
     codification TEXT,
     used_quantity NUMERIC DEFAULT 0,
@@ -95,12 +97,27 @@ CREATE TABLE public.inventory_mutation_overrides (
 CREATE INDEX idx_inventory_mutation_overrides_user ON public.inventory_mutation_overrides(user_id);
 
 -- =========================================================
+-- 5. Tabel Sub Kegiatan DB (Database Kode & Nama Sub Kegiatan)
+--    Backup Supabase dari localStorage rkas_sub_kegiatan_db_v1
+-- =========================================================
+CREATE TABLE public.sub_kegiatan_db (
+    id TEXT PRIMARY KEY,                -- format: "sk-{timestamp}"
+    user_id UUID REFERENCES auth.users(id) ON DELETE CASCADE,
+    kode TEXT NOT NULL,                 -- e.g. "1.01.01"
+    nama TEXT NOT NULL,                 -- e.g. "Administrasi Kegiatan Sekolah"
+    created_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+CREATE INDEX idx_sub_kegiatan_db_user ON public.sub_kegiatan_db(user_id);
+
+-- =========================================================
 -- B. AKTIFKAN RLS (Row Level Security)
 -- =========================================================
 ALTER TABLE public.inventory_items ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.inventory_withdrawals ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.inventory_overrides ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.inventory_mutation_overrides ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.sub_kegiatan_db ENABLE ROW LEVEL SECURITY;
 
 -- =========================================================
 -- C. BUAT SECURITY POLICIES
@@ -134,6 +151,13 @@ CREATE POLICY "Users manage own mutation overrides" ON public.inventory_mutation
     USING (auth.uid() = user_id)
     WITH CHECK (auth.uid() = user_id);
 
+-- Policies untuk sub_kegiatan_db
+DROP POLICY IF EXISTS "Users manage own sub kegiatan" ON public.sub_kegiatan_db;
+CREATE POLICY "Users manage own sub kegiatan" ON public.sub_kegiatan_db
+    FOR ALL
+    USING (auth.uid() = user_id)
+    WITH CHECK (auth.uid() = user_id);
+
 -- =========================================================
 -- D. VERIFIKASI (opsional - lihat hasilnya di output)
 -- =========================================================
@@ -143,5 +167,5 @@ SELECT
     data_type 
 FROM information_schema.columns 
 WHERE table_schema = 'public' 
-  AND table_name IN ('inventory_items', 'inventory_withdrawals', 'inventory_overrides', 'inventory_mutation_overrides')
+  AND table_name IN ('inventory_items', 'inventory_withdrawals', 'inventory_overrides', 'inventory_mutation_overrides', 'sub_kegiatan_db')
 ORDER BY table_name, ordinal_position;
