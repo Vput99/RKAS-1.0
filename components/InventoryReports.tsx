@@ -150,7 +150,7 @@ const PengadaanView = React.memo(({
               <th colSpan={2} className="border border-gray-300 p-1">Sub Kegiatan & Anggaran</th>
               <th rowSpan={2} className="border border-gray-300 p-2 w-24 text-[8px]">Rekening Belanja</th>
               <th rowSpan={2} className="border border-gray-300 p-2 w-20">Tgl Perolehan</th>
-              <th colSpan={3} className="border border-gray-300 p-1">Dokumen Sumber Perolehan</th>
+              <th colSpan={4} className="border border-gray-300 p-1">Dokumen Sumber Perolehan</th>
             </tr>
             <tr>
               <th className="border border-gray-300 p-1 w-20 text-[8px]">Kode</th>
@@ -158,32 +158,34 @@ const PengadaanView = React.memo(({
               <th className="border border-gray-300 p-1 w-16 text-[8px]">Bentuk</th>
               <th className="border border-gray-300 p-1 w-20 text-[8px]">Penyedia</th>
               <th className="border border-gray-300 p-1 w-24 text-[8px]">Nomor</th>
+              <th className="border border-gray-300 p-1 w-16 text-[8px]">Aksi</th>
             </tr>
           </thead>
           <tbody>
             {combinedItems.length === 0 ? (
               // Tampilkan 5 baris kosong saat belum ada data
               Array.from({ length: 5 }).map((_, idx) => (
-                <tr key={`empty-${idx}`} className="hover:bg-blue-50/30 transition-colors">
-                  <td className="border border-gray-300 p-2 text-center text-gray-300">{idx + 1}</td>
-                  <td className="border border-gray-300 p-2">
-                    {idx === 0 && (
-                      <span className="text-[9px] text-blue-400 italic">Klik "+ TAMBAH MANUAL" untuk mengisi...</span>
-                    )}
-                  </td>
-                  <td className="border border-gray-300 p-2 text-gray-200">—</td>
-                  <td className="border border-gray-300 p-2 text-gray-200 text-center">—</td>
-                  <td className="border border-gray-300 p-2 text-gray-200 text-center">—</td>
-                  <td className="border border-gray-300 p-2 text-gray-200 text-right">—</td>
-                  <td className="border border-gray-300 p-2 text-gray-200 text-right">—</td>
-                  <td className="border border-gray-300 p-2 text-gray-200 text-center">—</td>
-                  <td className="border border-gray-300 p-2 text-gray-200">—</td>
-                  <td className="border border-gray-300 p-2 text-gray-200 text-center">—</td>
-                  <td className="border border-gray-300 p-2 text-gray-200 text-center">—</td>
-                  <td className="border border-gray-300 p-2 text-gray-200 text-center">—</td>
-                  <td className="border border-gray-300 p-2 text-gray-200 italic">—</td>
-                  <td className="border border-gray-300 p-2 text-gray-200 text-center">—</td>
-                </tr>
+                  <tr key={`empty-${idx}`} className="hover:bg-blue-50/30 transition-colors">
+                    <td className="border border-gray-300 p-2 text-center text-gray-300">{idx + 1}</td>
+                    <td className="border border-gray-300 p-2">
+                      {idx === 0 && (
+                        <span className="text-[9px] text-blue-400 italic">Klik "+ TAMBAH MANUAL" untuk mengisi...</span>
+                      )}
+                    </td>
+                    <td className="border border-gray-300 p-2 text-gray-200">—</td>
+                    <td className="border border-gray-300 p-2 text-gray-200 text-center">—</td>
+                    <td className="border border-gray-300 p-2 text-gray-200 text-center">—</td>
+                    <td className="border border-gray-300 p-2 text-gray-200 text-right">—</td>
+                    <td className="border border-gray-300 p-2 text-gray-200 text-right">—</td>
+                    <td className="border border-gray-300 p-2 text-gray-200 text-center">—</td>
+                    <td className="border border-gray-300 p-2 text-gray-200">—</td>
+                    <td className="border border-gray-300 p-2 text-gray-200 text-center">—</td>
+                    <td className="border border-gray-300 p-2 text-gray-200 text-center">—</td>
+                    <td className="border border-gray-300 p-2 text-gray-200 text-center">—</td>
+                    <td className="border border-gray-300 p-2 text-gray-200 italic">—</td>
+                    <td className="border border-gray-300 p-2 text-gray-200 text-center">—</td>
+                    <td className="border border-gray-300 p-2 text-gray-200 text-center">—</td>
+                  </tr>
               ))
             ) : (
               (Object.entries(groupedItems) as [string, InventoryItem[]][]).map(([category, items]) => {
@@ -197,7 +199,7 @@ const PengadaanView = React.memo(({
                         {category}
                       </td>
                       <td className="border border-gray-300 p-2 text-right text-blue-900">{formatRupiah(categoryTotal)}</td>
-                      <td colSpan={7} className="border border-gray-300 p-2 bg-gray-50/20"></td>
+                      <td colSpan={8} className="border border-gray-300 p-2 bg-gray-50/20"></td>
                     </tr>
 
                     {items.map((item: InventoryItem, idx) => (
@@ -215,27 +217,29 @@ const PengadaanView = React.memo(({
                         <td className="border border-gray-300 p-2 text-center text-[8px]">{formatDate(item.date)}</td>
                         <td className="border border-gray-300 p-2 text-center text-[8px]">{item.contractType || 'Kuitansi'}</td>
                         <td className="border border-gray-300 p-2 text-[8px] italic">{item.vendor}</td>
-                        <td className="border border-gray-300 p-2 text-center text-[8px] font-mono whitespace-nowrap overflow-hidden text-ellipsis max-w-[80px]">
-                          <div className="flex items-center gap-1 justify-between">
-                            <span>{item.docNumber}</span>
-                            {item.id.startsWith('manual-') && (
-                              <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity shrink-0">
-                                <button
-                                  onClick={() => (onEditManual as any)(item)}
-                                  className="text-blue-400 hover:text-blue-600 p-0.5"
-                                  title="Edit data"
-                                >
-                                  <Edit3 size={10} />
-                                </button>
-                                <button
-                                  onClick={() => onDeleteManual(item.id)}
-                                  className="text-red-400 hover:text-red-600 p-0.5"
-                                  title="Hapus data"
-                                >
-                                  <Trash2 size={10} />
-                                </button>
-                              </div>
-                            )}
+                        <td className="border border-gray-300 p-2 text-center text-[8px] font-mono whitespace-nowrap overflow-hidden text-ellipsis max-w-[100px]">
+                          {item.docNumber}
+                        </td>
+                        <td className="border border-gray-300 p-2 text-center">
+                          <div className="flex items-center justify-center gap-2">
+                             {(item.id.startsWith('manual-') || !item.id.includes('-')) && (
+                               <>
+                                 <button
+                                   onClick={() => (onEditManual as any)(item)}
+                                   className="p-1.5 bg-blue-50 text-blue-600 hover:bg-blue-100 rounded transition-colors"
+                                   title="Edit Data"
+                                 >
+                                   <Edit3 size={12} />
+                                 </button>
+                                 <button
+                                   onClick={() => onDeleteManual(item.id)}
+                                   className="p-1.5 bg-red-50 text-red-600 hover:bg-red-100 rounded transition-colors"
+                                   title="Hapus Data"
+                                 >
+                                   <Trash2 size={12} />
+                                 </button>
+                               </>
+                             )}
                           </div>
                         </td>
                       </tr>
