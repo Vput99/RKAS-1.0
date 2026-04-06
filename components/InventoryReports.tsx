@@ -55,18 +55,18 @@ const ReportHeader = React.memo(({ title, icon: Icon, onExport, onDownload }: an
         <Icon size={22} className="drop-shadow-sm" />
       </div>
       <div>
-         <h3 className="font-black text-slate-800 tracking-tight text-lg">Pratinjau Laporan</h3>
-         <p className="text-xs font-bold text-slate-400 uppercase tracking-widest">{title}</p>
+        <h3 className="font-black text-slate-800 tracking-tight text-lg">Pratinjau Laporan</h3>
+        <p className="text-xs font-bold text-slate-400 uppercase tracking-widest">{title}</p>
       </div>
     </div>
     <div className="flex items-center gap-3">
-      <button 
+      <button
         onClick={onExport}
         className="flex items-center gap-2 px-5 py-2.5 bg-white/80 border border-slate-200 rounded-xl text-xs font-black text-slate-600 hover:bg-white hover:shadow-lg transition-all shadow-sm backdrop-blur-md active:scale-95"
       >
         <Printer size={16} /> CETAK
       </button>
-      <button 
+      <button
         onClick={onDownload}
         className="flex items-center gap-2 px-5 py-2.5 bg-gradient-to-br from-slate-800 to-slate-900 text-white rounded-xl text-xs font-black hover:shadow-xl hover:shadow-slate-500/20 transition-all transform hover:-translate-y-0.5 active:scale-95"
       >
@@ -76,13 +76,13 @@ const ReportHeader = React.memo(({ title, icon: Icon, onExport, onDownload }: an
   </div>
 ));
 
-const PengadaanView = React.memo(({ 
-  combinedItems, 
-  groupedItems, 
-  isAnalyzing, 
-  onManualAdd, 
+const PengadaanView = React.memo(({
+  combinedItems,
+  groupedItems,
+  isAnalyzing,
+  onManualAdd,
   onEditManual,
-  onAnalyze, 
+  onAnalyze,
   onDeleteManual,
   onDeleteAll,
   schoolProfile
@@ -165,27 +165,27 @@ const PengadaanView = React.memo(({
             {combinedItems.length === 0 ? (
               // Tampilkan 5 baris kosong saat belum ada data
               Array.from({ length: 5 }).map((_, idx) => (
-                  <tr key={`empty-${idx}`} className="hover:bg-blue-50/30 transition-colors">
-                    <td className="border border-gray-300 p-2 text-center text-gray-300">{idx + 1}</td>
-                    <td className="border border-gray-300 p-2">
-                      {idx === 0 && (
-                        <span className="text-[9px] text-blue-400 italic">Klik "+ TAMBAH MANUAL" untuk mengisi...</span>
-                      )}
-                    </td>
-                    <td className="border border-gray-300 p-2 text-gray-200">—</td>
-                    <td className="border border-gray-300 p-2 text-gray-200 text-center">—</td>
-                    <td className="border border-gray-300 p-2 text-gray-200 text-center">—</td>
-                    <td className="border border-gray-300 p-2 text-gray-200 text-right">—</td>
-                    <td className="border border-gray-300 p-2 text-gray-200 text-right">—</td>
-                    <td className="border border-gray-300 p-2 text-gray-200 text-center">—</td>
-                    <td className="border border-gray-300 p-2 text-gray-200">—</td>
-                    <td className="border border-gray-300 p-2 text-gray-200 text-center">—</td>
-                    <td className="border border-gray-300 p-2 text-gray-200 text-center">—</td>
-                    <td className="border border-gray-300 p-2 text-gray-200 text-center">—</td>
-                    <td className="border border-gray-300 p-2 text-gray-200 italic">—</td>
-                    <td className="border border-gray-300 p-2 text-gray-200 text-center">—</td>
-                    <td className="border border-gray-300 p-2 text-gray-200 text-center">—</td>
-                  </tr>
+                <tr key={`empty-${idx}`} className="hover:bg-blue-50/30 transition-colors">
+                  <td className="border border-gray-300 p-2 text-center text-gray-300">{idx + 1}</td>
+                  <td className="border border-gray-300 p-2">
+                    {idx === 0 && (
+                      <span className="text-[9px] text-blue-400 italic">Klik "+ TAMBAH MANUAL" untuk mengisi...</span>
+                    )}
+                  </td>
+                  <td className="border border-gray-300 p-2 text-gray-200">—</td>
+                  <td className="border border-gray-300 p-2 text-gray-200 text-center">—</td>
+                  <td className="border border-gray-300 p-2 text-gray-200 text-center">—</td>
+                  <td className="border border-gray-300 p-2 text-gray-200 text-right">—</td>
+                  <td className="border border-gray-300 p-2 text-gray-200 text-right">—</td>
+                  <td className="border border-gray-300 p-2 text-gray-200 text-center">—</td>
+                  <td className="border border-gray-300 p-2 text-gray-200">—</td>
+                  <td className="border border-gray-300 p-2 text-gray-200 text-center">—</td>
+                  <td className="border border-gray-300 p-2 text-gray-200 text-center">—</td>
+                  <td className="border border-gray-300 p-2 text-gray-200 text-center">—</td>
+                  <td className="border border-gray-300 p-2 text-gray-200 italic">—</td>
+                  <td className="border border-gray-300 p-2 text-gray-200 text-center">—</td>
+                  <td className="border border-gray-300 p-2 text-gray-200 text-center">—</td>
+                </tr>
               ))
             ) : (
               (Object.entries(groupedItems) as [string, InventoryItem[]][]).map(([category, items]) => {
@@ -222,24 +222,24 @@ const PengadaanView = React.memo(({
                         </td>
                         <td className="border border-gray-300 p-2 text-center">
                           <div className="flex items-center justify-center gap-2">
-                             {(item.id.startsWith('manual-') || !item.id.includes('-')) && (
-                               <>
-                                 <button
-                                   onClick={() => (onEditManual as any)(item)}
-                                   className="p-1.5 bg-blue-50 text-blue-600 hover:bg-blue-100 rounded transition-colors"
-                                   title="Edit Data"
-                                 >
-                                   <Edit3 size={12} />
-                                 </button>
-                                 <button
-                                   onClick={() => onDeleteManual(item.id)}
-                                   className="p-1.5 bg-red-50 text-red-600 hover:bg-red-100 rounded transition-colors"
-                                   title="Hapus Data"
-                                 >
-                                   <Trash2 size={12} />
-                                 </button>
-                               </>
-                             )}
+                            {(item.id.startsWith('manual-') || !item.id.includes('-')) && (
+                              <>
+                                <button
+                                  onClick={() => (onEditManual as any)(item)}
+                                  className="p-1.5 bg-blue-50 text-blue-600 hover:bg-blue-100 rounded transition-colors"
+                                  title="Edit Data"
+                                >
+                                  <Edit3 size={12} />
+                                </button>
+                                <button
+                                  onClick={() => onDeleteManual(item.id)}
+                                  className="p-1.5 bg-red-50 text-red-600 hover:bg-red-100 rounded transition-colors"
+                                  title="Hapus Data"
+                                >
+                                  <Trash2 size={12} />
+                                </button>
+                              </>
+                            )}
                           </div>
                         </td>
                       </tr>
@@ -255,12 +255,12 @@ const PengadaanView = React.memo(({
   </motion.div>
 ));
 
-const PengeluaranView = React.memo(({ 
-  withdrawalTransactions, 
-  combinedItems, 
-  schoolProfile, 
-  onRecordWithdrawal, 
-  onDeleteWithdrawal 
+const PengeluaranView = React.memo(({
+  withdrawalTransactions,
+  combinedItems,
+  schoolProfile,
+  onRecordWithdrawal,
+  onDeleteWithdrawal
 }: any) => (
   <motion.div key="pengeluaran" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }} className="flex flex-col h-full bg-white/40 relative z-0">
     <div className="p-6 border-b border-slate-100 bg-orange-50/30 flex justify-between items-center">
@@ -390,8 +390,8 @@ const PersediaanView = React.memo(({ combinedItems, getItemStats, schoolProfile,
                 <td className="border border-gray-300 p-2 font-mono text-[10px]">{item.codification || '-'}</td>
                 <td className="border border-gray-300 p-2 font-medium">{item.name}</td>
                 <td className="border border-gray-300 p-2 text-center relative group/cell">
-                  <input 
-                    type="number" 
+                  <input
+                    type="number"
                     className="w-full bg-transparent text-center border-none focus:ring-1 focus:ring-indigo-300 rounded outline-none"
                     value={sisaLalu}
                     onChange={(e) => handleOverride(item.id, 'lastYearBalance', Number(e.target.value))}
@@ -399,8 +399,8 @@ const PersediaanView = React.memo(({ combinedItems, getItemStats, schoolProfile,
                 </td>
                 <td className="border border-gray-300 p-2 text-center">{stats.totalIn}</td>
                 <td className="border border-gray-300 p-2 text-center relative group/cell">
-                  <input 
-                    type="number" 
+                  <input
+                    type="number"
                     className="w-full bg-transparent text-center border-none focus:ring-1 focus:ring-orange-300 rounded outline-none font-bold"
                     value={keluar}
                     onChange={(e) => handleOverride(item.id, 'usedQuantity', Number(e.target.value))}
@@ -452,24 +452,24 @@ const MutasiView = React.memo(({ mutationData, schoolProfile, handleMutationOver
                 <td className="border border-gray-300 p-2.5 text-center font-medium text-slate-400">{i + 1}</td>
                 <td className="border border-gray-300 p-2.5 font-bold text-slate-700">{cat}</td>
                 <td className="border border-gray-300 p-2.5 text-right relative group/cell">
-                  <input 
-                    type="number" 
+                  <input
+                    type="number"
                     className="w-full bg-transparent text-right border-none focus:ring-1 focus:ring-purple-300 rounded outline-none"
                     value={awal}
                     onChange={(e) => handleMutationOverride(cat, 'awal', Number(e.target.value))}
                   />
                 </td>
                 <td className="border border-gray-300 p-2.5 text-right relative group/cell">
-                  <input 
-                    type="number" 
+                  <input
+                    type="number"
                     className="w-full bg-transparent text-right border-none focus:ring-1 focus:ring-purple-300 rounded outline-none"
                     value={tambah}
                     onChange={(e) => handleMutationOverride(cat, 'tambah', Number(e.target.value))}
                   />
                 </td>
                 <td className="border border-gray-300 p-2.5 text-right relative group/cell">
-                  <input 
-                    type="number" 
+                  <input
+                    type="number"
                     className="w-full bg-transparent text-right border-none focus:ring-1 focus:ring-purple-300 rounded outline-none"
                     value={kurang}
                     onChange={(e) => handleMutationOverride(cat, 'kurang', Number(e.target.value))}
@@ -488,127 +488,177 @@ const MutasiView = React.memo(({ mutationData, schoolProfile, handleMutationOver
 ));
 
 // ─── KIB B View Component ──────────────────────────────────────────────────────
-const KibBView = React.memo(({ kibBItems, schoolProfile }: any) => (
-  <motion.div key="kib_b" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }} className="p-6">
-    <div className="text-center mb-5 space-y-0.5">
-      <h3 className="text-base font-black text-gray-800 uppercase">KARTU INVENTARIS BARANG KIB B (PERALATAN DAN MESIN)</h3>
-      <p className="text-sm font-bold text-gray-700 uppercase">{schoolProfile?.name || 'SD NEGERI CONTOH'}</p>
-      <p className="text-xs font-bold text-gray-600 uppercase">PFR {schoolProfile?.name || 'NAMA_BULAN'} TAHUN {schoolProfile?.fiscalYear || '2026'}</p>
-    </div>
+// Editable cell: shows input on hover/focus, plain text otherwise
+const KibBCell = ({ value, onChange, className = '', placeholder = '-', type = 'text' }: {
+  value: string; onChange: (v: string) => void; className?: string; placeholder?: string; type?: string;
+}) => {
+  const [focused, setFocused] = React.useState(false);
+  return (
+    <td className={`border border-gray-400 p-0 group relative ${className}`}>
+      <input
+        type={type}
+        value={value}
+        placeholder={focused ? placeholder : ''}
+        onChange={e => onChange(e.target.value)}
+        onFocus={() => setFocused(true)}
+        onBlur={() => setFocused(false)}
+        className={`w-full h-full px-1 py-1 text-[9px] text-center bg-transparent outline-none transition-all
+          ${value ? 'text-gray-800' : 'text-gray-300'}
+          ${focused ? 'bg-amber-50 ring-1 ring-inset ring-amber-400 text-gray-800 placeholder-amber-300' : 'hover:bg-blue-50/60 cursor-text'}
+        `}
+        style={{ minHeight: '22px' }}
+      />
+      {!value && !focused && (
+        <span className="absolute inset-0 flex items-center justify-center text-[8px] text-gray-300 pointer-events-none group-hover:text-amber-400 transition-colors">✎</span>
+      )}
+    </td>
+  );
+};
 
-    {kibBItems.length === 0 ? (
-      <div className="py-20 text-center text-slate-400">
-        <Layers size={48} className="mx-auto mb-4 opacity-30" />
-        <p className="text-sm font-bold">Belum ada data Belanja Modal.</p>
-        <p className="text-xs mt-1 text-slate-400">Data KIB B diisi otomatis dari SPJ dengan kode rekening <span className="font-mono font-bold text-blue-500">5.2.xx.xx</span></p>
+const KibBView = ({ kibBItems, schoolProfile }: any) => {
+  const STORAGE_KEY = 'rkas_kibb_overrides_v1';
+  const [overrides, setOverrides] = React.useState<Record<string, Record<string, string>>>(() => {
+    try { return JSON.parse(localStorage.getItem(STORAGE_KEY) || '{}'); } catch { return {}; }
+  });
+
+  const setField = React.useCallback((itemId: string, field: string, value: string) => {
+    setOverrides(prev => {
+      const next = { ...prev, [itemId]: { ...(prev[itemId] || {}), [field]: value } };
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(next));
+      return next;
+    });
+  }, []);
+
+  const get = (itemId: string, field: string, fallback = '') =>
+    overrides[itemId]?.[field] !== undefined ? overrides[itemId][field] : fallback;
+
+  // th shorthand
+  const TH = ({ children, className = '', ...props }: any) => (
+    <th className={`border border-gray-400 p-0.5 text-center text-[8px] font-bold leading-tight ${className}`} {...props}>{children}</th>
+  );
+  const AM = 'bg-amber-50 text-amber-800';
+
+  return (
+    <motion.div key="kib_b" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }} className="p-4">
+      {/* Document Title */}
+      <div className="text-center mb-3 space-y-0.5">
+        <h3 className="text-sm font-black text-gray-800 uppercase">KARTU INVENTARIS BARANG KIB B (PERALATAN DAN MESIN)</h3>
+        <p className="text-xs font-bold text-gray-700 uppercase">PFR {schoolProfile?.name || 'NAMA_BULAN'} TAHUN {schoolProfile?.fiscalYear || '2026'}</p>
       </div>
-    ) : (
-      <div className="overflow-x-auto">
-        <table className="w-full text-[9px] border-collapse border border-gray-400" style={{ minWidth: '1800px' }}>
-          <thead className="bg-gray-100 text-gray-700">
-            <tr>
-              <th rowSpan={2} className="border border-gray-400 p-1 w-6 text-center">No</th>
-              <th rowSpan={2} className="border border-gray-400 p-1 w-20 text-center">Kode<br />Rekening</th>
-              <th rowSpan={2} className="border border-gray-400 p-1 w-28 text-center">Nama/Jenis<br />Barang</th>
-              <th rowSpan={2} className="border border-gray-400 p-1 w-16 text-center">Merk</th>
-              <th rowSpan={2} className="border border-gray-400 p-1 w-24 text-center">Tipe</th>
-              <th rowSpan={2} className="border border-gray-400 p-1 w-16 text-center">Ukuran/<br />CC</th>
-              <th rowSpan={2} className="border border-gray-400 p-1 w-16 text-center">Bahan</th>
-              <th rowSpan={2} className="border border-gray-400 p-1 w-14 text-center">Tahun<br />Pembelian</th>
-              <th colSpan={3} className="border border-gray-400 p-1 text-center">Asal Usul</th>
-              <th rowSpan={2} className="border border-gray-400 p-1 w-10 text-center">Status</th>
-              <th rowSpan={2} className="border border-gray-400 p-1 w-20 text-center">Harga<br />Satuan</th>
-              <th rowSpan={2} className="border border-gray-400 p-1 w-16 text-center">Jumlah<br />(Unit)</th>
-              <th colSpan={2} className="border border-gray-400 p-1 text-center">Program</th>
-              <th colSpan={2} className="border border-gray-400 p-1 text-center">Kegiatan</th>
-              <th colSpan={2} className="border border-gray-400 p-1 text-center">Sub Kegiatan</th>
-              <th rowSpan={2} className="border border-gray-400 p-1 w-20 text-center">No. Dokumen</th>
-              <th rowSpan={2} className="border border-gray-400 p-1 w-16 text-center">Tanggal<br />Perolehan</th>
-              <th rowSpan={2} className="border border-gray-400 p-1 text-center">Alamat<br />Sekolah</th>
-              <th rowSpan={2} className="border border-gray-400 p-1 w-10 text-center">CV</th>
-              <th rowSpan={2} className="border border-gray-400 p-1 w-16 text-center">GAMBAR/<br />Alt</th>
-            </tr>
-            <tr className="bg-gray-50">
-              <th className="border border-gray-400 p-1 w-8 text-center">Jml<br />Unit</th>
-              <th className="border border-gray-400 p-1 w-10 text-center">Cara<br />Beli</th>
-              <th className="border border-gray-400 p-1 w-10 text-center">Dari</th>
-              <th className="border border-gray-400 p-1 w-10 text-center">Kode</th>
-              <th className="border border-gray-400 p-1 text-center">Nama Program</th>
-              <th className="border border-gray-400 p-1 w-10 text-center">Kode</th>
-              <th className="border border-gray-400 p-1 text-center">Nama Kegiatan</th>
-              <th className="border border-gray-400 p-1 w-10 text-center">Kode</th>
-              <th className="border border-gray-400 p-1 text-center">Nama Sub Kegiatan</th>
-            </tr>
-          </thead>
-          <tbody>
-            {kibBItems.map((item: any, idx: number) => (
-              <tr key={item.id || idx} className="hover:bg-blue-50/30 transition-colors">
-                <td className="border border-gray-400 p-1 text-center">{idx + 1}</td>
-                <td className="border border-gray-400 p-1 text-center font-mono">{item.accountCode}</td>
-                <td className="border border-gray-400 p-1 font-medium">{item.name}</td>
-                <td className="border border-gray-400 p-1 text-center">{item.merk || '-'}</td>
-                <td className="border border-gray-400 p-1">{item.spec || '-'}</td>
-                <td className="border border-gray-400 p-1 text-center">{item.ukuran || '-'}</td>
-                <td className="border border-gray-400 p-1 text-center">{item.bahan || 'Aluminiu m'}</td>
-                <td className="border border-gray-400 p-1 text-center">{item.year || (item.date ? new Date(item.date).getFullYear() : '-')}</td>
-                {/* Asal Usul */}
-                <td className="border border-gray-400 p-1 text-center">{item.quantity}</td>
-                <td className="border border-gray-400 p-1 text-center">{item.contractType || 'Kuitansi'}</td>
-                <td className="border border-gray-400 p-1 text-center">{item.vendor || 'BOS'}</td>
-                {/* Status */}
-                <td className="border border-gray-400 p-1 text-center">{item.unit || 'Unit'}</td>
-                {/* Harga Satuan */}
-                <td className="border border-gray-400 p-1 text-right">{formatRupiah(item.price)}</td>
-                {/* Jumlah */}
-                <td className="border border-gray-400 p-1 text-center">{item.quantity}</td>
-                {/* Program */}
-                <td className="border border-gray-400 p-1 text-center font-mono">{item.programCode || '-'}</td>
-                <td className="border border-gray-400 p-1">{item.programName || '-'}</td>
-                {/* Kegiatan */}
-                <td className="border border-gray-400 p-1 text-center font-mono">{item.kegiatanCode || '-'}</td>
-                <td className="border border-gray-400 p-1">{item.kegiatanName || '-'}</td>
-                {/* Sub Kegiatan */}
-                <td className="border border-gray-400 p-1 text-center font-mono">{item.subActivityCode || '-'}</td>
-                <td className="border border-gray-400 p-1">{item.subActivityName || '-'}</td>
-                {/* Dokumen */}
-                <td className="border border-gray-400 p-1 text-center font-mono">{item.docNumber || '-'}</td>
-                <td className="border border-gray-400 p-1 text-center">{item.date ? new Date(item.date).toLocaleDateString('id-ID') : '-'}</td>
-                {/* Alamat */}
-                <td className="border border-gray-400 p-1 text-[8px]">{item.address || schoolProfile?.address || '-'}</td>
-                {/* CV */}
-                <td className="border border-gray-400 p-1 text-center">{item.cv || '-'}</td>
-                {/* Gambar */}
-                <td className="border border-gray-400 p-1 text-center text-[8px] text-blue-500">{item.imageUrl || '-'}</td>
-              </tr>
-            ))}
-          </tbody>
-          <tfoot>
-            <tr className="bg-gray-100 font-bold">
-              <td colSpan={13} className="border border-gray-400 p-1.5 text-right text-xs">TOTAL NILAI MODAL:</td>
-              <td colSpan={2} className="border border-gray-400 p-1.5 text-right text-xs font-black text-blue-800">
-                {formatRupiah(kibBItems.reduce((sum: number, item: any) => sum + (item.price * item.quantity), 0))}
-              </td>
-              <td colSpan={9} className="border border-gray-400 p-1"></td>
-            </tr>
-          </tfoot>
-        </table>
+      <div className="mb-2 inline-flex items-center gap-1.5 text-[9px] text-amber-700 bg-amber-50 border border-amber-200 rounded px-2 py-1">
+        <span>✎</span><span>Sel kuning = dapat diisi manual, klik untuk mengetik, tersimpan otomatis</span>
+      </div>
 
-        {/* Signature area */}
-        <div className="mt-8 flex justify-between items-end">
-          <div></div>
-          <div className="text-center text-xs space-y-1">
-            <p>Mengetahui,</p>
-            <p>Kepala SDN .....</p>
-            <div className="h-16"></div>
-            <p className="font-bold underline">{schoolProfile?.headmaster || 'Nama Kepala Sekolah'}</p>
-            <p>NP</p>
+      {kibBItems.length === 0 ? (
+        <div className="py-16 text-center text-slate-400">
+          <Layers size={40} className="mx-auto mb-3 opacity-30" />
+          <p className="text-sm font-bold">Belum ada data Belanja Modal.</p>
+          <p className="text-xs mt-1">Tambah SPJ kode rekening <span className="font-mono font-bold text-blue-500">5.2.xx.xx</span></p>
+        </div>
+      ) : (
+        <div className="overflow-x-auto">
+          <table className="border-collapse border border-gray-400 text-[8px]" style={{ minWidth: '2400px', width: '100%' }}>
+            <thead>
+              {/* ROW 1: MAIN LABELS */}
+              <tr className="bg-gray-200 text-gray-800 text-center">
+                <TH rowSpan={3} className="w-5">Ni</TH>
+                <TH rowSpan={3} className="w-16">Kode<br/>Rekening</TH>
+                <TH rowSpan={3} className="w-28">Nama Barang/<br/>Jenis Barang</TH>
+                <TH rowSpan={3} className={`w-14 ${AM}`}>Merk</TH>
+                <TH rowSpan={3} className={`w-28 ${AM}`}>Tipe</TH>
+                <TH rowSpan={3} className={`w-14 ${AM}`}>Ukuran<br/>CC</TH>
+                <TH rowSpan={3} className={`w-14 ${AM}`}>Bahan</TH>
+                <TH rowSpan={3} className="w-12">Tahun<br/>Pembel-<br/>ian</TH>
+                <TH colSpan={4}>Asal Dari</TH>
+                <TH rowSpan={3} className={`w-10 ${AM}`}>Status</TH>
+                <TH rowSpan={3} className="w-20">Harga<br/>Satuan</TH>
+                <TH rowSpan={3} className="w-20">Jumlah</TH>
+                <TH rowSpan={3} className={`w-10 ${AM}`}>Kode<br/>Program</TH>
+                <TH rowSpan={3} className={`w-28 ${AM}`}>Nama<br/>Program</TH>
+                <TH rowSpan={3} className={`w-10 ${AM}`}>Kode<br/>Kegiatan</TH>
+                <TH rowSpan={3} className={`w-32 ${AM}`}>Nama Kegiatan</TH>
+                <TH rowSpan={3} className={`w-10 ${AM}`}>Kode<br/>Sub<br/>Kegiatan</TH>
+                <TH rowSpan={3} className={`w-32 ${AM}`}>Nama Sub<br/>Kegiatan</TH>
+                <TH rowSpan={3} className={`w-20 ${AM}`}>No Dokumen<br/>Pembuatan<br/>B</TH>
+                <TH rowSpan={3} className="w-16">Tanggal<br/>Perolehan<br/>B</TH>
+                <TH rowSpan={3} className={`w-28 ${AM}`}>Alunan<br/>Sekolah</TH>
+                <TH rowSpan={3} className={`w-8 ${AM}`}>CV</TH>
+                <TH rowSpan={3} className={`w-14 ${AM}`}>GAMB-<br/>AR/Alt</TH>
+              </tr>
+              {/* ROW 2: ASAL SUB-LABELS */}
+              <tr className="bg-gray-100 text-gray-700 text-center">
+                <TH className={`w-8 ${AM}`}>Jml<br/>Pembel-<br/>ian</TH>
+                <TH className={`w-12 ${AM}`}>Cara<br/>Pembel-<br/>ian</TH>
+                <TH className={`w-16 ${AM}`}>Harga<br/>Perolehan</TH>
+                <TH className={`w-12 ${AM}`}>Dari</TH>
+              </tr>
+              {/* ROW 3: COLUMN NUMBERS */}
+              <tr className="bg-gray-50 text-gray-400 text-center">
+                {[1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21,22,23,24,25,26].map(n => (
+                  <TH key={n} className="font-normal text-gray-400 py-0">{n}</TH>
+                ))}
+              </tr>
+            </thead>
+            <tbody>
+              {kibBItems.map((item: any, idx: number) => {
+                const id = item.id || String(idx);
+                return (
+                  <tr key={id} className="hover:bg-blue-50/20 transition-colors">
+                    <td className="border border-gray-400 p-0.5 text-center">{idx + 1}</td>
+                    <td className="border border-gray-400 p-0.5 text-center font-mono text-[7px]" style={{fontSize:'7px'}}>{item.accountCode}</td>
+                    <td className="border border-gray-400 p-0.5 font-semibold">{item.name}</td>
+                    <KibBCell value={get(id,'merk',item.merk||'')} onChange={v=>setField(id,'merk',v)} placeholder="Merk..." />
+                    <KibBCell value={get(id,'tipe',item.spec||'')} onChange={v=>setField(id,'tipe',v)} placeholder="Tipe/Spek..." className="text-left" />
+                    <KibBCell value={get(id,'ukuran','')} onChange={v=>setField(id,'ukuran',v)} placeholder="Ukuran..." />
+                    <KibBCell value={get(id,'bahan','')} onChange={v=>setField(id,'bahan',v)} placeholder="Bahan..." />
+                    <td className="border border-gray-400 p-0.5 text-center">{item.year||(item.date?new Date(item.date).getFullYear():'-')}</td>
+                    <KibBCell value={get(id,'asal_jml',String(item.quantity||''))} onChange={v=>setField(id,'asal_jml',v)} placeholder="Jml..." />
+                    <KibBCell value={get(id,'asal_cara',item.contractType||'')} onChange={v=>setField(id,'asal_cara',v)} placeholder="Kuitansi..." />
+                    <KibBCell value={get(id,'asal_harga',item.price?formatRupiah(item.price):'')} onChange={v=>setField(id,'asal_harga',v)} placeholder="Harga..." />
+                    <KibBCell value={get(id,'asal_dari',item.vendor||'')} onChange={v=>setField(id,'asal_dari',v)} placeholder="BOS/APBD..." />
+                    <KibBCell value={get(id,'status','')} onChange={v=>setField(id,'status',v)} placeholder="Baik..." />
+                    <td className="border border-gray-400 p-0.5 text-right">{formatRupiah(item.price)}</td>
+                    <td className="border border-gray-400 p-0.5 text-right font-semibold">{formatRupiah(item.price * item.quantity)}</td>
+                    <KibBCell value={get(id,'programCode',item.programCode||'')} onChange={v=>setField(id,'programCode',v)} placeholder="Kode..." />
+                    <KibBCell value={get(id,'programName',item.programName||'')} onChange={v=>setField(id,'programName',v)} placeholder="Nama program..." className="text-left" />
+                    <KibBCell value={get(id,'kegiatanCode',item.kegiatanCode||'')} onChange={v=>setField(id,'kegiatanCode',v)} placeholder="Kode..." />
+                    <KibBCell value={get(id,'kegiatanName',item.kegiatanName||'')} onChange={v=>setField(id,'kegiatanName',v)} placeholder="Nama kegiatan..." className="text-left" />
+                    <KibBCell value={get(id,'subCode',item.subActivityCode||'')} onChange={v=>setField(id,'subCode',v)} placeholder="Kode..." />
+                    <KibBCell value={get(id,'subName',item.subActivityName||'')} onChange={v=>setField(id,'subName',v)} placeholder="Nama sub..." className="text-left" />
+                    <KibBCell value={get(id,'docNumber',item.docNumber||'')} onChange={v=>setField(id,'docNumber',v)} placeholder="No. dok..." />
+                    <td className="border border-gray-400 p-0.5 text-center">{item.date?new Date(item.date).toLocaleDateString('id-ID'):'-'}</td>
+                    <KibBCell value={get(id,'alamat',schoolProfile?.address||'')} onChange={v=>setField(id,'alamat',v)} placeholder="Alamat..." className="text-left" />
+                    <KibBCell value={get(id,'cv','')} onChange={v=>setField(id,'cv',v)} placeholder="CV..." />
+                    <KibBCell value={get(id,'gambar','')} onChange={v=>setField(id,'gambar',v)} placeholder="Gambar..." />
+                  </tr>
+                );
+              })}
+            </tbody>
+            <tfoot>
+              <tr className="bg-gray-50 font-bold text-[8px]">
+                <td colSpan={14} className="border border-gray-400 p-1 text-right">
+                  ⭐ {formatRupiah(kibBItems.reduce((s:number,i:any)=>s+i.price*i.quantity,0))}
+                </td>
+                <td colSpan={12} className="border border-gray-400 p-1"></td>
+              </tr>
+            </tfoot>
+          </table>
+          <div className="mt-6 flex justify-end pr-4">
+            <div className="text-center text-[10px] space-y-0.5 min-w-[180px]">
+              <p>Mengetahui,</p>
+              <p>Kepala SDN .....</p>
+              <div className="h-14"></div>
+              <p className="font-bold underline">{schoolProfile?.headmaster||'Nama Kepala Sekolah'}</p>
+              <p>NP</p>
+            </div>
           </div>
         </div>
-      </div>
-    )}
-  </motion.div>
-));
+      )}
+    </motion.div>
+  );
+};
 // ──────────────────────────────────────────────────────────────────────────────
+
 
 const InventoryReports: React.FC<InventoryReportsProps> = ({ budgets, schoolProfile }) => {
   const [activeReport, setActiveReport] = useState<string>('pengadaan');
@@ -980,14 +1030,14 @@ const InventoryReports: React.FC<InventoryReportsProps> = ({ budgets, schoolProf
 
   const handleEditManual = (item: InventoryItem) => {
     setEditingItemId(item.id);
-    
+
     // Temukan budget yang sesuai jika ada (opsional, tapi bagus untuk context)
     const budget = budgets.find(b => b.account_code === item.accountCode && b.description === item.name);
     setSelectedBudget(budget || { description: item.name, account_code: item.accountCode, amount: item.total, realizations: [] } as any);
-    
+
     // Parse category and subcategory
     const [baseCat, subCat] = item.category.includes(' - ') ? item.category.split(' - ') : [item.category, ''];
-    
+
     setManualForm({
       name: item.name,
       spec: item.spec,
@@ -1009,7 +1059,7 @@ const InventoryReports: React.FC<InventoryReportsProps> = ({ budgets, schoolProf
     } else if (CATEGORY_SUB_MAP[baseCat]) {
       setCurrentSubCategory(CATEGORY_SUB_MAP[baseCat][0]);
     }
-    
+
     setIsManualModalOpen(true);
   };
 
@@ -1040,7 +1090,7 @@ const InventoryReports: React.FC<InventoryReportsProps> = ({ budgets, schoolProf
 
     if (editingItemId) {
       // Update existing
-      const updated = manualInventoryItems.map(item => 
+      const updated = manualInventoryItems.map(item =>
         item.id === editingItemId ? { ...newItem, id: editingItemId } : item
       );
       saveManualItems(updated);
@@ -1051,7 +1101,7 @@ const InventoryReports: React.FC<InventoryReportsProps> = ({ budgets, schoolProf
       saveManualItems(updated);
       saveManualItemToDB(newItem);
     }
-    
+
     setIsManualModalOpen(false);
     setSelectedBudget(null);
     setEditingItemId(null);
@@ -1119,7 +1169,7 @@ const InventoryReports: React.FC<InventoryReportsProps> = ({ budgets, schoolProf
       .reduce((sum, tx) => sum + tx.quantity, 0);
     const totalOut = overrides.usedQuantity ?? (transactionsQuantity || item.usedQuantity || 0);
     const remaining = (lastYearBalance + totalIn) - totalOut;
-    
+
     return { lastYearBalance, totalIn, totalOut, remaining };
   };
 
@@ -1132,7 +1182,7 @@ const InventoryReports: React.FC<InventoryReportsProps> = ({ budgets, schoolProf
     if (activeReport === 'pengadaan') {
       title = 'Laporan Pengadaan Barang Milik Daerah (BMD)';
       headers = [['No', 'Tanggal', 'No. Dokumen', 'Nama Barang', 'Spesifikasi', 'Qty', 'Satuan', 'Harga', 'Total', 'Keterangan']];
-      
+
       const transactionsByDoc: Record<string, WithdrawalTransaction[]> = {};
       withdrawalTransactions.filter(t => t.docNumber.startsWith('BMD-')).forEach(t => {
         if (!transactionsByDoc[t.docNumber]) transactionsByDoc[t.docNumber] = [];
@@ -1161,7 +1211,7 @@ const InventoryReports: React.FC<InventoryReportsProps> = ({ budgets, schoolProf
     } else if (activeReport === 'persediaan') {
       title = 'Laporan Persediaan Barang';
       headers = [['No', 'Kodefikasi', 'Nama Barang', 'Sisa Lalu', 'Masuk', 'Keluar', 'Sisa', 'Satuan', 'Harga', 'Total']];
-      
+
       combinedItems.forEach((item, i) => {
         const stats = getItemStats(item);
         body.push([
@@ -1180,30 +1230,30 @@ const InventoryReports: React.FC<InventoryReportsProps> = ({ budgets, schoolProf
     } else if (activeReport === 'mutasi') {
       title = 'Laporan Mutasi Persediaan';
       headers = [['No', 'Kategori / Nama Barang', 'Saldo Awal', 'Pengadaan', 'Pengeluaran', 'Saldo Akhir', 'Satuan', 'Keterangan']];
-      
+
       const categories = ['Bahan', 'Suku Cadang', 'Alat/Bahan Kantor', 'Obat-obatan', 'Lainnya'];
       categories.forEach(cat => {
         const items = combinedItems.filter(i => {
-           if(cat === 'Alat/Bahan Kantor') return i.category === 'Alat Atau Bahan Untuk Kegiatan Kantor';
-           if(cat === 'Lainnya') return !['Bahan', 'Suku Cadang', 'Alat Atau Bahan Untuk Kegiatan Kantor', 'Obat Obatan'].includes(i.category);
-           return i.category === cat;
+          if (cat === 'Alat/Bahan Kantor') return i.category === 'Alat Atau Bahan Untuk Kegiatan Kantor';
+          if (cat === 'Lainnya') return !['Bahan', 'Suku Cadang', 'Alat Atau Bahan Untuk Kegiatan Kantor', 'Obat Obatan'].includes(i.category);
+          return i.category === cat;
         });
 
         if (items.length > 0) {
-            body.push([{ content: cat, colSpan: 8, styles: { fontStyle: 'bold', fillColor: [240, 240, 240] } }]);
-            items.forEach((item, i) => {
-                const stats = getItemStats(item);
-                body.push([
-                    i+1,
-                    item.name,
-                    stats.lastYearBalance,
-                    stats.totalIn,
-                    stats.totalOut,
-                    stats.remaining,
-                    item.unit,
-                    ''
-                ]);
-            });
+          body.push([{ content: cat, colSpan: 8, styles: { fontStyle: 'bold', fillColor: [240, 240, 240] } }]);
+          items.forEach((item, i) => {
+            const stats = getItemStats(item);
+            body.push([
+              i + 1,
+              item.name,
+              stats.lastYearBalance,
+              stats.totalIn,
+              stats.totalOut,
+              stats.remaining,
+              item.unit,
+              ''
+            ]);
+          });
         }
       });
     } else if (activeReport === 'kib_b') {
@@ -1350,15 +1400,15 @@ const InventoryReports: React.FC<InventoryReportsProps> = ({ budgets, schoolProf
 
   const mutationData = useMemo(() => {
     const data: Record<string, { awal: number; tambah: number; kurang: number }> = {};
-    
+
     combinedItems.forEach(item => {
       const cat = item.category || '99 LAINNYA';
       if (!data[cat]) data[cat] = { awal: 0, tambah: 0, kurang: 0 };
-      
+
       const overrides = itemOverrides[item.id] || {};
       const sisaLalu = overrides.lastYearBalance ?? (item.lastYearBalance || 0);
       const masuk = item.quantity;
-      
+
       const transactionsQuantity = withdrawalTransactions
         .filter(tx => tx.inventoryItemId === item.id)
         .reduce((sum, tx) => sum + tx.quantity, 0);
@@ -1368,7 +1418,7 @@ const InventoryReports: React.FC<InventoryReportsProps> = ({ budgets, schoolProf
       data[cat].tambah += masuk * item.price;
       data[cat].kurang += keluar * item.price;
     });
-    
+
     return data;
   }, [combinedItems, itemOverrides, withdrawalTransactions]);
 
@@ -1439,7 +1489,7 @@ const InventoryReports: React.FC<InventoryReportsProps> = ({ budgets, schoolProf
       <motion.div variants={itemVariants} className="flex flex-col md:flex-row md:items-end justify-between bg-white/60 backdrop-blur-xl p-6 rounded-[2rem] border border-white/80 shadow-xl shadow-blue-900/5 relative overflow-hidden">
         <div className="relative z-10">
           <div className="flex items-center gap-2 mb-1">
-              <span className="px-3 py-1 bg-blue-50 text-blue-600 text-[10px] font-black uppercase tracking-widest rounded-lg border border-blue-100 flex items-center gap-1"><Package size={12}/> Inventaris</span>
+            <span className="px-3 py-1 bg-blue-50 text-blue-600 text-[10px] font-black uppercase tracking-widest rounded-lg border border-blue-100 flex items-center gap-1"><Package size={12} /> Inventaris</span>
           </div>
           <h2 className="text-2xl font-black text-slate-800 tracking-tight">Stok Opname & Persediaan</h2>
           <p className="text-sm text-slate-500 font-medium mt-1">Manajemen dan pelaporan aset lancar serta barang persediaan.</p>
@@ -1461,7 +1511,7 @@ const InventoryReports: React.FC<InventoryReportsProps> = ({ budgets, schoolProf
               }`}
           >
             {activeReport === report.id && (
-                <motion.div layoutId="active-report-bg" className={`absolute inset-0 bg-${report.color}-500/5 z-0`} />
+              <motion.div layoutId="active-report-bg" className={`absolute inset-0 bg-${report.color}-500/5 z-0`} />
             )}
             {(() => {
               const Icon = report.icon;
@@ -1489,7 +1539,7 @@ const InventoryReports: React.FC<InventoryReportsProps> = ({ budgets, schoolProf
 
       {/* Report View Area */}
       <motion.div variants={itemVariants} className="glass-panel rounded-[2rem] border border-white/60 shadow-xl overflow-hidden relative min-h-[500px]">
-        <ReportHeader 
+        <ReportHeader
           title={reportMenu.find(r => r.id === activeReport)?.title}
           subtitle={reportMenu.find(r => r.id === activeReport)?.subtitle}
           icon={reportMenu.find(r => r.id === activeReport)?.icon || FileText}
@@ -1498,22 +1548,22 @@ const InventoryReports: React.FC<InventoryReportsProps> = ({ budgets, schoolProf
         />
 
         <AnimatePresence mode="wait">
-        {activeReport === 'pengadaan' && (
-          <PengadaanView 
-            combinedItems={combinedItems}
-            groupedItems={groupedItems}
-            isAnalyzing={isAnalyzing}
-            onManualAdd={() => { setEditingItemId(null); setIsManualModalOpen(true); }}
-            onEditManual={handleEditManual}
-            onAnalyze={handleAnalyze}
-            onDeleteManual={deleteManualItem}
-            onDeleteAll={() => setIsDeleteAllOpen(true)}
-            schoolProfile={schoolProfile}
-          />
-        )}
+          {activeReport === 'pengadaan' && (
+            <PengadaanView
+              combinedItems={combinedItems}
+              groupedItems={groupedItems}
+              isAnalyzing={isAnalyzing}
+              onManualAdd={() => { setEditingItemId(null); setIsManualModalOpen(true); }}
+              onEditManual={handleEditManual}
+              onAnalyze={handleAnalyze}
+              onDeleteManual={deleteManualItem}
+              onDeleteAll={() => setIsDeleteAllOpen(true)}
+              schoolProfile={schoolProfile}
+            />
+          )}
 
           {activeReport === 'pengeluaran' && (
-            <PengeluaranView 
+            <PengeluaranView
               withdrawalTransactions={withdrawalTransactions}
               combinedItems={combinedItems}
               schoolProfile={schoolProfile}
@@ -1523,7 +1573,7 @@ const InventoryReports: React.FC<InventoryReportsProps> = ({ budgets, schoolProf
           )}
 
           {activeReport === 'persediaan' && (
-            <PersediaanView 
+            <PersediaanView
               combinedItems={combinedItems}
               getItemStats={getItemStats}
               schoolProfile={schoolProfile}
@@ -1533,7 +1583,7 @@ const InventoryReports: React.FC<InventoryReportsProps> = ({ budgets, schoolProf
           )}
 
           {activeReport === 'mutasi' && (
-            <MutasiView 
+            <MutasiView
               mutationData={mutationData}
               schoolProfile={schoolProfile}
               handleMutationOverride={handleMutationOverride}
@@ -1548,12 +1598,12 @@ const InventoryReports: React.FC<InventoryReportsProps> = ({ budgets, schoolProf
             />
           )}
 
-        {/* Catch-all for other reports pending implementation */}
-        {activeReport !== 'pengadaan' && activeReport !== 'pengeluaran' && activeReport !== 'persediaan' && activeReport !== 'mutasi' && activeReport !== 'kib_b' && activeReport !== 'semester' && (
-          <motion.div key="other" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="p-12 text-center text-slate-400">
-            <p className="text-sm font-medium">Modul laporan ini sedang dalam pengembangan.</p>
-          </motion.div>
-        )}
+          {/* Catch-all for other reports pending implementation */}
+          {activeReport !== 'pengadaan' && activeReport !== 'pengeluaran' && activeReport !== 'persediaan' && activeReport !== 'mutasi' && activeReport !== 'kib_b' && activeReport !== 'semester' && (
+            <motion.div key="other" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="p-12 text-center text-slate-400">
+              <p className="text-sm font-medium">Modul laporan ini sedang dalam pengembangan.</p>
+            </motion.div>
+          )}
         </AnimatePresence>
       </motion.div>
 
@@ -1561,7 +1611,7 @@ const InventoryReports: React.FC<InventoryReportsProps> = ({ budgets, schoolProf
       <AnimatePresence>
         {isManualModalOpen && (
           <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-[2px] z-[999] flex items-center justify-center p-4">
-            <motion.div 
+            <motion.div
               initial={{ opacity: 0, scale: 0.95, y: 20 }}
               animate={{ opacity: 1, scale: 1, y: 0 }}
               exit={{ opacity: 0, scale: 0.95, y: 20 }}
@@ -1570,20 +1620,20 @@ const InventoryReports: React.FC<InventoryReportsProps> = ({ budgets, schoolProf
               {/* Modal Header */}
               <div className="px-8 py-6 border-b border-slate-100 flex justify-between items-center bg-white shrink-0">
                 <div className="flex items-center gap-4">
-                   <div className={`w-12 h-12 ${editingItemId ? 'bg-amber-500' : 'bg-blue-600'} rounded-2xl flex items-center justify-center text-white shadow-lg ${editingItemId ? 'shadow-amber-500/20' : 'shadow-blue-500/20'}`}>
-                      {editingItemId ? <Edit3 size={24} /> : <Plus size={24} />}
-                   </div>
-                   <div>
-                      <h3 className="text-xl font-black text-slate-800 tracking-tight">
-                        {editingItemId ? 'Edit Data Inventaris' : 'Input Manual Inventaris'}
-                      </h3>
-                      <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mt-1">
-                         Data Anggaran SPJ Terealisasi
-                      </p>
-                   </div>
+                  <div className={`w-12 h-12 ${editingItemId ? 'bg-amber-500' : 'bg-blue-600'} rounded-2xl flex items-center justify-center text-white shadow-lg ${editingItemId ? 'shadow-amber-500/20' : 'shadow-blue-500/20'}`}>
+                    {editingItemId ? <Edit3 size={24} /> : <Plus size={24} />}
+                  </div>
+                  <div>
+                    <h3 className="text-xl font-black text-slate-800 tracking-tight">
+                      {editingItemId ? 'Edit Data Inventaris' : 'Input Manual Inventaris'}
+                    </h3>
+                    <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mt-1">
+                      Data Anggaran SPJ Terealisasi
+                    </p>
+                  </div>
                 </div>
-                <button 
-                  onClick={() => { setIsManualModalOpen(false); setSelectedBudget(null); }} 
+                <button
+                  onClick={() => { setIsManualModalOpen(false); setSelectedBudget(null); }}
                   className="p-2.5 hover:bg-slate-100 rounded-xl transition-all active:scale-90"
                 >
                   <X size={20} className="text-slate-400" />
@@ -1595,14 +1645,14 @@ const InventoryReports: React.FC<InventoryReportsProps> = ({ budgets, schoolProf
                 {!selectedBudget ? (
                   <div className="space-y-6">
                     <div className="flex items-center justify-between px-2">
-                       <p className="text-xs font-black text-slate-500 uppercase tracking-widest flex items-center gap-2">
-                          Pilih Anggaran Belanja
-                       </p>
-                       <span className="text-[10px] bg-blue-600 text-white px-3 py-1 rounded-full font-bold">
-                         {budgets.filter(b => b.type === 'belanja' && b.realizations && b.realizations.length > 0).length} Item
-                       </span>
+                      <p className="text-xs font-black text-slate-500 uppercase tracking-widest flex items-center gap-2">
+                        Pilih Anggaran Belanja
+                      </p>
+                      <span className="text-[10px] bg-blue-600 text-white px-3 py-1 rounded-full font-bold">
+                        {budgets.filter(b => b.type === 'belanja' && b.realizations && b.realizations.length > 0).length} Item
+                      </span>
                     </div>
-                    
+
                     <div className="space-y-2">
                       {budgets
                         .filter(b => b.type === 'belanja' && b.realizations && b.realizations.length > 0)
@@ -1627,7 +1677,7 @@ const InventoryReports: React.FC<InventoryReportsProps> = ({ budgets, schoolProf
                         ))}
                       {budgets.filter(b => b.type === 'belanja' && b.realizations && b.realizations.length > 0).length === 0 && (
                         <div className="py-20 text-center">
-                           <p className="text-slate-400 font-bold italic text-sm">Belum ada data SPJ yang dapat dipilih.</p>
+                          <p className="text-slate-400 font-bold italic text-sm">Belum ada data SPJ yang dapat dipilih.</p>
                         </div>
                       )}
                     </div>
@@ -1670,11 +1720,10 @@ const InventoryReports: React.FC<InventoryReportsProps> = ({ budgets, schoolProf
                               type="button"
                               key={sk.id}
                               onClick={() => handleSelectSk(sk)}
-                              className={`flex items-center gap-3 px-3 py-2 rounded-lg text-left transition-all border text-xs ${
-                                selectedSkId === sk.id
+                              className={`flex items-center gap-3 px-3 py-2 rounded-lg text-left transition-all border text-xs ${selectedSkId === sk.id
                                   ? 'bg-indigo-600 text-white border-indigo-600 shadow-md'
                                   : 'bg-white border-indigo-100 hover:border-indigo-400 text-slate-700'
-                              }`}
+                                }`}
                             >
                               {selectedSkId === sk.id && <CheckCircle size={12} className="shrink-0" />}
                               <span className="font-mono font-black text-[10px] shrink-0">{sk.kode}</span>
@@ -1726,11 +1775,11 @@ const InventoryReports: React.FC<InventoryReportsProps> = ({ budgets, schoolProf
                       <div className="space-y-1">
                         <label className="text-[10px] font-black text-slate-500 uppercase ml-1">Kategori Persediaan</label>
                         <select className="w-full bg-white border border-slate-200 rounded-xl px-4 py-2.5 text-sm font-bold focus:border-blue-500 outline-none transition-all appearance-none cursor-pointer" value={manualForm.category || 'Lainnya'} onChange={e => {
-                            const newCat = e.target.value;
-                            setManualForm({ ...manualForm, category: newCat as any });
-                            if (CATEGORY_SUB_MAP[newCat]) setCurrentSubCategory(CATEGORY_SUB_MAP[newCat][0]);
-                            else setCurrentSubCategory('');
-                          }}>
+                          const newCat = e.target.value;
+                          setManualForm({ ...manualForm, category: newCat as any });
+                          if (CATEGORY_SUB_MAP[newCat]) setCurrentSubCategory(CATEGORY_SUB_MAP[newCat][0]);
+                          else setCurrentSubCategory('');
+                        }}>
                           <option value="Bahan">Bahan</option>
                           <option value="Suku Cadang">Suku Cadang</option>
                           <option value="Alat Atau Bahan Untuk Kegiatan Kantor">Kegiatan Kantor</option>
@@ -1786,10 +1835,10 @@ const InventoryReports: React.FC<InventoryReportsProps> = ({ budgets, schoolProf
 
                       <div className="space-y-1">
                         <label className="text-[10px] font-black text-slate-500 uppercase ml-1">Rekening Belanja</label>
-                        <input 
-                          readOnly 
-                          className="w-full bg-slate-100 border border-slate-200 rounded-xl px-4 py-2.5 text-sm font-mono font-bold text-slate-500 cursor-not-allowed" 
-                          value={manualForm.accountCode || ''} 
+                        <input
+                          readOnly
+                          className="w-full bg-slate-100 border border-slate-200 rounded-xl px-4 py-2.5 text-sm font-mono font-bold text-slate-500 cursor-not-allowed"
+                          value={manualForm.accountCode || ''}
                         />
                       </div>
 
@@ -1819,15 +1868,15 @@ const InventoryReports: React.FC<InventoryReportsProps> = ({ budgets, schoolProf
                     )}
 
                     <div className="flex gap-3 pt-4 border-t border-slate-100 shrink-0">
-                      <button 
-                        type="button" 
-                        onClick={() => setSelectedBudget(null)} 
+                      <button
+                        type="button"
+                        onClick={() => setSelectedBudget(null)}
                         className="flex-1 py-3 px-6 rounded-xl border border-slate-200 text-slate-500 font-bold hover:bg-slate-50 transition-all text-xs uppercase tracking-widest"
                       >
                         Batal
                       </button>
-                      <button 
-                        type="submit" 
+                      <button
+                        type="submit"
                         className="flex-[2] py-3 px-6 rounded-xl bg-blue-600 text-white font-black hover:bg-blue-700 shadow-lg shadow-blue-500/20 transition-all transform active:scale-95 flex items-center justify-center gap-2 text-xs uppercase tracking-widest"
                       >
                         {editingItemId ? <Edit3 size={18} /> : <ShoppingBag size={18} />}
@@ -1846,26 +1895,26 @@ const InventoryReports: React.FC<InventoryReportsProps> = ({ budgets, schoolProf
       <AnimatePresence>
         {isWithdrawalModalOpen && (
           <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-[2px] z-[999] flex items-center justify-center p-4">
-            <motion.div 
-               initial={{ opacity: 0, scale: 0.95, y: 20 }} animate={{ opacity: 1, scale: 1, y: 0 }}
-               exit={{ opacity: 0, scale: 0.95, y: 20 }}
-               className="bg-white rounded-[2rem] shadow-2xl w-full max-w-4xl max-h-[90vh] overflow-hidden flex flex-col border border-slate-200"
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95, y: 20 }} animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.95, y: 20 }}
+              className="bg-white rounded-[2rem] shadow-2xl w-full max-w-4xl max-h-[90vh] overflow-hidden flex flex-col border border-slate-200"
             >
               {/* Modal Header */}
               <div className="px-8 py-6 border-b border-slate-100 flex justify-between items-center bg-white shrink-0">
                 <div className="flex items-center gap-4">
-                   <div className="w-12 h-12 bg-orange-500 rounded-2xl flex items-center justify-center text-white shadow-lg shadow-orange-500/20">
-                      <ArrowRightLeft size={24} />
-                   </div>
-                   <div>
-                      <h3 className="text-xl font-black text-slate-800 tracking-tight">Catat Pengeluaran Barang</h3>
-                      <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mt-1">
-                         Manajemen Stok Keluar
-                      </p>
-                   </div>
+                  <div className="w-12 h-12 bg-orange-500 rounded-2xl flex items-center justify-center text-white shadow-lg shadow-orange-500/20">
+                    <ArrowRightLeft size={24} />
+                  </div>
+                  <div>
+                    <h3 className="text-xl font-black text-slate-800 tracking-tight">Catat Pengeluaran Barang</h3>
+                    <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mt-1">
+                      Manajemen Stok Keluar
+                    </p>
+                  </div>
                 </div>
-                <button 
-                  onClick={() => { setIsWithdrawalModalOpen(false); setSelectedInventoryItem(null); }} 
+                <button
+                  onClick={() => { setIsWithdrawalModalOpen(false); setSelectedInventoryItem(null); }}
                   className="p-2.5 hover:bg-slate-100 rounded-xl transition-all active:scale-90"
                 >
                   <X size={20} className="text-slate-400" />
@@ -1877,17 +1926,17 @@ const InventoryReports: React.FC<InventoryReportsProps> = ({ budgets, schoolProf
                 {!selectedInventoryItem ? (
                   <div className="space-y-6">
                     <div className="flex items-center justify-between px-2">
-                       <p className="text-xs font-black text-slate-500 uppercase tracking-widest flex items-center gap-2">
-                          Pilih Barang yang Keluar
-                       </p>
-                       <span className="text-[10px] bg-orange-500 text-white px-3 py-1 rounded-full font-bold">
-                         {combinedItems.length} Item
-                       </span>
+                      <p className="text-xs font-black text-slate-500 uppercase tracking-widest flex items-center gap-2">
+                        Pilih Barang yang Keluar
+                      </p>
+                      <span className="text-[10px] bg-orange-500 text-white px-3 py-1 rounded-full font-bold">
+                        {combinedItems.length} Item
+                      </span>
                     </div>
                     <div className="space-y-2">
                       {combinedItems.length === 0 ? (
                         <div className="py-20 text-center">
-                           <p className="text-slate-400 font-bold italic text-sm">Belum ada barang masuk untuk dikeluarkan.</p>
+                          <p className="text-slate-400 font-bold italic text-sm">Belum ada barang masuk untuk dikeluarkan.</p>
                         </div>
                       ) : (
                         combinedItems.map(item => (
@@ -1899,14 +1948,14 @@ const InventoryReports: React.FC<InventoryReportsProps> = ({ budgets, schoolProf
                             }}
                             className="w-full text-left p-4 rounded-2xl bg-white border border-slate-100 hover:border-orange-500 hover:shadow-lg transition-all group flex justify-between items-center"
                           >
-                             <div className="flex-1 pr-4">
-                                <p className="font-bold text-slate-800 text-sm mb-1">{item.name}</p>
-                                <div className="flex gap-3 items-center text-[10px]">
-                                   <span className="text-orange-600 font-black">STOK : {item.quantity} {item.unit}</span>
-                                   <span className="text-slate-400 italic truncate max-w-[200px]">{item.spec}</span>
-                                </div>
-                             </div>
-                             <ArrowRight size={16} className="text-slate-300 group-hover:text-orange-600 group-hover:translate-x-1 transition-all" />
+                            <div className="flex-1 pr-4">
+                              <p className="font-bold text-slate-800 text-sm mb-1">{item.name}</p>
+                              <div className="flex gap-3 items-center text-[10px]">
+                                <span className="text-orange-600 font-black">STOK : {item.quantity} {item.unit}</span>
+                                <span className="text-slate-400 italic truncate max-w-[200px]">{item.spec}</span>
+                              </div>
+                            </div>
+                            <ArrowRight size={16} className="text-slate-300 group-hover:text-orange-600 group-hover:translate-x-1 transition-all" />
                           </button>
                         ))
                       )}
@@ -1915,12 +1964,12 @@ const InventoryReports: React.FC<InventoryReportsProps> = ({ budgets, schoolProf
                 ) : (
                   <form onSubmit={submitWithdrawalForm} className="space-y-6">
                     <div className="bg-slate-900 text-white p-6 rounded-2xl shadow-xl space-y-3">
-                       <div className="flex justify-between items-start">
-                          <span className="text-[10px] font-black text-orange-400 uppercase tracking-widest">Detail Barang</span>
-                          <span className="text-[10px] font-black bg-white/10 px-2 py-1 rounded uppercase tracking-tighter">{selectedInventoryItem.category}</span>
-                       </div>
-                       <h4 className="text-lg font-bold leading-tight">{selectedInventoryItem.name}</h4>
-                       <p className="text-sm text-slate-300 italic">Spec: {selectedInventoryItem.spec}</p>
+                      <div className="flex justify-between items-start">
+                        <span className="text-[10px] font-black text-orange-400 uppercase tracking-widest">Detail Barang</span>
+                        <span className="text-[10px] font-black bg-white/10 px-2 py-1 rounded uppercase tracking-tighter">{selectedInventoryItem.category}</span>
+                      </div>
+                      <h4 className="text-lg font-bold leading-tight">{selectedInventoryItem.name}</h4>
+                      <p className="text-sm text-slate-300 italic">Spec: {selectedInventoryItem.spec}</p>
                     </div>
 
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -1946,19 +1995,19 @@ const InventoryReports: React.FC<InventoryReportsProps> = ({ budgets, schoolProf
                     </div>
 
                     <div className="flex gap-3 pt-4 border-t border-slate-100 shrink-0">
-                      <button 
-                        type="button" 
-                        onClick={() => setSelectedInventoryItem(null)} 
+                      <button
+                        type="button"
+                        onClick={() => setSelectedInventoryItem(null)}
                         className="flex-1 py-3 px-6 rounded-xl border border-slate-200 text-slate-500 font-bold hover:bg-slate-50 transition-all text-xs uppercase tracking-widest"
                       >
                         Batal
                       </button>
-                      <button 
-                        type="submit" 
+                      <button
+                        type="submit"
                         className="flex-[2] py-3 px-6 rounded-xl bg-orange-600 text-white font-black hover:bg-orange-700 shadow-lg shadow-orange-500/20 transition-all transform active:scale-95 flex items-center justify-center gap-2 text-xs uppercase tracking-widest"
                       >
-                         <ArrowRightLeft size={18} />
-                         Simpan Pengeluaran
+                        <ArrowRightLeft size={18} />
+                        Simpan Pengeluaran
                       </button>
                     </div>
                   </form>
@@ -2056,9 +2105,8 @@ const InventoryReports: React.FC<InventoryReportsProps> = ({ budgets, schoolProf
                       initial={{ opacity: 0, x: -10 }}
                       animate={{ opacity: 1, x: 0 }}
                       transition={{ delay: idx * 0.03 }}
-                      className={`flex items-center gap-4 px-4 py-3 rounded-xl border group transition-all ${
-                        skEditId === sk.id ? 'border-indigo-400 bg-indigo-50' : 'border-slate-100 bg-white hover:border-indigo-200 hover:shadow-sm'
-                      }`}
+                      className={`flex items-center gap-4 px-4 py-3 rounded-xl border group transition-all ${skEditId === sk.id ? 'border-indigo-400 bg-indigo-50' : 'border-slate-100 bg-white hover:border-indigo-200 hover:shadow-sm'
+                        }`}
                     >
                       <span className="text-xs font-mono font-black text-indigo-600 bg-indigo-50 px-2 py-1 rounded-lg border border-indigo-100 shrink-0 min-w-[70px] text-center">
                         {sk.kode}
