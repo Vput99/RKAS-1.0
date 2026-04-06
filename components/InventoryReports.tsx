@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useMemo, Fragment } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { ShoppingBag, FileText, ClipboardList, RefreshCw, Calendar, ArrowRightLeft, Package, Download, Printer, Sparkles, Loader2, Plus, Trash2, X, ArrowRight, Database, Edit3, CheckCircle } from 'lucide-react';
+import { ShoppingBag, FileText, ClipboardList, RefreshCw, Calendar, ArrowRightLeft, Package, Download, Printer, Sparkles, Loader2, Plus, Trash2, X, ArrowRight, Database, Edit3, CheckCircle, Layers } from 'lucide-react';
 import { Budget } from '../types';
 import { analyzeInventoryItems, InventoryItem } from '../lib/gemini';
 import { generatePDFHeader, generateSignatures, formatCurrency, defaultTableStyles } from '../lib/pdfUtils';
@@ -486,6 +486,129 @@ const MutasiView = React.memo(({ mutationData, schoolProfile, handleMutationOver
     </div>
   </motion.div>
 ));
+
+// ─── KIB B View Component ──────────────────────────────────────────────────────
+const KibBView = React.memo(({ kibBItems, schoolProfile }: any) => (
+  <motion.div key="kib_b" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }} className="p-6">
+    <div className="text-center mb-5 space-y-0.5">
+      <h3 className="text-base font-black text-gray-800 uppercase">KARTU INVENTARIS BARANG KIB B (PERALATAN DAN MESIN)</h3>
+      <p className="text-sm font-bold text-gray-700 uppercase">{schoolProfile?.name || 'SD NEGERI CONTOH'}</p>
+      <p className="text-xs font-bold text-gray-600 uppercase">PFR {schoolProfile?.name || 'NAMA_BULAN'} TAHUN {schoolProfile?.fiscalYear || '2026'}</p>
+    </div>
+
+    {kibBItems.length === 0 ? (
+      <div className="py-20 text-center text-slate-400">
+        <Layers size={48} className="mx-auto mb-4 opacity-30" />
+        <p className="text-sm font-bold">Belum ada data Belanja Modal.</p>
+        <p className="text-xs mt-1 text-slate-400">Data KIB B diisi otomatis dari SPJ dengan kode rekening <span className="font-mono font-bold text-blue-500">5.2.xx.xx</span></p>
+      </div>
+    ) : (
+      <div className="overflow-x-auto">
+        <table className="w-full text-[9px] border-collapse border border-gray-400" style={{ minWidth: '1800px' }}>
+          <thead className="bg-gray-100 text-gray-700">
+            <tr>
+              <th rowSpan={2} className="border border-gray-400 p-1 w-6 text-center">No</th>
+              <th rowSpan={2} className="border border-gray-400 p-1 w-20 text-center">Kode<br />Rekening</th>
+              <th rowSpan={2} className="border border-gray-400 p-1 w-28 text-center">Nama/Jenis<br />Barang</th>
+              <th rowSpan={2} className="border border-gray-400 p-1 w-16 text-center">Merk</th>
+              <th rowSpan={2} className="border border-gray-400 p-1 w-24 text-center">Tipe</th>
+              <th rowSpan={2} className="border border-gray-400 p-1 w-16 text-center">Ukuran/<br />CC</th>
+              <th rowSpan={2} className="border border-gray-400 p-1 w-16 text-center">Bahan</th>
+              <th rowSpan={2} className="border border-gray-400 p-1 w-14 text-center">Tahun<br />Pembelian</th>
+              <th colSpan={3} className="border border-gray-400 p-1 text-center">Asal Usul</th>
+              <th rowSpan={2} className="border border-gray-400 p-1 w-10 text-center">Status</th>
+              <th rowSpan={2} className="border border-gray-400 p-1 w-20 text-center">Harga<br />Satuan</th>
+              <th rowSpan={2} className="border border-gray-400 p-1 w-16 text-center">Jumlah<br />(Unit)</th>
+              <th colSpan={2} className="border border-gray-400 p-1 text-center">Program</th>
+              <th colSpan={2} className="border border-gray-400 p-1 text-center">Kegiatan</th>
+              <th colSpan={2} className="border border-gray-400 p-1 text-center">Sub Kegiatan</th>
+              <th rowSpan={2} className="border border-gray-400 p-1 w-20 text-center">No. Dokumen</th>
+              <th rowSpan={2} className="border border-gray-400 p-1 w-16 text-center">Tanggal<br />Perolehan</th>
+              <th rowSpan={2} className="border border-gray-400 p-1 text-center">Alamat<br />Sekolah</th>
+              <th rowSpan={2} className="border border-gray-400 p-1 w-10 text-center">CV</th>
+              <th rowSpan={2} className="border border-gray-400 p-1 w-16 text-center">GAMBAR/<br />Alt</th>
+            </tr>
+            <tr className="bg-gray-50">
+              <th className="border border-gray-400 p-1 w-8 text-center">Jml<br />Unit</th>
+              <th className="border border-gray-400 p-1 w-10 text-center">Cara<br />Beli</th>
+              <th className="border border-gray-400 p-1 w-10 text-center">Dari</th>
+              <th className="border border-gray-400 p-1 w-10 text-center">Kode</th>
+              <th className="border border-gray-400 p-1 text-center">Nama Program</th>
+              <th className="border border-gray-400 p-1 w-10 text-center">Kode</th>
+              <th className="border border-gray-400 p-1 text-center">Nama Kegiatan</th>
+              <th className="border border-gray-400 p-1 w-10 text-center">Kode</th>
+              <th className="border border-gray-400 p-1 text-center">Nama Sub Kegiatan</th>
+            </tr>
+          </thead>
+          <tbody>
+            {kibBItems.map((item: any, idx: number) => (
+              <tr key={item.id || idx} className="hover:bg-blue-50/30 transition-colors">
+                <td className="border border-gray-400 p-1 text-center">{idx + 1}</td>
+                <td className="border border-gray-400 p-1 text-center font-mono">{item.accountCode}</td>
+                <td className="border border-gray-400 p-1 font-medium">{item.name}</td>
+                <td className="border border-gray-400 p-1 text-center">{item.merk || '-'}</td>
+                <td className="border border-gray-400 p-1">{item.spec || '-'}</td>
+                <td className="border border-gray-400 p-1 text-center">{item.ukuran || '-'}</td>
+                <td className="border border-gray-400 p-1 text-center">{item.bahan || 'Aluminiu m'}</td>
+                <td className="border border-gray-400 p-1 text-center">{item.year || (item.date ? new Date(item.date).getFullYear() : '-')}</td>
+                {/* Asal Usul */}
+                <td className="border border-gray-400 p-1 text-center">{item.quantity}</td>
+                <td className="border border-gray-400 p-1 text-center">{item.contractType || 'Kuitansi'}</td>
+                <td className="border border-gray-400 p-1 text-center">{item.vendor || 'BOS'}</td>
+                {/* Status */}
+                <td className="border border-gray-400 p-1 text-center">{item.unit || 'Unit'}</td>
+                {/* Harga Satuan */}
+                <td className="border border-gray-400 p-1 text-right">{formatRupiah(item.price)}</td>
+                {/* Jumlah */}
+                <td className="border border-gray-400 p-1 text-center">{item.quantity}</td>
+                {/* Program */}
+                <td className="border border-gray-400 p-1 text-center font-mono">{item.programCode || '-'}</td>
+                <td className="border border-gray-400 p-1">{item.programName || '-'}</td>
+                {/* Kegiatan */}
+                <td className="border border-gray-400 p-1 text-center font-mono">{item.kegiatanCode || '-'}</td>
+                <td className="border border-gray-400 p-1">{item.kegiatanName || '-'}</td>
+                {/* Sub Kegiatan */}
+                <td className="border border-gray-400 p-1 text-center font-mono">{item.subActivityCode || '-'}</td>
+                <td className="border border-gray-400 p-1">{item.subActivityName || '-'}</td>
+                {/* Dokumen */}
+                <td className="border border-gray-400 p-1 text-center font-mono">{item.docNumber || '-'}</td>
+                <td className="border border-gray-400 p-1 text-center">{item.date ? new Date(item.date).toLocaleDateString('id-ID') : '-'}</td>
+                {/* Alamat */}
+                <td className="border border-gray-400 p-1 text-[8px]">{item.address || schoolProfile?.address || '-'}</td>
+                {/* CV */}
+                <td className="border border-gray-400 p-1 text-center">{item.cv || '-'}</td>
+                {/* Gambar */}
+                <td className="border border-gray-400 p-1 text-center text-[8px] text-blue-500">{item.imageUrl || '-'}</td>
+              </tr>
+            ))}
+          </tbody>
+          <tfoot>
+            <tr className="bg-gray-100 font-bold">
+              <td colSpan={13} className="border border-gray-400 p-1.5 text-right text-xs">TOTAL NILAI MODAL:</td>
+              <td colSpan={2} className="border border-gray-400 p-1.5 text-right text-xs font-black text-blue-800">
+                {formatRupiah(kibBItems.reduce((sum: number, item: any) => sum + (item.price * item.quantity), 0))}
+              </td>
+              <td colSpan={9} className="border border-gray-400 p-1"></td>
+            </tr>
+          </tfoot>
+        </table>
+
+        {/* Signature area */}
+        <div className="mt-8 flex justify-between items-end">
+          <div></div>
+          <div className="text-center text-xs space-y-1">
+            <p>Mengetahui,</p>
+            <p>Kepala SDN .....</p>
+            <div className="h-16"></div>
+            <p className="font-bold underline">{schoolProfile?.headmaster || 'Nama Kepala Sekolah'}</p>
+            <p>NP</p>
+          </div>
+        </div>
+      </div>
+    )}
+  </motion.div>
+));
+// ──────────────────────────────────────────────────────────────────────────────
 
 const InventoryReports: React.FC<InventoryReportsProps> = ({ budgets, schoolProfile }) => {
   const [activeReport, setActiveReport] = useState<string>('pengadaan');
@@ -1083,6 +1206,43 @@ const InventoryReports: React.FC<InventoryReportsProps> = ({ budgets, schoolProf
             });
         }
       });
+    } else if (activeReport === 'kib_b') {
+      title = 'KIB B - Kartu Inventaris Barang Peralatan Dan Mesin';
+      headers = [[
+        'No', 'Kode Rekening', 'Nama Barang', 'Merk', 'Tipe/Spek', 'Ukuran', 'Bahan',
+        'Th. Pembelian', 'Jml', 'Cara Beli', 'Dari',
+        'Status', 'Harga Satuan', 'Jumlah',
+        'Kode Prog', 'Nama Program', 'Kode Keg', 'Nama Kegiatan',
+        'Kode Sub', 'Nama Sub Kegiatan', 'No. Dokumen', 'Tgl Perolehan', 'Alamat', 'CV'
+      ]];
+      kibBItems.forEach((item: any, i: number) => {
+        body.push([
+          i + 1,
+          item.accountCode,
+          item.name,
+          item.merk || '-',
+          item.spec || '-',
+          item.ukuran || '-',
+          item.bahan || '-',
+          item.year || '-',
+          item.quantity,
+          item.contractType || 'Kuitansi',
+          item.vendor || '-',
+          item.unit || 'Unit',
+          formatCurrency(item.price),
+          item.quantity,
+          item.programCode || '-',
+          item.programName || '-',
+          item.kegiatanCode || '-',
+          item.kegiatanName || '-',
+          item.subActivityCode || '-',
+          item.subActivityName || '-',
+          item.docNumber || '-',
+          item.date ? new Date(item.date).toLocaleDateString('id-ID') : '-',
+          schoolProfile?.address || '-',
+          item.cv || '-'
+        ]);
+      });
     }
 
     const startY = generatePDFHeader(doc, schoolProfile, title);
@@ -1091,7 +1251,7 @@ const InventoryReports: React.FC<InventoryReportsProps> = ({ budgets, schoolProf
       startY,
       head: headers,
       body: body,
-      styles: { fontSize: 8 },
+      styles: { fontSize: 7 },
       headStyles: { fillColor: [51, 65, 85] }
     });
 
@@ -1102,6 +1262,77 @@ const InventoryReports: React.FC<InventoryReportsProps> = ({ budgets, schoolProf
   const combinedItems = useMemo(() => {
     return [...inventoryItems, ...manualInventoryItems];
   }, [inventoryItems, manualInventoryItems]);
+
+  // KIB B: Items from SPJ budgets with modal account codes (5.2.xx) + manual items with modal codes
+  const kibBItems = useMemo(() => {
+    const isModalCode = (code?: string) => code && code.startsWith('5.2');
+
+    // From manual inventory items with modal codes
+    const manualModal = manualInventoryItems.filter(item => isModalCode(item.accountCode));
+
+    // From budgets (SPJ) with modal account codes
+    const spjModal: any[] = [];
+    budgets.forEach(b => {
+      if (!isModalCode(b.account_code)) return;
+      if (!b.realizations || b.realizations.length === 0) return;
+      b.realizations.forEach(r => {
+        const qty = r.quantity || b.quantity || 1;
+        const unitPrice = r.amount > 0 && qty > 0 ? Math.round(r.amount / qty) : (b.unit_price || 0);
+        // Ambil kode program dan kegiatan dari bosp_component / account_code
+        const bospParts = (typeof b.bosp_component === 'string' ? b.bosp_component : '').split('.');
+        const acParts = (b.account_code || '').split('.');
+        spjModal.push({
+          id: `spj-kib-${b.id}-${r.month}`,
+          accountCode: b.account_code || '-',
+          name: b.description,
+          spec: r.notes || b.notes || '',
+          merk: '',
+          ukuran: '',
+          bahan: '',
+          year: r.date ? new Date(r.date).getFullYear() : new Date(b.date).getFullYear(),
+          quantity: qty,
+          unit: b.unit || 'Unit',
+          price: unitPrice,
+          total: r.amount,
+          contractType: 'Kuitansi',
+          vendor: r.vendor || '',
+          docNumber: r.notes || '',
+          date: r.date || b.date,
+          subActivityCode: bospParts[0] || '',
+          subActivityName: typeof b.bosp_component === 'string' ? b.bosp_component.replace(/^\d+[.\s]*/, '') : String(b.bosp_component),
+          programCode: acParts[0] || '',
+          programName: b.category || '',
+          kegiatanCode: acParts.slice(0, 2).join('.') || '',
+          kegiatanName: '',
+          address: schoolProfile?.address || '',
+          cv: '',
+          imageUrl: '',
+        });
+      });
+    });
+
+    // Merge, manual items take priority (they're already in the list via manualModal)
+    const manualIds = new Set(manualModal.map(m => m.accountCode + '|' + m.name));
+    const filteredSpj = spjModal.filter(s => !manualIds.has(s.accountCode + '|' + s.name));
+
+    return [
+      ...manualModal.map(item => ({
+        ...item,
+        programCode: (item.accountCode || '').split('.')[0] || '',
+        programName: '',
+        kegiatanCode: (item.accountCode || '').split('.').slice(0, 2).join('.') || '',
+        kegiatanName: '',
+        address: schoolProfile?.address || '',
+        cv: '',
+        imageUrl: '',
+        merk: '',
+        ukuran: '',
+        bahan: '',
+        year: item.date ? new Date(item.date).getFullYear() : '',
+      })),
+      ...filteredSpj
+    ];
+  }, [manualInventoryItems, budgets, schoolProfile]);
 
   const groupedItems = useMemo(() => {
     const groups: Record<string, InventoryItem[]> = {};
@@ -1181,6 +1412,14 @@ const InventoryReports: React.FC<InventoryReportsProps> = ({ budgets, schoolProf
       description: 'Laporan rincian mutasi tambah dan kurang menurut objek sumber dana keseluruhan.',
       icon: ArrowRightLeft,
       color: 'purple'
+    },
+    {
+      id: 'kib_b',
+      title: 'KIB B - Peralatan & Mesin',
+      subtitle: 'Kartu Inventaris Barang',
+      description: 'Kartu inventaris barang berupa peralatan dan mesin yang diperoleh dari belanja modal (kode rekening 5.2.xx).',
+      icon: Layers,
+      color: 'teal'
     },
   ];
 
@@ -1302,8 +1541,15 @@ const InventoryReports: React.FC<InventoryReportsProps> = ({ budgets, schoolProf
             />
           )}
 
+          {activeReport === 'kib_b' && (
+            <KibBView
+              kibBItems={kibBItems}
+              schoolProfile={schoolProfile}
+            />
+          )}
+
         {/* Catch-all for other reports pending implementation */}
-        {activeReport !== 'pengadaan' && activeReport !== 'pengeluaran' && activeReport !== 'persediaan' && activeReport !== 'mutasi' && (
+        {activeReport !== 'pengadaan' && activeReport !== 'pengeluaran' && activeReport !== 'persediaan' && activeReport !== 'mutasi' && activeReport !== 'kib_b' && activeReport !== 'semester' && (
           <motion.div key="other" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="p-12 text-center text-slate-400">
             <p className="text-sm font-medium">Modul laporan ini sedang dalam pengembangan.</p>
           </motion.div>
