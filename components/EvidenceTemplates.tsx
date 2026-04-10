@@ -386,7 +386,7 @@ const EvidenceTemplates = ({ budgets: allBudgets, onUpdate }: EvidenceTemplatesP
     localStorage.setItem('rkas_ai_evidence_cache', JSON.stringify(aiCache));
   }, [aiCache]);
 
-  const handleProcessAi = async (group: any) => {
+  const handleProcessAi = async (group: any, forceRefresh: boolean = false) => {
     // Combine descriptions for context
     const combinedDescription = group.items.map((i: any) => i.budgetDescription).join(', ');
     const combinedAccountCodes = group.items.map((i: any) => i.accountCode || '').join(', ');
@@ -419,7 +419,7 @@ const EvidenceTemplates = ({ budgets: allBudgets, onUpdate }: EvidenceTemplatesP
     ];
 
     // Check cache first
-    if (aiCache[combinedDescription] && aiCache[combinedDescription].length > 0) {
+    if (!forceRefresh && aiCache[combinedDescription] && aiCache[combinedDescription].length > 0) {
       let list = aiCache[combinedDescription];
       if (isSiplah) {
         list = Array.from(new Set([...siplahItems, ...list]));
@@ -2515,7 +2515,7 @@ const EvidenceTemplates = ({ budgets: allBudgets, onUpdate }: EvidenceTemplatesP
                   </div>
                   <div className="flex items-center gap-3">
                     <button 
-                      onClick={() => handleProcessAi(selectedGroup)}
+                      onClick={() => handleProcessAi(selectedGroup, true)}
                       disabled={isAiLoading}
                       className="group flex items-center gap-3 px-6 py-3 bg-white text-blue-600 border border-blue-100 rounded-2xl text-[10px] font-black uppercase tracking-widest hover:bg-blue-600 hover:text-white transition-all duration-500 shadow-xl shadow-blue-900/5 disabled:opacity-50"
                     >

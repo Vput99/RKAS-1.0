@@ -365,9 +365,12 @@ export const suggestEvidenceList = async (description: string, accountCode: stri
       Jika pengeluaran adalah SPPD Dalam Daerah, Anda WAJIB memberikan DAFTAR HANYA 1 poin ini:
       1. Surat Undangan 
       2. Surat Tugas
-      3. SPPD (Surat Perintah Perjalanan Dinas) - Lengkap Cap Instansi Tujuan
+      3. SPPD (Surat Perintah Perjalanan Dinas)
       4. Laporan Hasil Perjalanan Dinas (Tuntas)
       5. Bukti Transfer Bank ke Rekening Penerima (Prioritas CMS/Non-Tunai)
+      6. Bukti Setor Pajak PPh 21 (Kode Billing & NTPN)
+      7. Foto Kegiatan
+
 
 
       Input Pengeluaran: "${description}"
