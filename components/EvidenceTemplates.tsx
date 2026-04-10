@@ -101,6 +101,14 @@ const getEvidenceList = (description: string, accountCode?: string): string[] =>
     ];
   }
 
+  if (text.includes('sampah') || text.includes('retribusi') || text.includes('iuran') || text.includes('pajak')) {
+    return [
+      "Kuitansi / Bukti Pembayaran Resmi dari Instansi Terkait",
+      "Foto Dokumentasi (Opsional)",
+      "Buku Kas Umum (Pencatatan)"
+    ];
+  }
+
   return [
     "Dokumen SIPLah (Wajib untuk semua Rekening Belanja Barang & Modal sesuai Aturan BOSP 2026)",
     "Invoice, BAST, dan Bukti Pesanan",
@@ -351,13 +359,6 @@ const EvidenceTemplates = ({ budgets: allBudgets, onUpdate }: EvidenceTemplatesP
   const [currentTemplateType, setCurrentTemplateType] = useState<string>('');
   const [formData, setFormData] = useState<any>({});
 
-  // Sync selectedBudget with updated allBudgets from props
-  useEffect(() => {
-    if (selectedGroup) {
-      handleProcessAi(selectedGroup);
-    }
-  }, [selectedGroup?.key]); // Use key as dependency for history groups
-
   useEffect(() => {
     if (selectedBudget) {
       const updated = allBudgets.find(b => b.id === selectedBudget.id);
@@ -387,14 +388,6 @@ const EvidenceTemplates = ({ budgets: allBudgets, onUpdate }: EvidenceTemplatesP
   useEffect(() => {
     localStorage.setItem('rkas_ai_evidence_cache', JSON.stringify(aiCache));
   }, [aiCache]);
-
-  useEffect(() => {
-    if (selectedGroup) {
-      handleProcessAi(selectedGroup);
-    } else {
-      setSuggestedEvidence([]);
-    }
-  }, [selectedGroup]);
 
   const handleProcessAi = async (group: any) => {
     // Combine descriptions for context
