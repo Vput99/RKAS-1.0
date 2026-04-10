@@ -2413,7 +2413,7 @@ const EvidenceTemplates = ({ budgets: allBudgets, onUpdate }: EvidenceTemplatesP
                         <span className="text-xs font-black text-slate-700 tracking-wider uppercase">{monthName}</span>
                         <span className="text-[10px] font-black text-slate-400 bg-white px-2 py-1 rounded-lg border border-slate-100">{groups.length} Transaksi</span>
                       </div>
-                      <div className="space-y-3">
+                      <div className="grid grid-cols-2 gap-3">
                         {groups.map(group => (
                           <button
                             key={group.key}
