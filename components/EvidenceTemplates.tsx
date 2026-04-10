@@ -82,13 +82,13 @@ const getEvidenceList = (description: string, accountCode?: string): string[] =>
 
   if (text.includes('perjalanan') || text.includes('dinas') || text.includes('transport') || text.includes('sppd')) {
     return [
-      "Surat Tugas (Ditandatangani Kepala Sekolah)",
-      "SPPD (Surat Perintah Perjalanan Dinas) - Lengkap Cap Instansi Tujuan",
+      "Surat Undangan",
+      "Surat Tugas",
+      "SPPD (Surat Perintah Perjalanan Dinas)",
       "Laporan Hasil Perjalanan Dinas (Tuntas)",
-      "Daftar Pengeluaran Riil (Format Lampiran BOSP)",
-      "Tiket / Bukti Transportasi Riil / Boarding Pass",
-      "Nota BBM (Jika menggunakan kendaraan pribadi/sewa)",
-      "Kuitansi / Bill Hotel (Jika Menginap)"
+      "Bukti Transfer Bank ke Rekening Penerima (Prioritas CMS/Non-Tunai)",
+      "Bukti Setor Pajak PPh 21 (Kode Billing & NTPN)",
+      "Foto Kegiatan"
     ];
   }
 

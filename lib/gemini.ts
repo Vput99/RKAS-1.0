@@ -362,7 +362,7 @@ export const suggestEvidenceList = async (description: string, accountCode: stri
       1. Bukti Pembayaran (Minimal 1, Maksimal 3 Bukti) 
 
       ATURAN KHUSUS PEMBAYARAN SPPD DALAM DAERAH :
-      Jika pengeluaran adalah SPPD Dalam Daerah, Anda WAJIB memberikan DAFTAR HANYA 1 poin ini:
+      Jika pengeluaran adalah SPPD Dalam Daerah, Anda WAJIB memberikan DAFTAR PASTI 7 poin berikut ini:
       1. Surat Undangan 
       2. Surat Tugas
       3. SPPD (Surat Perintah Perjalanan Dinas)
