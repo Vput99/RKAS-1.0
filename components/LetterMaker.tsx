@@ -9,6 +9,9 @@ import {
 import jsPDF from 'jspdf';
 import { getSchoolProfile, getLetterAgreements, saveLetterAgreement, deleteLetterAgreement, updateLetterAgreement } from '../lib/db';
 import { SchoolProfile, LetterAgreement } from '../types';
+import HonorariumForm from './HonorariumForm';
+import UpahTukangForm from './UpahTukangForm';
+import RoolstaatForm from './RoolstaatForm';
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 const fmt = (n: number) => new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', maximumFractionDigits: 0 }).format(n);
@@ -527,7 +530,7 @@ const FormSection = ({ title, children }: { title: string; children: React.React
 
 // ─── Main Component ───────────────────────────────────────────────────────────
 const LetterMaker = ({ schoolProfile: propProfile }: { schoolProfile?: SchoolProfile | null }) => {
-  const [activeTab, setActiveTab] = useState<'list' | 'form-ekskul' | 'form-tukang'>('list');
+  const [activeTab, setActiveTab] = useState<'list' | 'form-ekskul' | 'form-tukang' | 'form-honor' | 'form-upah-tukang' | 'form-roolstaat'>('list');
   const [letters, setLetters] = useState<LetterAgreement[]>([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -823,6 +826,24 @@ const LetterMaker = ({ schoolProfile: propProfile }: { schoolProfile?: SchoolPro
           >
             <HardHat size={16} /> SPK Tukang
           </button>
+          <button
+            onClick={() => setActiveTab('form-honor')}
+            className="flex items-center gap-2 px-4 py-2.5 bg-gradient-to-r from-green-500 to-emerald-600 text-white rounded-xl font-bold text-sm shadow-lg shadow-green-500/20 hover:shadow-xl hover:-translate-y-0.5 transition-all"
+          >
+            <FileText size={16} /> Daftar Honor Ekskul
+          </button>
+          <button
+            onClick={() => setActiveTab('form-upah-tukang')}
+            className="flex items-center gap-2 px-4 py-2.5 bg-gradient-to-r from-amber-500 to-orange-500 text-white rounded-xl font-bold text-sm shadow-lg shadow-amber-500/20 hover:shadow-xl hover:-translate-y-0.5 transition-all"
+          >
+            <HardHat size={16} /> Daftar Upah Tukang
+          </button>
+          <button
+            onClick={() => setActiveTab('form-roolstaat')}
+            className="flex items-center gap-2 px-4 py-2.5 bg-gradient-to-r from-sky-500 to-blue-600 text-white rounded-xl font-bold text-sm shadow-lg shadow-sky-500/20 hover:shadow-xl hover:-translate-y-0.5 transition-all"
+          >
+            <Calendar size={16} /> Roolstaat (Absen)
+          </button>
         </div>
       </div>
 
@@ -957,6 +978,30 @@ const LetterMaker = ({ schoolProfile: propProfile }: { schoolProfile?: SchoolPro
         {activeTab === 'list' && <motion.div key="list">{renderList()}</motion.div>}
         {activeTab === 'form-ekskul' && <motion.div key="ekskul">{renderForm('ekstrakurikuler')}</motion.div>}
         {activeTab === 'form-tukang' && <motion.div key="tukang">{renderForm('tukang')}</motion.div>}
+        {activeTab === 'form-honor' && (
+          <motion.div key="honor">
+            <HonorariumForm
+              profile={profile}
+              onBack={() => setActiveTab('list')}
+            />
+          </motion.div>
+        )}
+        {activeTab === 'form-upah-tukang' && (
+          <motion.div key="upah-tukang">
+            <UpahTukangForm
+              profile={profile}
+              onBack={() => setActiveTab('list')}
+            />
+          </motion.div>
+        )}
+        {activeTab === 'form-roolstaat' && (
+          <motion.div key="roolstaat">
+            <RoolstaatForm
+              profile={profile}
+              onBack={() => setActiveTab('list')}
+            />
+          </motion.div>
+        )}
       </AnimatePresence>
     </div>
   );

@@ -321,3 +321,121 @@ export interface LetterAgreement {
 
     notes?: string;
 }
+
+// ─── Daftar Penerimaan Honorarium Ekstra Kurikuler ───────────────────────────
+
+export interface HonorRow {
+    no: number;
+    nama: string;
+    jabatan: string;
+    gol: string;
+    satuan: string;         // misal: "Jam/bulan"
+    jam: number;            // jumlah jam
+    jumlah: number;         // honor bruto (jam × satuan harga)
+    potongan_pph: number;   // PPh Pasal 21
+    penerimaan: number;     // jumlah - potongan
+}
+
+export interface HonorariumDaftar {
+    id: string;
+    created_at?: string;
+    user_id?: string;
+
+    // Header surat
+    kode_rekening: string;
+    no_bukti: string;
+    kegiatan_name: string;    // Nama kegiatan ekskul
+    bulan: string;            // Nama bulan
+    tahun: string;            // Tahun anggaran
+
+    // Data sekolah
+    school_name: string;
+    school_address: string;
+    city: string;             // Kota (untuk TTD)
+    tanggal_ttd: string;      // Tanggal surat
+
+    // TTD
+    kepala_sekolah: string;
+    kepala_sekolah_nip: string;
+    bendahara: string;
+    bendahara_nip: string;
+
+    // Daftar penerima
+    rows: HonorRow[];
+}
+
+// ─── Daftar Penerimaan Upah Tukang ───────────────────────────────────────────
+
+export interface UpahTukangRow {
+    no: number;
+    nama: string;
+    kedudukan: string;      // Mandor / Tukang / Kuli, dll.
+    gol: string;
+    hari: number;           // Jumlah hari kerja
+    tarif: number;          // Tarif per hari (Rp)
+    honorarium: number;     // hari × tarif (auto-hitung)
+    potongan_pph: number;   // PPh Pasal 21
+    penerimaan: number;     // honorarium − potongan
+}
+
+export interface UpahTukangDaftar {
+    id: string;
+    created_at?: string;
+    user_id?: string;
+
+    // Header
+    kode_rekening: string;
+    no_bukti: string;
+    kegiatan_name: string;   // KEGIATAN PEMELIHARAAN ...
+    tahun: string;
+
+    // Data sekolah / TTD
+    school_name: string;
+    school_address: string;
+    city: string;
+    tanggal_ttd: string;
+
+    kepala_sekolah: string;
+    kepala_sekolah_nip: string;
+    bendahara: string;
+    bendahara_nip: string;
+
+    // Daftar penerima
+    rows: UpahTukangRow[];
+}
+
+// ─── Daftar Presensi (Roolstaat) Tukang ───────────────────────────────────────────
+
+export interface RoolstaatRow {
+    no: number;
+    nama: string;
+    pekerjaan: string;
+    kehadiran: boolean[];   // Array of length 31 for days 1-31
+    hari_kerja: number;
+    upah_per_hari: number;
+    upah_total: number;
+    keterangan: string;
+}
+
+export interface RoolstaatDaftar {
+    id: string;
+    created_at?: string;
+    user_id?: string;
+
+    kegiatan_name: string;
+    bulan: string;
+    tahun: string;
+
+    school_name: string;
+    school_address: string;
+    city: string;
+    tanggal_ttd: string;
+
+    kepala_sekolah: string;
+    kepala_sekolah_nip: string;
+
+    rows: RoolstaatRow[];
+}
+
+
+
