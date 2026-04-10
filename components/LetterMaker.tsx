@@ -4,7 +4,7 @@ import {
   FileSignature, Trash2, Printer, X,
   Users, HardHat, Search, CheckCircle2, FilePen,
   Calendar, Hash, DollarSign, AlertCircle,
-  Save, Loader2, FileText
+  Save, Loader2, FileText, Download
 } from 'lucide-react';
 import jsPDF from 'jspdf';
 import { getSchoolProfile, getLetterAgreements, saveLetterAgreement, deleteLetterAgreement, updateLetterAgreement } from '../lib/db';
@@ -597,6 +597,30 @@ const LetterMaker = ({ schoolProfile: propProfile }: { schoolProfile?: SchoolPro
     else generateTukangPDF(letter);
   };
 
+  // Export data surat sebagai JSON untuk diproses script Python (generate_spk.py)
+  const handleExportJSON = (letter: LetterAgreement) => {
+    const json = JSON.stringify(letter, null, 2);
+    const blob = new Blob([json], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `SPK_${letter.type}_${(letter.party_name || 'data').replace(/\s+/g, '_')}.json`;
+    a.click();
+    URL.revokeObjectURL(url);
+  };
+
+  const handleExportCurrentFormJSON = () => {
+    if (!form.party_name?.trim()) { alert('Isi Nama Pihak Kedua terlebih dahulu.'); return; }
+    const json = JSON.stringify(form, null, 2);
+    const blob = new Blob([json], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `SPK_${form.type || 'surat'}_${(form.party_name || 'data').replace(/\s+/g, '_')}.json`;
+    a.click();
+    URL.revokeObjectURL(url);
+  };
+
   const filtered = letters.filter(l => {
     const matchSearch = l.party_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
       l.activity_description?.toLowerCase().includes(searchTerm.toLowerCase());
@@ -740,9 +764,16 @@ const LetterMaker = ({ schoolProfile: propProfile }: { schoolProfile?: SchoolPro
       </div>
 
       {/* Actions */}
-      <div className="flex gap-3 justify-end pt-2">
+      <div className="flex gap-3 justify-end pt-2 flex-wrap">
         <button onClick={() => setActiveTab('list')} className="px-5 py-2.5 rounded-xl border border-slate-200 text-slate-600 font-semibold hover:bg-slate-50 transition-all text-sm">
           Batal
+        </button>
+        <button
+          onClick={handleExportCurrentFormJSON}
+          title="Export data ke JSON untuk dicetak via Python ReportLab (format lebih profesional)"
+          className="px-4 py-2.5 rounded-xl border border-emerald-300 text-emerald-700 font-bold hover:bg-emerald-50 transition-all text-sm flex items-center gap-2"
+        >
+          <Download size={15} /> Export JSON (Python)
         </button>
         <button
           onClick={async () => {
@@ -890,8 +921,11 @@ const LetterMaker = ({ schoolProfile: propProfile }: { schoolProfile?: SchoolPro
                   <button onClick={() => handleEdit(letter)} title="Edit" className="p-2 rounded-xl hover:bg-indigo-50 text-slate-400 hover:text-indigo-600 transition-colors">
                     <FilePen size={15} />
                   </button>
-                  <button onClick={() => handlePrint(letter)} title="Cetak PDF" className="p-2 rounded-xl hover:bg-emerald-50 text-slate-400 hover:text-emerald-600 transition-colors">
+                  <button onClick={() => handlePrint(letter)} title="Cetak PDF (jsPDF)" className="p-2 rounded-xl hover:bg-emerald-50 text-slate-400 hover:text-emerald-600 transition-colors">
                     <Printer size={15} />
+                  </button>
+                  <button onClick={() => handleExportJSON(letter)} title="Export JSON untuk Python ReportLab" className="p-2 rounded-xl hover:bg-teal-50 text-slate-400 hover:text-teal-600 transition-colors">
+                    <Download size={15} />
                   </button>
                   <button onClick={() => handleDelete(letter.id)} title="Hapus" className="p-2 rounded-xl hover:bg-rose-50 text-slate-400 hover:text-rose-500 transition-colors">
                     <Trash2 size={15} />
