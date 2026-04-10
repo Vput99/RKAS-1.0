@@ -22,13 +22,12 @@ const getEvidenceList = (description: string, accountCode?: string): string[] =>
   if (text.includes('honor') || text.includes('gaji') || text.includes('jasa narasumber') || text.includes('instruktur') || text.includes('pembina') || accCode.startsWith('5.1.') || text.includes('jasa profesi')) {
     return [
       "SK Penetapan / Surat Tugas dari Kepala Sekolah (Tahun Anggaran Berjalan)",
-      "Surat Perjanjian Kerja (SPK) Jasa Perorangan",
       "Daftar Hadir / Absensi Rekapitulasi Pokok",
-      "Laporan Pelaksanaan Tugas / Hasil Pekerjaan",
       "Daftar Tanda Terima Honorarium (Bruto, Pajak, Netto)",
       "Bukti Transfer Bank ke Rekening Penerima (Prioritas CMS/Non-Tunai)",
       "Bukti Setor Pajak PPh 21 (Kode Billing & NTPN)",
-      "Fotokopi KTP & NPWP Penerima Jasa"
+      "Fotokopi KTP & NPWP Penerima Jasa",
+      "Foto Kegiatan"
     ];
   }
 
@@ -95,9 +94,7 @@ const getEvidenceList = (description: string, accountCode?: string): string[] =>
 
   if ((text.includes('listrik') && !text.includes('alat')) || text.includes('air') || text.includes('internet') || text.includes('langganan') || text.includes('telepon') || text.includes('wifi')) {
     return [
-      "Invoice / Tagihan Resmi Penyedia (PLN/Telkom/PDAM)",
-      "Bukti Pembayaran Valid (Struk Bank / NTPN / Bukti Transfer e-Channel)",
-      "Bukti Transaksi Marketplace (Jika bayar via Tokopedia/Shopee/dll)"
+      "Bukti Pembayaran (Minimal 1, Maksimal 3 Bukti)"
     ];
   }
 

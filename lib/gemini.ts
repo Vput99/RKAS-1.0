@@ -213,7 +213,7 @@ export const analyzeBudgetEntry = async (description: string, availableAccounts:
 
     // Use stable Gemini model for budget analysis
     const response = await ai.models.generateContent({
-      model: 'gemini-1.5-flash', 
+      model: 'gemini-1.5-flash',
       contents: description,
       config: {
         systemInstruction: `Anda adalah Auditor Senior BOSP & Ahli Implementasi ARKAS (Indonesia).
@@ -342,6 +342,33 @@ export const suggestEvidenceList = async (description: string, accountCode: stri
       7. Foto Dokumentasi Barang Terkirim (Fisik di Sekolah)
       8. Fotokopi Pencatatan di Buku Persediaan / KIB
       9. Kuitansi Manual Sekolah (Sebagai pendukung jika diperlukan)
+
+      ATURAN KHUSUS HONORARIUM / JASA:
+      Jika pengeluaran adalah Honor, Gaji, Jasa Narasumber, Ekstrakurikuler, PSS, dll, Anda WAJIB memberikan DAFTAR PASTi berikut HANYA 7 poin:
+      1. SK Penetapan / Surat Tugas dari Kepala Sekolah (Tahun Anggaran Berjalan)
+      2. Daftar Hadir / Absensi Rekapitulasi Pokok
+      3. Daftar Tanda Terima Honorarium (Bruto, Pajak, Netto)
+      4. Bukti Transfer Bank ke Rekening Penerima (Prioritas CMS/Non-Tunai)
+      5. Bukti Setor Pajak PPh 21 (Kode Billing & NTPN)
+      6. Fotokopi KTP & NPWP Penerima Jasa
+      7. Foto Kegiatan
+
+      ATURAN KHUSUS LISTRIK / LANGGANAN DAYA:
+      Jika pengeluaran adalah Listrik, Air, Telepon, Internet, Anda WAJIB memberikan DAFTAR HANYA 1 poin ini:
+      1. Bukti Pembayaran (Minimal 1, Maksimal 3 Bukti)
+
+      ATURAN KHUSUS PEMBAYARAN RETRIBUSI SAMPAH :
+      Jika pengeluaran adalah Retribusi Sampah, Anda WAJIB memberikan DAFTAR HANYA 1 poin ini:
+      1. Bukti Pembayaran (Minimal 1, Maksimal 3 Bukti) 
+
+      ATURAN KHUSUS PEMBAYARAN SPPD DALAM DAERAH :
+      Jika pengeluaran adalah SPPD Dalam Daerah, Anda WAJIB memberikan DAFTAR HANYA 1 poin ini:
+      1. Surat Undangan 
+      2. Surat Tugas
+      3. SPPD (Surat Perintah Perjalanan Dinas) - Lengkap Cap Instansi Tujuan
+      4. Laporan Hasil Perjalanan Dinas (Tuntas)
+      5. Bukti Transfer Bank ke Rekening Penerima (Prioritas CMS/Non-Tunai)
+
 
       Input Pengeluaran: "${description}"
       Kode Rekening: "${accountCode}"
@@ -597,8 +624,8 @@ export const analyzeInventoryItems = async (budgets: any[]): Promise<InventoryIt
   if (!ai) return [];
 
   // Filter only relevant budgets (expenses with realizations)
-  const relevantBudgets = budgets.filter(b => 
-    b.type === 'belanja' && 
+  const relevantBudgets = budgets.filter(b =>
+    b.type === 'belanja' &&
     b.realizations && b.realizations.length > 0 &&
     (b.account_code?.startsWith('5.1.01') || b.account_code?.startsWith('5.1.02.01') || b.account_code?.startsWith('5.2.02'))
   );
