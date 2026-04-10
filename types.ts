@@ -265,3 +265,59 @@ export interface WithdrawalHistory {
     file_url?: string;
     file_path?: string;
 }
+
+export type LetterType = 'ekstrakurikuler' | 'tukang';
+
+export interface PaymentScheduleItem {
+    month: string;
+    amount: number;
+    description: string;
+}
+
+export interface LetterAgreement {
+    id: string;
+    created_at?: string;
+    user_id?: string;
+
+    // Jenis Surat
+    type: LetterType;
+    status: 'draft' | 'final';
+
+    // Nomor & Tanggal
+    letter_number: string;
+    letter_date: string;
+    fiscal_year: string;
+
+    // Data Sekolah (Pihak Pertama)
+    school_name: string;
+    school_address: string;
+    headmaster: string;
+    headmaster_nip: string;
+
+    // Data Pihak Kedua (Tenaga / Tukang)
+    party_name: string;
+    party_address: string;
+    party_nik: string;
+    party_npwp?: string;
+
+    // Detail Pekerjaan / Kegiatan
+    activity_description: string;  // Nama kegiatan ekskul / jenis pekerjaan rehab
+    activity_location?: string;    // Lokasi pekerjaan (untuk tukang)
+    start_date: string;
+    end_date: string;
+
+    // Keuangan
+    total_amount: number;
+    payment_schedule?: PaymentScheduleItem[];
+
+    // Khusus Ekskul
+    schedule_description?: string;  // Jadwal kegiatan ekskul (misal: Sabtu 08.00-10.00)
+    student_count?: number;         // Jumlah siswa
+
+    // Khusus Tukang
+    work_volume?: string;           // Volume pekerjaan (misal: 20 m²)
+    rab_total?: number;             // RAB Total material
+    work_guarantee?: string;        // Jaminan pekerjaan (misal: 6 bulan)
+
+    notes?: string;
+}

@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef, lazy, Suspense, memo } from 'react';
-import { LayoutDashboard, Wallet, FileCheck, Settings as SettingsIcon, Menu, User, BookOpen, FileBarChart, LogOut, Download, Share, PlusSquare, X, School, TrendingUp, Landmark, FileText, ShoppingBag } from 'lucide-react';
+import { LayoutDashboard, Wallet, FileCheck, Settings as SettingsIcon, Menu, User, BookOpen, FileBarChart, LogOut, Download, Share, PlusSquare, X, School, TrendingUp, Landmark, FileText, ShoppingBag, FilePenLine } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 
 // Code Splitting - Lazy Load heavy components
@@ -16,13 +16,14 @@ const EvidenceTemplates = lazy(() => import('./components/EvidenceTemplates'));
 const InventoryReports = lazy(() => import('./components/InventoryReports'));
 const BKU = lazy(() => import('./components/BKU'));
 const SystemMonitor = lazy(() => import('./components/SystemMonitor'));
+const LetterMaker = lazy(() => import('./components/LetterMaker'));
 
 import Auth from './components/Auth';
 import { getBudgets, addBudget, updateBudget, deleteBudget, getSchoolProfile, checkDatabaseConnection, clearLocalData } from './lib/db';
 import { supabase } from './lib/supabase';
 import { Budget, TransactionType, SchoolProfile } from './types';
 
-type AppTab = 'dashboard' | 'income' | 'planning' | 'spj' | 'reports' | 'rapor' | 'settings' | 'withdrawal' | 'evidence' | 'inventory' | 'bku';
+type AppTab = 'dashboard' | 'income' | 'planning' | 'spj' | 'reports' | 'rapor' | 'settings' | 'withdrawal' | 'evidence' | 'inventory' | 'bku' | 'letters';
 
 // Memoized NavItem to prevent unnecessary re-renders
 const NavItem = memo(({ 
@@ -72,9 +73,9 @@ function App() {
   const [isStandalone, setIsStandalone] = useState(false);
 
   // App State - Initialize from LocalStorage to persist state on reload
-  const [activeTab, setActiveTab] = useState<'dashboard' | 'income' | 'planning' | 'spj' | 'reports' | 'rapor' | 'settings' | 'withdrawal' | 'evidence' | 'inventory' | 'bku'>(() => {
+  const [activeTab, setActiveTab] = useState<'dashboard' | 'income' | 'planning' | 'spj' | 'reports' | 'rapor' | 'settings' | 'withdrawal' | 'evidence' | 'inventory' | 'bku' | 'letters'>(() => {
       const savedTab = localStorage.getItem('rkas_active_tab');
-      const validTabs = ['dashboard', 'income', 'planning', 'spj', 'reports', 'rapor', 'settings', 'withdrawal', 'evidence', 'inventory', 'bku'];
+      const validTabs = ['dashboard', 'income', 'planning', 'spj', 'reports', 'rapor', 'settings', 'withdrawal', 'evidence', 'inventory', 'bku', 'letters'];
       return (savedTab && validTabs.includes(savedTab)) ? (savedTab as any) : 'dashboard';
   });
 
@@ -300,6 +301,7 @@ function App() {
               <NavItem id="spj" label="Pencatatan SPJ" icon={FileCheck} activeTab={activeTab} isSidebarOpen={isSidebarOpen} onSelect={(id: AppTab) => { setActiveTab(id); if (window.innerWidth < 1024) setSidebarOpen(false); }} />
               <NavItem id="evidence" label="Manajemen Bukti" icon={FileText} activeTab={activeTab} isSidebarOpen={isSidebarOpen} onSelect={(id: AppTab) => { setActiveTab(id); if (window.innerWidth < 1024) setSidebarOpen(false); }} />
               <NavItem id="inventory" label="Stok Opname" icon={ShoppingBag} activeTab={activeTab} isSidebarOpen={isSidebarOpen} onSelect={(id: AppTab) => { setActiveTab(id); if (window.innerWidth < 1024) setSidebarOpen(false); }} />
+              <NavItem id="letters" label="Pembuat Surat" icon={FilePenLine} activeTab={activeTab} isSidebarOpen={isSidebarOpen} onSelect={(id: AppTab) => { setActiveTab(id); if (window.innerWidth < 1024) setSidebarOpen(false); }} />
               
               <div className={`pt-6 pb-2 px-4 transition-all duration-300 ${!isSidebarOpen ? 'lg:hidden' : ''}`}>
                  <span className="text-[10px] font-black text-slate-400 uppercase tracking-[0.25em]">Pelaporan Resmi</span>
@@ -363,9 +365,10 @@ function App() {
               <Menu size={24} />
             </button>
             <h2 className="text-xl font-bold text-slate-800 hidden md:block capitalize tracking-tight">
-              {activeTab === 'spj' ? 'Pencatatan SPJ' : 
+              {activeTab === 'spj' ? 'Pencatatan SPJ' :
                activeTab === 'bku' ? 'Buku Kas Umum' :
                activeTab === 'inventory' ? 'Stok Opname' :
+               activeTab === 'letters' ? 'Pembuat Surat (MOU/SPK)' :
                activeTab.replace('-', ' ')}
             </h2>
           </div>
@@ -430,6 +433,7 @@ function App() {
                         {activeTab === 'reports' && <Reports data={data} />}
                         {activeTab === 'inventory' && <InventoryReports budgets={data} schoolProfile={schoolProfile!} />}
                         {activeTab === 'bku' && <BKU data={data} profile={schoolProfile} onBack={() => setActiveTab('dashboard')} />}
+                        {activeTab === 'letters' && <LetterMaker schoolProfile={schoolProfile} />}
                         {activeTab === 'settings' && <Settings onProfileUpdate={(updated) => setSchoolProfile(updated)} />}
                       </motion.div>
                     </Suspense>
