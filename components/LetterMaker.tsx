@@ -69,262 +69,438 @@ const defaultForm = (profile: SchoolProfile | null, type: 'ekstrakurikuler' | 't
   };
 };
 
-// ─── PDF Generator: Ekskul ────────────────────────────────────────────────────
+
+// ─── SHARED: KOP SURAT ────────────────────────────────────────────────────────
+const drawKopSurat = (doc: any, data: LetterAgreement) => {
+  const pw = doc.internal.pageSize.getWidth();
+  const margin = 20;
+
+  // Garis tebal atas KOP
+  doc.setLineWidth(1.2);
+  doc.line(margin, 8, pw - margin, 8);
+
+  // Logo placeholder (lingkaran kecil di kiri)
+  doc.setLineWidth(0.3);
+  doc.circle(margin + 8, 22, 8);
+  doc.setFontSize(5);
+  doc.setFont('helvetica', 'normal');
+  doc.text('LOGO', margin + 8, 22.5, { align: 'center' });
+
+  // Teks KOP di tengah
+  const cx = pw / 2 + 5;
+
+  // Baris 1: PEMERINTAH KABUPATEN/KOTA (ambil dari alamat jika ada)
+  const cityPart = (data.school_address || '').split(',').length > 1
+    ? (data.school_address || '').split(',').slice(-2, -1)[0]?.trim().toUpperCase()
+    : 'KABUPATEN / KOTA';
+  doc.setFontSize(9);
+  doc.setFont('helvetica', 'normal');
+  doc.text(`PEMERINTAH ${cityPart || 'KABUPATEN/KOTA'}`, cx, 13, { align: 'center' });
+
+  // Baris 2: DINAS PENDIDIKAN
+  doc.setFontSize(9);
+  doc.text('DINAS PENDIDIKAN DAN KEBUDAYAAN', cx, 18, { align: 'center' });
+
+  // Baris 3: NAMA SEKOLAH (besar & bold)
+  doc.setFontSize(14);
+  doc.setFont('helvetica', 'bold');
+  doc.text((data.school_name || 'NAMA SEKOLAH').toUpperCase(), cx, 25, { align: 'center' });
+
+  // Baris 4: Alamat
+  doc.setFontSize(8);
+  doc.setFont('helvetica', 'normal');
+  const alamat = data.school_address || 'Alamat Sekolah';
+  doc.text(`Alamat: ${alamat}`, cx, 31, { align: 'center' });
+
+  // Garis TEBAL bawah KOP — double line standar surat resmi
+  doc.setLineWidth(1.5);
+  doc.line(margin, 36, pw - margin, 36);
+  doc.setLineWidth(0.4);
+  doc.line(margin, 38, pw - margin, 38);
+
+  return 44; // y setelah kop
+};
+
+// ─── SHARED: Pasal Helper ─────────────────────────────────────────────────────
+const drawPasal = (doc: any, no: string, judul: string, isi: string[], margin: number, pw: number, yRef: { y: number }) => {
+  const LINE = 5.5;
+  if (yRef.y > 252) { doc.addPage(); drawKopSurat(doc, {} as any); yRef.y = 44; }
+
+  doc.setFontSize(10.5);
+  doc.setFont('times', 'bold');
+  doc.text(`Pasal ${no}`, margin, yRef.y); yRef.y += LINE;
+  doc.text(judul, margin, yRef.y); yRef.y += LINE + 2;
+
+  doc.setFont('times', 'normal');
+  doc.setFontSize(10);
+  isi.forEach((line, idx) => {
+    if (yRef.y > 270) { doc.addPage(); doc.setFont('times', 'normal'); doc.setFontSize(10); yRef.y = 25; }
+    const prefix = isi.length > 1 ? `${idx + 1}. ` : '';
+    const wrapped = doc.splitTextToSize(prefix + line, pw - margin * 2);
+    doc.text(wrapped, margin, yRef.y);
+    yRef.y += wrapped.length * LINE + 1.5;
+  });
+  yRef.y += 5;
+};
+
+// ─── PDF Generator: Ekskul (Format Surat Resmi) ──────────────────────────────
 const generateEkskulPDF = (data: LetterAgreement) => {
   const doc = new jsPDF('p', 'mm', 'a4');
   const pw = doc.internal.pageSize.getWidth();
   const margin = 20;
-  let y = 20;
-  const LINE = 6;
+  const LINE = 5.5;
 
-  const center = (text: string, yy: number, size = 11) => {
-    doc.setFontSize(size);
-    doc.text(text, pw / 2, yy, { align: 'center' });
-  };
-  const row = (label: string, val: string, yy: number) => {
-    doc.setFont('helvetica', 'bold');
+  // KOP SURAT
+  let y = drawKopSurat(doc, data);
+
+  // ── JUDUL SURAT dalam KOTAK ──
+  doc.setLineWidth(0.5);
+  doc.rect(margin, y, pw - margin * 2, 22);
+  doc.setFontSize(13);
+  doc.setFont('times', 'bold');
+  doc.text('SURAT PERJANJIAN KERJA (MOU)', pw / 2, y + 7, { align: 'center' });
+  doc.setFontSize(11);
+  doc.text('TENAGA PELAKSANA KEGIATAN EKSTRAKURIKULER', pw / 2, y + 13.5, { align: 'center' });
+  doc.setFontSize(10);
+  doc.text(`TAHUN PELAJARAN ${data.fiscal_year}`, pw / 2, y + 19.5, { align: 'center' });
+  y += 27;
+
+  // ── NOMOR SURAT ──
+  doc.setFont('times', 'normal');
+  doc.setFontSize(10.5);
+  doc.text(`Nomor : ${data.letter_number || '...'}`, margin, y);
+  y += 10;
+
+  // ── PEMBUKA ──
+  doc.setFont('times', 'normal');
+  const pembuka = `Pada hari ini, ${fmtDate(data.letter_date)}, yang bertanda tangan di bawah ini:`;
+  const wrPembuka = doc.splitTextToSize(pembuka, pw - margin * 2);
+  doc.text(wrPembuka, margin, y);
+  y += wrPembuka.length * LINE + 5;
+
+  // ── PIHAK PERTAMA ──
+  const drawPihak = (label: string, rows: [string, string][], catatan: string) => {
+    doc.setFont('times', 'bold');
+    doc.setFontSize(10.5);
+    doc.text(label, margin, y); y += LINE + 1;
+
+    const colLabel = margin + 5;
+    const colColon = margin + 52;
+    const colVal = margin + 55;
+
     doc.setFontSize(10);
-    doc.text(label, margin, yy);
-    doc.text(':', margin + 55, yy);
-    doc.setFont('helvetica', 'normal');
-    const lines = doc.splitTextToSize(val, 100);
-    doc.text(lines, margin + 58, yy);
-    return lines.length * LINE;
-  };
-
-  // Header
-  doc.setLineWidth(0.8);
-  doc.rect(margin - 5, 10, pw - (margin - 5) * 2, 25);
-  doc.setFont('helvetica', 'bold');
-  center('SURAT PERJANJIAN KERJA (MOU)', y, 13);
-  center('TENAGA PELAKSANA KEGIATAN EKSTRAKURIKULER', y + 7, 11);
-  center(`TAHUN PELAJARAN ${data.fiscal_year}`, y + 13, 10);
-  y += 30;
-
-  doc.setFontSize(10);
-  doc.setFont('helvetica', 'normal');
-  doc.text(`Nomor : ${data.letter_number}`, margin, y); y += 10;
-
-  doc.text('Pada hari ini, ' + fmtDate(data.letter_date) + ', yang bertanda tangan di bawah ini:', margin, y, { maxWidth: pw - margin * 2 }); y += 10;
-
-  // Pihak I
-  doc.setFont('helvetica', 'bold');
-  doc.text('PIHAK PERTAMA :', margin, y); y += LINE;
-  doc.setFont('helvetica', 'normal');
-  y += row('N a m a', data.headmaster, y);
-  y += row('N I P', data.headmaster_nip || '-', y);
-  y += row('Jabatan', 'Kepala Sekolah', y);
-  y += row('Unit Kerja', data.school_name, y);
-  doc.text('Selanjutnya disebut sebagai PIHAK PERTAMA.', margin, y + 2); y += 10;
-
-  // Pihak II
-  doc.setFont('helvetica', 'bold');
-  doc.text('PIHAK KEDUA :', margin, y); y += LINE;
-  doc.setFont('helvetica', 'normal');
-  y += row('N a m a', data.party_name, y);
-  y += row('N I K', data.party_nik || '-', y);
-  y += row('Alamat', data.party_address, y);
-  if (data.party_npwp) { y += row('N P W P', data.party_npwp, y); }
-  doc.text('Selanjutnya disebut sebagai PIHAK KEDUA.', margin, y + 2); y += 12;
-
-  doc.text('Kedua belah pihak telah sepakat untuk mengadakan Perjanjian Kerja dengan ketentuan:', margin, y, { maxWidth: pw - margin * 2 }); y += 10;
-
-  // Pasal-pasal
-  const pasal = (no: string, judul: string, isi: string[]) => {
-    if (y > 250) { doc.addPage(); y = 20; }
-    doc.setFont('helvetica', 'bold');
-    doc.text(`Pasal ${no}`, margin, y); y += LINE - 1;
-    doc.text(judul, margin, y); y += LINE + 1;
-    doc.setFont('helvetica', 'normal');
-    isi.forEach(line => {
-      if (y > 270) { doc.addPage(); y = 20; }
-      const wrapped = doc.splitTextToSize(line, pw - margin * 2);
-      doc.text(wrapped, margin, y);
-      y += wrapped.length * (LINE - 0.5) + 2;
+    rows.forEach(([k, v]) => {
+      doc.setFont('times', 'bold');
+      doc.text(k, colLabel, y);
+      doc.text(':', colColon, y);
+      doc.setFont('times', 'normal');
+      const wv = doc.splitTextToSize(v || '-', pw - colVal - margin);
+      doc.text(wv, colVal, y);
+      y += wv.length * LINE;
     });
-    y += 3;
+
+    doc.setFont('times', 'normal');
+    doc.text(`Selanjutnya disebut sebagai `, margin, y + 2);
+    doc.setFont('times', 'bold');
+    doc.text(catatan + '.', margin + doc.getTextWidth('Selanjutnya disebut sebagai '), y + 2);
+    y += LINE + 5;
   };
 
-  pasal('1', 'RUANG LINGKUP PEKERJAAN', [
+  drawPihak('PIHAK PERTAMA :', [
+    ['N a m a', data.headmaster],
+    ['N I P', data.headmaster_nip || '-'],
+    ['Jabatan', 'Kepala Sekolah'],
+    ['Unit Kerja', data.school_name],
+  ], 'PIHAK PERTAMA');
+
+  drawPihak('PIHAK KEDUA :', [
+    ['N a m a', data.party_name],
+    ['N I K', data.party_nik || '-'],
+    ['Alamat', data.party_address || '-'],
+    ...(data.party_npwp ? [['N P W P', data.party_npwp] as [string, string]] : []),
+  ], 'PIHAK KEDUA');
+
+  // ── KALIMAT PENGHUBUNG ──
+  const penghubung = 'Kedua belah pihak telah sepakat untuk mengadakan Perjanjian Kerja dengan ketentuan sebagaimana diatur dalam pasal-pasal berikut:';
+  const wrPenghubung = doc.splitTextToSize(penghubung, pw - margin * 2);
+  doc.setFont('times', 'normal');
+  doc.text(wrPenghubung, margin, y);
+  y += wrPenghubung.length * LINE + 8;
+
+  // ── PASAL-PASAL ──
+  const yRef = { y };
+  drawPasal(doc, '1', 'RUANG LINGKUP PEKERJAAN', [
     `PIHAK PERTAMA menugaskan PIHAK KEDUA sebagai ${data.activity_description} di ${data.school_name}.`,
-    `Jadwal kegiatan: ${data.schedule_description || '-'}`,
-    `Jumlah peserta didik yang dibimbing: ± ${data.student_count || '-'} siswa.`,
-  ]);
-  pasal('2', 'JANGKA WAKTU', [
-    `Perjanjian ini berlaku mulai tanggal ${fmtDate(data.start_date)} sampai dengan ${fmtDate(data.end_date)}.`,
-    'Perjanjian dapat diperpanjang atas persetujuan kedua belah pihak.',
-  ]);
-  pasal('3', 'HONORARIUM', [
-    `Atas pelaksanaan tugas tersebut, PIHAK PERTAMA memberikan honorarium sebesar ${fmt(data.total_amount)} (${getTerbilang(data.total_amount)} Rupiah) per bulan.`,
-    'Pembayaran dilakukan setiap bulan setelah PIHAK KEDUA menyerahkan laporan pelaksanaan kegiatan.',
-    'Honorarium dikenakan Pajak Penghasilan (PPh Pasal 21) sesuai peraturan perpajakan yang berlaku.',
-  ]);
-  pasal('4', 'HAK DAN KEWAJIBAN PIHAK KEDUA', [
-    'Melaksanakan kegiatan ekstrakurikuler secara profesional dan tepat waktu.',
-    'Membuat jurnal kegiatan dan daftar hadir peserta setiap pertemuan.',
-    'Melaporkan perkembangan kegiatan kepada Kepala Sekolah secara berkala.',
-    'Menjaga kerahasiaan data dan informasi sekolah.',
-  ]);
-  pasal('5', 'PENGHENTIAN PERJANJIAN', [
-    'Perjanjian dapat diakhiri apabila PIHAK KEDUA tidak memenuhi kewajiban yang telah disepakati.',
-    'Penghentian perjanjian dilakukan dengan pemberitahuan tertulis minimal 14 (empat belas) hari sebelumnya.',
-  ]);
-  pasal('6', 'PENYELESAIAN PERSELISIHAN', [
-    'Segala perselisihan yang timbul dari perjanjian ini diselesaikan secara musyawarah mufakat.',
-  ]);
-  pasal('7', 'PENUTUP', [
-    'Perjanjian ini dibuat dalam rangkap 2 (dua), masing-masing bermaterai cukup dan mempunyai kekuatan hukum yang sama.',
-  ]);
+    `Jadwal pelaksanaan kegiatan: ${data.schedule_description || '-'}.`,
+    `Jumlah peserta didik yang dibimbing sementara: ± ${data.student_count || '-'} siswa.`,
+  ], margin, pw, yRef);
 
-  // Tanda Tangan
-  if (y > 230) { doc.addPage(); y = 20; }
-  y += 5;
-  doc.setFont('helvetica', 'normal');
-  doc.setFontSize(10);
-  const city = data.school_address?.split(',')[0] || 'Tempat';
-  doc.text(`${city}, ${fmtDate(data.letter_date)}`, pw / 2, y, { align: 'center' }); y += 10;
+  drawPasal(doc, '2', 'JANGKA WAKTU', [
+    `Perjanjian ini berlaku terhitung mulai tanggal ${fmtDate(data.start_date)} sampai dengan ${fmtDate(data.end_date)}.`,
+    'Perjanjian dapat diperpanjang atas dasar persetujuan tertulis dari kedua belah pihak.',
+  ], margin, pw, yRef);
 
-  const col1 = margin + 15;
-  const col2 = pw - margin - 15;
-  doc.text('PIHAK KEDUA,', col1, y, { align: 'center' });
-  doc.text('PIHAK PERTAMA,', col2, y, { align: 'center' }); y += 5;
-  doc.text('Yang Menerima Tugas', col1, y, { align: 'center' });
-  doc.text('Kepala Sekolah', col2, y, { align: 'center' }); y += 30;
-  doc.text(data.party_name, col1, y, { align: 'center' });
-  doc.text(data.headmaster, col2, y, { align: 'center' }); y += LINE;
-  doc.text(`NIK: ${data.party_nik || '...................'}`, col1, y, { align: 'center' });
-  doc.text(`NIP: ${data.headmaster_nip || '...................'}`, col2, y, { align: 'center' });
+  drawPasal(doc, '3', 'HONORARIUM', [
+    `PIHAK PERTAMA memberikan honorarium kepada PIHAK KEDUA sebesar ${fmt(data.total_amount)} (${getTerbilang(data.total_amount)} Rupiah) setiap bulan.`,
+    'Pembayaran dilakukan setiap bulan setelah PIHAK KEDUA menyerahkan laporan pelaksanaan kegiatan dan daftar hadir peserta kepada PIHAK PERTAMA.',
+    'Honorarium dikenakan Pajak Penghasilan (PPh Pasal 21) sesuai dengan peraturan perpajakan yang berlaku.',
+  ], margin, pw, yRef);
 
-  doc.save(`SPK_Ekskul_${data.party_name.replace(/\s+/g, '_')}.pdf`);
+  drawPasal(doc, '4', 'KEWAJIBAN PIHAK KEDUA', [
+    'Melaksanakan kegiatan ekstrakurikuler secara profesional, disiplin, dan bertanggung jawab sesuai jadwal yang telah ditetapkan.',
+    'Membuat jurnal kegiatan dan daftar hadir peserta setiap kali pertemuan dan menyerahkannya kepada PIHAK PERTAMA.',
+    'Melaporkan perkembangan kegiatan ekstrakurikuler secara berkala kepada Kepala Sekolah.',
+    'Menjaga nama baik, kerahasiaan data, dan informasi sekolah, serta tidak menyebarluaskan kepada pihak yang tidak berkepentingan.',
+    'Tidak menuntut diangkat sebagai Aparatur Sipil Negara (ASN) atau Pegawai Pemerintah dengan Perjanjian Kerja (PPPK).',
+  ], margin, pw, yRef);
+
+  drawPasal(doc, '5', 'LARANGAN', [
+    'PIHAK KEDUA dilarang merangkap jabatan yang menimbulkan konflik kepentingan.',
+    'PIHAK KEDUA dilarang melakukan tindakan yang dapat mencemarkan nama baik sekolah.',
+    'PIHAK KEDUA dilarang memberikan les/bimbingan kepada peserta didik yang berpotensi merusak sistem pembelajaran sekolah.',
+  ], margin, pw, yRef);
+
+  drawPasal(doc, '6', 'SANKSI', [
+    'Apabila PIHAK KEDUA melanggar ketentuan dalam perjanjian ini, PIHAK PERTAMA berhak memberikan peringatan tertulis.',
+    'Apabila setelah 3 (tiga) kali peringatan tertulis PIHAK KEDUA tetap tidak memenuhi kewajibannya, PIHAK PERTAMA berhak mengakhiri perjanjian ini tanpa memberikan kompensasi lebih lanjut.',
+  ], margin, pw, yRef);
+
+  drawPasal(doc, '7', 'PENYELESAIAN PERSELISIHAN', [
+    'Segala perselisihan yang timbul akibat perjanjian ini diselesaikan secara musyawarah mufakat antara kedua belah pihak.',
+    'Apabila tidak tercapai kesepakatan, penyelesaian dilakukan sesuai dengan ketentuan hukum yang berlaku.',
+  ], margin, pw, yRef);
+
+  drawPasal(doc, '8', 'PENUTUP', [
+    'Perjanjian ini dibuat dalam rangkap 2 (dua) lembar, bermaterai cukup, masing-masing mempunyai kekuatan hukum yang sama, satu lembar untuk PIHAK PERTAMA dan satu lembar untuk PIHAK KEDUA.',
+  ], margin, pw, yRef);
+
+  // ── TANDA TANGAN ──
+  const y2 = yRef.y;
+  if (y2 > 230) { doc.addPage(); yRef.y = 25; }
+
+  const city = (data.school_address || 'Tempat').split(',')[0].trim();
+  doc.setFont('times', 'normal');
+  doc.setFontSize(10.5);
+  doc.text(`${city}, ${fmtDate(data.letter_date)}`, pw / 2, yRef.y, { align: 'center' });
+  yRef.y += 8;
+
+  const col1 = margin + 20;
+  const col2 = pw - margin - 20;
+
+  doc.setFont('times', 'bold');
+  doc.text('PIHAK KEDUA,', col1, yRef.y, { align: 'center' });
+  doc.text('PIHAK PERTAMA,', col2, yRef.y, { align: 'center' });
+  yRef.y += 5;
+  doc.setFont('times', 'normal');
+  doc.text('Yang Menerima Tugas', col1, yRef.y, { align: 'center' });
+  doc.text('Kepala Sekolah', col2, yRef.y, { align: 'center' });
+  yRef.y += 5;
+
+  // Kotak materai
+  doc.setLineWidth(0.3);
+  doc.rect(col1 - 10, yRef.y, 20, 10);
+  doc.setFontSize(6);
+  doc.text('Materai', col1, yRef.y + 4, { align: 'center' });
+  doc.text('Rp 10.000', col1, yRef.y + 7.5, { align: 'center' });
+  doc.rect(col2 - 10, yRef.y, 20, 10);
+  doc.text('Materai', col2, yRef.y + 4, { align: 'center' });
+  doc.text('Rp 10.000', col2, yRef.y + 7.5, { align: 'center' });
+  yRef.y += 20;
+
+  doc.setFontSize(10.5);
+  doc.setFont('times', 'bold');
+  doc.text(data.party_name || '......................', col1, yRef.y, { align: 'center' });
+  doc.text(data.headmaster || '......................', col2, yRef.y, { align: 'center' });
+  yRef.y += 5;
+  doc.setFont('times', 'normal');
+  doc.text(`NIK. ${data.party_nik || '......................'}`, col1, yRef.y, { align: 'center' });
+  doc.text(`NIP. ${data.headmaster_nip || '......................'}`, col2, yRef.y, { align: 'center' });
+
+  doc.save(`SPK_Ekskul_${(data.party_name || 'surat').replace(/\s+/g, '_')}.pdf`);
 };
 
-// ─── PDF Generator: Tukang ────────────────────────────────────────────────────
+// ─── PDF Generator: Tukang (Format Surat Resmi) ──────────────────────────────
 const generateTukangPDF = (data: LetterAgreement) => {
   const doc = new jsPDF('p', 'mm', 'a4');
   const pw = doc.internal.pageSize.getWidth();
   const margin = 20;
-  let y = 20;
-  const LINE = 6;
+  const LINE = 5.5;
 
-  const center = (text: string, yy: number, size = 11) => {
-    doc.setFontSize(size);
-    doc.text(text, pw / 2, yy, { align: 'center' });
-  };
-  const row = (label: string, val: string, yy: number) => {
-    doc.setFont('helvetica', 'bold');
-    doc.setFontSize(10);
-    doc.text(label, margin, yy);
-    doc.text(':', margin + 55, yy);
-    doc.setFont('helvetica', 'normal');
-    const lines = doc.splitTextToSize(val, 100);
-    doc.text(lines, margin + 58, yy);
-    return lines.length * LINE;
-  };
+  // KOP SURAT
+  let y = drawKopSurat(doc, data);
 
-  doc.setLineWidth(0.8);
-  doc.rect(margin - 5, 10, pw - (margin - 5) * 2, 28);
-  doc.setFont('helvetica', 'bold');
-  center('SURAT PERJANJIAN KERJA (MOU)', y, 13);
-  center('PEKERJAAN REHABILITASI GEDUNG/BANGUNAN', y + 7, 11);
-  center(`TAHUN ANGGARAN ${data.fiscal_year}`, y + 14, 10);
-  y += 32;
-
+  // ── JUDUL dalam KOTAK ──
+  doc.setLineWidth(0.5);
+  doc.rect(margin, y, pw - margin * 2, 22);
+  doc.setFontSize(13);
+  doc.setFont('times', 'bold');
+  doc.text('SURAT PERJANJIAN KERJA (MOU)', pw / 2, y + 7, { align: 'center' });
+  doc.setFontSize(11);
+  doc.text('PEKERJAAN REHABILITASI GEDUNG/BANGUNAN', pw / 2, y + 13.5, { align: 'center' });
   doc.setFontSize(10);
-  doc.setFont('helvetica', 'normal');
-  doc.text(`Nomor : ${data.letter_number}`, margin, y); y += 10;
-  doc.text('Pada hari ini, ' + fmtDate(data.letter_date) + ', yang bertanda tangan di bawah ini:', margin, y, { maxWidth: pw - margin * 2 }); y += 10;
+  doc.text(`TAHUN ANGGARAN ${data.fiscal_year}`, pw / 2, y + 19.5, { align: 'center' });
+  y += 27;
 
-  doc.setFont('helvetica', 'bold');
-  doc.text('PIHAK PERTAMA (Pemberi Kerja):', margin, y); y += LINE;
-  doc.setFont('helvetica', 'normal');
-  y += row('N a m a', data.headmaster, y);
-  y += row('N I P', data.headmaster_nip || '-', y);
-  y += row('Jabatan', 'Kepala Sekolah', y);
-  y += row('Unit Kerja', data.school_name, y);
-  doc.text('Selanjutnya disebut sebagai PIHAK PERTAMA.', margin, y + 2); y += 10;
+  // ── NOMOR SURAT ──
+  doc.setFont('times', 'normal');
+  doc.setFontSize(10.5);
+  doc.text(`Nomor : ${data.letter_number || '...'}`, margin, y);
+  y += 10;
 
-  doc.setFont('helvetica', 'bold');
-  doc.text('PIHAK KEDUA (Pelaksana Pekerjaan):', margin, y); y += LINE;
-  doc.setFont('helvetica', 'normal');
-  y += row('N a m a', data.party_name, y);
-  y += row('N I K', data.party_nik || '-', y);
-  y += row('Alamat', data.party_address, y);
-  if (data.party_npwp) { y += row('N P W P', data.party_npwp, y); }
-  doc.text('Selanjutnya disebut sebagai PIHAK KEDUA.', margin, y + 2); y += 12;
-  doc.text('Kedua belah pihak telah sepakat untuk mengadakan perjanjian pekerjaan dengan ketentuan:', margin, y, { maxWidth: pw - margin * 2 }); y += 10;
+  // ── PEMBUKA ──
+  const pembuka = `Pada hari ini, ${fmtDate(data.letter_date)}, yang bertanda tangan di bawah ini:`;
+  const wrPembuka = doc.splitTextToSize(pembuka, pw - margin * 2);
+  doc.setFont('times', 'normal');
+  doc.text(wrPembuka, margin, y);
+  y += wrPembuka.length * LINE + 5;
 
-  const pasal = (no: string, judul: string, isi: string[]) => {
-    if (y > 250) { doc.addPage(); y = 20; }
-    doc.setFont('helvetica', 'bold');
-    doc.text(`Pasal ${no}`, margin, y); y += LINE - 1;
-    doc.text(judul, margin, y); y += LINE + 1;
-    doc.setFont('helvetica', 'normal');
-    isi.forEach(line => {
-      if (y > 270) { doc.addPage(); y = 20; }
-      const wrapped = doc.splitTextToSize(line, pw - margin * 2);
-      doc.text(wrapped, margin, y);
-      y += wrapped.length * (LINE - 0.5) + 2;
+  // ── PIHAK ──
+  const drawPihak2 = (label: string, rows: [string, string][], catatan: string) => {
+    doc.setFont('times', 'bold');
+    doc.setFontSize(10.5);
+    doc.text(label, margin, y); y += LINE + 1;
+
+    const colLabel = margin + 5;
+    const colColon = margin + 52;
+    const colVal = margin + 55;
+
+    doc.setFontSize(10);
+    rows.forEach(([k, v]) => {
+      doc.setFont('times', 'bold');
+      doc.text(k, colLabel, y);
+      doc.text(':', colColon, y);
+      doc.setFont('times', 'normal');
+      const wv = doc.splitTextToSize(v || '-', pw - colVal - margin);
+      doc.text(wv, colVal, y);
+      y += wv.length * LINE;
     });
-    y += 3;
+    doc.setFont('times', 'normal');
+    doc.text(`Selanjutnya disebut sebagai `, margin, y + 2);
+    doc.setFont('times', 'bold');
+    doc.text(catatan + '.', margin + doc.getTextWidth('Selanjutnya disebut sebagai '), y + 2);
+    y += LINE + 5;
   };
 
-  pasal('1', 'JENIS DAN LINGKUP PEKERJAAN', [
+  drawPihak2('PIHAK PERTAMA (Pemberi Kerja) :', [
+    ['N a m a', data.headmaster],
+    ['N I P', data.headmaster_nip || '-'],
+    ['Jabatan', 'Kepala Sekolah'],
+    ['Unit Kerja', data.school_name],
+  ], 'PIHAK PERTAMA');
+
+  drawPihak2('PIHAK KEDUA (Pelaksana Pekerjaan) :', [
+    ['N a m a', data.party_name],
+    ['N I K', data.party_nik || '-'],
+    ['Alamat', data.party_address || '-'],
+    ...(data.party_npwp ? [['N P W P', data.party_npwp] as [string, string]] : []),
+  ], 'PIHAK KEDUA');
+
+  // ── PENGHUBUNG ──
+  const penghubung = 'Kedua belah pihak telah sepakat untuk mengadakan perjanjian pelaksanaan pekerjaan dengan ketentuan sebagaimana diatur dalam pasal-pasal berikut:';
+  const wrPenghubung = doc.splitTextToSize(penghubung, pw - margin * 2);
+  doc.setFont('times', 'normal');
+  doc.text(wrPenghubung, margin, y);
+  y += wrPenghubung.length * LINE + 8;
+
+  // ── PASAL ──
+  const yRef = { y };
+
+  drawPasal(doc, '1', 'JENIS DAN LINGKUP PEKERJAAN', [
     `PIHAK PERTAMA memberikan pekerjaan kepada PIHAK KEDUA berupa: ${data.activity_description}.`,
     `Lokasi pekerjaan: ${data.activity_location || data.school_name}.`,
     `Volume pekerjaan: ${data.work_volume || '-'}.`,
-  ]);
-  pasal('2', 'JANGKA WAKTU PELAKSANAAN', [
-    `Pekerjaan dilaksanakan mulai tanggal ${fmtDate(data.start_date)} dan harus selesai paling lambat tanggal ${fmtDate(data.end_date)}.`,
-    'Keterlambatan penyelesaian pekerjaan dapat dikenakan sanksi pengurangan pembayaran.',
-  ]);
-  pasal('3', 'NILAI DAN CARA PEMBAYARAN', [
-    `Nilai pekerjaan (upah tenaga) sebesar ${fmt(data.total_amount)} (${getTerbilang(data.total_amount)} Rupiah).`,
-    data.rab_total ? `Anggaran material (RAB) sebesar ${fmt(data.rab_total || 0)}, diadakan terpisah melalui SIPLah.` : '',
-    'Pembayaran upah dilakukan sesuai kesepakatan setelah pekerjaan dinyatakan selesai dan diterima oleh PIHAK PERTAMA.',
-    'Pembayaran dikenakan Pajak Penghasilan (PPh Pasal 21) sesuai ketentuan perpajakan yang berlaku.',
-  ].filter(Boolean));
-  pasal('4', 'HAK DAN KEWAJIBAN PIHAK KEDUA', [
-    'Melaksanakan pekerjaan sesuai RAB dan spesifikasi teknis yang disepakati.',
-    'Menyediakan seluruh peralatan kerja dan tenaga kerja yang diperlukan.',
-    'Membuat laporan kemajuan pekerjaan (0%, 50%, 100%) beserta dokumentasi foto.',
-    'Menjamin hasil pekerjaan selama ' + (data.work_guarantee || '6 bulan') + ' sejak pekerjaan dinyatakan selesai.',
-  ]);
-  pasal('5', 'HAK DAN KEWAJIBAN PIHAK PERTAMA', [
-    'Menyediakan akses lokasi pekerjaan dan berkoordinasi dengan PIHAK KEDUA.',
-    'Melakukan pengawasan dan pemeriksaan hasil pekerjaan.',
-    'Membayar upah sesuai ketentuan yang telah disepakati.',
-  ]);
-  pasal('6', 'KESELAMATAN KERJA', [
-    'PIHAK KEDUA bertanggung jawab penuh atas keselamatan seluruh tenaga kerjanya.',
-    'Segala risiko kecelakaan kerja menjadi tanggung jawab PIHAK KEDUA.',
-  ]);
-  pasal('7', 'PEMUTUSAN PERJANJIAN', [
-    'Perjanjian dapat diakhiri apabila PIHAK KEDUA tidak mampu menyelesaikan pekerjaan sesuai ketentuan.',
-  ]);
-  pasal('8', 'PENUTUP', [
-    'Perjanjian ini dibuat dalam rangkap 2 (dua), masing-masing bermaterai cukup dan mempunyai kekuatan hukum yang sama.',
-  ]);
+  ], margin, pw, yRef);
 
-  // Tanda Tangan
-  if (y > 230) { doc.addPage(); y = 20; }
-  y += 5;
-  doc.setFontSize(10);
-  const city = data.school_address?.split(',')[0] || 'Tempat';
-  doc.text(`${city}, ${fmtDate(data.letter_date)}`, pw / 2, y, { align: 'center' }); y += 10;
+  drawPasal(doc, '2', 'JANGKA WAKTU PELAKSANAAN', [
+    `Pekerjaan dilaksanakan terhitung mulai tanggal ${fmtDate(data.start_date)} dan harus selesai selambat-lambatnya tanggal ${fmtDate(data.end_date)}.`,
+    'Apabila terjadi keterlambatan yang disebabkan oleh PIHAK KEDUA, maka akan dikenakan sanksi pengurangan nilai pembayaran.',
+  ], margin, pw, yRef);
 
-  const col1 = margin + 15;
-  const col2 = pw - margin - 15;
-  doc.text('PIHAK KEDUA,', col1, y, { align: 'center' });
-  doc.text('PIHAK PERTAMA,', col2, y, { align: 'center' }); y += 5;
-  doc.text('Pelaksana Pekerjaan', col1, y, { align: 'center' });
-  doc.text('Kepala Sekolah', col2, y, { align: 'center' }); y += 30;
-  doc.text(data.party_name, col1, y, { align: 'center' });
-  doc.text(data.headmaster, col2, y, { align: 'center' }); y += LINE;
-  doc.text(`NIK: ${data.party_nik || '...............'}`, col1, y, { align: 'center' });
-  doc.text(`NIP: ${data.headmaster_nip || '...............'}`, col2, y, { align: 'center' });
+  drawPasal(doc, '3', 'NILAI DAN CARA PEMBAYARAN', [
+    `Nilai upah tenaga yang diberikan berdasarkan perjanjian ini adalah sebesar ${fmt(data.total_amount)} (${getTerbilang(data.total_amount)} Rupiah).`,
+    data.rab_total ? `Anggaran pengadaan material bangunan (RAB) sebesar ${fmt(data.rab_total)}, diadakan terpisah melalui mekanisme pengadaan SIPLah sesuai regulasi BOSP.` : '',
+    'Pembayaran upah dilakukan setelah pekerjaan dinyatakan selesai 100% dan telah diterima oleh PIHAK PERTAMA berdasarkan Berita Acara Penyelesaian Pekerjaan.',
+    'Pembayaran dikenakan Pajak Penghasilan (PPh Pasal 21) atas upah tenaga sesuai ketentuan perpajakan yang berlaku.',
+  ].filter(Boolean) as string[], margin, pw, yRef);
 
-  doc.save(`SPK_Tukang_${data.party_name.replace(/\s+/g, '_')}.pdf`);
+  drawPasal(doc, '4', 'KEWAJIBAN PIHAK KEDUA', [
+    'Melaksanakan pekerjaan sesuai dengan spesifikasi teknis dan RAB yang telah disepakati.',
+    'Menyediakan seluruh peralatan kerja, bahan habis pakai, dan tenaga kerja pendukung yang diperlukan dalam pelaksanaan pekerjaan.',
+    'Membuat laporan kemajuan pekerjaan secara berkala (0%, 50%, dan 100%) disertai dokumentasi foto.',
+    `Memberikan jaminan atas kualitas hasil pekerjaan selama ${data.work_guarantee || '6 (enam) bulan'} sejak pekerjaan dinyatakan selesai dan diterima.`,
+  ], margin, pw, yRef);
+
+  drawPasal(doc, '5', 'KEWAJIBAN PIHAK PERTAMA', [
+    'Menyediakan akses lokasi pekerjaan dan berkoordinasi dengan PIHAK KEDUA selama pelaksanaan.',
+    'Melakukan pengawasan dan pemeriksaan hasil pekerjaan secara berkala.',
+    'Membayar upah kepada PIHAK KEDUA sesuai ketentuan Pasal 3 setelah pekerjaan selesai dan diterima.',
+  ], margin, pw, yRef);
+
+  drawPasal(doc, '6', 'KESELAMATAN DAN KESEHATAN KERJA (K3)', [
+    'PIHAK KEDUA bertanggung jawab penuh atas keselamatan dan kesehatan seluruh tenaga kerja yang terlibat dalam pelaksanaan pekerjaan.',
+    'Segala risiko kecelakaan kerja yang terjadi selama pelaksanaan pekerjaan sepenuhnya menjadi tanggung jawab PIHAK KEDUA.',
+    'PIHAK KEDUA wajib menggunakan Alat Pelindung Diri (APD) yang sesuai selama pelaksanaan pekerjaan.',
+  ], margin, pw, yRef);
+
+  drawPasal(doc, '7', 'PEMUTUSAN PERJANJIAN', [
+    'Perjanjian ini dapat diakhiri apabila PIHAK KEDUA terbukti tidak mampu atau tidak bersedia menyelesaikan pekerjaan sesuai ketentuan yang telah disepakati.',
+    'Pemutusan perjanjian dilakukan dengan pemberitahuan tertulis minimal 7 (tujuh) hari kerja sebelumnya.',
+  ], margin, pw, yRef);
+
+  drawPasal(doc, '8', 'PENYELESAIAN PERSELISIHAN', [
+    'Segala perselisihan yang timbul dari pelaksanaan perjanjian ini diselesaikan secara musyawarah mufakat antara kedua belah pihak.',
+    'Apabila tidak tercapai kesepakatan dalam musyawarah, penyelesaian dilakukan melalui jalur hukum yang berlaku.',
+  ], margin, pw, yRef);
+
+  drawPasal(doc, '9', 'PENUTUP', [
+    'Perjanjian ini dibuat dalam rangkap 2 (dua) lembar, masing-masing bermaterai cukup (Rp 10.000,-) dan ditandatangani oleh kedua belah pihak, sehingga mempunyai kekuatan hukum yang sama.',
+  ], margin, pw, yRef);
+
+  // ── TANDA TANGAN ──
+  if (yRef.y > 230) { doc.addPage(); yRef.y = 25; }
+
+  const city = (data.school_address || 'Tempat').split(',')[0].trim();
+  doc.setFont('times', 'normal');
+  doc.setFontSize(10.5);
+  doc.text(`${city}, ${fmtDate(data.letter_date)}`, pw / 2, yRef.y, { align: 'center' });
+  yRef.y += 8;
+
+  const col1 = margin + 20;
+  const col2 = pw - margin - 20;
+
+  doc.setFont('times', 'bold');
+  doc.text('PIHAK KEDUA,', col1, yRef.y, { align: 'center' });
+  doc.text('PIHAK PERTAMA,', col2, yRef.y, { align: 'center' });
+  yRef.y += 5;
+  doc.setFont('times', 'normal');
+  doc.text('Pelaksana Pekerjaan', col1, yRef.y, { align: 'center' });
+  doc.text('Kepala Sekolah', col2, yRef.y, { align: 'center' });
+  yRef.y += 5;
+
+  doc.setLineWidth(0.3);
+  doc.rect(col1 - 10, yRef.y, 20, 10);
+  doc.setFontSize(6);
+  doc.text('Materai', col1, yRef.y + 4, { align: 'center' });
+  doc.text('Rp 10.000', col1, yRef.y + 7.5, { align: 'center' });
+  doc.rect(col2 - 10, yRef.y, 20, 10);
+  doc.text('Materai', col2, yRef.y + 4, { align: 'center' });
+  doc.text('Rp 10.000', col2, yRef.y + 7.5, { align: 'center' });
+  yRef.y += 20;
+
+  doc.setFontSize(10.5);
+  doc.setFont('times', 'bold');
+  doc.text(data.party_name || '......................', col1, yRef.y, { align: 'center' });
+  doc.text(data.headmaster || '......................', col2, yRef.y, { align: 'center' });
+  yRef.y += 5;
+  doc.setFont('times', 'normal');
+  doc.text(`NIK. ${data.party_nik || '......................'}`, col1, yRef.y, { align: 'center' });
+  doc.text(`NIP. ${data.headmaster_nip || '......................'}`, col2, yRef.y, { align: 'center' });
+
+  doc.save(`SPK_Tukang_${(data.party_name || 'surat').replace(/\s+/g, '_')}.pdf`);
 };
+
+
+
 
 // ─── Form Field Component ─────────────────────────────────────────────────────
 const Field = ({ label, children, required }: { label: string; children: React.ReactNode; required?: boolean }) => (
