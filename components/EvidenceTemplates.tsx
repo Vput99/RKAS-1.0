@@ -2399,6 +2399,66 @@ const EvidenceTemplates = ({ budgets: allBudgets, onUpdate }: EvidenceTemplatesP
                   <div className="py-20 text-center border-2 border-dashed border-slate-100 rounded-[2rem] bg-slate-50/30">
                     <p className="text-xs font-bold text-slate-400">Tidak ada transaksi ditemukan.</p>
                   </div>
+                ) : dataSource === 'history' ? (
+                  Object.entries(
+                    filteredGroups.reduce((acc, group) => {
+                      const monthName = MONTHS[group.month - 1] || `Bulan ${group.month}`;
+                      if (!acc[monthName]) acc[monthName] = [];
+                      acc[monthName].push(group);
+                      return acc;
+                    }, {} as Record<string, typeof filteredGroups>)
+                  ).map(([monthName, groups]) => (
+                    <div key={monthName} className="mb-4 last:mb-0">
+                      <div className="sticky top-0 z-10 bg-slate-50/95 backdrop-blur-md px-4 py-2 border border-slate-100/50 mb-3 rounded-xl flex items-center justify-between shadow-sm">
+                        <span className="text-xs font-black text-slate-700 tracking-wider uppercase">{monthName}</span>
+                        <span className="text-[10px] font-black text-slate-400 bg-white px-2 py-1 rounded-lg border border-slate-100">{groups.length} Transaksi</span>
+                      </div>
+                      <div className="space-y-3">
+                        {groups.map(group => (
+                          <button
+                            key={group.key}
+                            onClick={() => handleSelectGroup(group)}
+                            className={`w-full text-left p-4 rounded-[1.5rem] border transition-all duration-300 group ${
+                              selectedGroup?.key === group.key
+                                ? 'border-blue-200 bg-white shadow-xl shadow-blue-900/10 scale-[1.02]'
+                                : 'border-transparent hover:bg-white/60 hover:border-slate-100'
+                            }`}
+                          >
+                            <div className="flex items-start justify-between mb-3">
+                              <div className="flex flex-col gap-1">
+                                  <div className="flex items-center gap-2">
+                                    <span className={`text-[9px] font-black px-2 py-0.5 rounded-md uppercase tracking-widest ${selectedGroup?.key === group.key ? 'bg-blue-600 text-white' : 'bg-slate-100 text-slate-500'}`}>
+                                      {group.vendor}
+                                    </span>
+                                    {(group.vendor.toLowerCase().includes('siplah') || group.items.some((i: any) => i.budgetDescription.toLowerCase().includes('siplah'))) && (
+                                        <span className="bg-emerald-100 text-emerald-700 text-[8px] px-1.5 py-0.5 rounded-md font-black uppercase tracking-tighter border border-emerald-200">SIPLah</span>
+                                    )}
+                                  </div>
+                                  <span className="text-[10px] font-bold text-slate-400">
+                                    {new Date(group.date).toLocaleDateString('id-ID', { day: 'numeric', month: 'short' })} • Bulan {MONTHS[group.month - 1]}
+                                  </span>
+                              </div>
+                              {selectedGroup?.key === group.key && (
+                                <div className="w-2 h-2 rounded-full bg-blue-500 animate-pulse" />
+                              )}
+                            </div>
+                            <div className={`text-xs font-black text-slate-800 leading-snug line-clamp-2 ${selectedGroup?.key === group.key ? '' : 'text-slate-600'}`}>
+                              {group.items.map((i: any) => i.budgetDescription).join(', ')}
+                            </div>
+                            <div className="mt-4 flex items-center justify-between pt-3 border-t border-slate-100/50">
+                              <span className="text-[10px] font-black text-indigo-600">
+                                {new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', maximumFractionDigits: 0 }).format(group.totalAmount)}
+                              </span>
+                              <div className="flex items-center gap-1.5">
+                                 <FileText size={10} className="text-slate-300" />
+                                 <span className="text-[10px] font-black text-slate-400 uppercase tracking-tighter">{group.items.length} Item</span>
+                              </div>
+                            </div>
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  ))
                 ) : (
                   filteredGroups.map(group => (
                     <button
