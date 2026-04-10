@@ -340,6 +340,15 @@ const inputCls = "w-full px-3 py-2.5 rounded-xl border border-slate-200 bg-white
 const Input = (props: React.InputHTMLAttributes<HTMLInputElement>) => <input className={inputCls} {...props} />;
 const Textarea = (props: React.TextareaHTMLAttributes<HTMLTextAreaElement>) => <textarea className={inputCls + ' resize-none'} rows={3} {...props} />;
 
+// ⚠️ HARUS di luar komponen agar tidak di-recreate setiap render (mencegah bug kehilangan fokus)
+const FormSection = ({ title, children }: { title: string; children: React.ReactNode }) => (
+  <div className="bg-white/60 backdrop-blur border border-white/70 rounded-2xl p-5 space-y-4">
+    <h3 className="text-sm font-black text-slate-700 uppercase tracking-wider border-b border-slate-100 pb-2">{title}</h3>
+    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">{children}</div>
+  </div>
+);
+
+
 // ─── Main Component ───────────────────────────────────────────────────────────
 const LetterMaker = ({ schoolProfile: propProfile }: { schoolProfile?: SchoolProfile | null }) => {
   const [activeTab, setActiveTab] = useState<'list' | 'form-ekskul' | 'form-tukang'>('list');
@@ -418,14 +427,6 @@ const LetterMaker = ({ schoolProfile: propProfile }: { schoolProfile?: SchoolPro
     const matchType = filterType === 'all' || l.type === filterType;
     return matchSearch && matchType;
   });
-
-  // ─── Form Render ──────────────────────────────────────────────────────────
-  const FormSection = ({ title, children }: { title: string; children: React.ReactNode }) => (
-    <div className="bg-white/60 backdrop-blur border border-white/70 rounded-2xl p-5 space-y-4">
-      <h3 className="text-sm font-black text-slate-700 uppercase tracking-wider border-b border-slate-100 pb-2">{title}</h3>
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">{children}</div>
-    </div>
-  );
 
   const renderForm = (type: 'ekstrakurikuler' | 'tukang') => (
     <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="space-y-4">
