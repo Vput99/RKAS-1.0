@@ -5,9 +5,7 @@ import {
   generateSuratTugas, generateSPPD, generateDaftarTransport, generateLaporanSPPD 
 } from '../lib/pdfGenerators';
 import { FileText, Download, CheckCircle2, ChevronRight, BookOpen, Printer, Users, Bus, FileSignature, Handshake, ClipboardList, Receipt, FileCheck, HardHat, Hammer, X, DollarSign, Plus, Trash2, Search, Sparkles, Loader2, Upload, Eye, AlertCircle, ShoppingCart, Image as ImageIcon, Folder } from 'lucide-react';
-import jsPDF from 'jspdf';
 import { motion, AnimatePresence } from 'framer-motion';
-import autoTable from 'jspdf-autotable';
 import { getSchoolProfile, uploadEvidenceFile, getWithdrawalHistory, updateWithdrawalHistory } from '../lib/db';
 import { SchoolProfile, Budget, EvidenceFile, WithdrawalHistory } from '../types';
 import { suggestEvidenceList, isAiConfigured } from '../lib/gemini';
@@ -36,6 +34,15 @@ const EvidenceTemplates = ({ budgets: allBudgets, onUpdate }: EvidenceTemplatesP
   const [uploadProgress, setUploadProgress] = useState<Record<string, boolean>>({});
   const [searchTerm, setSearchTerm] = useState('');
   const [albumView, setAlbumView] = useState<{ month: number | null, transactionKey: string | null }>({ month: null, transactionKey: null });
+
+  const [generalFiles, setGeneralFiles] = useState<any[]>(() => {
+    const saved = localStorage.getItem('rkas_general_evidence_v1');
+    return saved ? JSON.parse(saved) : [];
+  });
+
+  useEffect(() => {
+    localStorage.setItem('rkas_general_evidence_v1', JSON.stringify(generalFiles));
+  }, [generalFiles]);
 
   // Grouped Realizations for the Upload Tab
   const groupedRealizations = useMemo(() => {
@@ -1055,21 +1062,39 @@ const EvidenceTemplates = ({ budgets: allBudgets, onUpdate }: EvidenceTemplatesP
     }
   };
 
-  const renderAlbumGallery = () => {
-    if (allEvidenceFiles.length === 0) {
-        return (
-            <div className="bg-slate-50/50 rounded-[2.5rem] border-2 border-dashed border-slate-200 flex flex-col items-center justify-center p-12 text-center h-full min-h-[500px] animate-in fade-in zoom-in duration-500">
-                <div className="w-24 h-24 bg-white rounded-full flex items-center justify-center mb-6 shadow-xl shadow-slate-200/50">
-                  <ImageIcon className="text-slate-300" size={48} />
-                </div>
-                <h3 className="text-xl font-black text-slate-800 mb-2 tracking-tight">Album Digital Kosong</h3>
-                <p className="text-sm font-semibold text-slate-400 max-w-sm mx-auto leading-relaxed">
-                    Belum ada bukti fisik yang diarsip. Silakan unggah bukti fisik pada tab <span className="text-blue-600 font-black">Upload</span> untuk melihatnya di sini.
-                </p>
-            </div>
-        );
-    }
+  const handleGeneralUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+      const files = Array.from(e.target.files || []);
+      if (files.length === 0) return;
 
+      files.forEach(file => {
+          const reader = new FileReader();
+          reader.onload = (event) => {
+              const dataUrl = event.target?.result as string;
+              const newFile = {
+                  name: file.name,
+                  url: dataUrl,
+                  type: file.type.includes('image') ? 'Gambar / Scan' : 'Dokumen PDF',
+                  size: file.size,
+                  path: `general/${Date.now()}_${file.name}`,
+                  vendor: 'Dokumen Sekolah',
+                  description: 'Arsip Dokumen Pendukung Umum',
+                  amount: 0,
+                  date: new Date().toISOString(),
+                  isGeneral: true
+              };
+              setGeneralFiles(prev => [...prev, newFile]);
+          };
+          reader.readAsDataURL(file);
+      });
+  };
+
+  const handleDeleteGeneralFile = (e: React.MouseEvent, filePath: string) => {
+      e.stopPropagation();
+      if (!confirm('Apakah Anda yakin ingin menghapus arsip umum ini?')) return;
+      setGeneralFiles(prev => prev.filter(f => f.path !== filePath));
+  };
+
+  const renderAlbumGallery = () => {
     const { month, transactionKey } = albumView;
 
     // --- BREADCRUMBS ---
@@ -1077,18 +1102,18 @@ const EvidenceTemplates = ({ budgets: allBudgets, onUpdate }: EvidenceTemplatesP
         <div className="flex items-center gap-2 mb-8 bg-slate-100/50 backdrop-blur-md p-2 rounded-2xl border border-slate-200/50 shadow-inner w-fit">
             <button 
                 onClick={() => setAlbumView({ month: null, transactionKey: null })}
-                className={`text-[10px] font-black uppercase tracking-widest px-4 py-2 rounded-xl transition-all duration-300 ${!month ? 'bg-white text-blue-600 shadow-lg shadow-blue-900/5' : 'text-slate-500 hover:text-slate-800'}`}
+                className={`text-[10px] font-black uppercase tracking-widest px-4 py-2 rounded-xl transition-all duration-300 ${month === null ? 'bg-white text-blue-600 shadow-lg shadow-blue-900/5' : 'text-slate-500 hover:text-slate-800'}`}
             >
                 Arsip Pusat
             </button>
-            {month && (
+            {month !== null && (
                 <>
                     <ChevronRight size={14} className="text-slate-300" />
                     <button 
                          onClick={() => setAlbumView({ month, transactionKey: null })}
-                         className={`text-[10px] font-black uppercase tracking-widest px-4 py-2 rounded-xl transition-all duration-300 ${month && !transactionKey ? 'bg-white text-blue-600 shadow-lg shadow-blue-900/5' : 'text-slate-500 hover:text-slate-800'}`}
+                         className={`text-[10px] font-black uppercase tracking-widest px-4 py-2 rounded-xl transition-all duration-300 ${month !== null && !transactionKey ? 'bg-white text-blue-600 shadow-lg shadow-blue-900/5' : 'text-slate-500 hover:text-slate-800'}`}
                     >
-                        {MONTHS[month - 1]}
+                        {month === -1 ? 'Dokumen Pendukung' : MONTHS[month - 1]}
                     </button>
                 </>
             )}
@@ -1104,12 +1129,39 @@ const EvidenceTemplates = ({ budgets: allBudgets, onUpdate }: EvidenceTemplatesP
     );
 
     // --- RENDER LEVEL 0: MONTHS ---
-    if (!month) {
+    if (month === null) {
         const availableMonths = Object.keys(groupedAlbum).map(m => parseInt(m)).sort((a, b) => a - b);
         return (
             <div className="animate-in fade-in slide-in-from-bottom-4 duration-500">
                 {renderBreadcrumbs()}
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-8">
+                    {/* General Supporting Documents Folder */}
+                    <motion.div
+                        whileHover={{ y: -8, scale: 1.02 }}
+                        whileTap={{ scale: 0.98 }}
+                        onClick={() => setAlbumView({ month: -1, transactionKey: null })}
+                        className="bg-gradient-to-br from-indigo-50 to-blue-50 p-8 rounded-[2.5rem] border border-indigo-100 shadow-xl shadow-indigo-900/5 hover:shadow-2xl hover:border-indigo-300 transition-all cursor-pointer group relative overflow-hidden"
+                    >
+                        <div className="absolute top-0 right-0 p-6 opacity-[0.03] group-hover:opacity-[0.07] transition-opacity duration-500">
+                            <FileCheck size={120} className="text-indigo-600 -rotate-12" />
+                        </div>
+                        <div className="w-16 h-16 bg-white/60 backdrop-blur-sm rounded-2xl flex items-center justify-center text-indigo-600 mb-6 group-hover:bg-indigo-600 group-hover:text-white transition-all duration-500 shadow-sm group-hover:rotate-6 group-hover:shadow-indigo-500/30">
+                            <Folder size={32} />
+                        </div>
+                        <h3 className="text-xl font-black text-slate-800 mb-2 tracking-tight">Dokumen Pendukung</h3>
+                        <div className="flex items-center gap-2 mb-6">
+                            <span className="px-2 py-1 bg-white/60 text-indigo-600 text-[9px] font-black uppercase tracking-widest rounded-lg border border-indigo-100">
+                                {generalFiles.length} Berkas
+                            </span>
+                        </div>
+                        <div className="pt-6 border-t border-indigo-100/50 flex items-center justify-between text-indigo-600 text-[10px] font-black uppercase tracking-widest group-hover:text-indigo-700">
+                            <span>Buka Folder</span>
+                            <div className="p-1.5 bg-white/60 rounded-lg group-hover:bg-indigo-600 group-hover:text-white transition-all">
+                              <ChevronRight size={14} />
+                            </div>
+                        </div>
+                    </motion.div>
+
                     {availableMonths.map(m => (
                         <motion.div
                             key={m}
@@ -1143,8 +1195,120 @@ const EvidenceTemplates = ({ budgets: allBudgets, onUpdate }: EvidenceTemplatesP
         );
     }
 
-    // --- RENDER LEVEL 1: TRANSACTIONS IN MONTH ---
-    if (month && !transactionKey) {
+    if (month === -1) {
+        return (
+            <div className="animate-in fade-in slide-in-from-bottom-4 duration-500">
+                {renderBreadcrumbs()}
+                
+                {/* Upload Banner */}
+                <div className="mb-8 p-8 bg-blue-50/50 backdrop-blur-sm rounded-[2.5rem] border border-blue-100 shadow-xl shadow-blue-900/5 flex flex-col md:flex-row items-center justify-between gap-6 relative overflow-hidden">
+                    <div className="absolute top-0 right-0 w-64 h-64 bg-blue-400/10 rounded-full blur-3xl -mr-32 -mt-32"></div>
+                    <div className="relative z-10">
+                       <h3 className="text-2xl font-black text-slate-800 mb-2">Arsip Dokumen Pendukung</h3>
+                       <p className="text-sm font-semibold text-slate-500 max-w-lg leading-relaxed">Penyimpanan terpusat untuk SK BOSP, SK Bendahara, dan dokumen pendukung standar lainnya.</p>
+                    </div>
+                    <div className="relative z-10 shrink-0">
+                        <input 
+                            type="file" 
+                            id="generalUpload" 
+                            multiple 
+                            accept="image/*,.pdf" 
+                            className="hidden" 
+                            onChange={handleGeneralUpload}
+                        />
+                        <label htmlFor="generalUpload" className="px-8 py-4 bg-blue-600 hover:bg-blue-700 text-white font-black text-xs uppercase tracking-[0.2em] rounded-2xl transition-all flex items-center justify-center gap-3 shadow-xl shadow-blue-500/30 cursor-pointer group hover:scale-105 active:scale-95">
+                            <Upload size={18} className="group-hover:-translate-y-1 transition-transform" /> Tambah Dokumen
+                        </label>
+                    </div>
+                </div>
+
+                {/* File Grid */}
+                {generalFiles.length === 0 ? (
+                    <div className="bg-slate-50/50 rounded-[2.5rem] border-2 border-dashed border-slate-200 flex flex-col items-center justify-center p-12 text-center min-h-[300px]">
+                        <div className="w-20 h-20 bg-white rounded-full flex items-center justify-center mb-6 shadow-xl shadow-slate-200/50">
+                            <Folder size={32} className="text-slate-300" />
+                        </div>
+                        <h3 className="text-lg font-black text-slate-800 mb-2 tracking-tight">Folder Masih Kosong</h3>
+                        <p className="text-xs font-semibold text-slate-400 max-w-xs">Silakan tambah dokumen menggunakan tombol di atas.</p>
+                    </div>
+                ) : (
+                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-8">
+                        {generalFiles.map((file, idx) => {
+                            const isImage = file.name.match(/\.(jpeg|jpg|gif|png|webp)$/i);
+                            return (
+                                <motion.div 
+                                    layoutId={`card-gen-${file.url}-${idx}`}
+                                    key={`gen-${idx}`}
+                                    onClick={() => setSelectedFile({ ...file, isImage, idx })}
+                                    initial={{ opacity: 0, scale: 0.9, y: 20 }}
+                                    animate={{ opacity: 1, scale: 1, y: 0 }}
+                                    transition={{ duration: 0.4, delay: idx * 0.05 }}
+                                    className="bg-white rounded-[2.5rem] shadow-xl shadow-blue-900/5 border border-slate-100 overflow-hidden group cursor-pointer flex flex-col relative"
+                                    whileHover={{ y: -8 }}
+                                >
+                                    <motion.div layoutId={`image-container-gen-${file.url}-${idx}`} className="relative h-56 bg-slate-50 flex items-center justify-center overflow-hidden border-b border-slate-50">
+                                        {isImage ? (
+                                            <motion.img layoutId={`image-gen-${file.url}-${idx}`} src={file.url} alt={file.name} className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-1000" />
+                                        ) : (
+                                            <motion.div layoutId={`image-gen-${file.url}-${idx}`} className="text-blue-400 flex flex-col items-center group-hover:scale-110 transition-transform duration-1000">
+                                                <div className="p-4 bg-white rounded-2xl shadow-lg shadow-blue-900/5">
+                                                  <FileText size={48} />
+                                                </div>
+                                                <span className="text-[10px] mt-4 font-black text-slate-400 uppercase tracking-widest line-clamp-1 max-w-[80%] text-center px-4">{file.name}</span>
+                                            </motion.div>
+                                        )}
+                                        <div className="absolute top-4 left-4 z-10">
+                                            <span className="text-[9px] font-black text-white bg-blue-600/80 backdrop-blur-md px-3 py-1.5 rounded-xl uppercase tracking-widest shadow-lg border border-white/20">
+                                                {file.type}
+                                            </span>
+                                        </div>
+                                    </motion.div>
+
+                                    <motion.div layoutId={`info-gen-${file.url}-${idx}`} className="p-8 bg-white flex-1 flex flex-col">
+                                        <h4 className="text-base font-black text-slate-800 mb-2 tracking-tight line-clamp-1" title={file.name}>{file.name}</h4>
+                                        <p className="text-xs font-semibold text-slate-400 line-clamp-2 mb-6 leading-relaxed flex-1 opacity-80">{file.description}</p>
+                                        
+                                        <div className="flex justify-between items-center pt-6 border-t border-slate-50 mt-auto">
+                                            <div className="flex flex-col">
+                                                <span className="text-[8px] font-black text-slate-400 uppercase tracking-[0.2em] mb-1">Ukuran</span>
+                                                <span className="text-sm font-black text-indigo-600 bg-indigo-50 px-3 py-1.5 rounded-xl border border-indigo-100">
+                                                    {(file.size / 1024 / 1024).toFixed(2)} MB
+                                                </span>
+                                            </div>
+                                            <div className="flex gap-2">
+                                                <div 
+                                                    onClick={(e) => handleDeleteGeneralFile(e, file.path)}
+                                                    className="p-3 bg-slate-50 text-slate-400 rounded-xl hover:bg-red-50 hover:text-red-500 transition-colors cursor-pointer"
+                                                >
+                                                    <Trash2 size={18} />
+                                                </div>
+                                                <div 
+                                                    onClick={async (e) => {
+                                                        e.stopPropagation();
+                                                        const link = document.createElement('a');
+                                                        link.href = file.url;
+                                                        link.download = file.name || 'document';
+                                                        document.body.appendChild(link);
+                                                        link.click();
+                                                        document.body.removeChild(link);
+                                                    }}
+                                                    className="p-3 bg-slate-50 text-slate-400 rounded-xl hover:bg-blue-50 hover:text-blue-600 transition-colors cursor-pointer"
+                                                >
+                                                  <Download size={18} />
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </motion.div>
+                                </motion.div>
+                            );
+                        })}
+                    </div>
+                )}
+            </div>
+        );
+    }
+
+    if (month && month > 0 && !transactionKey) {
         const transactions = Object.values(groupedAlbum[month] || {}).sort((a: any, b: any) => new Date(b.date).getTime() - new Date(a.date).getTime());
         return (
             <div className="animate-in fade-in slide-in-from-bottom-4 duration-500">
