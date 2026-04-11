@@ -25,8 +25,8 @@ export const getEvidenceList = (description: string, accountCode?: string): stri
   const text = (description + ' ' + (accountCode || '')).toLowerCase();
   const accCode = accountCode || '';
 
-  // Belanja Listrik, Air, Internet, Telepon, Wifi, Sampah, Retribusi, Iuran, Pajak (PRIORITY LAJU PERTAMA MENGHINDARI 5.1 MATCH)
-  if (text.includes('listrik') || text.includes('retribusi') || text.includes('sampah') || text.includes('air') || text.includes('internet') || text.includes('telepon') || text.includes('wifi') || text.includes('iuran') || text.includes('pajak')) {
+  // Belanja Listrik, Air, Internet, Telepon, Wifi, Sampah, Retribusi, Iuran, Pajak, Kebersihan (PRIORITY LAJU PERTAMA MENGHINDARI 5.1 MATCH)
+  if (text.includes('listrik') || text.includes('retribusi') || text.includes('sampah') || text.includes('air') || text.includes('internet') || text.includes('telepon') || text.includes('wifi') || text.includes('iuran') || text.includes('pajak') || text.includes('kebersihan')) {
     return [
       "Bukti Pembayaran Kuitansi / Struk Resmi",
     ];
@@ -62,7 +62,7 @@ export const getEvidenceList = (description: string, accountCode?: string): stri
   if (
     accCode.startsWith('5.2.2') || accCode.startsWith('5.2.3') || accCode.startsWith('5.2.02') ||
     text.includes('atk') || text.includes('bahan') || text.includes('alat') ||
-    text.includes('kertas') || text.includes('kebersihan') || text.includes('spanduk') ||
+    text.includes('kertas') || text.includes('spanduk') ||
     text.includes('cetak') || text.includes('penggandaan') ||
     text.includes('modal') || text.includes('buku') || text.includes('laptop') ||
     text.includes('komputer') || text.includes('printer') || text.includes('meja') ||
