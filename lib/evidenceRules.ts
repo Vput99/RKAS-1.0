@@ -25,6 +25,13 @@ export const getEvidenceList = (description: string, accountCode?: string): stri
   const text = (description + ' ' + (accountCode || '')).toLowerCase();
   const accCode = accountCode || '';
 
+  // Belanja Listrik, Air, Internet, Telepon, Wifi, Sampah, Retribusi, Iuran, Pajak (PRIORITY LAJU PERTAMA MENGHINDARI 5.1 MATCH)
+  if (text.includes('listrik') || text.includes('retribusi') || text.includes('sampah') || text.includes('air') || text.includes('internet') || text.includes('telepon') || text.includes('wifi') || text.includes('iuran') || text.includes('pajak')) {
+    return [
+      "Bukti Pembayaran Kuitansi / Struk Resmi",
+    ];
+  }
+
   // Honor/Gaji (Jasa - Non SIPLah)
   if (text.includes('honor') || text.includes('gaji') || text.includes('jasa narasumber') || text.includes('instruktur') || text.includes('pembina') || accCode.startsWith('5.1.') || text.includes('jasa profesi')) {
     return [
@@ -49,12 +56,6 @@ export const getEvidenceList = (description: string, accountCode?: string): stri
       "Berita Acara Penyelesaian Pekerjaan & BAST Manual",
       "Bukti Setor PPh 21 (Upah Tukang Perorangan) atau PPh 23 (Jasa Badan Usaha)",
       "Foto Dokumentasi Pekerjaan Fisik (0%, 50%, 100%)"
-    ];
-  }
-  // Belanja Listrik, Air, Internet, Telepon, Wifi, Sampah, Retribusi, Iuran, Pajak
-  if (text.includes('listrik') || text.includes('retribusi') || text.includes('sampah') || text.includes('air') || text.includes('internet') || text.includes('telepon') || text.includes('wifi') || text.includes('iuran') || text.includes('pajak')) {
-    return [
-      "Bukti Pembayaran Kuitansi / Struk Resmi",
     ];
   }
 

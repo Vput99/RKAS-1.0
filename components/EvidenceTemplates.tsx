@@ -25,7 +25,7 @@ const EvidenceTemplates = ({ budgets: allBudgets, onUpdate }: EvidenceTemplatesP
   const [activeCategory, setActiveCategory] = useState<string | null>(null);
   const [schoolProfile, setSchoolProfile] = useState<SchoolProfile | null>(null);
   const [isLoading, setIsLoading] = useState(false);
-  const [dataSource, setDataSource] = useState<'realization' | 'history'>('realization');
+  const [dataSource, setDataSource] = useState<'realization' | 'history'>('history');
   const [history, setHistory] = useState<WithdrawalHistory[]>([]);
   
   // Upload State
@@ -1524,16 +1524,6 @@ const EvidenceTemplates = ({ budgets: allBudgets, onUpdate }: EvidenceTemplatesP
             <div className="bg-white/40 backdrop-blur-md p-6 rounded-[2.5rem] border border-white/80 shadow-2xl shadow-blue-900/5">
               <div className="flex bg-slate-100/50 p-1.5 rounded-2xl mb-6 shadow-inner">
                 <button
-                  onClick={() => setDataSource('realization')}
-                  className={`flex-1 py-2.5 text-[10px] font-black uppercase tracking-widest rounded-xl transition-all duration-300 ${
-                    dataSource === 'realization' 
-                      ? 'bg-white text-blue-600 shadow-lg shadow-blue-500/10' 
-                      : 'text-slate-500 hover:text-slate-800'
-                  }`}
-                >
-                  Realise
-                </button>
-                <button
                   onClick={() => setDataSource('history')}
                   className={`flex-1 py-2.5 text-[10px] font-black uppercase tracking-widest rounded-xl transition-all duration-300 ${
                     dataSource === 'history' 
@@ -1541,7 +1531,7 @@ const EvidenceTemplates = ({ budgets: allBudgets, onUpdate }: EvidenceTemplatesP
                       : 'text-slate-500 hover:text-slate-800'
                   }`}
                 >
-                  Riwayat
+                  RIWAYAT SPJ (HISTORY)
                 </button>
               </div>
 
