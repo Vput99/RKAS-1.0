@@ -895,7 +895,7 @@ const EvidenceTemplates = ({ budgets: allBudgets, onUpdate }: EvidenceTemplatesP
   const allEvidenceFiles = useMemo(() => {
     const list: any[] = [];
     allBudgets.forEach(budget => {
-      budget.realizations?.forEach((real) => {
+      budget.realizations?.forEach((real, realIdx) => {
         if (real.evidence_files && real.evidence_files.length > 0) {
           const vendorName = real.vendor || 'Tanpa Toko/Vendor';
           const transactionKey = `${vendorName}-${real.date.split('T')[0]}-${real.month}`;
@@ -908,7 +908,9 @@ const EvidenceTemplates = ({ budgets: allBudgets, onUpdate }: EvidenceTemplatesP
                month: real.month,
                transactionKey,
                description: budget.description, 
-               amount: real.amount 
+               amount: real.amount,
+               budgetId: budget.id,
+               realizationIndex: realIdx
              });
           });
         }
@@ -932,7 +934,9 @@ const EvidenceTemplates = ({ budgets: allBudgets, onUpdate }: EvidenceTemplatesP
                  month,
                  transactionKey,
                  description: recipient.descriptions?.join(', ') || 'Pencairan', 
-                 amount: recipient.amount 
+                 amount: recipient.amount,
+                 historyId: record.id,
+                 historyIdx: idx
                }));
             }
           });
@@ -950,12 +954,15 @@ const EvidenceTemplates = ({ budgets: allBudgets, onUpdate }: EvidenceTemplatesP
                  month,
                  transactionKey,
                  description: recipient.descriptions?.join(', ') || 'Pencairan', 
-                 amount: recipient.amount 
+                 amount: recipient.amount,
+                 historyId: record.id,
+                 historyIdx: idx
                }));
             }
           });
         }
     });
+
     return list.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
   }, [allBudgets, history]);
 
@@ -1010,6 +1017,43 @@ const EvidenceTemplates = ({ budgets: allBudgets, onUpdate }: EvidenceTemplatesP
 
     return result;
   }, [allEvidenceFiles]);
+
+  const handleDeleteFromAlbum = async (e: React.MouseEvent, file: any) => {
+    e.stopPropagation();
+    if (!confirm(`Warning: Apakah Anda yakin ingin menghapus arsip fisik ${file.vendor}?`)) return;
+
+    try {
+      if (file.sourceType === 'Riwayat Pencairan') {
+        const record = history.find(h => h.id === file.historyId);
+        if (record) {
+          let snapshot: any = record.snapshot_data;
+          if (typeof snapshot === 'string') { try { snapshot = JSON.parse(snapshot); } catch(e) { snapshot = {}; } }
+          
+          let recipients = snapshot.groupedRecipients ? [...snapshot.groupedRecipients] : (Array.isArray(snapshot) ? [...snapshot] : []);
+          if (recipients[file.historyIdx]) {
+             recipients[file.historyIdx] = { ...recipients[file.historyIdx] };
+             recipients[file.historyIdx].evidence_files = (recipients[file.historyIdx].evidence_files || []).filter((f: any) => f.path !== file.path);
+             const updatedSnapshot = snapshot.groupedRecipients ? { ...snapshot, groupedRecipients: recipients } : recipients;
+             await updateWithdrawalHistory(record.id, { snapshot_data: updatedSnapshot });
+             setHistory(prev => prev.map(h => h.id === record.id ? { ...h, snapshot_data: updatedSnapshot } : h));
+          }
+        }
+      } else {
+        const budget = allBudgets.find(b => b.id === file.budgetId);
+        if (budget && budget.realizations) {
+          const upReals = [...budget.realizations];
+          if (upReals[file.realizationIndex]) {
+             upReals[file.realizationIndex] = { ...upReals[file.realizationIndex] };
+             upReals[file.realizationIndex].evidence_files = (upReals[file.realizationIndex].evidence_files || []).filter((f: any) => f.path !== file.path);
+             onUpdate(file.budgetId, { realizations: upReals });
+          }
+        }
+      }
+    } catch (e) {
+      console.error("Gagal menghapus file:", e);
+      alert("Kesalahan saat menghapus file.");
+    }
+  };
 
   const renderAlbumGallery = () => {
     if (allEvidenceFiles.length === 0) {
@@ -1204,8 +1248,30 @@ const EvidenceTemplates = ({ budgets: allBudgets, onUpdate }: EvidenceTemplatesP
                                       {new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', maximumFractionDigits: 0 }).format(file.amount)}
                                   </span>
                                 </div>
-                                <div className="p-3 bg-slate-50 text-slate-400 rounded-xl group-hover:bg-blue-50 group-hover:text-blue-600 transition-colors">
-                                  <Download size={18} />
+                                <div className="flex gap-2">
+                                  <div 
+                                      onClick={(e) => handleDeleteFromAlbum(e, file)}
+                                      className="p-3 bg-slate-50 text-slate-400 rounded-xl group-hover:bg-red-50 group-hover:text-red-500 transition-colors cursor-pointer"
+                                  >
+                                      <Trash2 size={18} />
+                                  </div>
+                                  <div 
+                                      onClick={async (e) => {
+                                          e.stopPropagation();
+                                          const response = await fetch(file.url);
+                                          const blob = await response.blob();
+                                          const url = window.URL.createObjectURL(blob);
+                                          const link = document.createElement('a');
+                                          link.href = url;
+                                          link.download = file.name || 'document';
+                                          document.body.appendChild(link);
+                                          link.click();
+                                          document.body.removeChild(link);
+                                      }}
+                                      className="p-3 bg-slate-50 text-slate-400 rounded-xl group-hover:bg-blue-50 group-hover:text-blue-600 transition-colors cursor-pointer"
+                                  >
+                                    <Download size={18} />
+                                  </div>
                                 </div>
                             </div>
                         </motion.div>
