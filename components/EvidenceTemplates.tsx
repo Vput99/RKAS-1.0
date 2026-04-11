@@ -270,22 +270,28 @@ const EvidenceTemplates = ({ budgets: allBudgets, onUpdate }: EvidenceTemplatesP
     handleProcessAi(group);
   };
 
-  const handleFileUpload = async (evidenceType: string, file: File) => {
+  const handleFileUpload = async (evidenceType: string, filesToUpload: File[]) => {
     if (!selectedGroup) return;
 
     setUploadProgress(prev => ({ ...prev, [evidenceType]: true }));
     
     try {
       const budgetId = selectedGroup.isHistory ? 'history' : selectedGroup.items[0].budgetId;
-      const result = await uploadEvidenceFile(file, budgetId);
       
-      if (result.url && result.path) {
-        const newEvidence: EvidenceFile = {
-          type: evidenceType,
-          url: result.url,
-          path: result.path,
-          name: file.name
-        };
+      const uploadedEvidences: EvidenceFile[] = [];
+      for (const file of filesToUpload) {
+        const result = await uploadEvidenceFile(file, budgetId);
+        if (result.url && result.path) {
+          uploadedEvidences.push({
+            type: evidenceType,
+            url: result.url,
+            path: result.path,
+            name: file.name
+          });
+        }
+      }
+      
+      if (uploadedEvidences.length > 0) {
 
         if (selectedGroup.isHistory) {
           const record = history.find(h => h.id === selectedGroup.historyId);
@@ -301,7 +307,7 @@ const EvidenceTemplates = ({ budgets: allBudgets, onUpdate }: EvidenceTemplatesP
               if (recipientIdx !== -1) {
                 const recipient = { ...recipients[recipientIdx] };
                 const currentFiles = recipient.evidence_files || [];
-                recipient.evidence_files = [...currentFiles, newEvidence];
+                recipient.evidence_files = [...currentFiles, ...uploadedEvidences];
                 recipients[recipientIdx] = recipient;
                 
                 const updatedSnapshot = { ...snapshot, groupedRecipients: recipients };
@@ -314,7 +320,7 @@ const EvidenceTemplates = ({ budgets: allBudgets, onUpdate }: EvidenceTemplatesP
               if (recipientIdx !== -1) {
                 const recipient = { ...recipients[recipientIdx] };
                 const currentFiles = recipient.evidence_files || [];
-                recipient.evidence_files = [...currentFiles, newEvidence];
+                recipient.evidence_files = [...currentFiles, ...uploadedEvidences];
                 recipients[recipientIdx] = recipient;
                 
                 await updateWithdrawalHistory(record.id, { snapshot_data: recipients });
@@ -332,7 +338,7 @@ const EvidenceTemplates = ({ budgets: allBudgets, onUpdate }: EvidenceTemplatesP
             const realization = { ...realizations[item.realizationIndex] };
             
             const currentFiles = realization.evidence_files || [];
-            realization.evidence_files = [...currentFiles, newEvidence];
+            realization.evidence_files = [...currentFiles, ...uploadedEvidences];
             
             realizations[item.realizationIndex] = realization;
             budget.realizations = realizations;
@@ -343,7 +349,7 @@ const EvidenceTemplates = ({ budgets: allBudgets, onUpdate }: EvidenceTemplatesP
         
         setSelectedGroup((prev: any) => {
           if (!prev) return null;
-          return { ...prev, evidence_files: [...prev.evidence_files, newEvidence] };
+          return { ...prev, evidence_files: [...(prev.evidence_files || []), ...uploadedEvidences] };
         });
       }
     } catch (error) {
@@ -1815,10 +1821,15 @@ const EvidenceTemplates = ({ budgets: allBudgets, onUpdate }: EvidenceTemplatesP
                                 type="file" 
                                 className="hidden" 
                                 accept="image/*,application/pdf"
+                                multiple
                                 disabled={isUploading}
                                 onChange={(e) => {
-                                  if (e.target.files?.[0]) {
-                                    handleFileUpload(evidence, e.target.files[0]);
+                                  if (e.target.files?.length) {
+                                    const filesArr = Array.from(e.target.files);
+                                    if (filesArr.length > 12) {
+                                      alert("Maksimal 12 file dapat diunggah sekaligus.");
+                                    }
+                                    handleFileUpload(evidence, filesArr.slice(0, 12));
                                   }
                                 }}
                               />

@@ -1,4 +1,4 @@
-import { Users, Coffee, Wrench, Bus, ShoppingBag } from 'lucide-react';
+import { Users, Coffee, Wrench, Bus, ShoppingBag, Receipt } from 'lucide-react';
 
 export const getTerbilang = (nilai: number): string => {
   const angka = Math.abs(nilai);
@@ -217,5 +217,19 @@ export const TEMPLATE_CATEGORIES = [
       'Bukti Setor PPh 21 Upah Tukang (Harian/Borongan)',
       'Foto Dokumentasi Bertahap (Sebalum, Sedang, Selesai)'
     ]
+  },
+  {
+    id: 'tagihan',
+    title: 'Pembayaran Tagihan Pihak Ketiga',
+    icon: Receipt,
+    color: 'text-indigo-600',
+    bg: 'bg-indigo-50',
+    description: 'Pencairan dana untuk operasional bulanan seperti Listrik, Air, Internet, Telepon, hingga Retribusi Sampah/Pajak.',
+    requirements: [
+      'Bukti Pembayaran Kuitansi / Struk Resmi dari Penyedia (PLN/PDAM/Telkom dll)',
+      'Invoice / Tagihan Resmi (Jika Ada)',
+      'Buku Kas Umum (Pencatatan)'
+    ]
   }
 ];
+
