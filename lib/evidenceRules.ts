@@ -1,30 +1,30 @@
 import { Users, Coffee, Wrench, Bus, ShoppingBag } from 'lucide-react';
 
 export const getTerbilang = (nilai: number): string => {
-    const angka = Math.abs(nilai);
-    const baca = ["", "Satu", "Dua", "Tiga", "Empat", "Lima", "Enam", "Tujuh", "Delapan", "Sembilan", "Sepuluh", "Sebelas"];
-    let terbilang = "";
+  const angka = Math.abs(nilai);
+  const baca = ["", "Satu", "Dua", "Tiga", "Empat", "Lima", "Enam", "Tujuh", "Delapan", "Sembilan", "Sepuluh", "Sebelas"];
+  let terbilang = "";
 
-    if (angka < 12) terbilang = " " + baca[angka];
-    else if (angka < 20) terbilang = getTerbilang(angka - 10) + " Belas";
-    else if (angka < 100) terbilang = getTerbilang(Math.floor(angka / 10)) + " Puluh " + getTerbilang(angka % 10);
-    else if (angka < 200) terbilang = " Seratus " + getTerbilang(angka - 100);
-    else if (angka < 1000) terbilang = getTerbilang(Math.floor(angka / 100)) + " Ratus " + getTerbilang(angka % 100);
-    else if (angka < 2000) terbilang = " Seribu " + getTerbilang(angka - 1000);
-    else if (angka < 1000000) terbilang = getTerbilang(Math.floor(angka / 1000)) + " Ribu " + getTerbilang(angka % 1000);
-    else if (angka < 1000000000) terbilang = getTerbilang(Math.floor(angka / 1000000)) + " Juta" + getTerbilang(angka % 1000000);
-    
-    return terbilang.trim() + " Rupiah";
+  if (angka < 12) terbilang = " " + baca[angka];
+  else if (angka < 20) terbilang = getTerbilang(angka - 10) + " Belas";
+  else if (angka < 100) terbilang = getTerbilang(Math.floor(angka / 10)) + " Puluh " + getTerbilang(angka % 10);
+  else if (angka < 200) terbilang = " Seratus " + getTerbilang(angka - 100);
+  else if (angka < 1000) terbilang = getTerbilang(Math.floor(angka / 100)) + " Ratus " + getTerbilang(angka % 100);
+  else if (angka < 2000) terbilang = " Seribu " + getTerbilang(angka - 1000);
+  else if (angka < 1000000) terbilang = getTerbilang(Math.floor(angka / 1000)) + " Ribu " + getTerbilang(angka % 1000);
+  else if (angka < 1000000000) terbilang = getTerbilang(Math.floor(angka / 1000000)) + " Juta" + getTerbilang(angka % 1000000);
+
+  return terbilang.trim() + " Rupiah";
 };
 export const MONTHS = [
-  'Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni', 
+  'Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni',
   'Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember'
 ];
 
 export const getEvidenceList = (description: string, accountCode?: string): string[] => {
   const text = (description + ' ' + (accountCode || '')).toLowerCase();
   const accCode = accountCode || '';
-  
+
   // Honor/Gaji (Jasa - Non SIPLah)
   if (text.includes('honor') || text.includes('gaji') || text.includes('jasa narasumber') || text.includes('instruktur') || text.includes('pembina') || accCode.startsWith('5.1.') || text.includes('jasa profesi')) {
     return [
@@ -51,14 +51,20 @@ export const getEvidenceList = (description: string, accountCode?: string): stri
       "Foto Dokumentasi Pekerjaan Fisik (0%, 50%, 100%)"
     ];
   }
+  // Belanja Listrik, Air, Internet, Telepon, Wifi, Sampah, Retribusi, Iuran, Pajak
+  if (text.includes('listrik') || text.includes('retribusi') || text.includes('sampah') || text.includes('air') || text.includes('internet') || text.includes('telepon') || text.includes('wifi') || text.includes('iuran') || text.includes('pajak')) {
+    return [
+      "Bukti Pembayaran Kuitansi / Struk Resmi",
+    ];
+  }
 
   if (
     accCode.startsWith('5.2.2') || accCode.startsWith('5.2.3') || accCode.startsWith('5.2.02') ||
-    text.includes('atk') || text.includes('bahan') || text.includes('alat') || 
-    text.includes('kertas') || text.includes('kebersihan') || text.includes('spanduk') || 
-    text.includes('cetak') || text.includes('penggandaan') || 
-    text.includes('modal') || text.includes('buku') || text.includes('laptop') || 
-    text.includes('komputer') || text.includes('printer') || text.includes('meja') || 
+    text.includes('atk') || text.includes('bahan') || text.includes('alat') ||
+    text.includes('kertas') || text.includes('kebersihan') || text.includes('spanduk') ||
+    text.includes('cetak') || text.includes('penggandaan') ||
+    text.includes('modal') || text.includes('buku') || text.includes('laptop') ||
+    text.includes('komputer') || text.includes('printer') || text.includes('meja') ||
     text.includes('kursi') || text.includes('aset') || text.includes('elektronik') ||
     text.includes('belanja') || text.includes('siplah')
   ) {
