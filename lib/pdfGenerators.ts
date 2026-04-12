@@ -406,15 +406,15 @@ export const generateUpahTukang = (data: any) => {
     ]);
 
     const colStyles: any = {
-        0: { cellWidth: 8, halign: 'center' },
-        1: { cellWidth: 45 },
-        2: { cellWidth: 24 },
-        34: { cellWidth: 12, halign: 'center' },
-        35: { cellWidth: 20, halign: 'right' },
-        36: { cellWidth: 22, halign: 'right' },
-        37: { cellWidth: 18 }
+        0: { cellWidth: 6, halign: 'center' },
+        1: { cellWidth: 32 },
+        2: { cellWidth: 18 },
+        34: { cellWidth: 9, halign: 'center' },
+        35: { cellWidth: 18, halign: 'right' },
+        36: { cellWidth: 20, halign: 'right' },
+        37: { cellWidth: 12 }
     };
-    for(let i = 0; i < 31; i++) colStyles[i + 3] = { cellWidth: 4.1, halign: 'center' };
+    for(let i = 0; i < 31; i++) colStyles[i + 3] = { cellWidth: 5.2, halign: 'center', cellPadding: 0.5 };
 
     autoTable(doc, {
         startY: 48,
