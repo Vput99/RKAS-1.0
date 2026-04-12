@@ -394,25 +394,10 @@ export const generateUpahTukang = (data: any) => {
         { content: '', styles: { halign: 'center' } } // Keterangan
     ]);
 
-    const localGetTerbilang = (nilai: number): string => {
-        const angka = Math.abs(nilai);
-        const baca = ["", "Satu", "Dua", "Tiga", "Empat", "Lima", "Enam", "Tujuh", "Delapan", "Sembilan", "Sepuluh", "Sebelas"];
-        let result = "";
-        if (angka < 12) result = " " + baca[angka];
-        else if (angka < 20) result = localGetTerbilang(angka - 10) + " Belas";
-        else if (angka < 100) result = localGetTerbilang(Math.floor(angka / 10)) + " Puluh " + localGetTerbilang(angka % 10);
-        else if (angka < 200) result = " Seratus " + localGetTerbilang(angka - 100);
-        else if (angka < 1000) result = localGetTerbilang(Math.floor(angka / 100)) + " Ratus " + localGetTerbilang(angka % 100);
-        else if (angka < 2000) result = " Seribu " + localGetTerbilang(angka - 1000);
-        else if (angka < 1000000) result = localGetTerbilang(Math.floor(angka / 1000)) + " Ribu " + localGetTerbilang(angka % 1000);
-        else if (angka < 1000000000) result = localGetTerbilang(Math.floor(angka / 1000000)) + " Juta" + localGetTerbilang(angka % 1000000);
-        return result.trim();
-    };
-
-    let terbilangStr = localGetTerbilang(sumTotalUpah);
+    let terbilangStr = getTerbilang(sumTotalUpah);
 
     body.push([
-        { content: `Terbilang : ${terbilangStr} Rupiah`, colSpan: 38, styles: { halign: 'left', fontStyle: 'italic', cellPadding: 2 } }
+        { content: `Terbilang : ${terbilangStr}`, colSpan: 38, styles: { halign: 'left', fontStyle: 'italic', cellPadding: 2 } }
     ]);
 
     const colStyles: any = {
