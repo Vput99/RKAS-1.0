@@ -389,25 +389,36 @@ export const generateUpahTukang = (data: any) => {
 
     // Subtotal Row
     body.push([
-        { content: 'Jumlah Total', colSpan: 35, styles: { halign: 'center', fontStyle: 'bold' } },
-        { content: '', styles: { halign: 'center' } }, // upah / Hari
+        { content: 'Jumlah Total', colSpan: 36, styles: { halign: 'center', fontStyle: 'bold' } },
         { content: new Intl.NumberFormat('id-ID').format(sumTotalUpah), styles: { halign: 'right', fontStyle: 'bold' } },
         { content: '', styles: { halign: 'center' } } // Keterangan
     ]);
 
+    let terbilangStr = '';
+    try {
+        terbilangStr = getTerbilang(sumTotalUpah);
+    } catch {
+        terbilangStr = data.terbilang || '( .............................................................. )';
+    }
+
+    body.push([
+        { content: `Terbilang : ${terbilangStr} Rupiah`, colSpan: 38, styles: { halign: 'left', fontStyle: 'italic', cellPadding: 2 } }
+    ]);
+
     const colStyles: any = {
         0: { cellWidth: 8, halign: 'center' },
-        1: { cellWidth: 35 },
-        2: { cellWidth: 20 },
-        34: { cellWidth: 10, halign: 'center' },
+        1: { cellWidth: 45 },
+        2: { cellWidth: 24 },
+        34: { cellWidth: 12, halign: 'center' },
         35: { cellWidth: 20, halign: 'right' },
-        36: { cellWidth: 25, halign: 'right' },
-        37: { cellWidth: 20 }
+        36: { cellWidth: 22, halign: 'right' },
+        37: { cellWidth: 18 }
     };
-    for(let i = 0; i < 31; i++) colStyles[i + 3] = { cellWidth: 4.2, halign: 'center' };
+    for(let i = 0; i < 31; i++) colStyles[i + 3] = { cellWidth: 4.1, halign: 'center' };
 
     autoTable(doc, {
         startY: 48,
+        margin: { left: 10, right: 10 },
         head: head as any,
         body: body,
         theme: 'grid',
@@ -416,43 +427,35 @@ export const generateUpahTukang = (data: any) => {
         columnStyles: colStyles
     });
 
-    const finalY = (doc as any).lastAutoTable.finalY + 10;
+    const finalY = (doc as any).lastAutoTable.finalY + 5;
     
-    // Get Terbilang
-    let terbilangStr = '';
-    try {
-        terbilangStr = getTerbilang(sumTotalUpah);
-    } catch {
-        terbilangStr = data.terbilang || '( .............................................................. )';
-    }
-
-    // Catatan Kaki (Kiri)
-    doc.setFont('times', 'italic');
-    doc.setFontSize(10);
-    doc.text(`Terbilang : ${terbilangStr}`, 15, finalY);
-
-    const dashedLineY = finalY + 5;
-    (doc as any).setLineDash([1, 1], 0);
-    doc.line(15, dashedLineY, 150, dashedLineY);
-    (doc as any).setLineDash([], 0); // reset
-    
+    // Notes text
     doc.setFont('times', 'normal');
     doc.setFontSize(9);
-    doc.text('- Yang bertanda tangan di bawah ini menerangkan bahwa', 15, dashedLineY + 6);
-    doc.text('  upah-upah tersebut telah dibayarkan kepada masing-masing', 15, dashedLineY + 11);
-    doc.text('  orang yang berhak menerimanya.', 15, dashedLineY + 16);
-    doc.text('- Dibayarkan di hadapan kami', 15, dashedLineY + 22);
-    doc.text('Noot : Cap Jempol dibaliknya', 15, dashedLineY + 28);
+    doc.text('- Yang bertanda tangan di bawah ini menerangkan bahwa', 15, finalY + 6);
+    doc.text('  upah-upah tersebut telah dibayarkan kepada masing-masing', 15, finalY + 10);
+    doc.text('  orang yang berhak menerimanya.', 15, finalY + 14);
+    doc.text('- Dibayarkan di hadapan kami', 15, finalY + 20);
+    doc.text('Noot : Cap Jempol dibaliknya', 15, finalY + 26);
     
-    // Tanda Tangan (Kanan)
+    // Calculate last date of the month string
+    let lastDateStr = "31 Maret 2026";
+    if (monthYear) {
+       const m = monthYear.toLowerCase();
+       let lastDay = "31";
+       if(m.includes('feb')) lastDay = "28";
+       else if(m.includes('apr') || m.includes('jun') || m.includes('sep') || m.includes('nov')) lastDay = "30";
+       lastDateStr = `${lastDay} ${monthYear}`;
+    }
+
     const rightAlignBase = 220;
-    doc.text(`${data.city || 'Kediri'}, ........................`, rightAlignBase, dashedLineY + 6);
-    doc.text('Kepala Sekolah', rightAlignBase, dashedLineY + 11);
+    doc.text(`${data.city || 'Kediri'}, ${lastDateStr}`, rightAlignBase, finalY + 6);
+    doc.text('Kepala Sekolah', rightAlignBase, finalY + 11);
     
     doc.setFont('times', 'bold');
-    doc.text(data.ksName || 'Nita Ekaningkarti Adji, S.Pd', rightAlignBase, dashedLineY + 30);
+    doc.text(data.ksName || 'Nita Ekaningkarti Adji, S.Pd', rightAlignBase, finalY + 26);
     doc.setFont('times', 'normal');
-    doc.text(`NIP. ${data.ksNip || '19860213 201409 2 002'}`, rightAlignBase, dashedLineY + 35);
+    doc.text(`NIP. ${data.ksNip || '19860213 201409 2 002'}`, rightAlignBase, finalY + 30);
 
     doc.save('Roolstaat_Upah_Tukang.pdf');
 };
