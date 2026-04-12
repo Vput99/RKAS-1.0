@@ -2,6 +2,13 @@ import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import { getTerbilang } from './evidenceRules';
 
+const parseCurrency = (val: any): number => {
+    if (typeof val === 'number') return val;
+    if (!val) return 0;
+    const cleaned = String(val).replace(/[^0-9,-]+/g, "").replace(",", ".");
+    return parseFloat(cleaned) || 0;
+};
+
 export const generateKuitansi = (data: any) => {
     const doc = new jsPDF('l', 'mm', 'a5');
     
@@ -28,8 +35,8 @@ export const generateKuitansi = (data: any) => {
     doc.text('Uang Sejumlah', 20, startY + gap);
     doc.text(':', 60, startY + gap);
     doc.setFont('helvetica', 'bolditalic');
-    const nominal = data.amount ? new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR' }).format(Number(data.amount)) : 'Rp ..................................................';
-    doc.text(nominal, 65, startY + gap);
+    const nominalStr = data.amount ? new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', maximumFractionDigits: 0 }).format(parseCurrency(data.amount)) : 'Rp ..................................................';
+    doc.text(nominalStr, 65, startY + gap);
     
     doc.setFont('helvetica', 'normal');
     doc.text('Untuk Pembayaran', 20, startY + (gap*2));
@@ -42,7 +49,9 @@ export const generateKuitansi = (data: any) => {
     doc.text('Terbilang', 20, terbilangY);
     doc.text(':', 60, terbilangY);
     doc.setFont('helvetica', 'bold');
-    doc.text(`# ${data.terbilang || '...................................................................................'} #`, 65, terbilangY);
+    
+    const displayTerbilang = data.terbilang || getTerbilang(parseCurrency(data.amount));
+    doc.text(`# ${displayTerbilang} #`, 65, terbilangY);
 
     const signY = 110;
     doc.setFont('helvetica', 'normal');
@@ -236,7 +245,8 @@ export const generateSPK = (data: any) => {
     doc.text(splitContent, margin, y);
     y += (splitContent.length * 6) + 4;
 
-    doc.text(`Nilai Pekerjaan : ${data.amount ? new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR' }).format(Number(data.amount)) : 'Rp ....................'}`, margin, y);
+    const formattedAmount = data.amount ? new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', maximumFractionDigits: 0 }).format(parseCurrency(data.amount)) : 'Rp ....................';
+    doc.text(`Nilai Pekerjaan : ${formattedAmount}`, margin, y);
     
     y += 20;
     doc.text('PIHAK KEDUA', margin + 20, y, { align: 'center' });
@@ -358,7 +368,7 @@ export const generateUpahTukang = (data: any) => {
 
     // Body
     const body: any[] = (data.workers || []).map((w: any, i: number) => {
-        const upahHari = Number(w.dailyWage || w.salary || 100000);
+        const upahHari = parseCurrency(w.dailyWage || w.salary || 100000);
         
         let hariKerja = 0;
         const daysMarks = daysArr.map(day => {
@@ -389,7 +399,7 @@ export const generateUpahTukang = (data: any) => {
 
     // Subtotal Row
     body.push([
-        { content: 'Jumlah Total', colSpan: 36, styles: { halign: 'center', fontStyle: 'bold' } },
+        { content: 'Jumlah Total', colSpan: 36, styles: { halign: 'right', fontStyle: 'bold' } },
         { content: new Intl.NumberFormat('id-ID').format(sumTotalUpah), styles: { halign: 'right', fontStyle: 'bold' } },
         { content: '', styles: { halign: 'center' } } // Keterangan
     ]);
@@ -397,17 +407,17 @@ export const generateUpahTukang = (data: any) => {
     let terbilangStr = getTerbilang(sumTotalUpah);
 
     body.push([
-        { content: `Terbilang : ${terbilangStr}`, colSpan: 38, styles: { halign: 'left', fontStyle: 'italic', cellPadding: 2 } }
+        { content: `Terbilang : # ${terbilangStr} #`, colSpan: 38, styles: { halign: 'left', fontStyle: 'italic', cellPadding: 3 } }
     ]);
 
     const colStyles: any = {
-        0: { cellWidth: 6, halign: 'center' },
-        1: { cellWidth: 32 },
-        2: { cellWidth: 18 },
-        34: { cellWidth: 9, halign: 'center' },
-        35: { cellWidth: 18, halign: 'right' },
-        36: { cellWidth: 20, halign: 'right' },
-        37: { cellWidth: 12 }
+        0: { cellWidth: 8, halign: 'center' },
+        1: { cellWidth: 35 },
+        2: { cellWidth: 20 },
+        34: { cellWidth: 10, halign: 'center' },
+        35: { cellWidth: 22, halign: 'right' },
+        36: { cellWidth: 24, halign: 'right' },
+        37: { cellWidth: 15 }
     };
     for(let i = 0; i < 31; i++) colStyles[i + 3] = { cellWidth: 5.2, halign: 'center', cellPadding: 0.5 };
 
@@ -610,15 +620,15 @@ export const generateDaftarTransport = (data: any) => {
     doc.text(`Hari/Tanggal : ${data.date}`, margin, margin + 26);
     doc.text(`Tempat          : ${data.destination || '...........................................'}`, margin, margin + 32);
 
-    const transportPerPerson = data.amount ? Number(data.amount) : 0;
+    const transportPerPerson = parseCurrency(data.amount || 0);
     
     const body = (data.officials || []).map((off: any, i: number) => [
-        i + 1, off.name, `${data.schoolName} - ${data.destination}`, new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR' }).format(transportPerPerson), ''
+        i + 1, off.name, `${data.schoolName} - ${data.destination}`, new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', maximumFractionDigits: 0 }).format(transportPerPerson), ''
     ]);
 
     // Total Row
     const totalAmount = transportPerPerson * (data.officials ? data.officials.length : 0);
-    body.push(['', 'TOTAL', '', new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR' }).format(totalAmount), '']);
+    body.push(['', 'TOTAL', '', new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', maximumFractionDigits: 0 }).format(totalAmount), '']);
 
     autoTable(doc, {
         startY: margin + 40,
@@ -628,7 +638,10 @@ export const generateDaftarTransport = (data: any) => {
         styles: { font: 'times', fontSize: 11, cellPadding: 3, lineWidth: 0.1, lineColor: 0 },
         columnStyles: {
             0: { cellWidth: 10, halign: 'center' },
-            3: { halign: 'right' }
+            1: { cellWidth: 50 },
+            2: { cellWidth: 60 },
+            3: { cellWidth: 35, halign: 'right' },
+            4: { cellWidth: 35 }
         },
         didParseCell: (data) => {
             if (data.row.index === body.length - 1) {
