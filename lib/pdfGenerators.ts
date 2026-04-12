@@ -11,14 +11,14 @@ const parseCurrency = (val: any): number => {
 
 export const generateKuitansi = (data: any) => {
     const doc = new jsPDF('l', 'mm', 'a5');
-    
+
     doc.setLineWidth(1);
     doc.rect(10, 10, 190, 128);
 
     doc.setFontSize(14);
     doc.setFont('helvetica', 'bold');
     doc.text('KUITANSI PEMBAYARAN', 105, 25, { align: 'center' });
-    
+
     doc.setFontSize(10);
     doc.setFont('helvetica', 'normal');
     doc.text(`Tahun Anggaran : ${data.year}`, 150, 35);
@@ -27,29 +27,29 @@ export const generateKuitansi = (data: any) => {
 
     const startY = 55;
     const gap = 10;
-    
+
     doc.text('Sudah Terima Dari', 20, startY);
     doc.text(':', 60, startY);
     doc.text(`Bendahara BOS ${data.schoolName}`, 65, startY);
-    
+
     doc.text('Uang Sejumlah', 20, startY + gap);
     doc.text(':', 60, startY + gap);
     doc.setFont('helvetica', 'bolditalic');
     const nominalStr = data.amount ? new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', maximumFractionDigits: 0 }).format(parseCurrency(data.amount)) : 'Rp ..................................................';
     doc.text(nominalStr, 65, startY + gap);
-    
-    doc.setFont('helvetica', 'normal');
-    doc.text('Untuk Pembayaran', 20, startY + (gap*2));
-    doc.text(':', 60, startY + (gap*2));
-    
-    const splitDesc = doc.splitTextToSize(data.description || '..........................................................................................', 120);
-    doc.text(splitDesc, 65, startY + (gap*2));
 
-    const terbilangY = startY + (gap*2) + (splitDesc.length * 5) + 5;
+    doc.setFont('helvetica', 'normal');
+    doc.text('Untuk Pembayaran', 20, startY + (gap * 2));
+    doc.text(':', 60, startY + (gap * 2));
+
+    const splitDesc = doc.splitTextToSize(data.description || '..........................................................................................', 120);
+    doc.text(splitDesc, 65, startY + (gap * 2));
+
+    const terbilangY = startY + (gap * 2) + (splitDesc.length * 5) + 5;
     doc.text('Terbilang', 20, terbilangY);
     doc.text(':', 60, terbilangY);
     doc.setFont('helvetica', 'bold');
-    
+
     const displayTerbilang = data.terbilang || getTerbilang(parseCurrency(data.amount));
     doc.text(`# ${displayTerbilang} #`, 65, terbilangY);
 
@@ -68,7 +68,7 @@ export const generateKuitansi = (data: any) => {
     doc.text(data.trName || '( ........................... )', 105, signY + 25, { align: 'center' });
     doc.text(data.receiver || '( ........................... )', 170, signY + 25, { align: 'center' });
 
-    doc.save(`Kuitansi_${data.description ? data.description.substring(0,10) : 'Kosong'}.pdf`);
+    doc.save(`Kuitansi_${data.description ? data.description.substring(0, 10) : 'Kosong'}.pdf`);
 };
 
 export const generateDaftarHadir = (data: any) => {
@@ -80,15 +80,15 @@ export const generateDaftarHadir = (data: any) => {
     doc.text('DAFTAR HADIR KEGIATAN', 105, margin, { align: 'center' });
     doc.setFontSize(12);
     doc.text(data.activityName || '........................................', 105, margin + 6, { align: 'center' });
-    
+
     doc.setFontSize(11);
     doc.setFont('times', 'normal');
     doc.text(`Hari/Tanggal : ${data.date}`, margin, margin + 20);
     doc.text(`Tempat       : ${data.projectLocation || data.schoolName}`, margin, margin + 26);
-    
+
     // Use officials list if populated, otherwise create empty rows
-    const participants = (data.officials && data.officials.length > 0 && data.officials[0].name !== '') 
-        ? data.officials 
+    const participants = (data.officials && data.officials.length > 0 && data.officials[0].name !== '')
+        ? data.officials
         : Array(15).fill({ name: '', role: '' });
 
     const body = participants.map((p: any, i: number) => [
@@ -146,7 +146,7 @@ export const generateSK = (data: any) => {
 
     let currentY = titleY + 20 + (splitTitle.length * 6) + 10;
     doc.setFont('times', 'normal');
-    
+
     // Menimbang
     doc.text('Menimbang', margin, currentY);
     doc.text(':', margin + 30, currentY);
@@ -167,14 +167,14 @@ export const generateSK = (data: any) => {
     doc.setFont('times', 'bold');
     doc.text('MEMUTUSKAN', 105, currentY, { align: 'center' });
     currentY += 10;
-    
+
     doc.setFont('times', 'normal');
     doc.text('Menetapkan', margin, currentY);
     doc.text(':', margin + 30, currentY);
     doc.text('PERTAMA', margin + 35, currentY);
     doc.text(`: Menetapkan nama-nama yang tercantum dalam lampiran keputusan ini.`, margin + 60, currentY, { maxWidth: 100, align: 'justify' });
-    
-    currentY += 10; 
+
+    currentY += 10;
     doc.text('KEDUA', margin + 35, currentY);
     doc.text(`: Biaya dibebankan pada Anggaran BOSP Tahun ${data.year}.`, margin + 60, currentY, { maxWidth: 100, align: 'justify' });
 
@@ -196,9 +196,9 @@ export const generateSK = (data: any) => {
     doc.setFont('times', 'bold');
     doc.text('LAMPIRAN KEPUTUSAN KEPALA SEKOLAH', margin, margin);
     doc.text(`Nomor : ${data.skNumber}`, margin, margin + 6);
-    
-    const body = (data.skAppointees || []).map((p: any, i: number) => [i+1, p.name, p.role, '']);
-    
+
+    const body = (data.skAppointees || []).map((p: any, i: number) => [i + 1, p.name, p.role, '']);
+
     autoTable(doc, {
         startY: margin + 20,
         head: [['No', 'Nama', 'Jabatan / Tugas', 'Keterangan']],
@@ -222,7 +222,7 @@ export const generateSPK = (data: any) => {
 
     doc.setFont('times', 'normal');
     doc.setFontSize(11);
-    
+
     let y = margin + 20;
     doc.text('Yang bertanda tangan di bawah ini:', margin, y);
     y += 8;
@@ -247,11 +247,11 @@ export const generateSPK = (data: any) => {
 
     const formattedAmount = data.amount ? new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', maximumFractionDigits: 0 }).format(parseCurrency(data.amount)) : 'Rp ....................';
     doc.text(`Nilai Pekerjaan : ${formattedAmount}`, margin, y);
-    
+
     y += 20;
     doc.text('PIHAK KEDUA', margin + 20, y, { align: 'center' });
     doc.text('PIHAK PERTAMA', 150, y, { align: 'center' });
-    
+
     y += 25;
     doc.setFont('times', 'bold');
     doc.text(`( ${data.contractorName} )`, margin + 20, y, { align: 'center' });
@@ -269,10 +269,10 @@ export const generateMOU = (data: any) => {
     doc.text('PERJANJIAN KERJASAMA', 105, margin, { align: 'center' });
     doc.setFontSize(12);
     doc.text(`NOMOR : ${data.mouNumber}`, 105, margin + 6, { align: 'center' });
-    
+
     doc.setFont('times', 'normal');
     doc.setFontSize(11);
-    
+
     let y = margin + 20;
     doc.text('Antara:', margin, y);
     y += 8;
@@ -283,11 +283,11 @@ export const generateMOU = (data: any) => {
     y += 10;
     const content = `Kedua belah pihak sepakat bekerjasama dalam: ${data.description || '.........................'}.`;
     doc.text(doc.splitTextToSize(content, 170), margin, y);
-    
+
     y += 30;
     doc.text('PIHAK KEDUA', margin + 20, y, { align: 'center' });
     doc.text('PIHAK PERTAMA', 150, y, { align: 'center' });
-    
+
     y += 25;
     doc.setFont('times', 'bold');
     doc.text(`( ${data.contractorName} )`, margin + 20, y, { align: 'center' });
@@ -305,7 +305,7 @@ export const generateAbsensiTukang = (data: any) => {
     doc.text('DAFTAR HADIR PEKERJA', 105, margin, { align: 'center' });
     doc.setFontSize(12);
     doc.text(`KEGIATAN: ${data.activityName || '..........................'}`, 105, margin + 6, { align: 'center' });
-    
+
     const body = (data.workers || []).map((w: any, i: number) => [
         i + 1, w.name, w.role, '', '', '', ''
     ]);
@@ -328,13 +328,13 @@ export const generateAbsensiTukang = (data: any) => {
 
 export const generateUpahTukang = (data: any) => {
     const doc = new jsPDF('l'); // Landscape A4
-    
+
     // Header & Kop Surat
     doc.setFont('times', 'bold');
     doc.setFontSize(12);
     doc.text('KOP SURAT / SEKOLAH', 148, 15, { align: 'center' });
     doc.text(data.schoolName || 'SD Negeri Tempurejo 1', 148, 22, { align: 'center' });
-    
+
     doc.setFontSize(18);
     doc.text('ROOLSTAAT', 148, 30, { align: 'center' });
 
@@ -369,17 +369,17 @@ export const generateUpahTukang = (data: any) => {
     // Body
     const body: any[] = (data.workers || []).map((w: any, i: number) => {
         const upahHari = parseCurrency(w.dailyWage || w.salary || 100000);
-        
+
         let hariKerja = 0;
         const daysMarks = daysArr.map(day => {
             const mark = (w.attendance && w.attendance[day]) ? 'x' : (w.days && Number(day) <= w.days ? 'x' : '');
             if (mark === 'x') hariKerja++;
             return mark;
         });
-        
+
         if (hariKerja === 0 && w.days) {
             hariKerja = w.days;
-            for(let j = 0; j < hariKerja; j++) daysMarks[j] = 'x';
+            for (let j = 0; j < hariKerja; j++) daysMarks[j] = 'x';
         }
 
         const upahTotal = hariKerja * upahHari;
@@ -399,7 +399,7 @@ export const generateUpahTukang = (data: any) => {
 
     // Subtotal Row
     body.push([
-        { content: 'Jumlah Total', colSpan: 36, styles: { halign: 'right', fontStyle: 'bold' } },
+        { content: 'Jumlah Total', colSpan: 34, styles: { halign: 'right', fontStyle: 'bold' } },
         { content: new Intl.NumberFormat('id-ID').format(sumTotalUpah), styles: { halign: 'right', fontStyle: 'bold' } },
         { content: '', styles: { halign: 'center' } } // Keterangan
     ]);
@@ -415,11 +415,11 @@ export const generateUpahTukang = (data: any) => {
         1: { cellWidth: 35 },
         2: { cellWidth: 20 },
         34: { cellWidth: 10, halign: 'center' },
-        35: { cellWidth: 22, halign: 'right' },
-        36: { cellWidth: 24, halign: 'right' },
+        35: { cellWidth: 25, halign: 'right' },
+        36: { cellWidth: 30, halign: 'right' },
         37: { cellWidth: 15 }
     };
-    for(let i = 0; i < 31; i++) colStyles[i + 3] = { cellWidth: 5.2, halign: 'center', cellPadding: 0.5 };
+    for (let i = 0; i < 31; i++) colStyles[i + 3] = { cellWidth: 5.2, halign: 'center', cellPadding: 0.5 };
 
     autoTable(doc, {
         startY: 48,
@@ -433,7 +433,7 @@ export const generateUpahTukang = (data: any) => {
     });
 
     const finalY = (doc as any).lastAutoTable.finalY + 5;
-    
+
     // Notes text
     doc.setFont('times', 'normal');
     doc.setFontSize(9);
@@ -441,22 +441,22 @@ export const generateUpahTukang = (data: any) => {
     doc.text('  upah-upah tersebut telah dibayarkan kepada masing-masing', 15, finalY + 10);
     doc.text('  orang yang berhak menerimanya.', 15, finalY + 14);
     doc.text('- Dibayarkan di hadapan kami', 15, finalY + 20);
-    doc.text('Noot : Cap Jempol dibaliknya', 15, finalY + 26);
-    
+    doc.text('Note : Cap Jempol dibaliknya', 15, finalY + 26);
+
     // Calculate last date of the month string
     let lastDateStr = "31 Maret 2026";
     if (monthYear) {
-       const m = monthYear.toLowerCase();
-       let lastDay = "31";
-       if(m.includes('feb')) lastDay = "28";
-       else if(m.includes('apr') || m.includes('jun') || m.includes('sep') || m.includes('nov')) lastDay = "30";
-       lastDateStr = `${lastDay} ${monthYear}`;
+        const m = monthYear.toLowerCase();
+        let lastDay = "31";
+        if (m.includes('feb')) lastDay = "28";
+        else if (m.includes('apr') || m.includes('jun') || m.includes('sep') || m.includes('nov')) lastDay = "30";
+        lastDateStr = `${lastDay} ${monthYear}`;
     }
 
     const rightAlignBase = 220;
     doc.text(`${data.city || 'Kediri'}, ${lastDateStr}`, rightAlignBase, finalY + 6);
     doc.text('Kepala Sekolah', rightAlignBase, finalY + 11);
-    
+
     doc.setFont('times', 'bold');
     doc.text(data.ksName || 'Nita Ekaningkarti Adji, S.Pd', rightAlignBase, finalY + 26);
     doc.setFont('times', 'normal');
@@ -468,7 +468,7 @@ export const generateUpahTukang = (data: any) => {
 export const generateSuratTugas = (data: any) => {
     const doc = new jsPDF();
     const margin = 20;
-    
+
     // Header
     doc.setFont('times', 'bold');
     doc.setFontSize(14);
@@ -493,7 +493,7 @@ export const generateSuratTugas = (data: any) => {
     currentY += 15;
     doc.setFont('times', 'bold');
     doc.text('MEMERINTAHKAN :', 105, currentY, { align: 'center' });
-    
+
     currentY += 10;
     doc.setFont('times', 'normal');
     doc.text('Kepada', margin, currentY);
@@ -542,19 +542,19 @@ export const generateSuratTugas = (data: any) => {
 export const generateSPPD = (data: any) => {
     // Generate one SPPD page per Official
     const doc = new jsPDF();
-    
+
     data.officials.forEach((official: any, index: number) => {
         if (index > 0) doc.addPage();
 
         const margin = 20;
-        
+
         // Header SPPD (Small)
         doc.setFont('times', 'bold');
         doc.setFontSize(10);
         doc.text(`PEMERINTAH KABUPATEN/KOTA`, margin, 15);
         doc.text('DINAS PENDIDIKAN', margin, 20);
         doc.text(data.schoolName.toUpperCase(), margin, 25);
-        
+
         doc.setFontSize(9);
         doc.text('Lembar ke : ............', 140, 15);
         doc.text('Kode No   : ............', 140, 20);
@@ -613,7 +613,7 @@ export const generateDaftarTransport = (data: any) => {
     doc.setFontSize(14);
     doc.text('DAFTAR PENERIMAAN UANG TRANSPORT', 105, margin, { align: 'center' });
     doc.text('PERJALANAN DINAS', 105, margin + 6, { align: 'center' });
-    
+
     doc.setFont('times', 'normal');
     doc.setFontSize(11);
     doc.text(`Kegiatan        : ${data.description || '...........................................'}`, margin, margin + 20);
@@ -621,7 +621,7 @@ export const generateDaftarTransport = (data: any) => {
     doc.text(`Tempat          : ${data.destination || '...........................................'}`, margin, margin + 32);
 
     const transportPerPerson = parseCurrency(data.amount || 0);
-    
+
     const body = (data.officials || []).map((off: any, i: number) => [
         i + 1, off.name, `${data.schoolName} - ${data.destination}`, new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', maximumFractionDigits: 0 }).format(transportPerPerson), ''
     ]);
@@ -651,11 +651,11 @@ export const generateDaftarTransport = (data: any) => {
     });
 
     const finalY = (doc as any).lastAutoTable.finalY + 15;
-    
+
     doc.text('Setuju Dibayar,', 20, finalY);
     doc.text('Lunas Dibayar,', 85, finalY);
     doc.text('Mengetahui,', 150, finalY); // Changed position logic
-    
+
     doc.text('Kepala Sekolah', 20, finalY + 5);
     doc.text('Bendahara', 85, finalY + 5);
     doc.text('Kepala Sekolah', 150, finalY + 5); // Usually KS signs twice or just once
@@ -664,7 +664,7 @@ export const generateDaftarTransport = (data: any) => {
     doc.text(`( ${data.ksName} )`, 20, finalY + 25);
     doc.text(`( ${data.trName} )`, 85, finalY + 25);
     doc.text(`( ${data.ksName} )`, 150, finalY + 25);
-    
+
     doc.setFont('times', 'normal');
     doc.text(`NIP. ${data.ksNip}`, 20, finalY + 30);
     doc.text(`NIP. ${data.trNip}`, 85, finalY + 30);
@@ -689,7 +689,7 @@ export const generateLaporanSPPD = (data: any) => {
     const titleY = margin + 35;
     doc.setFontSize(12);
     doc.text('LAPORAN PERJALANAN DINAS', 105, titleY, { align: 'center' });
-    
+
     doc.setFont('times', 'normal');
     doc.setFontSize(11);
     let y = titleY + 15;
@@ -700,7 +700,7 @@ export const generateLaporanSPPD = (data: any) => {
     doc.setFont('times', 'normal');
     y += 6;
     doc.text(`Surat Tugas Kepala Sekolah Nomor: ${data.suratTugasNumber} Tanggal ${data.date}`, margin + 5, y);
-    
+
     y += 10;
     doc.setFont('times', 'bold');
     doc.text('II. MAKSUD DAN TUJUAN', margin, y);
@@ -718,7 +718,7 @@ export const generateLaporanSPPD = (data: any) => {
     doc.text(`Hari / Tanggal : ${data.date}`, margin + 5, y);
     y += 6;
     doc.text(`Tempat            : ${data.destination}`, margin + 5, y);
-    
+
     y += 10;
     doc.setFont('times', 'bold');
     doc.text('IV. PETUGAS', margin, y);
@@ -751,7 +751,7 @@ export const generateLaporanSPPD = (data: any) => {
     doc.text(`${data.city}, ${data.date}`, 140, y);
     y += 6;
     doc.text('Pelapor / Petugas,', 140, y);
-    
+
     y += 25;
     doc.setFont('times', 'bold');
     // Assuming the first official is the main reporter

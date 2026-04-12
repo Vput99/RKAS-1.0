@@ -2,19 +2,25 @@ import { Users, Coffee, Wrench, Bus, ShoppingBag, Receipt } from 'lucide-react';
 
 export const getTerbilang = (nilai: number): string => {
   const angka = Math.abs(nilai);
+
+  if (angka === 0) return "Nol Rupiah";
+
   const baca = ["", "Satu", "Dua", "Tiga", "Empat", "Lima", "Enam", "Tujuh", "Delapan", "Sembilan", "Sepuluh", "Sebelas"];
-  let terbilang = "";
 
-  if (angka < 12) terbilang = " " + baca[angka];
-  else if (angka < 20) terbilang = getTerbilang(angka - 10) + " Belas";
-  else if (angka < 100) terbilang = getTerbilang(Math.floor(angka / 10)) + " Puluh " + getTerbilang(angka % 10);
-  else if (angka < 200) terbilang = " Seratus " + getTerbilang(angka - 100);
-  else if (angka < 1000) terbilang = getTerbilang(Math.floor(angka / 100)) + " Ratus " + getTerbilang(angka % 100);
-  else if (angka < 2000) terbilang = " Seribu " + getTerbilang(angka - 1000);
-  else if (angka < 1000000) terbilang = getTerbilang(Math.floor(angka / 1000)) + " Ribu " + getTerbilang(angka % 1000);
-  else if (angka < 1000000000) terbilang = getTerbilang(Math.floor(angka / 1000000)) + " Juta" + getTerbilang(angka % 1000000);
+  const konversi = (n: number): string => {
+    let result = "";
+    if (n < 12) result = " " + baca[n];
+    else if (n < 20) result = konversi(n - 10) + " Belas";
+    else if (n < 100) result = konversi(Math.floor(n / 10)) + " Puluh" + konversi(n % 10);
+    else if (n < 200) result = " Seratus" + konversi(n - 100);
+    else if (n < 1000) result = konversi(Math.floor(n / 100)) + " Ratus" + konversi(n % 100);
+    else if (n < 2000) result = " Seribu" + konversi(n - 1000);
+    else if (n < 1000000) result = konversi(Math.floor(n / 1000)) + " Ribu" + konversi(n % 1000);
+    else if (n < 1000000000) result = konversi(Math.floor(n / 1000000)) + " Juta" + konversi(n % 1000000);
+    return result;
+  };
 
-  return terbilang.trim() + " Rupiah";
+  return konversi(angka).trim() + " Rupiah";
 };
 export const MONTHS = [
   'Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni',
