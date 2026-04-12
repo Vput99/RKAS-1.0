@@ -1,5 +1,6 @@
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
+import { getTerbilang } from './evidenceRules';
 
 export const generateKuitansi = (data: any) => {
     const doc = new jsPDF('l', 'mm', 'a5');
@@ -316,35 +317,144 @@ export const generateAbsensiTukang = (data: any) => {
 };
 
 export const generateUpahTukang = (data: any) => {
-    const doc = new jsPDF('l');
-    const margin = 20;
-
+    const doc = new jsPDF('l'); // Landscape A4
+    
+    // Header & Kop Surat
     doc.setFont('times', 'bold');
-    doc.setFontSize(14);
-    doc.text('DAFTAR PENERIMAAN UPAH', 148, margin, { align: 'center' });
     doc.setFontSize(12);
-    doc.text(`KEGIATAN: ${data.activityName || '..........................'}`, 148, margin + 6, { align: 'center' });
+    doc.text('KOP SURAT / SEKOLAH', 148, 15, { align: 'center' });
+    doc.text(data.schoolName || 'SD Negeri Tempurejo 1', 148, 22, { align: 'center' });
+    
+    doc.setFontSize(18);
+    doc.text('ROOLSTAAT', 148, 30, { align: 'center' });
 
-    const body = (data.workers || []).map((w: any, i: number) => [
-        i + 1, w.name, w.role, '... Hari', 'Rp ...', 'Rp ...', 'Rp ...', ''
+    // Informasi Kegiatan
+    doc.setFontSize(11);
+    doc.setFont('times', 'normal');
+    doc.text(`Nama Kegiatan: ${data.activityName || 'Rehab Tempat Parkir dan Kamar Mandi'}`, 15, 42);
+
+    // Dynamic Month Year
+    const monthYear = data.monthYear || 'Maret 2026';
+    const daysArr = Array.from({ length: 31 }, (_, i) => (i + 1).toString());
+
+    // Setup Table Headers
+    const head = [
+        [
+            { content: 'No', rowSpan: 2, styles: { halign: 'center', valign: 'middle' } },
+            { content: 'nama', rowSpan: 2, styles: { halign: 'center', valign: 'middle' } },
+            { content: 'Pekerjaan', rowSpan: 2, styles: { halign: 'center', valign: 'middle' } },
+            { content: `Bulan : ${monthYear}`, colSpan: 31, styles: { halign: 'center', fillColor: [240, 240, 240] } },
+            { content: 'Hari\nKerja', rowSpan: 2, styles: { halign: 'center', valign: 'middle' } },
+            { content: 'upah /\nHari', rowSpan: 2, styles: { halign: 'center', valign: 'middle' } },
+            { content: 'Upah Total', rowSpan: 2, styles: { halign: 'center', valign: 'middle' } },
+            { content: 'Keterangan', rowSpan: 2, styles: { halign: 'center', valign: 'middle' } }
+        ],
+        [
+            ...daysArr.map(day => ({ content: day, styles: { halign: 'center', cellPadding: 1 } }))
+        ]
+    ];
+
+    let sumTotalUpah = 0;
+
+    // Body
+    const body: any[] = (data.workers || []).map((w: any, i: number) => {
+        const upahHari = Number(w.dailyWage || w.salary || 100000);
+        
+        let hariKerja = 0;
+        const daysMarks = daysArr.map(day => {
+            const mark = (w.attendance && w.attendance[day]) ? 'x' : (w.days && Number(day) <= w.days ? 'x' : '');
+            if (mark === 'x') hariKerja++;
+            return mark;
+        });
+        
+        if (hariKerja === 0 && w.days) {
+            hariKerja = w.days;
+            for(let j = 0; j < hariKerja; j++) daysMarks[j] = 'x';
+        }
+
+        const upahTotal = hariKerja * upahHari;
+        sumTotalUpah += upahTotal;
+
+        return [
+            (i + 1).toString(),
+            w.name || '............',
+            w.role || 'Tukang',
+            ...daysMarks,
+            hariKerja.toString(),
+            new Intl.NumberFormat('id-ID').format(upahHari),
+            new Intl.NumberFormat('id-ID').format(upahTotal),
+            ''
+        ];
+    });
+
+    // Subtotal Row
+    body.push([
+        { content: 'Jumlah Total', colSpan: 35, styles: { halign: 'center', fontStyle: 'bold' } },
+        { content: '', styles: { halign: 'center' } }, // upah / Hari
+        { content: new Intl.NumberFormat('id-ID').format(sumTotalUpah), styles: { halign: 'right', fontStyle: 'bold' } },
+        { content: '', styles: { halign: 'center' } } // Keterangan
     ]);
 
+    const colStyles: any = {
+        0: { cellWidth: 8, halign: 'center' },
+        1: { cellWidth: 35 },
+        2: { cellWidth: 20 },
+        34: { cellWidth: 10, halign: 'center' },
+        35: { cellWidth: 20, halign: 'right' },
+        36: { cellWidth: 25, halign: 'right' },
+        37: { cellWidth: 20 }
+    };
+    for(let i = 0; i < 31; i++) colStyles[i + 3] = { cellWidth: 4.2, halign: 'center' };
+
     autoTable(doc, {
-        startY: margin + 20,
-        head: [['No', 'Nama', 'Jabatan', 'Jml Hari', 'Upah', 'Bruto', 'Pajak', 'Tanda Tangan']],
+        startY: 48,
+        head: head as any,
         body: body,
         theme: 'grid',
-        styles: { font: 'times', fontSize: 10 }
+        styles: { font: 'times', fontSize: 8, cellPadding: 1, lineWidth: 0.1, lineColor: [0, 0, 0] },
+        headStyles: { fillColor: [240, 240, 240], textColor: 20, lineWidth: 0.1, lineColor: [0, 0, 0] },
+        columnStyles: colStyles
     });
 
     const finalY = (doc as any).lastAutoTable.finalY + 10;
-    doc.text(`Lunas Dibayar, Bendahara`, 50, finalY);
-    doc.text(`( ${data.trName} )`, 50, finalY + 25);
     
-    doc.text(`Setuju Dibayar, Kepala Sekolah`, 200, finalY);
-    doc.text(`( ${data.ksName} )`, 200, finalY + 25);
+    // Get Terbilang
+    let terbilangStr = '';
+    try {
+        terbilangStr = getTerbilang(sumTotalUpah);
+    } catch {
+        terbilangStr = data.terbilang || '( .............................................................. )';
+    }
 
-    doc.save('Upah_Tukang.pdf');
+    // Catatan Kaki (Kiri)
+    doc.setFont('times', 'italic');
+    doc.setFontSize(10);
+    doc.text(`Terbilang : ${terbilangStr}`, 15, finalY);
+
+    const dashedLineY = finalY + 5;
+    (doc as any).setLineDash([1, 1], 0);
+    doc.line(15, dashedLineY, 150, dashedLineY);
+    (doc as any).setLineDash([], 0); // reset
+    
+    doc.setFont('times', 'normal');
+    doc.setFontSize(9);
+    doc.text('- Yang bertanda tangan di bawah ini menerangkan bahwa', 15, dashedLineY + 6);
+    doc.text('  upah-upah tersebut telah dibayarkan kepada masing-masing', 15, dashedLineY + 11);
+    doc.text('  orang yang berhak menerimanya.', 15, dashedLineY + 16);
+    doc.text('- Dibayarkan di hadapan kami', 15, dashedLineY + 22);
+    doc.text('Noot : Cap Jempol dibaliknya', 15, dashedLineY + 28);
+    
+    // Tanda Tangan (Kanan)
+    const rightAlignBase = 220;
+    doc.text(`${data.city || 'Kediri'}, ........................`, rightAlignBase, dashedLineY + 6);
+    doc.text('Kepala Sekolah', rightAlignBase, dashedLineY + 11);
+    
+    doc.setFont('times', 'bold');
+    doc.text(data.ksName || 'Nita Ekaningkarti Adji, S.Pd', rightAlignBase, dashedLineY + 30);
+    doc.setFont('times', 'normal');
+    doc.text(`NIP. ${data.ksNip || '19860213 201409 2 002'}`, rightAlignBase, dashedLineY + 35);
+
+    doc.save('Roolstaat_Upah_Tukang.pdf');
 };
 
 export const generateSuratTugas = (data: any) => {
