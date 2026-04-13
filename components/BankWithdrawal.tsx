@@ -519,7 +519,7 @@ const BankWithdrawal: React.FC<BankWithdrawalProps> = ({ data, profile, onUpdate
                                 {MONTHS.map((m, i) => <option key={i + 1} value={i + 1}>{m}</option>)}
                             </select>
                             <span className="text-slate-300 font-medium">→</span>
-                            <select className="bg-transparent outline-none font-bold text-xs text-slate-700 cursor-pointer hover:text-indigo-600 transition-colors appearance-none" value={endMonth} onChange={(e) => setStartMonth(Number(e.target.value))}>
+                            <select className="bg-transparent outline-none font-bold text-xs text-slate-700 cursor-pointer hover:text-indigo-600 transition-colors appearance-none" value={endMonth} onChange={(e) => setEndMonth(Number(e.target.value))}>
                                 {MONTHS.map((m, i) => <option key={i + 1} value={i + 1}>{m}</option>)}
                             </select>
                         </div>
