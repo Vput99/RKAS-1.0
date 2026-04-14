@@ -51,7 +51,8 @@ export const generateKuitansi = (data: any) => {
     doc.setFont('helvetica', 'bold');
 
     const displayTerbilang = data.terbilang || getTerbilang(parseCurrency(data.amount));
-    doc.text(`# ${displayTerbilang} #`, 65, terbilangY);
+    const splitTerbilang = doc.splitTextToSize(`# ${displayTerbilang} #`, 120);
+    doc.text(splitTerbilang, 65, terbilangY);
 
     const signY = 110;
     doc.setFont('helvetica', 'normal');
@@ -399,7 +400,7 @@ export const generateUpahTukang = (data: any) => {
 
     // Subtotal Row
     body.push([
-        { content: 'Jumlah Total', colSpan: 34, styles: { halign: 'right', fontStyle: 'bold' } },
+        { content: 'Jumlah Total', colSpan: 36, styles: { halign: 'right', fontStyle: 'bold' } },
         { content: new Intl.NumberFormat('id-ID').format(sumTotalUpah), styles: { halign: 'right', fontStyle: 'bold' } },
         { content: '', styles: { halign: 'center' } } // Keterangan
     ]);

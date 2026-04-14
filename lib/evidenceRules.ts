@@ -1,7 +1,7 @@
 import { Users, Coffee, Wrench, Bus, ShoppingBag, Receipt } from 'lucide-react';
 
 export const getTerbilang = (nilai: number): string => {
-  const angka = Math.abs(nilai);
+  const angka = Math.floor(Math.abs(nilai));
 
   if (angka === 0) return "Nol Rupiah";
 
