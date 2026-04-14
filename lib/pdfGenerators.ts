@@ -449,15 +449,15 @@ export const generateUpahTukang = (data: any) => {
 
     // Subtotal Row
     body.push([
-        { content: 'Jumlah Total', colSpan: 36, styles: { halign: 'right', fontStyle: 'bold' } },
-        { content: new Intl.NumberFormat('id-ID').format(sumTotalUpah), styles: { halign: 'right', fontStyle: 'bold' } },
+        { content: 'Jumlah Total', colSpan: 35, styles: { halign: 'right', fontStyle: 'bold', fontsize: 9 } },
+        { content: new Intl.NumberFormat('id-ID').format(sumTotalUpah), colSpan: 2, styles: { halign: 'right', fontStyle: 'bold' } },
         { content: '', styles: { halign: 'center' } } // Keterangan
     ]);
 
     let terbilangStr = getTerbilang(sumTotalUpah);
 
     body.push([
-        { content: `Terbilang : # ${terbilangStr} #`, colSpan: 38, styles: { halign: 'left', fontStyle: 'italic', cellPadding: 3 } }
+        { content: `Terbilang : # ${terbilangStr} #`, colSpan: 38, styles: { halign: 'left', fontStyle: 'italic', cellPadding: 4, fontsize: 11, textcolor: [0, 0, 0] } }
     ]);
 
     const colStyles: any = {
