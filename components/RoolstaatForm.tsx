@@ -4,6 +4,7 @@ import { Plus, Printer, ArrowLeft, CalendarCheck, X } from 'lucide-react';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import { SchoolProfile, RoolstaatRow, RoolstaatDaftar } from '../types';
+import { getTerbilang } from '../lib/evidenceRules';
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 const fmtNum = (n: number) => new Intl.NumberFormat('id-ID').format(n);
@@ -90,10 +91,10 @@ const generateRoolstaatPDF = (d: RoolstaatDaftar) => {
     ''
   ]);
 
-  // Terbilang
-  // Note: Since terbilang function is not directly available, we leave it as placeholder based on user input or manual fill
+  // Terbilang — dihitung otomatis dari total upah menggunakan getTerbilang()
+  const terbilangText = getTerbilang(totH);
   body.push([
-    { content: `Terbilang : ................................................................................`, colSpan: 36, styles: { fontStyle: 'italic', halign: 'left' as const } },
+    { content: `Terbilang : ${terbilangText}`, colSpan: 36, styles: { fontStyle: 'italic', halign: 'left' as const } },
   ]);
 
 
