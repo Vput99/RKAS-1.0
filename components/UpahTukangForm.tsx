@@ -4,17 +4,34 @@ import { Plus, Printer, ArrowLeft, HardHat, X } from 'lucide-react';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import { SchoolProfile, UpahTukangRow, UpahTukangDaftar } from '../types';
+import { getTerbilang } from '../lib/evidenceRules';
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
+/**
+ * Memformat angka menjadi format ribuan dengan titik (contoh: 1.000.000)
+ */
 const fmtNum = (n: number) => new Intl.NumberFormat('id-ID').format(n);
+
+/**
+ * Memformat angka menjadi format mata uang Rupiah
+ */
 const fmtRp  = (n: number) => `Rp  ${fmtNum(n)}`;
 
+/**
+ * Membuat data baris (row) kosong secara default dengan nomor urut
+ * @param no Nomor urut tabel
+ */
 const emptyRow = (no: number): UpahTukangRow => ({
   no, nama: '', kedudukan: '', gol: '',
   hari: 0, tarif: 0, honorarium: 0, potongan_pph: 0, penerimaan: 0,
 });
 
 // ─── PDF Generator ─────────────────────────────────────────────────────────────
+/**
+ * Mengekspor data form (Daftar Penerimaan Upah Tukang) ke dalam format PDF menggunakan jsPDF & autotable.
+ * Mencetak layout tabel, header dinamis, kolom kalkulasi, serta area tanda tangan di bagian paling bawah.
+ * @param d Data form yang menyimpan kegiatan, alamat, nama sekolah, dan list penerima bayaran (rows)
+ */
 const generateUpahTukangPDF = (d: UpahTukangDaftar) => {
   const doc = new jsPDF('l', 'mm', 'a4');
   const pw  = doc.internal.pageSize.getWidth();
@@ -86,6 +103,12 @@ const generateUpahTukangPDF = (d: UpahTukangDaftar) => {
     '',
   ]);
 
+  // Baris TERBILANG
+  const terbilangStr = getTerbilang(totT);
+  body.push([
+    { content: `Terbilang : # ${terbilangStr} #`, colSpan: 8, styles: { halign: 'left' as const, fontStyle: 'italic', cellPadding: 3 } }
+  ]);
+
   autoTable(doc, {
     startY: y,
     head: [[
@@ -153,13 +176,20 @@ const generateUpahTukangPDF = (d: UpahTukangDaftar) => {
 };
 
 // ─── Style helpers ────────────────────────────────────────────────────────────
+/** Tailwind CSS untuk class input umum dan border cell di tabel agar seragam */
 const cls = 'w-full px-2.5 py-1.5 rounded-lg border border-slate-200 bg-white text-slate-800 text-sm focus:outline-none focus:ring-2 focus:ring-amber-400/30 focus:border-amber-400 transition-all';
 const cellCls = 'w-full px-1.5 py-1 text-xs rounded focus:outline-none focus:ring-1 focus:ring-amber-400 bg-transparent';
+
+/** Komponen input sederhana yang sudah digabungkan dengan class tailwind standar */
 const Inp = (p: React.InputHTMLAttributes<HTMLInputElement>) => <input className={cls} {...p} />;
 
 // ─── Component ────────────────────────────────────────────────────────────────
 interface Props { profile?: SchoolProfile | null; onBack: () => void; }
 
+/**
+ * Form interaktif Daftar Upah Tukang dengan auto-kalkulasi (Honor, Potongan, Penerimaan Bersih)
+ * Menerima properti User/Profile Sekolah untuk melakukan auto-fill bagian input tertentu.
+ */
 const UpahTukangForm: React.FC<Props> = ({ profile, onBack }) => {
   const year = new Date().getFullYear().toString();
 
@@ -180,9 +210,14 @@ const UpahTukangForm: React.FC<Props> = ({ profile, onBack }) => {
     rows: [emptyRow(1), emptyRow(2), emptyRow(3)],
   });
 
+  /** Utility setter agar tidak mengulang state spread untuk data dasar/non-tabel form */
   const setF = <K extends keyof UpahTukangDaftar>(key: K, val: UpahTukangDaftar[K]) =>
     setForm(p => ({ ...p, [key]: val }));
 
+  /**
+   * Menangani pengisian nilai pada satu sel baris sekaligus melakukan Auto-kalkulasi 
+   * terhadap komponen Honorarium & Nilai Penerimaan dengan logika otomatis.
+   */
   const setRow = (idx: number, key: keyof UpahTukangRow, val: string | number) =>
     setForm(p => {
       const rows = [...p.rows];
@@ -202,15 +237,18 @@ const UpahTukangForm: React.FC<Props> = ({ profile, onBack }) => {
       return { ...p, rows };
     });
 
+  /** Tambahkan 1 baris input tabel kosong di baris paling bawah */
   const addRow = () =>
     setForm(p => ({ ...p, rows: [...p.rows, emptyRow(p.rows.length + 1)] }));
 
+  /** Hapus baris dari tabel dan perbaiki nomor urutan baris setelahnya */
   const removeRow = (idx: number) =>
     setForm(p => ({
       ...p,
       rows: p.rows.filter((_, i) => i !== idx).map((r, i) => ({ ...r, no: i + 1 })),
     }));
 
+  // Variabel untuk mencetak total ringkasan auto-kalkulasi dari seluruh baris penerimaan.
   const totH = form.rows.reduce((s, r) => s + (r.honorarium   || 0), 0);
   const totP = form.rows.reduce((s, r) => s + (r.potongan_pph || 0), 0);
   const totT = form.rows.reduce((s, r) => s + (r.penerimaan   || 0), 0);
