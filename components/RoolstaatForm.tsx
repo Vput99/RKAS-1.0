@@ -25,9 +25,9 @@ const emptyRow = (no: number): RoolstaatRow => ({
 // ─── PDF Generator ─────────────────────────────────────────────────────────────
 const generateRoolstaatPDF = (d: RoolstaatDaftar) => {
   const doc = new jsPDF('l', 'mm', 'a4');
-  const pw  = doc.internal.pageSize.getWidth();
-  const lm  = 10;
-  const rm  = 10;
+  const pw = doc.internal.pageSize.getWidth();
+  const lm = 10;
+  const rm = 10;
   let y = 15;
 
   // ── Kop Surat ──
@@ -86,15 +86,15 @@ const generateRoolstaatPDF = (d: RoolstaatDaftar) => {
 
   // Baris total
   body.push([
-    { content: 'Jumlah Total', colSpan: 36, styles: { fontStyle: 'bold', halign: 'right' as const, cellPadding: 2 } },
-    { content: fmtNum(totH), styles: { fontStyle: 'bold', halign: 'right' as const, cellPadding: 2 } },
+    { content: 'Jumlah Total', colSpan: 34, styles: { fontStyle: 'bold', halign: 'center' as const } },
+    { content: fmtNum(totH), styles: { fontStyle: 'bold', halign: 'right' as const } },
     ''
   ]);
 
   // Terbilang — dihitung otomatis dari total upah menggunakan getTerbilang()
   const terbilangText = getTerbilang(totH);
   body.push([
-    { content: `Terbilang : # ${terbilangText} #`, colSpan: 38, styles: { fontStyle: 'italic', halign: 'center' as const, cellPadding: 3 } },
+    { content: `Terbilang : ${terbilangText}`, colSpan: 36, styles: { fontStyle: 'italic', halign: 'left' as const } },
   ]);
 
 
@@ -114,21 +114,21 @@ const generateRoolstaatPDF = (d: RoolstaatDaftar) => {
       fontStyle: 'bold', halign: 'center', lineWidth: 0.3,
     },
     columnStyles: {
-      0: { halign: 'center', cellWidth: 8  },
-      1: {                   cellWidth: 35  },
-      2: {                   cellWidth: 20  },
+      0: { halign: 'center', cellWidth: 8 },
+      1: { cellWidth: 35 },
+      2: { cellWidth: 20 },
       // columns 3 to 33 (31 days)
-      ...Object.fromEntries(Array.from({length: 31}).map((_, i) => [i + 3, { halign: 'center', cellWidth: 4.5 }])),
-      34: { halign: 'center', cellWidth: 9  }, // Hari kerja
-      35: { halign: 'right',  cellWidth: 15  }, // Upah/Hari
-      36: { halign: 'right',  cellWidth: 20  }, // Upah Total
-      37: {                   cellWidth: 30  }, // Keterangan
+      ...Object.fromEntries(Array.from({ length: 31 }).map((_, i) => [i + 3, { halign: 'center', cellWidth: 4.5 }])),
+      34: { halign: 'center', cellWidth: 9 }, // Hari kerja
+      35: { halign: 'right', cellWidth: 15 }, // Upah/Hari
+      36: { halign: 'right', cellWidth: 20 }, // Upah Total
+      37: { cellWidth: 30 }, // Keterangan
     },
     theme: 'grid',
     didParseCell: (hookData) => {
-        if(hookData.row.index === body.length - 1 && hookData.section === 'body') {
-            hookData.cell.styles.cellPadding = 3;
-        }
+      if (hookData.row.index === body.length - 1 && hookData.section === 'body') {
+        hookData.cell.styles.cellPadding = 3;
+      }
     }
   });
 
@@ -142,11 +142,11 @@ const generateRoolstaatPDF = (d: RoolstaatDaftar) => {
   doc.setFont('times', 'normal');
   doc.setFontSize(9);
   doc.text('- Yang bertanda tangan di bawah ini menerangkan bahwa', leftCol, py);
-  doc.text('upah-upah tersebut telah dibayarkan kepada masing-', leftCol+2, py+4);
-  doc.text('masing orang yang berhak menerimanya.', leftCol+2, py+8);
+  doc.text('upah-upah tersebut telah dibayarkan kepada masing-', leftCol + 2, py + 4);
+  doc.text('masing orang yang berhak menerimanya.', leftCol + 2, py + 8);
 
-  doc.text('- Dibayarkan di hadapan kami', leftCol, py+14);
-  doc.text('Noot : Cap Jempol dibaliknya', leftCol, py+20);
+  doc.text('- Dibayarkan di hadapan kami', leftCol, py + 14);
+  doc.text('Note : Cap Jempol dibaliknya', leftCol, py + 20);
 
   doc.text(`${d.city || 'Kediri'}, ........................`, rightCol, py);
   doc.text('Kepala Sekolah', rightCol, py + 5);
@@ -201,18 +201,18 @@ const RoolstaatForm: React.FC<Props> = ({ profile, onBack }) => {
 
   const toggleKehadiran = (rowIdx: number, dayIdx: number) => {
     setForm(p => {
-       const rows = [...p.rows];
-       const row = {...rows[rowIdx]};
-       const newKehadiran = [...row.kehadiran];
-       newKehadiran[dayIdx] = !newKehadiran[dayIdx];
-       row.kehadiran = newKehadiran;
+      const rows = [...p.rows];
+      const row = { ...rows[rowIdx] };
+      const newKehadiran = [...row.kehadiran];
+      newKehadiran[dayIdx] = !newKehadiran[dayIdx];
+      row.kehadiran = newKehadiran;
 
-       // hitung ulang hari kerja dan upah total
-       row.hari_kerja = newKehadiran.filter(x => x).length;
-       row.upah_total = row.hari_kerja * row.upah_per_hari;
+      // hitung ulang hari kerja dan upah total
+      row.hari_kerja = newKehadiran.filter(x => x).length;
+      row.upah_total = row.hari_kerja * row.upah_per_hari;
 
-       rows[rowIdx] = row;
-       return { ...p, rows };
+      rows[rowIdx] = row;
+      return { ...p, rows };
     });
   };
 
@@ -298,8 +298,8 @@ const RoolstaatForm: React.FC<Props> = ({ profile, onBack }) => {
                 <th rowSpan={2} className="border border-slate-300 px-2 py-1 text-center font-bold text-slate-600 w-24">Pekerjaan</th>
                 <th colSpan={31} className="border border-slate-300 px-1 py-1 text-center font-bold text-slate-600">Bulan: {form.bulan} {form.tahun}</th>
                 <th rowSpan={2} className="border border-slate-300 px-1 py-1 text-center font-bold text-slate-600 w-12 text-[10px]">Hari<br />Kerja</th>
-                <th rowSpan={2} className="border border-slate-300 px-2 py-1 text-center font-bold text-slate-600 w-24 text-[10px]">Upah/Hari<br/>(Rp)</th>
-                <th rowSpan={2} className="border border-slate-300 px-2 py-1 text-center font-bold text-slate-600 w-24 text-[10px]">Upah Total<br/>(Rp)</th>
+                <th rowSpan={2} className="border border-slate-300 px-2 py-1 text-center font-bold text-slate-600 w-24 text-[10px]">Upah/Hari<br />(Rp)</th>
+                <th rowSpan={2} className="border border-slate-300 px-2 py-1 text-center font-bold text-slate-600 w-24 text-[10px]">Upah Total<br />(Rp)</th>
                 <th rowSpan={2} className="border border-slate-300 px-2 py-1 text-center font-bold text-slate-600 w-32">Keterangan</th>
                 <th rowSpan={2} className="border border-slate-300 px-1 py-1 w-6"></th>
               </tr>
@@ -323,11 +323,11 @@ const RoolstaatForm: React.FC<Props> = ({ profile, onBack }) => {
                   </td>
                   {row.kehadiran.map((hadir, dayIdx) => (
                     <td key={dayIdx} className="border border-slate-200 p-0 text-center cursor-pointer hover:bg-slate-100" onClick={() => toggleKehadiran(idx, dayIdx)}>
-                         <div className={`w-full h-full text-[10px] font-bold ${hadir ? 'text-sky-600' : 'text-transparent'}`}>x</div>
+                      <div className={`w-full h-full text-[10px] font-bold ${hadir ? 'text-sky-600' : 'text-transparent'}`}>x</div>
                     </td>
                   ))}
                   <td className="border border-slate-200 text-center font-bold text-slate-600 text-[10px]">
-                      {row.hari_kerja || 0}
+                    {row.hari_kerja || 0}
                   </td>
                   <td className="border border-slate-200 p-0.5">
                     <input
@@ -342,7 +342,7 @@ const RoolstaatForm: React.FC<Props> = ({ profile, onBack }) => {
                     {row.upah_total ? fmtNum(row.upah_total) : '-'}
                   </td>
                   <td className="border border-slate-200 p-0.5">
-                     <input className={cellCls} value={row.keterangan || ''} onChange={e => setRow(idx, 'keterangan', e.target.value)} placeholder="Ket..." />
+                    <input className={cellCls} value={row.keterangan || ''} onChange={e => setRow(idx, 'keterangan', e.target.value)} placeholder="Ket..." />
                   </td>
                   <td className="border border-slate-200 px-1 text-center">
                     {form.rows.length > 1 && (
