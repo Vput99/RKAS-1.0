@@ -2,6 +2,13 @@ import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import { getTerbilang } from './evidenceRules';
 
+/**
+ * Utilities Helpers
+ * Fungsi `parseCurrency` berguna untuk menangani pembersihan format input mata uang.
+ * Mengubah string format harga (seperti "1.000,50") menjadi angka desimal (float) murni.
+ * @param val Nilai format string / angka yang masuk
+ * @returns {number} Hasil konversi format menjadi angka
+ */
 const parseCurrency = (val: any): number => {
     if (typeof val === 'number') return val;
     if (!val) return 0;
@@ -9,6 +16,12 @@ const parseCurrency = (val: any): number => {
     return parseFloat(cleaned) || 0;
 };
 
+/**
+ * Fungsi untuk mencetak **Kuitansi Pembayaran** berformat A5 (Landscape).
+ * Digunakan sebagai bukti penerimaan uang secara manual dengan keterangan detail.
+ * Termasuk konversi jumlah bayar secara otomatis menjadi kalimat "terbilang".
+ * @param data Data objek transaksi, keterangan, kota, dan aktor yang menandatangani
+ */
 export const generateKuitansi = (data: any) => {
     const doc = new jsPDF('l', 'mm', 'a5');
 
@@ -72,6 +85,12 @@ export const generateKuitansi = (data: any) => {
     doc.save(`Kuitansi_${data.description ? data.description.substring(0, 10) : 'Kosong'}.pdf`);
 };
 
+/**
+ * Fungsi untuk mencetak file PDF **Daftar Hadir Kegiatan** berformat A4 (Portrait).
+ * Digunakan untuk merekap absensi para peserta atau panitia dalam sebuah kegiatan.
+ * Default panjang tabel yaitu 15 baris untuk memastikan layout rapi.
+ * @param data Data objek nama kegiatan, lokasi, panitia (officials), dan penandatangan
+ */
 export const generateDaftarHadir = (data: any) => {
     const doc = new jsPDF();
     const margin = 20;
@@ -123,6 +142,12 @@ export const generateDaftarHadir = (data: any) => {
     doc.save('Daftar_Hadir.pdf');
 };
 
+/**
+ * Fungsi untuk mencetak file PDF **SK (Surat Keputusan) Kepala Sekolah**.
+ * Berisi penetapan pihak / struktur panitia kegiatan berserta lampiran nama yang ditugaskan.
+ * Dilengkapi dengan format formal "Menimbang, Mengingat, Memutuskan".
+ * @param data Data deskripsi penetapan, nomor SK, tahun anggaran, lampiran peserta (skAppointees)
+ */
 export const generateSK = (data: any) => {
     const doc = new jsPDF();
     const margin = 20;
@@ -211,6 +236,12 @@ export const generateSK = (data: any) => {
     doc.save('SK_Penetapan.pdf');
 };
 
+/**
+ * Fungsi untuk mencetak file PDF **SPK (Surat Perintah Kerja)**.
+ * Dokumen kontrak sederhana yang mengikat kerjasama antara Kepala Sekolah 
+ * dengan Pihak Ketiga (Kontraktor/Tukang Servis) untuk melaksanakan pekerjaan di suatu lokasi.
+ * @param data Data pelaksana swakelola/kontraktor, nilai proyek, tempat, dan deskripsi tugas
+ */
 export const generateSPK = (data: any) => {
     const doc = new jsPDF();
     const margin = 20;
@@ -261,6 +292,11 @@ export const generateSPK = (data: any) => {
     doc.save('SPK.pdf');
 };
 
+/**
+ * Fungsi untuk mencetak file PDF **MOU (Perjanjian Kerjasama)**.
+ * Perjanjian antar instansi / kepala sekolah secara formal dengan pihak mitra.
+ * @param data Data pihak pertama dan kedua, dengan deskripsi kesepakatan kerjasama.
+ */
 export const generateMOU = (data: any) => {
     const doc = new jsPDF();
     const margin = 20;
@@ -297,6 +333,12 @@ export const generateMOU = (data: any) => {
     doc.save('MOU.pdf');
 };
 
+/**
+ * Fungsi untuk mencetak **Absensi Rekapitulasi Tukang / Pekerja Fisik**.
+ * Biasanya digunakan untuk proyek pembangunan/Rehab selama beberapa hari awal.
+ * Mencatat daftar Hadir harian pekerja secara manual memakai sistem conteng tabel.
+ * @param data Data para pekerja yang bertugas dengan informasi kegiatan spesifik.
+ */
 export const generateAbsensiTukang = (data: any) => {
     const doc = new jsPDF();
     const margin = 20;
@@ -327,6 +369,13 @@ export const generateAbsensiTukang = (data: any) => {
     doc.save('Absensi_Tukang.pdf');
 };
 
+/**
+ * Fungsi untuk mencetak **Roolstaat / Bukti Pengeluaran Upah Tukang Bulanan** (Landscape A4).
+ * Detail komprehensif kehadiran tukang untuk periode sebulan (hingga 31 hari),
+ * disertai dengan perhitungan 'Total Hari Kerja' x 'Upah/Hari' -> Total Upah.
+ * Mencetak jumlah ejaan kata (Terbilang) dalam satu row penuh pada bagian bawah tabel.
+ * @param data Data list tukang (workers) beserta upah, kehadiran harian (attendance)
+ */
 export const generateUpahTukang = (data: any) => {
     const doc = new jsPDF('l'); // Landscape A4
 
@@ -466,6 +515,12 @@ export const generateUpahTukang = (data: any) => {
     doc.save('Roolstaat_Upah_Tukang.pdf');
 };
 
+/**
+ * Fungsi untuk mencetak file PDF **Surat Tugas (ST)** Kepada Pegawai.
+ * Dipakai sebagai perintah izin untuk melaksanakan perjalanan dinas atau tugas luar
+ * selama waktu yang ditetapkan menuju tujuan tertentu.
+ * @param data Data daftar pegawai (officials), lokasi asal, lokasi tujuan, dan tanggal penugasan
+ */
 export const generateSuratTugas = (data: any) => {
     const doc = new jsPDF();
     const margin = 20;
@@ -540,6 +595,12 @@ export const generateSuratTugas = (data: any) => {
     doc.save('Surat_Tugas.pdf');
 };
 
+/**
+ * Fungsi untuk mencetak form **SPPD (Surat Perintah Perjalanan Dinas)**.
+ * Setiap petugas akan dirender ke dalam satu halaman individual yang mencantumkan
+ * biodata dinas, rute alat angkutan, serta informasi pos pembebanan anggaran (BOSP).
+ * @param data Data list petugas, instruksi perjalanan dinas, nomor SPPD, metode angkutan
+ */
 export const generateSPPD = (data: any) => {
     // Generate one SPPD page per Official
     const doc = new jsPDF();
@@ -606,6 +667,13 @@ export const generateSPPD = (data: any) => {
     doc.save('SPPD_Perjalanan_Dinas.pdf');
 };
 
+/**
+ * Fungsi untuk merekap lembar pengeluaran **Tanda Terima Uang Transport**.
+ * Memberikan rincian rute keberangkatan, penerimaan per Kepala, kemudian dikalkulasi
+ * total semua peserta dalam nominal Rupiah.
+ * Terdapat 3 kolom Tanda Tangan: Setuju Dibayar, Lunas, dan Mengetahui.
+ * @param data Data nominal uan transport (amount), peserta/petugas perjalanan dinas (officials)
+ */
 export const generateDaftarTransport = (data: any) => {
     const doc = new jsPDF();
     const margin = 20;
@@ -674,6 +742,13 @@ export const generateDaftarTransport = (data: any) => {
     doc.save('Daftar_Transport.pdf');
 };
 
+/**
+ * Fungsi untuk mencetak **Laporan Perjalanan Dinas / SPPD**.
+ * Berupa deskripsi tekstual bab-per-bab yang mencakup Dasar Pelaksanaan,
+ * Maksud Tujuan, Lokasi Kegiatan, dan Hasil (Outcome) perjalanan dinas.
+ * Menjadi prasyarat tuntasnya dokumentasi SPPD setelah pulang dinas.
+ * @param data Data tujuan dinas, hasil kegiatan (reportResult), daftar nama aparat petugas
+ */
 export const generateLaporanSPPD = (data: any) => {
     const doc = new jsPDF();
     const margin = 20;
