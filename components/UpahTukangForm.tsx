@@ -106,7 +106,7 @@ const generateUpahTukangPDF = (d: UpahTukangDaftar) => {
   // Baris TERBILANG
   const terbilangStr = getTerbilang(totT);
   body.push([
-    { content: `Terbilang : # ${terbilangStr} #`, colSpan: 8, styles: { halign: 'left' as const, fontStyle: 'italic', cellPadding: 3 } }
+    { content: `Terbilang : # ${terbilangStr} #`, colSpan: 8, styles: { halign: 'center' as const, fontStyle: 'italic', cellPadding: 3 } }
   ]);
 
   autoTable(doc, {
