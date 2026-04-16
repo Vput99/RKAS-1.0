@@ -7,6 +7,7 @@ import { generatePDFHeader, generateSignatures, formatCurrency, defaultTableStyl
 import { getInventoryItems, saveInventoryItem, deleteInventoryItem, getWithdrawalTransactions, saveWithdrawalTransaction, deleteWithdrawalTransaction, getInventoryOverrides, saveInventoryOverride, getMutationOverrides, saveMutationOverride, migrateLocalStorageToSupabase, getSubKegiatanDB, saveSubKegiatanItem, deleteSubKegiatanItem, updateSubKegiatanItem } from '../lib/db';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
+import * as XLSX from 'xlsx';
 
 /**
  * KOMPONEN MANAJEMEN INVENTARIS (InventoryReports)
@@ -1212,7 +1213,7 @@ const InventoryReports: React.FC<InventoryReportsProps> = ({ budgets, schoolProf
   const handleExportPDF = () => {
     const doc = new jsPDF('l', 'mm', 'a4');
     let title = '';
-    let headers: string[][] = [];
+    let headers: any[][] = [];
     let body: any[][] = [];
 
     if (activeReport === 'pengadaan') {
@@ -1363,6 +1364,124 @@ const InventoryReports: React.FC<InventoryReportsProps> = ({ budgets, schoolProf
 
     generateSignatures(doc, schoolProfile, (doc as any).lastAutoTable.finalY + 15);
     doc.save(`${title.replace(/ /g, '_')}_${schoolProfile?.fiscalYear || '2026'}.pdf`);
+  };
+
+  /**
+   * EXCEL EXPORT MECHANISM
+   * Mengkonversi data tabel ke file Excel (.xlsx).
+   */
+  const handleExportExcel = () => {
+    let title = '';
+    let sheetData: any[][] = [];
+    const fileName = `${schoolProfile?.name || 'SD'}_${activeReport}_${schoolProfile?.fiscalYear || '2026'}.xlsx`;
+
+    if (activeReport === 'pengadaan') {
+      title = 'LAPORAN PENGADAAN BMD BERUPA ASET LANCAR PERSEDIAAN';
+      sheetData = [
+        [title],
+        [schoolProfile?.name || ''],
+        [`TAHUN ANGGARAN ${schoolProfile?.fiscalYear || ''}`],
+        [],
+        ['No', 'Nama Barang', 'Spesifikasi', 'Jumlah', 'Satuan', 'Harga Satuan', 'Total Nilai', 'Sub Kegiatan Kode', 'Sub Kegiatan Nama', 'Rekening Kode', 'Tgl Perolehan', 'Bentuk Kontrak', 'Penyedia', 'Nomor']
+      ];
+      combinedItems.forEach((item, i) => {
+        sheetData.push([
+          i + 1,
+          item.name,
+          item.spec,
+          item.quantity,
+          item.unit,
+          item.price,
+          item.total,
+          item.subActivityCode,
+          item.subActivityName,
+          item.accountCode,
+          item.date,
+          item.contractType,
+          item.vendor,
+          item.docNumber
+        ]);
+      });
+    } else if (activeReport === 'pengeluaran') {
+      title = 'BUKU PENGELUARAN PERSEDIAAN';
+      sheetData = [
+        [title],
+        [schoolProfile?.name || ''],
+        ['No', 'Tanggal', 'Nomor Dokumen', 'Nama Barang', 'Spesifikasi', 'Jumlah', 'Satuan', 'Harga Satuan', 'Total Nilai', 'Keterangan']
+      ];
+      withdrawalTransactions.forEach((tx, i) => {
+        const item = combinedItems.find(it => it.id === tx.inventoryItemId);
+        if (!item) return;
+        sheetData.push([
+          i + 1,
+          tx.date,
+          tx.docNumber,
+          item.name,
+          item.spec,
+          tx.quantity,
+          item.unit,
+          item.price,
+          tx.quantity * item.price,
+          tx.notes || ''
+        ]);
+      });
+    } else if (activeReport === 'persediaan') {
+      title = 'LAPORAN PERSEDIAAN BARANG';
+      sheetData = [
+        [title],
+        ['No', 'Kodefikasi', 'Nama Barang', 'Saldo Awal', 'Masuk', 'Keluar', 'Sisa', 'Satuan', 'Harga', 'Total']
+      ];
+      combinedItems.forEach((item, i) => {
+        const stats = getItemStats(item);
+        sheetData.push([
+          i + 1,
+          item.codification || '-',
+          item.name,
+          stats.lastYearBalance,
+          stats.totalIn,
+          stats.totalOut,
+          stats.remaining,
+          item.unit,
+          item.price,
+          stats.remaining * item.price
+        ]);
+      });
+    } else if (activeReport === 'kib_b') {
+      title = 'KIB B - Peralatan dan Mesin';
+      sheetData = [
+        [title],
+        ['No', 'Kode Rekening', 'Nama Barang', 'Merk', 'Tipe', 'Ukuran', 'Bahan', 'Tahun', 'Jumlah', 'Cara Beli', 'Harga', 'Total', 'Program', 'Kegiatan', 'Sub Kegiatan', 'No. Dokumen', 'Tgl Perolehan']
+      ];
+      kibBItems.forEach((item: any, i: number) => {
+        sheetData.push([
+          i + 1,
+          item.accountCode,
+          item.name,
+          item.merk || '',
+          item.spec || '',
+          item.ukuran || '',
+          item.bahan || '',
+          item.year || '',
+          item.quantity,
+          item.contractType || '',
+          item.price,
+          item.price * item.quantity,
+          item.programName || '',
+          item.kegiatanName || '',
+          item.subActivityName || '',
+          item.docNumber || '',
+          item.date || ''
+        ]);
+      });
+    } else {
+      // Default fallback
+      sheetData = [['No Data For This Report Types']];
+    }
+
+    const ws = XLSX.utils.aoa_to_sheet(sheetData);
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, "Sheet1");
+    XLSX.writeFile(wb, fileName);
   };
 
   // Menggabungkan item hasil analisa AI dan item input manual
@@ -1605,7 +1724,7 @@ const InventoryReports: React.FC<InventoryReportsProps> = ({ budgets, schoolProf
           subtitle={reportMenu.find(r => r.id === activeReport)?.subtitle}
           icon={reportMenu.find(r => r.id === activeReport)?.icon || FileText}
           onExport={handleExportPDF}
-          onDownload={() => alert('Fitur Excel sedang dipersiapkan.')}
+          onDownload={handleExportExcel}
         />
 
         <AnimatePresence mode="wait">
