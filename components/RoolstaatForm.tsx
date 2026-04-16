@@ -94,7 +94,7 @@ const generateRoolstaatPDF = (d: RoolstaatDaftar) => {
   // Terbilang — dihitung otomatis dari total upah menggunakan getTerbilang()
   const terbilangText = getTerbilang(totH);
   body.push([
-    { content: `Terbilang : ${terbilangText}`, colSpan: 38, styles: { fontStyle: 'italic', halign: 'left' as const, textColor: [0, 0, 0] } },
+    { content: `Terbilang : ${terbilangText}`, colSpan: 38, styles: { fontStyle: 'italic', halign: 'left' as const, textColor: [0, 0, 0], fontSize: 10 } },
   ]);
 
 
