@@ -86,7 +86,7 @@ const generateRoolstaatPDF = (d: RoolstaatDaftar) => {
 
   // Baris total
   body.push([
-    { content: 'Jumlah Total', colSpan: 34, styles: { fontStyle: 'bold', halign: 'center' as const } },
+    { content: 'Jumlah Total', colSpan: 36, styles: { fontStyle: 'bold', halign: 'center' as const } },
     { content: fmtNum(totH), styles: { fontStyle: 'bold', halign: 'right' as const } },
     ''
   ]);
@@ -94,7 +94,7 @@ const generateRoolstaatPDF = (d: RoolstaatDaftar) => {
   // Terbilang — dihitung otomatis dari total upah menggunakan getTerbilang()
   const terbilangText = getTerbilang(totH);
   body.push([
-    { content: `Terbilang : ${terbilangText}`, colSpan: 34, styles: { fontStyle: 'italic', halign: 'left' as const, textColor: [0, 0, 0] } },
+    { content: `Terbilang : ${terbilangText}`, colSpan: 38, styles: { fontStyle: 'italic', halign: 'left' as const, textColor: [0, 0, 0] } },
   ]);
 
 
