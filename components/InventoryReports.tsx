@@ -91,12 +91,15 @@ const ReportHeader = React.memo(({ title, icon: Icon, onExport, onDownload }: an
 ));
 
 const PengadaanView = React.memo(({
+  inventoryItems,
   combinedItems,
   groupedItems,
   isAnalyzing,
+  isSaving,
   onManualAdd,
   onEditManual,
   onAnalyze,
+  onSaveAllAI,
   onDeleteManual,
   onDeleteAll,
   schoolProfile
@@ -134,6 +137,16 @@ const PengadaanView = React.memo(({
           {isAnalyzing ? <Loader2 size={16} className="animate-spin" /> : <RefreshCw size={16} />}
           {isAnalyzing ? 'MENGANALISIS...' : 'ANALISA AI'}
         </button>
+        {inventoryItems.length > 0 && (
+          <button
+            onClick={onSaveAllAI}
+            disabled={isSaving}
+            className="flex items-center gap-2 px-6 py-3 bg-emerald-600 text-white rounded-2xl text-xs font-black transition-all disabled:opacity-50 shadow-lg shadow-emerald-500/25 hover:shadow-emerald-500/40 transform hover:-translate-y-0.5 active:scale-95"
+          >
+            {isSaving ? <Loader2 size={16} className="animate-spin" /> : <Database size={16} />}
+            SIMPAN KE DATABASE
+          </button>
+        )}
       </div>
     </div>
 
@@ -229,7 +242,16 @@ const PengadaanView = React.memo(({
                     {items.map((item: InventoryItem, idx) => (
                       <tr key={`${category}-${idx}`} className="hover:bg-blue-50/40 group transition-colors">
                         <td className="border border-gray-300 p-2 text-center text-gray-500 font-medium">{idx + 1}</td>
-                        <td className="border border-gray-300 p-2 font-bold text-slate-700">{item.name}</td>
+                        <td className="border border-gray-300 p-2 font-bold text-slate-700">
+                          <div className="flex items-center gap-2">
+                            {item.name}
+                            {item.id.includes('-') ? (
+                              <Database size={10} className="text-emerald-500 opacity-70" />
+                            ) : (
+                              <Sparkles size={10} className="text-blue-400 animate-pulse" />
+                            )}
+                          </div>
+                        </td>
                         <td className="border border-gray-300 p-2 text-gray-500 italic leading-tight">{item.spec}</td>
                         <td className="border border-gray-300 p-2 text-center font-bold">{item.quantity}</td>
                         <td className="border border-gray-300 p-2 text-center text-gray-600">{item.unit}</td>
@@ -717,6 +739,9 @@ const InventoryReports: React.FC<InventoryReportsProps> = ({ budgets, schoolProf
   // --- SUB KEGIATAN DATABASE STATE ---
   const [subKegiatanDB, setSubKegiatanDB] = useState<SubKegiatanEntry[]>([]);
   const [isSkDBLoading, setIsSkDBLoading] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
+  const [saveStatus, setSaveStatus] = useState<'idle' | 'saving' | 'success' | 'error'>('idle');
+
   const [isSkDBModalOpen, setIsSkDBModalOpen] = useState(false);
   const [skForm, setSkForm] = useState({ kode: '', nama: '' });
   const [skEditId, setSkEditId] = useState<string | null>(null);
@@ -881,26 +906,36 @@ const InventoryReports: React.FC<InventoryReportsProps> = ({ budgets, schoolProf
   };
 
   const saveManualItemToDB = async (item: InventoryItem) => {
-    await saveInventoryItem({
-      id: item.id,
-      name: item.name,
-      spec: item.spec,
-      quantity: item.quantity,
-      unit: item.unit,
-      price: item.price,
-      total: item.total,
-      sub_activity_code: item.subActivityCode,
-      sub_activity_name: item.subActivityName,
-      account_code: item.accountCode,
-      date: item.date,
-      contract_type: item.contractType,
-      vendor: item.vendor,
-      doc_number: item.docNumber,
-      category: item.category,
-      codification: item.codification,
-      used_quantity: item.usedQuantity,
-      last_year_balance: item.lastYearBalance
-    });
+    setIsSaving(true);
+    setSaveStatus('saving');
+    try {
+      await saveInventoryItem({
+        id: item.id,
+        name: item.name,
+        spec: item.spec,
+        quantity: item.quantity,
+        unit: item.unit,
+        price: item.price,
+        total: item.total,
+        sub_activity_code: item.subActivityCode,
+        sub_activity_name: item.subActivityName,
+        account_code: item.accountCode,
+        date: item.date,
+        contract_type: item.contractType,
+        vendor: item.vendor,
+        doc_number: item.docNumber,
+        category: item.category,
+        codification: item.codification,
+        used_quantity: item.usedQuantity,
+        last_year_balance: item.lastYearBalance
+      });
+      setSaveStatus('success');
+      setTimeout(() => setSaveStatus('idle'), 2000);
+    } catch (e) {
+      setSaveStatus('error');
+    } finally {
+      setIsSaving(false);
+    }
   };
 
   const saveWithdrawals = (txs: WithdrawalTransaction[]) => {
@@ -909,14 +944,24 @@ const InventoryReports: React.FC<InventoryReportsProps> = ({ budgets, schoolProf
   };
 
   const saveWithdrawalToDB = async (tx: WithdrawalTransaction) => {
-    await saveWithdrawalTransaction({
-      id: tx.id,
-      inventory_item_id: tx.inventoryItemId,
-      date: tx.date,
-      doc_number: tx.docNumber,
-      quantity: tx.quantity,
-      notes: tx.notes
-    });
+    setIsSaving(true);
+    setSaveStatus('saving');
+    try {
+      await saveWithdrawalTransaction({
+        id: tx.id,
+        inventory_item_id: tx.inventoryItemId,
+        date: tx.date,
+        doc_number: tx.docNumber,
+        quantity: tx.quantity,
+        notes: tx.notes
+      });
+      setSaveStatus('success');
+      setTimeout(() => setSaveStatus('idle'), 2000);
+    } catch (e) {
+      setSaveStatus('error');
+    } finally {
+      setIsSaving(false);
+    }
   };
 
   const saveOverrides = (newOverrides: typeof itemOverrides) => {
@@ -963,6 +1008,65 @@ const InventoryReports: React.FC<InventoryReportsProps> = ({ budgets, schoolProf
       alert("Gagal menganalisis data. Cek koneksi Anda.");
     } finally {
       setIsAnalyzing(false);
+    }
+  };
+
+  /**
+   * MEMINDAHKAN HASIL ANALISA AI KE DATABASE
+   * Berguna agar hasil analisa tidak hilang saat refresh dan tersimpan permanen.
+   */
+  const handleSaveAllAIResults = async () => {
+    if (inventoryItems.length === 0) return;
+    if (!confirm(`Simpan ${inventoryItems.length} hasil analisa AI ke database utama?`)) return;
+
+    setIsSaving(true);
+    setSaveStatus('saving');
+    try {
+      const resultsToSave = inventoryItems.map(item => ({
+        ...item,
+        id: item.id.includes('-') ? item.id : `ai-saved-${Date.now()}-${Math.random().toString(36).substr(2, 5)}`
+      }));
+
+      // Update local state
+      const updatedManual = [...resultsToSave, ...manualInventoryItems];
+      saveManualItems(updatedManual);
+      
+      // Clear current AI results state to avoid double counting in combinedItems
+      setInventoryItems([]);
+
+      // Save each to DB
+      for (const item of resultsToSave) {
+        await saveInventoryItem({
+          id: item.id,
+          name: item.name,
+          spec: item.spec,
+          quantity: item.quantity,
+          unit: item.unit,
+          price: item.price,
+          total: item.total,
+          sub_activity_code: item.subActivityCode,
+          sub_activity_name: item.subActivityName,
+          account_code: item.accountCode,
+          date: item.date,
+          contract_type: item.contractType,
+          vendor: item.vendor,
+          doc_number: item.docNumber,
+          category: item.category,
+          codification: item.codification,
+          used_quantity: item.usedQuantity,
+          last_year_balance: item.lastYearBalance
+        });
+      }
+      
+      setSaveStatus('success');
+      alert('Berhasil menyimpan semua hasil analisa ke database!');
+    } catch (e) {
+      console.error(e);
+      setSaveStatus('error');
+      alert('Gagal menyimpan beberapa item. Cek koneksi Anda.');
+    } finally {
+      setIsSaving(false);
+      setTimeout(() => setSaveStatus('idle'), 2000);
     }
   };
 
@@ -1730,12 +1834,15 @@ const InventoryReports: React.FC<InventoryReportsProps> = ({ budgets, schoolProf
         <AnimatePresence mode="wait">
           {activeReport === 'pengadaan' && (
             <PengadaanView
+              inventoryItems={inventoryItems}
               combinedItems={combinedItems}
               groupedItems={groupedItems}
               isAnalyzing={isAnalyzing}
+              isSaving={isSaving}
               onManualAdd={() => { setEditingItemId(null); setIsManualModalOpen(true); }}
               onEditManual={handleEditManual}
               onAnalyze={handleAnalyze}
+              onSaveAllAI={handleSaveAllAIResults}
               onDeleteManual={deleteManualItem}
               onDeleteAll={() => setIsDeleteAllOpen(true)}
               schoolProfile={schoolProfile}
@@ -2057,10 +2164,19 @@ const InventoryReports: React.FC<InventoryReportsProps> = ({ budgets, schoolProf
                       </button>
                       <button
                         type="submit"
-                        className="flex-[2] py-3 px-6 rounded-xl bg-blue-600 text-white font-black hover:bg-blue-700 shadow-lg shadow-blue-500/20 transition-all transform active:scale-95 flex items-center justify-center gap-2 text-xs uppercase tracking-widest"
+                        disabled={isSaving}
+                        className={`flex-[2] py-3 px-6 rounded-xl ${saveStatus === 'success' ? 'bg-emerald-600' : 'bg-blue-600'} text-white font-black hover:opacity-90 shadow-lg shadow-blue-500/20 transition-all transform active:scale-95 flex items-center justify-center gap-2 text-xs uppercase tracking-widest disabled:opacity-50`}
                       >
-                        {editingItemId ? <Edit3 size={18} /> : <ShoppingBag size={18} />}
-                        {editingItemId ? 'Simpan Perubahan' : 'Simpan Inventaris'}
+                        {isSaving ? (
+                          <Loader2 size={18} className="animate-spin" />
+                        ) : saveStatus === 'success' ? (
+                          <CheckCircle size={18} />
+                        ) : editingItemId ? (
+                          <Edit3 size={18} />
+                        ) : (
+                          <ShoppingBag size={18} />
+                        )}
+                        {isSaving ? 'Menyimpan...' : saveStatus === 'success' ? 'Berhasil Simpan!' : editingItemId ? 'Simpan Perubahan' : 'Simpan Inventaris'}
                       </button>
                     </div>
                   </form>
@@ -2184,10 +2300,17 @@ const InventoryReports: React.FC<InventoryReportsProps> = ({ budgets, schoolProf
                       </button>
                       <button
                         type="submit"
-                        className="flex-[2] py-3 px-6 rounded-xl bg-orange-600 text-white font-black hover:bg-orange-700 shadow-lg shadow-orange-500/20 transition-all transform active:scale-95 flex items-center justify-center gap-2 text-xs uppercase tracking-widest"
+                        disabled={isSaving}
+                        className={`flex-[2] py-3 px-6 rounded-xl ${saveStatus === 'success' ? 'bg-emerald-600' : 'bg-orange-600'} text-white font-black hover:opacity-90 shadow-lg shadow-orange-500/20 transition-all transform active:scale-95 flex items-center justify-center gap-2 text-xs uppercase tracking-widest disabled:opacity-50`}
                       >
-                        <ArrowRightLeft size={18} />
-                        Simpan Pengeluaran
+                        {isSaving ? (
+                          <Loader2 size={18} className="animate-spin" />
+                        ) : saveStatus === 'success' ? (
+                          <CheckCircle size={18} />
+                        ) : (
+                          <ArrowRightLeft size={18} />
+                        )}
+                        {isSaving ? 'Menyimpan...' : saveStatus === 'success' ? 'Berhasil Catat!' : 'Catat Pengeluaran'}
                       </button>
                     </div>
                   </form>
