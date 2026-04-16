@@ -94,7 +94,7 @@ const generateRoolstaatPDF = (d: RoolstaatDaftar) => {
   // Terbilang — dihitung otomatis dari total upah menggunakan getTerbilang()
   const terbilangText = getTerbilang(totH);
   body.push([
-    { content: `Terbilang : ${terbilangText}`, colSpan: 36, styles: { fontStyle: 'italic', halign: 'left' as const } },
+    { content: `Terbilang : ${terbilangText}`, colSpan: 34, styles: { fontStyle: 'italic', halign: 'left' as const, textColor: [0, 0, 0] } },
   ]);
 
 
@@ -125,7 +125,7 @@ const generateRoolstaatPDF = (d: RoolstaatDaftar) => {
       37: { cellWidth: 30 }, // Keterangan
     },
     theme: 'grid',
-    didParseCell: (hookData) => {
+    didParseCell: (hookData: any) => {
       if (hookData.row.index === body.length - 1 && hookData.section === 'body') {
         hookData.cell.styles.cellPadding = 3;
       }
@@ -167,7 +167,7 @@ const Inp = (p: React.InputHTMLAttributes<HTMLInputElement>) => <input className
 // ─── Component ────────────────────────────────────────────────────────────────
 interface Props { profile?: SchoolProfile | null; onBack: () => void; }
 
-const RoolstaatForm: React.FC<Props> = ({ profile, onBack }) => {
+const RoolstaatForm = ({ profile, onBack }: Props) => {
   const year = new Date().getFullYear().toString();
 
   const [form, setForm] = useState<RoolstaatDaftar>({
@@ -185,22 +185,24 @@ const RoolstaatForm: React.FC<Props> = ({ profile, onBack }) => {
   });
 
   const setF = <K extends keyof RoolstaatDaftar>(key: K, val: RoolstaatDaftar[K]) =>
-    setForm(p => ({ ...p, [key]: val }));
+    setForm((p: RoolstaatDaftar) => ({ ...p, [key]: val }));
 
   const setRow = (idx: number, key: keyof RoolstaatRow, val: any) =>
-    setForm(p => {
+    setForm((p: RoolstaatDaftar) => {
       const rows = [...p.rows];
-      rows[idx] = { ...rows[idx], [key]: val };
+      rows[idx] = { ...rows[idx], [key]: val } as RoolstaatRow;
 
       // Kalkulasi otomatis
       if (key === 'upah_per_hari') {
-        rows[idx].upah_total = rows[idx].hari_kerja * Number(val);
+        const upah = Number(val) || 0;
+        rows[idx].upah_per_hari = upah;
+        rows[idx].upah_total = (rows[idx].hari_kerja || 0) * upah;
       }
       return { ...p, rows };
     });
 
   const toggleKehadiran = (rowIdx: number, dayIdx: number) => {
-    setForm(p => {
+    setForm((p: RoolstaatDaftar) => {
       const rows = [...p.rows];
       const row = { ...rows[rowIdx] };
       const newKehadiran = [...row.kehadiran];
@@ -209,7 +211,7 @@ const RoolstaatForm: React.FC<Props> = ({ profile, onBack }) => {
 
       // hitung ulang hari kerja dan upah total
       row.hari_kerja = newKehadiran.filter(x => x).length;
-      row.upah_total = row.hari_kerja * row.upah_per_hari;
+      row.upah_total = row.hari_kerja * (row.upah_per_hari || 0);
 
       rows[rowIdx] = row;
       return { ...p, rows };
@@ -217,15 +219,15 @@ const RoolstaatForm: React.FC<Props> = ({ profile, onBack }) => {
   };
 
   const addRow = () =>
-    setForm(p => ({ ...p, rows: [...p.rows, emptyRow(p.rows.length + 1)] }));
+    setForm((p: RoolstaatDaftar) => ({ ...p, rows: [...p.rows, emptyRow(p.rows.length + 1)] }));
 
   const removeRow = (idx: number) =>
-    setForm(p => ({
+    setForm((p: RoolstaatDaftar) => ({
       ...p,
-      rows: p.rows.filter((_, i) => i !== idx).map((r, i) => ({ ...r, no: i + 1 })),
+      rows: p.rows.filter((_: any, i: number) => i !== idx).map((r: RoolstaatRow, i: number) => ({ ...r, no: i + 1 })),
     }));
 
-  const totH = form.rows.reduce((s, r) => s + (r.upah_total || 0), 0);
+  const totH = form.rows.reduce((s: number, r: RoolstaatRow) => s + (r.upah_total || 0), 0);
 
   return (
     <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="space-y-5 flex flex-col h-full h-screen-offset">
@@ -249,30 +251,30 @@ const RoolstaatForm: React.FC<Props> = ({ profile, onBack }) => {
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
           <div className="flex flex-col gap-1 sm:col-span-1">
             <label className="text-xs font-bold text-slate-400 uppercase tracking-wider">Nama Kegiatan</label>
-            <Inp value={form.kegiatan_name} onChange={e => setF('kegiatan_name', e.target.value)} placeholder="Contoh: Pekerjaan memb..." />
+            <Inp value={form.kegiatan_name} onChange={(e: React.ChangeEvent<HTMLInputElement>) => setF('kegiatan_name', e.target.value)} placeholder="Contoh: Pekerjaan memb..." />
           </div>
           <div className="flex flex-col gap-1">
             <label className="text-xs font-bold text-slate-400 uppercase tracking-wider">Bulan</label>
-            <select className={cls} value={form.bulan} onChange={e => setF('bulan', e.target.value)}>
-              {BULAN_LIST.map(b => <option key={b}>{b}</option>)}
+            <select className={cls} value={form.bulan} onChange={(e: React.ChangeEvent<HTMLSelectElement>) => setF('bulan', e.target.value)}>
+              {BULAN_LIST.map((b: string) => <option key={b}>{b}</option>)}
             </select>
           </div>
           <div className="flex flex-col gap-1">
             <label className="text-xs font-bold text-slate-400 uppercase tracking-wider">Tahun</label>
-            <Inp value={form.tahun} onChange={e => setF('tahun', e.target.value)} placeholder="2026" />
+            <Inp value={form.tahun} onChange={(e: React.ChangeEvent<HTMLInputElement>) => setF('tahun', e.target.value)} placeholder="2026" />
           </div>
           {/* TTD Inputs */}
           <div className="flex flex-col gap-1">
             <label className="text-xs font-bold text-slate-400 uppercase tracking-wider">Kota TTD</label>
-            <Inp value={form.city} onChange={e => setF('city', e.target.value)} placeholder="Kediri" />
+            <Inp value={form.city} onChange={(e: React.ChangeEvent<HTMLInputElement>) => setF('city', e.target.value)} placeholder="Kediri" />
           </div>
           <div className="flex flex-col gap-1">
             <label className="text-xs font-bold text-slate-400 uppercase tracking-wider">Nama Kepala Sekolah</label>
-            <Inp value={form.kepala_sekolah} onChange={e => setF('kepala_sekolah', e.target.value)} placeholder="Nama KS" />
+            <Inp value={form.kepala_sekolah} onChange={(e: React.ChangeEvent<HTMLInputElement>) => setF('kepala_sekolah', e.target.value)} placeholder="Nama KS" />
           </div>
           <div className="flex flex-col gap-1">
             <label className="text-xs font-bold text-slate-400 uppercase tracking-wider">NIP Kepala Sekolah</label>
-            <Inp value={form.kepala_sekolah_nip} onChange={e => setF('kepala_sekolah_nip', e.target.value)} placeholder="NIP" />
+            <Inp value={form.kepala_sekolah_nip} onChange={(e: React.ChangeEvent<HTMLInputElement>) => setF('kepala_sekolah_nip', e.target.value)} placeholder="NIP" />
           </div>
         </div>
       </div>
@@ -312,16 +314,16 @@ const RoolstaatForm: React.FC<Props> = ({ profile, onBack }) => {
               </tr>
             </thead>
             <tbody>
-              {form.rows.map((row, idx) => (
+              {form.rows.map((row: RoolstaatRow, idx: number) => (
                 <tr key={idx} className="hover:bg-sky-50/20">
                   <td className="border border-slate-200 px-1 text-center text-slate-400 text-[10px]">{idx + 1}</td>
                   <td className="border border-slate-200 p-0.5">
-                    <input className={cellCls} value={row.nama} onChange={e => setRow(idx, 'nama', e.target.value)} placeholder="Nama lengkap" />
+                    <input className={cellCls} value={row.nama} onChange={(e: React.ChangeEvent<HTMLInputElement>) => setRow(idx, 'nama', e.target.value)} placeholder="Nama lengkap" />
                   </td>
                   <td className="border border-slate-200 p-0.5">
-                    <input className={cellCls} value={row.pekerjaan} onChange={e => setRow(idx, 'pekerjaan', e.target.value)} placeholder="Tukang / Kuli" />
+                    <input className={cellCls} value={row.pekerjaan} onChange={(e: React.ChangeEvent<HTMLInputElement>) => setRow(idx, 'pekerjaan', e.target.value)} placeholder="Tukang / Kuli" />
                   </td>
-                  {row.kehadiran.map((hadir, dayIdx) => (
+                  {row.kehadiran.map((hadir: boolean, dayIdx: number) => (
                     <td key={dayIdx} className="border border-slate-200 p-0 text-center cursor-pointer hover:bg-slate-100" onClick={() => toggleKehadiran(idx, dayIdx)}>
                       <div className={`w-full h-full text-[10px] font-bold ${hadir ? 'text-sky-600' : 'text-transparent'}`}>x</div>
                     </td>
@@ -334,7 +336,7 @@ const RoolstaatForm: React.FC<Props> = ({ profile, onBack }) => {
                       type="number"
                       className={cellCls + ' text-right'}
                       value={row.upah_per_hari || ''}
-                      onChange={e => setRow(idx, 'upah_per_hari', Number(e.target.value))}
+                      onChange={(e: React.ChangeEvent<HTMLInputElement>) => setRow(idx, 'upah_per_hari', Number(e.target.value))}
                       placeholder="0"
                     />
                   </td>
@@ -342,7 +344,7 @@ const RoolstaatForm: React.FC<Props> = ({ profile, onBack }) => {
                     {row.upah_total ? fmtNum(row.upah_total) : '-'}
                   </td>
                   <td className="border border-slate-200 p-0.5">
-                    <input className={cellCls} value={row.keterangan || ''} onChange={e => setRow(idx, 'keterangan', e.target.value)} placeholder="Ket..." />
+                    <input className={cellCls} value={row.keterangan || ''} onChange={(e: React.ChangeEvent<HTMLInputElement>) => setRow(idx, 'keterangan', e.target.value)} placeholder="Ket..." />
                   </td>
                   <td className="border border-slate-200 px-1 text-center">
                     {form.rows.length > 1 && (
