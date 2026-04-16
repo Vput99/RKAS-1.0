@@ -8,6 +8,15 @@ import { getInventoryItems, saveInventoryItem, deleteInventoryItem, getWithdrawa
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 
+/**
+ * KOMPONEN MANAJEMEN INVENTARIS (InventoryReports)
+ * Mekanisme Kerja:
+ * 1. Data In: Diperoleh dari Analisis AI terhadap Budget/SPJ atau Input Manual.
+ * 2. Data Out: Dicatat melalui 'WithdrawalTransactions' (Pengeluaran Barang).
+ * 3. Laporan: Dihasilkan secara real-time berdasarkan rumus (Stok Akhir = Awal + Masuk - Keluar).
+ * 4. KIB B: Khusus memfilter barang belanja modal (Kode Akun 5.2.x).
+ */
+
 // ─── Sub Kegiatan Database Types ──────────────────────────────────────────────
 export interface SubKegiatanEntry {
   id: string;
@@ -22,12 +31,16 @@ interface InventoryReportsProps {
   schoolProfile: any; // Added based on the diff
 }
 
+/**
+ * Struktur Data Transaksi Pengeluaran
+ * Digunakan untuk mencatat setiap kali barang diambil dari gudang/persediaan.
+ */
 interface WithdrawalTransaction {
   id: string;
-  inventoryItemId: string;
+  inventoryItemId: string; // ID barang yang dikurangi
   date: string;
   docNumber: string;
-  quantity: number;
+  quantity: number; // Jumlah yang dikeluarkan
   notes?: string;
 }
 
@@ -137,39 +150,49 @@ const PengadaanView = React.memo(({
           <p className="text-xs font-bold text-gray-600 uppercase">TAHUN ANGGARAN {schoolProfile?.fiscalYear || '2026'}</p>
         </div>
 
-        <table className="w-full text-[10px] border-collapse border border-gray-300">
-          <thead className="bg-gray-50 text-gray-700">
+        <table className="w-full text-[10px] border-collapse border border-gray-300 shadow-sm">
+          <thead className="bg-gray-100 text-gray-800 text-center font-bold">
             <tr>
-              <th rowSpan={2} className="border border-gray-300 p-2 w-8">No.</th>
-              <th rowSpan={2} className="border border-gray-300 p-2 w-32">Nama Barang</th>
-              <th rowSpan={2} className="border border-gray-300 p-2 w-48">Spesifikasi Nama Barang</th>
-              <th rowSpan={2} className="border border-gray-300 p-2 w-16">Jumlah Barang</th>
-              <th rowSpan={2} className="border border-gray-300 p-2 w-16">Satuan Barang</th>
-              <th rowSpan={2} className="border border-gray-300 p-2 w-24">Harga Satuan (Rp.)</th>
-              <th rowSpan={2} className="border border-gray-300 p-2 w-24">Total Nilai Barang (Rp.)</th>
-              <th colSpan={2} className="border border-gray-300 p-1">Sub Kegiatan & Anggaran</th>
-              <th rowSpan={2} className="border border-gray-300 p-2 w-24 text-[8px]">Rekening Belanja</th>
-              <th rowSpan={2} className="border border-gray-300 p-2 w-20">Tgl Perolehan</th>
-              <th colSpan={4} className="border border-gray-300 p-1">Dokumen Sumber Perolehan</th>
+              <th rowSpan={3} className="border border-gray-300 p-2 w-8">No.</th>
+              <th rowSpan={3} className="border border-gray-300 p-2 w-32">Nama Barang</th>
+              <th rowSpan={3} className="border border-gray-300 p-2 w-48">Spesifikasi Nama Barang</th>
+              <th rowSpan={3} className="border border-gray-300 p-2 w-16">Jumlah Barang</th>
+              <th rowSpan={3} className="border border-gray-300 p-2 w-16">Satuan Barang</th>
+              <th rowSpan={2} className="border border-gray-300 p-2 w-24">Harga Satuan</th>
+              <th rowSpan={2} className="border border-gray-300 p-2 w-24">Total Nilai Barang</th>
+              <th colSpan={3} className="border border-gray-300 p-1">Sub Kegiatan dan Rekening Anggaran Belanja Daerah Atas Pengadaan Barang</th>
+              <th rowSpan={3} className="border border-gray-300 p-2 w-20">Tgl Perolehan</th>
+              <th colSpan={3} className="border border-gray-300 p-1">Dokumen Sumber Perolehan</th>
+              <th rowSpan={3} className="border border-gray-300 p-1 w-16">Aksi</th>
             </tr>
             <tr>
+              <th colSpan={2} className="border border-gray-300 p-1 text-[8px]">Sub Kegiatan</th>
+              <th rowSpan={2} className="border border-gray-300 p-1 w-20 text-[8px]">Rekening Anggaran Belanja Daerah Kode</th>
+              <th rowSpan={2} className="border border-gray-300 p-1 w-16 text-[8px]">Bentuk Kontrak</th>
+              <th rowSpan={2} className="border border-gray-300 p-1 w-20 text-[8px]">Nama Penyedia</th>
+              <th rowSpan={2} className="border border-gray-300 p-1 w-24 text-[8px]">Nomor</th>
+            </tr>
+            <tr>
+              <th className="border border-gray-300 p-1 text-[8px]">Rp.</th>
+              <th className="border border-gray-300 p-1 text-[8px]">Rp.</th>
               <th className="border border-gray-300 p-1 w-20 text-[8px]">Kode</th>
-              <th className="border border-gray-300 p-1 text-[8px]">Nama Sub Kegiatan</th>
-              <th className="border border-gray-300 p-1 w-16 text-[8px]">Bentuk</th>
-              <th className="border border-gray-300 p-1 w-20 text-[8px]">Penyedia</th>
-              <th className="border border-gray-300 p-1 w-24 text-[8px]">Nomor</th>
-              <th className="border border-gray-300 p-1 w-16 text-[8px]">Aksi</th>
+              <th className="border border-gray-300 p-1 text-[8px]">Nama</th>
+            </tr>
+            <tr className="bg-gray-200/50 text-[8px] text-gray-400 font-bold">
+              {[1, 2, 3, 5, 6, 7, '8=(5x7)', 12, 13, 14, 16, 17, 18, 19, '-'].map((n, i) => (
+                <td key={i} className="border border-gray-300 p-1">{n}</td>
+              ))}
             </tr>
           </thead>
           <tbody>
             {combinedItems.length === 0 ? (
-              // Tampilkan 5 baris kosong saat belum ada data
-              Array.from({ length: 5 }).map((_, idx) => (
-                <tr key={`empty-${idx}`} className="hover:bg-blue-50/30 transition-colors">
+              // Tampilkan 10 baris kosong saat belum ada data (mengikuti gaya Excel)
+              Array.from({ length: 10 }).map((_, idx) => (
+                <tr key={`empty-${idx}`} className="hover:bg-blue-50/30 transition-colors h-8">
                   <td className="border border-gray-300 p-2 text-center text-gray-300">{idx + 1}</td>
                   <td className="border border-gray-300 p-2">
                     {idx === 0 && (
-                      <span className="text-[9px] text-blue-400 italic">Klik "+ TAMBAH MANUAL" untuk mengisi...</span>
+                      <span className="text-[9px] text-blue-400 italic font-medium">Klik "+ TAMBAH MANUAL" untuk mengisi data pengadaan...</span>
                     )}
                   </td>
                   <td className="border border-gray-300 p-2 text-gray-200">—</td>
@@ -194,49 +217,49 @@ const PengadaanView = React.memo(({
 
                 return (
                   <Fragment key={category}>
-                    <tr className="bg-blue-50/50 font-bold">
-                      <td colSpan={6} className="border border-gray-300 p-2 text-blue-800 uppercase italic">
+                    <tr className="bg-slate-100/80 font-black">
+                      <td colSpan={6} className="border border-gray-300 p-2.5 text-slate-800 uppercase text-[9px] tracking-widest">
                         {category}
                       </td>
-                      <td className="border border-gray-300 p-2 text-right text-blue-900">{formatRupiah(categoryTotal)}</td>
-                      <td colSpan={8} className="border border-gray-300 p-2 bg-gray-50/20"></td>
+                      <td className="border border-gray-300 p-2.5 text-right text-slate-900 text-[10px]">{formatRupiah(categoryTotal)}</td>
+                      <td colSpan={8} className="border border-gray-300 p-2.5 bg-gray-50/20"></td>
                     </tr>
 
                     {items.map((item: InventoryItem, idx) => (
-                      <tr key={`${category}-${idx}`} className="hover:bg-gray-50 group">
-                        <td className="border border-gray-300 p-2 text-center text-gray-400">{idx + 1}</td>
-                        <td className="border border-gray-300 p-2 font-medium">{item.name}</td>
-                        <td className="border border-gray-300 p-2 text-gray-500 italic">{item.spec}</td>
-                        <td className="border border-gray-300 p-2 text-center">{item.quantity}</td>
-                        <td className="border border-gray-300 p-2 text-center">{item.unit}</td>
+                      <tr key={`${category}-${idx}`} className="hover:bg-blue-50/40 group transition-colors">
+                        <td className="border border-gray-300 p-2 text-center text-gray-500 font-medium">{idx + 1}</td>
+                        <td className="border border-gray-300 p-2 font-bold text-slate-700">{item.name}</td>
+                        <td className="border border-gray-300 p-2 text-gray-500 italic leading-tight">{item.spec}</td>
+                        <td className="border border-gray-300 p-2 text-center font-bold">{item.quantity}</td>
+                        <td className="border border-gray-300 p-2 text-center text-gray-600">{item.unit}</td>
                         <td className="border border-gray-300 p-2 text-right">{formatRupiah(item.price)}</td>
-                        <td className="border border-gray-300 p-2 text-right font-semibold">{formatRupiah(item.total)}</td>
-                        <td className="border border-gray-300 p-2 text-[8px] text-center font-mono">{item.subActivityCode || '0.00.01'}</td>
-                        <td className="border border-gray-300 p-2 text-[8px] leading-tight">{item.subActivityName || 'Administrasi Sekolah'}</td>
-                        <td className="border border-gray-300 p-2 text-[8px] text-center font-mono">{item.accountCode}</td>
-                        <td className="border border-gray-300 p-2 text-center text-[8px]">{formatDate(item.date)}</td>
-                        <td className="border border-gray-300 p-2 text-center text-[8px]">{item.contractType || 'Kuitansi'}</td>
-                        <td className="border border-gray-300 p-2 text-[8px] italic">{item.vendor}</td>
-                        <td className="border border-gray-300 p-2 text-center text-[8px] font-mono whitespace-nowrap overflow-hidden text-ellipsis max-w-[100px]">
+                        <td className="border border-gray-300 p-2 text-right font-black text-blue-700">{formatRupiah(item.total)}</td>
+                        <td className="border border-gray-300 p-2 text-[8px] text-center font-mono font-bold text-indigo-600 bg-indigo-50/30">{item.subActivityCode || '0.00.01'}</td>
+                        <td className="border border-gray-300 p-2 text-[8px] font-medium leading-tight text-slate-600">{item.subActivityName || 'Administrasi Sekolah'}</td>
+                        <td className="border border-gray-300 p-2 text-[8px] text-center font-mono font-black text-orange-600 bg-orange-50/30">{item.accountCode}</td>
+                        <td className="border border-gray-300 p-2 text-center text-[8px] font-bold text-slate-500">{formatDate(item.date)}</td>
+                        <td className="border border-gray-300 p-2 text-center text-[8px] font-medium">{item.contractType || 'Kuitansi'}</td>
+                        <td className="border border-gray-300 p-2 text-[8px] italic text-slate-500">{item.vendor}</td>
+                        <td className="border border-gray-300 p-2 text-center text-[8px] font-mono font-bold whitespace-nowrap overflow-hidden text-ellipsis max-w-[100px]">
                           {item.docNumber}
                         </td>
                         <td className="border border-gray-300 p-2 text-center">
-                          <div className="flex items-center justify-center gap-2">
+                          <div className="flex items-center justify-center gap-1.5">
                             {(item.id.startsWith('manual-') || !item.id.includes('-')) && (
                               <>
                                 <button
                                   onClick={() => (onEditManual as any)(item)}
-                                  className="p-1.5 bg-blue-50 text-blue-600 hover:bg-blue-100 rounded transition-colors"
+                                  className="p-1.5 bg-blue-50 text-blue-600 hover:bg-blue-600 hover:text-white rounded-lg transition-all active:scale-90"
                                   title="Edit Data"
                                 >
-                                  <Edit3 size={12} />
+                                  <Edit3 size={11} />
                                 </button>
                                 <button
                                   onClick={() => onDeleteManual(item.id)}
-                                  className="p-1.5 bg-red-50 text-red-600 hover:bg-red-100 rounded transition-colors"
+                                  className="p-1.5 bg-red-50 text-red-600 hover:bg-red-600 hover:text-white rounded-lg transition-all active:scale-90"
                                   title="Hapus Data"
                                 >
-                                  <Trash2 size={12} />
+                                  <Trash2 size={11} />
                                 </button>
                               </>
                             )}
@@ -660,29 +683,37 @@ const KibBView = ({ kibBItems, schoolProfile }: any) => {
 // ──────────────────────────────────────────────────────────────────────────────
 
 
+/**
+ * KOMPONEN UTAMA: InventoryReports
+ * Mengelola state global untuk semua jenis laporan inventaris.
+ */
 const InventoryReports: React.FC<InventoryReportsProps> = ({ budgets, schoolProfile }) => {
-  const [activeReport, setActiveReport] = useState<string>('pengadaan');
-  const [inventoryItems, setInventoryItems] = useState<InventoryItem[]>([]);
-  const [manualInventoryItems, setManualInventoryItems] = useState<InventoryItem[]>([]);
-  const [isAnalyzing, setIsAnalyzing] = useState(false); // Restored isAnalyzing state
-  const [withdrawalTransactions, setWithdrawalTransactions] = useState<WithdrawalTransaction[]>([]);
+  // --- STATE MANAGEMENT ---
+  const [activeReport, setActiveReport] = useState<string>('pengadaan'); // Laporan yang sedang aktif dilihat
+  const [inventoryItems, setInventoryItems] = useState<InventoryItem[]>([]); // Barang hasil analisa AI
+  const [manualInventoryItems, setManualInventoryItems] = useState<InventoryItem[]>([]); // Barang input manual pengguna
+  const [isAnalyzing, setIsAnalyzing] = useState(false); // Status loading saat AI sedang bekerja
+  const [withdrawalTransactions, setWithdrawalTransactions] = useState<WithdrawalTransaction[]>([]); // Data pengeluaran barang
+  
+  // Overrides: Digunakan untuk menyimpan koreksi manual pengguna pada saldo awal atau jumlah keluar
   const [itemOverrides, setItemOverrides] = useState<Record<string, { usedQuantity?: number; lastYearBalance?: number }>>(() => {
     const saved = localStorage.getItem('rkas_inventory_overrides_v1');
     return saved ? JSON.parse(saved) : {};
   });
+  
   const [mutationOverrides, setMutationOverrides] = useState<Record<string, { awal?: number; tambah?: number; kurang?: number }>>(() => {
     const saved = localStorage.getItem('rkas_mutation_overrides_v1');
     return saved ? JSON.parse(saved) : {};
   });
 
-  // Selection & Modal State
+  // --- MODAL & FORM STATE ---
   const [isManualModalOpen, setIsManualModalOpen] = useState(false);
   const [selectedBudget, setSelectedBudget] = useState<Budget | null>(null);
   const [manualForm, setManualForm] = useState<Partial<InventoryItem> & { nomor?: string }>({});
   const [editingItemId, setEditingItemId] = useState<string | null>(null);
   const [currentSubCategory, setCurrentSubCategory] = useState<string>('');
 
-  // Sub Kegiatan DB State
+  // --- SUB KEGIATAN DATABASE STATE ---
   const [subKegiatanDB, setSubKegiatanDB] = useState<SubKegiatanEntry[]>([]);
   const [isSkDBLoading, setIsSkDBLoading] = useState(false);
   const [isSkDBModalOpen, setIsSkDBModalOpen] = useState(false);
@@ -1173,6 +1204,11 @@ const InventoryReports: React.FC<InventoryReportsProps> = ({ budgets, schoolProf
     return { lastYearBalance, totalIn, totalOut, remaining };
   };
 
+  /**
+   * PDF EXPORT MECHANISM
+   * Mengkonversi data tabel ke file PDF menggunakan jsPDF.
+   * Format disesuaikan dengan laporan BMD (Barang Milik Daerah).
+   */
   const handleExportPDF = () => {
     const doc = new jsPDF('l', 'mm', 'a4');
     let title = '';
@@ -1180,33 +1216,53 @@ const InventoryReports: React.FC<InventoryReportsProps> = ({ budgets, schoolProf
     let body: any[][] = [];
 
     if (activeReport === 'pengadaan') {
-      title = 'Laporan Pengadaan Barang Milik Daerah (BMD)';
-      headers = [['No', 'Tanggal', 'No. Dokumen', 'Nama Barang', 'Spesifikasi', 'Qty', 'Satuan', 'Harga', 'Total', 'Keterangan']];
+      title = 'LAPORAN PENGADAAN BMD BERUPA ASET LANCAR PERSEDIAAN';
+      headers = [
+        [
+          { content: 'No', rowSpan: 3, styles: { halign: 'center', valign: 'middle' } },
+          { content: 'Nama Barang', rowSpan: 3, styles: { halign: 'center', valign: 'middle' } },
+          { content: 'Spesifikasi Nama Barang', rowSpan: 3, styles: { halign: 'center', valign: 'middle' } },
+          { content: 'Jumlah Barang', rowSpan: 3, styles: { halign: 'center', valign: 'middle' } },
+          { content: 'Satuan Barang', rowSpan: 3, styles: { halign: 'center', valign: 'middle' } },
+          { content: 'Harga Satuan', rowSpan: 2, styles: { halign: 'center', valign: 'middle' } },
+          { content: 'Total Nilai Barang', rowSpan: 2, styles: { halign: 'center', valign: 'middle' } },
+          { content: 'Sub Kegiatan dan Rekening Anggaran Belanja Daerah Atas Pengadaan Barang', colSpan: 3, styles: { halign: 'center', valign: 'middle' } },
+          { content: 'Tgl Perolehan', rowSpan: 3, styles: { halign: 'center', valign: 'middle' } },
+          { content: 'Dokumen Sumber Perolehan', colSpan: 3, styles: { halign: 'center' } }
+        ],
+        [
+          { content: 'Sub Kegiatan', colSpan: 2, styles: { halign: 'center' } },
+          { content: 'Rekening Anggaran Belanja Daerah', rowSpan: 2, styles: { halign: 'center' } },
+          { content: 'Bentuk Kontrak', rowSpan: 2, styles: { halign: 'center' } },
+          { content: 'Nama Penyedia', rowSpan: 2, styles: { halign: 'center' } },
+          { content: 'Nomor', rowSpan: 2, styles: { halign: 'center' } }
+        ],
+        [
+          { content: '(Rp.)', styles: { halign: 'center' } },
+          { content: '(Rp.)', styles: { halign: 'center' } },
+          { content: 'Kode', styles: { halign: 'center' } },
+          { content: 'Nama', styles: { halign: 'center' } }
+        ],
+        ['1', '2', '3', '5', '6', '7', '8=(5x7)', '12', '13', '14', '16', '17', '18', '19'].map(n => ({ content: n, styles: { halign: 'center', fontStyle: 'bold', fillColor: [240, 240, 240] } }))
+      ];
 
-      const transactionsByDoc: Record<string, WithdrawalTransaction[]> = {};
-      withdrawalTransactions.filter(t => t.docNumber.startsWith('BMD-')).forEach(t => {
-        if (!transactionsByDoc[t.docNumber]) transactionsByDoc[t.docNumber] = [];
-        transactionsByDoc[t.docNumber].push(t);
-      });
-
-      let rowIdx = 1;
-      Object.entries(transactionsByDoc).forEach(([docNum, txs]) => {
-        txs.forEach((tx, i) => {
-          const item = inventoryItems.find(it => it.id === tx.inventoryItemId);
-          if (!item) return;
-          body.push([
-            i === 0 ? rowIdx++ : '',
-            i === 0 ? tx.date : '',
-            i === 0 ? docNum : '',
-            item.name,
-            item.spec,
-            tx.quantity,
-            item.unit,
-            formatCurrency(item.price),
-            formatCurrency(tx.quantity * item.price),
-            tx.notes || '-'
-          ]);
-        });
+      combinedItems.forEach((item, i) => {
+        body.push([
+          i + 1,
+          item.name,
+          item.spec,
+          item.quantity,
+          item.unit,
+          formatCurrency(item.price),
+          formatCurrency(item.total),
+          item.subActivityCode || '-',
+          item.subActivityName || '-',
+          item.accountCode || '-',
+          formatDate(item.date),
+          item.contractType || '-',
+          item.vendor || '-',
+          item.docNumber || '-'
+        ]);
       });
     } else if (activeReport === 'persediaan') {
       title = 'Laporan Persediaan Barang';
@@ -1309,11 +1365,16 @@ const InventoryReports: React.FC<InventoryReportsProps> = ({ budgets, schoolProf
     doc.save(`${title.replace(/ /g, '_')}_${schoolProfile?.fiscalYear || '2026'}.pdf`);
   };
 
+  // Menggabungkan item hasil analisa AI dan item input manual
   const combinedItems = useMemo(() => {
     return [...inventoryItems, ...manualInventoryItems];
   }, [inventoryItems, manualInventoryItems]);
 
-  // KIB B: Items from SPJ budgets with modal account codes (5.2.xx) + manual items with modal codes
+  /**
+   * LOGIKA FILTER KIB B (Peralatan & Mesin)
+   * Menyaring hanya belanja modal yang berkode rekening '5.2.x'.
+   * Item ini biasanya berupa aset tetap sekolah seperti laptop, printer, meja, dll.
+   */
   const kibBItems = useMemo(() => {
     const isModalCode = (code?: string) => code && code.startsWith('5.2');
 
