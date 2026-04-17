@@ -306,7 +306,8 @@ const PengeluaranView = React.memo(({
   combinedItems,
   schoolProfile,
   onRecordWithdrawal,
-  onDeleteWithdrawal
+  onDeleteWithdrawal,
+  onAddPreviousYear
 }: any) => {
   const totalExpenditure = useMemo(() => {
     return withdrawalTransactions.reduce((sum: number, tx: any) => {
@@ -328,6 +329,12 @@ const PengeluaranView = React.memo(({
           </div>
         </div>
         <div className="flex gap-2">
+          <button
+            onClick={onAddPreviousYear}
+            className="flex items-center gap-2 px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg text-xs font-bold transition shadow-sm border border-slate-200"
+          >
+            <Layers size={14} /> Sisa Tahun Sebelumnya
+          </button>
           <button
             onClick={onRecordWithdrawal}
             className="flex items-center gap-2 px-4 py-2 bg-orange-600 hover:bg-orange-700 text-white rounded-lg text-xs font-bold transition shadow-md shadow-orange-200"
@@ -1124,7 +1131,7 @@ const InventoryReports: React.FC<InventoryReportsProps> = ({ budgets, schoolProf
             category: d.category,
             codification: d.codification,
             usedQuantity: d.used_quantity,
-            lastYearBalance: d.last_year_balance
+            lastYearBalance: d.last_year_balance || 0
           })));
         } else {
           const localManual = localStorage.getItem('rkas_manual_inventory_v1');
@@ -1423,7 +1430,8 @@ const InventoryReports: React.FC<InventoryReportsProps> = ({ budgets, schoolProf
       accountCode: budget.account_code || '',
       vendor: firstRealization?.vendor || '',
       docNumber: firstRealization?.notes || '',
-      nomor: ''
+      nomor: '',
+      lastYearBalance: 0
     });
     const defaultSub = CATEGORY_SUB_MAP[budget.category || 'Alat Atau Bahan Untuk Kegiatan Kantor']?.[0] || '';
     setCurrentSubCategory(defaultSub);
@@ -1455,7 +1463,8 @@ const InventoryReports: React.FC<InventoryReportsProps> = ({ budgets, schoolProf
       accountCode: item.accountCode,
       subActivityCode: item.subActivityCode,
       subActivityName: item.subActivityName,
-      nomor: item.docNumber
+      nomor: item.docNumber,
+      lastYearBalance: item.lastYearBalance || 0
     } as any);
 
     if (subCat) {
@@ -1489,7 +1498,8 @@ const InventoryReports: React.FC<InventoryReportsProps> = ({ budgets, schoolProf
       category: manualForm.category && CATEGORY_SUB_MAP[manualForm.category]
         ? `${manualForm.category} - ${currentSubCategory}`
         : (manualForm.category || 'Lainnya'),
-      usedQuantity: Number(manualForm.quantity)
+      usedQuantity: Number(manualForm.quantity),
+      lastYearBalance: Number(manualForm.lastYearBalance || 0)
     };
 
     if (editingItemId) {
@@ -2176,6 +2186,7 @@ const InventoryReports: React.FC<InventoryReportsProps> = ({ budgets, schoolProf
               schoolProfile={schoolProfile}
               onRecordWithdrawal={() => setIsWithdrawalModalOpen(true)}
               onDeleteWithdrawal={deleteWithdrawal}
+              onAddPreviousYear={() => handleManualAdd(null)}
             />
           )}
 
@@ -2232,10 +2243,10 @@ const InventoryReports: React.FC<InventoryReportsProps> = ({ budgets, schoolProf
                   </div>
                   <div>
                     <h3 className="text-xl font-black text-slate-800 tracking-tight">
-                      {editingItemId ? 'Edit Data Inventaris' : 'Input Manual Inventaris'}
+                      {editingItemId ? 'Edit Data Inventaris' : selectedBudget?.id === 'manual-inventory' ? 'Sisa Tahun Sebelumnya' : 'Input Manual Inventaris'}
                     </h3>
                     <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mt-1">
-                      Data Anggaran SPJ Terealisasi
+                      {selectedBudget?.id === 'manual-inventory' ? 'Input Manual Saldo Awal' : 'Data Anggaran SPJ Terealisasi'}
                     </p>
                   </div>
                 </div>
@@ -2443,11 +2454,25 @@ const InventoryReports: React.FC<InventoryReportsProps> = ({ budgets, schoolProf
                       <div className="space-y-1">
                         <label className="text-[10px] font-black text-slate-500 uppercase ml-1">Rekening Belanja</label>
                         <input
-                          readOnly
-                          className="w-full bg-slate-100 border border-slate-200 rounded-xl px-4 py-2.5 text-sm font-mono font-bold text-slate-500 cursor-not-allowed"
+                          readOnly={selectedBudget.id !== 'manual-inventory'}
+                          className={`w-full border border-slate-200 rounded-xl px-4 py-2.5 text-sm font-mono font-bold transition-all ${selectedBudget.id === 'manual-inventory' ? 'bg-white focus:border-blue-500 outline-none' : 'bg-slate-100 text-slate-500 cursor-not-allowed'}`}
                           value={manualForm.accountCode || ''}
+                          onChange={e => setManualForm({ ...manualForm, accountCode: e.target.value })}
                         />
                       </div>
+                      
+                      {selectedBudget.id === 'manual-inventory' && (
+                        <div className="space-y-1">
+                          <label className="text-[10px] font-black text-blue-600 uppercase ml-1">Saldo Awal (Tahun Lalu)</label>
+                          <input 
+                            type="number" 
+                            className="w-full bg-blue-50 border border-blue-200 rounded-xl px-4 py-2.5 text-sm font-black text-blue-700 focus:border-blue-500 outline-none transition-all" 
+                            placeholder="0"
+                            value={manualForm.lastYearBalance || ''} 
+                            onChange={e => setManualForm({ ...manualForm, lastYearBalance: Number(e.target.value) })} 
+                          />
+                        </div>
+                      )}
 
                       <div className="space-y-1">
                         <label className="text-[10px] font-black text-slate-500 uppercase ml-1">Nama Penyedia</label>
