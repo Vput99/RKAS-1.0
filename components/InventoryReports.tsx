@@ -535,9 +535,10 @@ const PersediaanView = React.memo(({ combinedItems, getItemStats, schoolProfile,
   const groupedByCategory = useMemo(() => {
     const groups: Record<string, any[]> = {};
     combinedItems.forEach((item: any) => {
-      const [mainCat] = item.category.split(' - ');
-      if (!groups[mainCat]) groups[mainCat] = [];
-      groups[mainCat].push(item);
+      // Menggunakan kategori penuh agar klasifikasi lebih detail (misal: "Alat Tulis Kantor")
+      const cat = item.category || 'Lainnya';
+      if (!groups[cat]) groups[cat] = [];
+      groups[cat].push(item);
     });
     return groups;
   }, [combinedItems]);
@@ -623,14 +624,21 @@ const PersediaanView = React.memo(({ combinedItems, getItemStats, schoolProfile,
               <td colSpan={11} className="border border-gray-400 p-1.5 uppercase">BARANG PAKAI HABIS</td>
             </tr>
 
-            {Object.entries(groupedByCategory).map(([mainCat, items]) => (
-              <Fragment key={mainCat}>
-                <tr className="font-bold text-gray-700 bg-gray-50/30">
-                  <td className="border border-gray-400 p-1.5 text-center"></td>
-                  <td className="border border-gray-400 p-1.5 text-center font-mono">1.1.7.xx</td>
-                  <td colSpan={11} className="border border-gray-400 p-1.5 uppercase">{mainCat}</td>
-                </tr>
-                {items.map((item: any) => {
+            {Object.entries(groupedByCategory).map(([catName, items]) => {
+              // Ambil prefix kode barang dari item pertama dalam grup ini (misal: 1.1.7.01.01)
+              const groupCode = items[0]?.codification?.split('.').slice(0, 5).join('.') || '1.1.7.xx.xx';
+              
+              // Bersihkan nama kategori dari prefix "Main Category - " jika ada
+              const displayName = catName.includes(' - ') ? catName.split(' - ')[1] : catName;
+
+              return (
+                <Fragment key={catName}>
+                  <tr className="font-bold text-gray-700 bg-gray-50/40">
+                    <td className="border border-gray-400 p-1.5 text-center"></td>
+                    <td className="border border-gray-400 p-1.5 text-center font-mono text-blue-700">{groupCode}</td>
+                    <td colSpan={11} className="border border-gray-400 p-1.5 uppercase text-blue-900">{displayName}</td>
+                  </tr>
+                  {items.map((item: any) => {
                   const stats = getItemStats(item);
                   return (
                     <tr key={item.id} className="hover:bg-blue-50/20 group transition-colors">
