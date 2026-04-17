@@ -530,18 +530,7 @@ const PengeluaranView = React.memo(({
   );
 });
 
-const PersediaanView = React.memo(({ combinedItems, getItemStats, schoolProfile, handleOverride }: any) => {
-  // Group items by category for hierarchical display
-  const groupedByCategory = useMemo(() => {
-    const groups: Record<string, any[]> = {};
-    combinedItems.forEach((item: any) => {
-      // Menggunakan kategori penuh agar klasifikasi lebih detail (misal: "Alat Tulis Kantor")
-      const cat = item.category || 'Lainnya';
-      if (!groups[cat]) groups[cat] = [];
-      groups[cat].push(item);
-    });
-    return groups;
-  }, [combinedItems]);
+const PersediaanView = React.memo(({ combinedItems, getItemStats, schoolProfile, handleOverride, groupedItems }: any) => {
 
   return (
     <motion.div key="persediaan" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }} className="flex flex-col h-full bg-white relative z-0">
@@ -624,7 +613,7 @@ const PersediaanView = React.memo(({ combinedItems, getItemStats, schoolProfile,
               <td colSpan={11} className="border border-gray-400 p-1.5 uppercase">BARANG PAKAI HABIS</td>
             </tr>
 
-            {Object.entries(groupedByCategory).map(([catName, items]) => {
+            {Object.entries(groupedItems).map(([catName, items]: [string, any]) => {
               // Ambil prefix kode barang dari item pertama dalam grup ini (misal: 1.1.7.01.01)
               const groupCode = items[0]?.codification?.split('.').slice(0, 5).join('.') || '1.1.7.xx.xx';
               
@@ -1770,20 +1759,32 @@ const InventoryReports: React.FC<InventoryReportsProps> = ({ budgets, schoolProf
       title = 'Laporan Persediaan Barang';
       headers = [['No', 'Kodefikasi', 'Nama Barang', 'Sisa Lalu', 'Masuk', 'Keluar', 'Sisa', 'Satuan', 'Harga', 'Total']];
 
-      combinedItems.forEach((item, i) => {
-        const stats = getItemStats(item);
+      Object.entries(groupedItems).forEach(([catName, items]) => {
+        const groupCode = items[0]?.codification?.split('.').slice(0, 5).join('.') || '1.1.7.xx.xx';
+        const displayCatName = catName.includes(' - ') ? catName.split(' - ')[1] : catName;
+
+        // Group header for PDF
         body.push([
-          i + 1,
-          item.codification || '-',
-          item.name,
-          stats.lastYearBalance,
-          stats.totalIn,
-          stats.totalOut,
-          stats.remaining,
-          item.unit,
-          formatCurrency(item.price),
-          formatCurrency(stats.remaining * item.price)
+          { content: '', styles: { fillColor: [240, 240, 240] } },
+          { content: groupCode, styles: { halign: 'center', fontStyle: 'bold', textColor: [0, 102, 204], fillColor: [240, 240, 240] } },
+          { content: displayCatName.toUpperCase(), colSpan: 8, styles: { fontStyle: 'bold', textColor: [0, 51, 102], fillColor: [240, 240, 240] } }
         ]);
+
+        items.forEach((item, i) => {
+          const stats = getItemStats(item);
+          body.push([
+            i + 1,
+            item.codification || '-',
+            item.name,
+            stats.lastYearBalance,
+            stats.totalIn,
+            stats.totalOut,
+            stats.remaining,
+            item.unit,
+            formatCurrency(item.price),
+            formatCurrency(stats.remaining * item.price)
+          ]);
+        });
       });
     } else if (activeReport === 'mutasi') {
       title = 'Laporan Mutasi Persediaan';
@@ -1932,20 +1933,29 @@ const InventoryReports: React.FC<InventoryReportsProps> = ({ budgets, schoolProf
         [title],
         ['No', 'Kodefikasi', 'Nama Barang', 'Saldo Awal', 'Masuk', 'Keluar', 'Sisa', 'Satuan', 'Harga', 'Total']
       ];
-      combinedItems.forEach((item, i) => {
-        const stats = getItemStats(item);
-        sheetData.push([
-          i + 1,
-          item.codification || '-',
-          item.name,
-          stats.lastYearBalance,
-          stats.totalIn,
-          stats.totalOut,
-          stats.remaining,
-          item.unit,
-          item.price,
-          stats.remaining * item.price
-        ]);
+
+      Object.entries(groupedItems).forEach(([catName, items]) => {
+        const groupCode = items[0]?.codification?.split('.').slice(0, 5).join('.') || '1.1.7.xx.xx';
+        const displayCatName = catName.includes(' - ') ? catName.split(' - ')[1] : catName;
+
+        // Excel group header row
+        sheetData.push(['', groupCode, displayCatName.toUpperCase(), '', '', '', '', '', '', '']);
+
+        items.forEach((item, i) => {
+          const stats = getItemStats(item);
+          sheetData.push([
+            i + 1,
+            item.codification || '-',
+            item.name,
+            stats.lastYearBalance,
+            stats.totalIn,
+            stats.totalOut,
+            stats.remaining,
+            item.unit,
+            item.price,
+            stats.remaining * item.price
+          ]);
+        });
       });
     } else if (activeReport === 'kib_b') {
       title = 'KIB B - Peralatan dan Mesin';
@@ -2270,6 +2280,7 @@ const InventoryReports: React.FC<InventoryReportsProps> = ({ budgets, schoolProf
               getItemStats={getItemStats}
               schoolProfile={schoolProfile}
               handleOverride={handleOverride}
+              groupedItems={groupedItems}
             />
           )}
 
