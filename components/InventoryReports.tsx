@@ -230,6 +230,14 @@ const PengadaanView = React.memo(({
                 if (items.length === 0) return null;
                 const categoryTotal = items.reduce((sum, item) => sum + item.total, 0);
 
+                // Group items by doc number within this category
+                const itemsByDoc: Record<string, InventoryItem[]> = {};
+                items.forEach(it => {
+                  const key = (it.docNumber || 'TANPA NOMOR').trim();
+                  if (!itemsByDoc[key]) itemsByDoc[key] = [];
+                  itemsByDoc[key].push(it);
+                });
+
                 return (
                   <Fragment key={category}>
                     <tr className="bg-slate-100/80 font-black">
@@ -240,56 +248,68 @@ const PengadaanView = React.memo(({
                       <td colSpan={8} className="border border-gray-300 p-2.5 bg-gray-50/20"></td>
                     </tr>
 
-                    {items.map((item: InventoryItem, idx) => (
-                      <tr key={`${category}-${idx}`} className="hover:bg-blue-50/40 group transition-colors">
-                        <td className="border border-gray-300 p-2 text-center text-gray-500 font-medium">{idx + 1}</td>
-                        <td className="border border-gray-300 p-2 font-bold text-slate-700">
-                          <div className="flex items-center gap-2">
-                            {item.name}
-                            {item.id.includes('-') ? (
-                              <Database size={10} className="text-emerald-500 opacity-70" />
-                            ) : (
-                              <Sparkles size={10} className="text-blue-400 animate-pulse" />
-                            )}
-                          </div>
-                        </td>
-                        <td className="border border-gray-300 p-2 text-gray-500 italic leading-tight">{item.spec}</td>
-                        <td className="border border-gray-300 p-2 text-center font-bold">{item.quantity}</td>
-                        <td className="border border-gray-300 p-2 text-center text-gray-600">{item.unit}</td>
-                        <td className="border border-gray-300 p-2 text-right">{formatRupiah(item.price)}</td>
-                        <td className="border border-gray-300 p-2 text-right font-black text-blue-700">{formatRupiah(item.total)}</td>
-                        <td className="border border-gray-300 p-2 text-[8px] text-center font-mono font-bold text-indigo-600 bg-indigo-50/30">{item.subActivityCode || '0.00.01'}</td>
-                        <td className="border border-gray-300 p-2 text-[8px] font-medium leading-tight text-slate-600">{item.subActivityName || 'Administrasi Sekolah'}</td>
-                        <td className="border border-gray-300 p-2 text-[8px] text-center font-mono font-black text-orange-600 bg-orange-50/30">{item.accountCode}</td>
-                        <td className="border border-gray-300 p-2 text-center text-[8px] font-bold text-slate-500">{formatDate(item.date)}</td>
-                        <td className="border border-gray-300 p-2 text-center text-[8px] font-medium">{item.contractType || 'Kuitansi'}</td>
-                        <td className="border border-gray-300 p-2 text-[8px] italic text-slate-500">{item.vendor}</td>
-                        <td className="border border-gray-300 p-2 text-center text-[8px] font-mono font-bold whitespace-nowrap overflow-hidden text-ellipsis max-w-[100px]">
-                          {item.docNumber}
-                        </td>
-                        <td className="border border-gray-300 p-2 text-center">
-                          <div className="flex items-center justify-center gap-1.5">
-                            {(item.id.startsWith('manual-') || !item.id.includes('-')) && (
-                              <>
-                                <button
-                                  onClick={() => (onEditManual as any)(item)}
-                                  className="p-1.5 bg-blue-50 text-blue-600 hover:bg-blue-600 hover:text-white rounded-lg transition-all active:scale-90"
-                                  title="Edit Data"
-                                >
-                                  <Edit3 size={11} />
-                                </button>
-                                <button
-                                  onClick={() => onDeleteManual(item.id)}
-                                  className="p-1.5 bg-red-50 text-red-600 hover:bg-red-600 hover:text-white rounded-lg transition-all active:scale-90"
-                                  title="Hapus Data"
-                                >
-                                  <Trash2 size={11} />
-                                </button>
-                              </>
-                            )}
-                          </div>
-                        </td>
-                      </tr>
+                    {Object.entries(itemsByDoc).map(([docKey, docItems]: [string, InventoryItem[]], docIdx) => (
+                      <Fragment key={docKey}>
+                        {docItems.map((item: InventoryItem, itemIdx: number) => (
+                          <tr key={`${category}-${docKey}-${itemIdx}`} className="hover:bg-blue-50/40 group transition-colors">
+                            <td className="border border-gray-300 p-2 text-center text-gray-500 font-medium">
+                              {itemIdx === 0 ? docIdx + 1 : ''}
+                            </td>
+                            <td className="border border-gray-300 p-2 font-bold text-slate-700">
+                              <div className="flex items-center gap-2">
+                                {item.name}
+                                {item.id.includes('-') ? (
+                                  <Database size={10} className="text-emerald-500 opacity-70" />
+                                ) : (
+                                  <Sparkles size={10} className="text-blue-400 animate-pulse" />
+                                )}
+                              </div>
+                            </td>
+                            <td className="border border-gray-300 p-2 text-gray-500 italic leading-tight">{item.spec}</td>
+                            <td className="border border-gray-300 p-2 text-center font-bold">{item.quantity}</td>
+                            <td className="border border-gray-300 p-2 text-center text-gray-600">{item.unit}</td>
+                            <td className="border border-gray-300 p-2 text-right">{formatRupiah(item.price)}</td>
+                            <td className="border border-gray-300 p-2 text-right font-black text-blue-700">{formatRupiah(item.total)}</td>
+                            <td className="border border-gray-300 p-2 text-[8px] text-center font-mono font-bold text-indigo-600 bg-indigo-50/30">{item.subActivityCode || '0.00.01'}</td>
+                            <td className="border border-gray-300 p-2 text-[8px] font-medium leading-tight text-slate-600">{item.subActivityName || 'Administrasi Sekolah'}</td>
+                            <td className="border border-gray-300 p-2 text-[8px] text-center font-mono font-black text-orange-600 bg-orange-50/30">{item.accountCode}</td>
+                            <td className="border border-gray-300 p-2 text-center text-[8px] font-bold text-slate-500">
+                              {itemIdx === 0 ? formatDate(item.date) : ''}
+                            </td>
+                            <td className="border border-gray-300 p-2 text-center text-[8px] font-medium">
+                              {itemIdx === 0 ? (item.contractType || 'Kuitansi') : ''}
+                            </td>
+                            <td className="border border-gray-300 p-2 text-[8px] italic text-slate-500">
+                              {itemIdx === 0 ? item.vendor : ''}
+                            </td>
+                            <td className="border border-gray-300 p-2 text-center text-[8px] font-mono font-bold whitespace-nowrap overflow-hidden text-ellipsis max-w-[100px]">
+                              {itemIdx === 0 ? item.docNumber : ''}
+                            </td>
+                            <td className="border border-gray-300 p-2 text-center">
+                              <div className="flex items-center justify-center gap-1.5">
+                                {(item.id.startsWith('manual-') || !item.id.includes('-')) && (
+                                  <>
+                                    <button
+                                      onClick={() => (onEditManual as any)(item)}
+                                      className="p-1.5 bg-blue-50 text-blue-600 hover:bg-blue-600 hover:text-white rounded-lg transition-all active:scale-90"
+                                      title="Edit Data"
+                                    >
+                                      <Edit3 size={11} />
+                                    </button>
+                                    <button
+                                      onClick={() => onDeleteManual(item.id)}
+                                      className="p-1.5 bg-red-50 text-red-600 hover:bg-red-600 hover:text-white rounded-lg transition-all active:scale-90"
+                                      title="Hapus Data"
+                                    >
+                                      <Trash2 size={11} />
+                                    </button>
+                                  </>
+                                )}
+                              </div>
+                            </td>
+                          </tr>
+                        ))}
+                      </Fragment>
                     ))}
                   </Fragment>
                 );
@@ -311,7 +331,8 @@ const PengeluaranView = React.memo(({
   onAddPreviousYear,
   onEditManual,
   onDeleteManual,
-  manualInventoryItems
+  manualInventoryItems,
+  groupedWithdrawalData
 }: any) => {
   const totalExpenditure = useMemo(() => {
     return withdrawalTransactions.reduce((sum: number, tx: any) => {
@@ -452,7 +473,7 @@ const PengeluaranView = React.memo(({
             </tr>
           </thead>
           <tbody>
-            {withdrawalTransactions.length === 0 ? (
+            {groupedWithdrawalData.length === 0 ? (
               Array.from({ length: 15 }).map((_, idx) => (
                 <tr key={`empty-tx-${idx}`} className="h-7">
                   <td className="border border-gray-400 p-1 text-center text-transparent">{idx + 1}</td>
@@ -468,22 +489,15 @@ const PengeluaranView = React.memo(({
                 </tr>
               ))
             ) : (
-              Object.entries(
-                withdrawalTransactions.reduce((groups: any, tx: any) => {
-                  if (!groups[tx.docNumber]) groups[tx.docNumber] = [];
-                  groups[tx.docNumber].push(tx);
-                  return groups;
-                }, {})
-              ).map(([docKey, txs]: [string, any], docIdx) => (
-                <Fragment key={docKey}>
-                  {txs.map((tx: any, txIdx: number) => {
-                    const item = combinedItems.find((i: any) => i.id === tx.inventoryItemId);
-                    if (!item) return null;
+              groupedWithdrawalData.map((group: any, docIdx: number) => (
+                <Fragment key={group.docNumber || docIdx}>
+                  {group.items.map((tx: any, txIdx: number) => {
+                    const item = tx.item;
                     return (
                       <tr key={tx.id} className="hover:bg-gray-50 group group-hover:bg-gray-50/80 transition-colors">
                         <td className="border border-gray-400 p-1.5 text-center">{txIdx === 0 ? docIdx + 1 : ''}</td>
-                        <td className="border border-gray-400 p-1.5 text-center">{txIdx === 0 ? formatDate(tx.date) : ''}</td>
-                        <td className="border border-gray-400 p-1.5 text-center font-mono">{txIdx === 0 ? tx.docNumber : ''}</td>
+                        <td className="border border-gray-400 p-1.5 text-center">{txIdx === 0 ? formatDate(group.date) : ''}</td>
+                        <td className="border border-gray-400 p-1.5 text-center font-mono">{txIdx === 0 ? group.docNumber : ''}</td>
                         <td className="border border-gray-400 p-1.5 font-bold">{item.name}</td>
                         <td className="border border-gray-400 p-1.5 text-gray-500 italic">{item.spec}</td>
                         <td className="border border-gray-400 p-1.5 text-center font-bold">{tx.quantity}</td>
@@ -1696,23 +1710,33 @@ const InventoryReports: React.FC<InventoryReportsProps> = ({ budgets, schoolProf
           { content: '', colSpan: 7, styles: { fillColor: [240, 240, 240] } }
         ]);
 
-        items.forEach((item, i) => {
-          body.push([
-            i + 1,
-            item.name,
-            item.spec,
-            item.quantity,
-            item.unit,
-            formatCurrency(item.price),
-            formatCurrency(item.total),
-            item.subActivityCode || '-',
-            item.subActivityName || '-',
-            item.accountCode || '-',
-            formatDate(item.date),
-            item.contractType || '-',
-            item.vendor || '-',
-            item.docNumber || '-'
-          ]);
+        // Group items by doc within category for PDF
+        const itemsByDoc: Record<string, InventoryItem[]> = {};
+        items.forEach(it => {
+          const key = (it.docNumber || 'TANPA NOMOR').trim();
+          if (!itemsByDoc[key]) itemsByDoc[key] = [];
+          itemsByDoc[key].push(it);
+        });
+
+        Object.entries(itemsByDoc).forEach(([_docKey, docItems], docIdx) => {
+          docItems.forEach((item, itemIdx) => {
+            body.push([
+              itemIdx === 0 ? docIdx + 1 : '',
+              item.name,
+              item.spec,
+              item.quantity,
+              item.unit,
+              formatCurrency(item.price),
+              formatCurrency(item.total),
+              item.subActivityCode || '-',
+              item.subActivityName || '-',
+              item.accountCode || '-',
+              itemIdx === 0 ? formatDate(item.date) : '',
+              itemIdx === 0 ? (item.contractType || '-') : '',
+              itemIdx === 0 ? (item.vendor || '-') : '',
+              itemIdx === 0 ? item.docNumber : ''
+            ]);
+          });
         });
       });
     } else if (activeReport === 'pengeluaran') {
@@ -1740,23 +1764,25 @@ const InventoryReports: React.FC<InventoryReportsProps> = ({ budgets, schoolProf
       ];
 
       let totalVal = 0;
-      withdrawalTransactions.forEach((tx, i) => {
-        const item = combinedItems.find(it => it.id === tx.inventoryItemId);
-        if (!item) return;
-        const total = tx.quantity * item.price;
-        totalVal += total;
-        body.push([
-          i + 1,
-          formatDate(tx.date),
-          tx.docNumber,
-          item.name,
-          item.spec,
-          tx.quantity,
-          item.unit,
-          formatCurrency(item.price),
-          formatCurrency(total),
-          tx.notes || ''
-        ]);
+      groupedWithdrawalData.forEach((group: any, groupIdx: number) => {
+        group.items.forEach((tx: any, itemIdx: number) => {
+          const item = tx.item;
+          const total = tx.quantity * item.price;
+          totalVal += total;
+
+          body.push([
+            itemIdx === 0 ? groupIdx + 1 : '',
+            itemIdx === 0 ? formatDate(group.date) : '',
+            itemIdx === 0 ? group.docNumber : '',
+            item.name,
+            item.spec,
+            tx.quantity,
+            item.unit,
+            formatCurrency(item.price),
+            formatCurrency(total),
+            tx.notes || ''
+          ]);
+        });
       });
 
       // Footer row for PDF
@@ -1921,23 +1947,32 @@ const InventoryReports: React.FC<InventoryReportsProps> = ({ budgets, schoolProf
         // Header Kelompok Excel
         sheetData.push([category.toUpperCase(), '', '', '', '', '', categoryTotal, '', '', '', '', '', '', '']);
 
-        items.forEach((item, i) => {
-          sheetData.push([
-            i + 1,
-            item.name,
-            item.spec,
-            item.quantity,
-            item.unit,
-            item.price,
-            item.total,
-            item.subActivityCode,
-            item.subActivityName,
-            item.accountCode,
-            item.date,
-            item.contractType,
-            item.vendor,
-            item.docNumber
-          ]);
+        const itemsByDoc: Record<string, InventoryItem[]> = {};
+        items.forEach(it => {
+          const key = (it.docNumber || 'TANPA NOMOR').trim();
+          if (!itemsByDoc[key]) itemsByDoc[key] = [];
+          itemsByDoc[key].push(it);
+        });
+
+        Object.entries(itemsByDoc).forEach(([_docKey, docItems], docIdx) => {
+          docItems.forEach((item, itemIdx) => {
+            sheetData.push([
+              itemIdx === 0 ? docIdx + 1 : '',
+              item.name,
+              item.spec,
+              item.quantity,
+              item.unit,
+              item.price,
+              item.total,
+              item.subActivityCode,
+              item.subActivityName,
+              item.accountCode,
+              itemIdx === 0 ? item.date : '',
+              itemIdx === 0 ? item.contractType : '',
+              itemIdx === 0 ? item.vendor : '',
+              itemIdx === 0 ? item.docNumber : ''
+            ]);
+          });
         });
       });
     } else if (activeReport === 'pengeluaran') {
@@ -1947,21 +1982,22 @@ const InventoryReports: React.FC<InventoryReportsProps> = ({ budgets, schoolProf
         [schoolProfile?.name || ''],
         ['No', 'Tanggal', 'Nomor Dokumen', 'Nama Barang', 'Spesifikasi', 'Jumlah', 'Satuan', 'Harga Satuan', 'Total Nilai', 'Keterangan']
       ];
-      withdrawalTransactions.forEach((tx, i) => {
-        const item = combinedItems.find(it => it.id === tx.inventoryItemId);
-        if (!item) return;
-        sheetData.push([
-          i + 1,
-          tx.date,
-          tx.docNumber,
-          item.name,
-          item.spec,
-          tx.quantity,
-          item.unit,
-          item.price,
-          tx.quantity * item.price,
-          tx.notes || ''
-        ]);
+      groupedWithdrawalData.forEach((group: any, groupIdx: number) => {
+        group.items.forEach((tx: any, itemIdx: number) => {
+          const item = tx.item;
+          sheetData.push([
+            itemIdx === 0 ? groupIdx + 1 : '',
+            itemIdx === 0 ? group.date : '',
+            itemIdx === 0 ? group.docNumber : '',
+            item.name,
+            item.spec,
+            tx.quantity,
+            item.unit,
+            item.price,
+            tx.quantity * item.price,
+            tx.notes || ''
+          ]);
+        });
       });
     } else if (activeReport === 'persediaan') {
       title = 'LAPORAN PERSEDIAAN BARANG';
@@ -2200,6 +2236,40 @@ const InventoryReports: React.FC<InventoryReportsProps> = ({ budgets, schoolProf
     return data;
   }, [combinedItems, itemOverrides, withdrawalTransactions]);
 
+  /**
+   * PENGELOMPOKAN PENGELUARAN (Withdrawals) BERDASARKAN NOMOR DOKUMEN
+   * Memastikan item yang keluar dalam satu kuitansi/dokumen yang sama terkumpul dalam satu grup.
+   */
+  const groupedWithdrawalData = useMemo(() => {
+    // 1. Sortir semua transaksi berdasarkan tanggal dan nomor dokumen
+    const sorted = [...withdrawalTransactions].sort((a, b) => {
+      const d1 = new Date(a.date).getTime();
+      const d2 = new Date(b.date).getTime();
+      if (d1 !== d2) return d1 - d2;
+      return (a.docNumber || "").trim().localeCompare((b.docNumber || "").trim());
+    });
+
+    // 2. Kelompokkan berdasarkan Doc Number
+    const groups: Record<string, { date: string; docNumber: string; items: any[] }> = {};
+    sorted.forEach(tx => {
+      const docKey = (tx.docNumber || "TANPA NOMOR").trim();
+      if (!groups[docKey]) {
+        groups[docKey] = {
+          date: tx.date,
+          docNumber: tx.docNumber,
+          items: []
+        };
+      }
+      
+      const item = combinedItems.find(it => it.id === tx.inventoryItemId);
+      if (item) {
+        groups[docKey].items.push({ ...tx, item });
+      }
+    });
+
+    return Object.values(groups);
+  }, [withdrawalTransactions, combinedItems]);
+
   const reportMenu = [
     {
       id: 'pengadaan',
@@ -2354,6 +2424,7 @@ const InventoryReports: React.FC<InventoryReportsProps> = ({ budgets, schoolProf
               onEditManual={handleEditManual}
               onDeleteManual={deleteManualItem}
               manualInventoryItems={manualInventoryItems}
+              groupedWithdrawalData={groupedWithdrawalData}
             />
           )}
 
