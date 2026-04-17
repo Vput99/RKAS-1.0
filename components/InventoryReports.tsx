@@ -673,7 +673,8 @@ const PersediaanView = React.memo(({ combinedItems, getItemStats, schoolProfile,
                   );
                 })}
               </Fragment>
-            ))}
+            );
+          })}
 
             {combinedItems.length === 0 && Array.from({ length: 10 }).map((_, idx) => (
               <tr key={`empty-${idx}`} className="h-6">
