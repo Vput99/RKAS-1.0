@@ -6,6 +6,7 @@ import {
 } from '../lib/pdfGenerators';
 import { FileText, Download, CheckCircle2, ChevronRight, BookOpen, Printer, Users, Bus, FileSignature, Handshake, ClipboardList, Receipt, FileCheck, HardHat, Hammer, X, DollarSign, Plus, Trash2, Search, Sparkles, Loader2, Upload, Eye, AlertCircle, ShoppingCart, Image as ImageIcon, Folder } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
+import { supabase } from '../lib/supabase';
 import { getSchoolProfile, uploadEvidenceFile, getWithdrawalHistory, updateWithdrawalHistory, getGeneralFiles, saveGeneralFile, deleteGeneralFile } from '../lib/db';
 import { SchoolProfile, Budget, EvidenceFile, WithdrawalHistory } from '../types';
 import { suggestEvidenceList, isAiConfigured } from '../lib/gemini';
@@ -36,14 +37,28 @@ const EvidenceTemplates = ({ budgets: allBudgets, onUpdate }: EvidenceTemplatesP
   const [albumView, setAlbumView] = useState<{ month: number | null, transactionKey: string | null }>({ month: null, transactionKey: null });
 
   const [generalFiles, setGeneralFiles] = useState<any[]>(() => {
-    const saved = localStorage.getItem('rkas_general_evidence_v1');
-    return saved ? JSON.parse(saved) : [];
+    try {
+      const saved = localStorage.getItem('rkas_general_evidence_v1');
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        return Array.isArray(parsed) ? parsed : [];
+      }
+    } catch (e) {
+      console.warn("Corrupted general evidence data in localStorage");
+    }
+    return [];
   });
 
   useEffect(() => {
     const fetchGeneral = async () => {
-      const data = await getGeneralFiles();
-      setGeneralFiles(data);
+      try {
+        const data = await getGeneralFiles();
+        if (Array.isArray(data)) {
+          setGeneralFiles(data);
+        }
+      } catch (e) {
+        console.error("Failed to sync general files on mount:", e);
+      }
     };
     fetchGeneral();
   }, []);
@@ -1092,7 +1107,12 @@ const EvidenceTemplates = ({ budgets: allBudgets, onUpdate }: EvidenceTemplatesP
                     isGeneral: true
                 };
                 const savedFile = await saveGeneralFile(newFile);
-                setGeneralFiles(prev => [savedFile, ...prev]);
+                if (savedFile) {
+                  setGeneralFiles(prev => {
+                    const filtered = prev.filter(f => f && f.path !== savedFile.path);
+                    return [savedFile, ...filtered];
+                  });
+                }
             } else {
                 alert(`Gagal mengunggah ${file.name}. Pastikan koneksi internet stabil.`);
             }
@@ -1105,14 +1125,15 @@ const EvidenceTemplates = ({ budgets: allBudgets, onUpdate }: EvidenceTemplatesP
 
             await new Promise((resolve) => {
               const reader = new FileReader();
-              reader.onload = (event) => {
+              reader.onload = async (event) => {
                 const dataUrl = event.target?.result as string;
+                const uniquePath = `general/${Date.now()}_${Math.random().toString(36).substring(7)}_${file.name}`;
                 const newFile = {
                     name: file.name,
                     url: dataUrl,
                     type: file.type.includes('image') ? 'Gambar / Scan' : 'Dokumen PDF',
                     size: file.size,
-                    path: `general/${Date.now()}_${file.name}`,
+                    path: uniquePath,
                     vendor: 'Dokumen Sekolah',
                     description: 'Arsip Dokumen Pendukung Umum',
                     amount: 0,
@@ -1120,7 +1141,12 @@ const EvidenceTemplates = ({ budgets: allBudgets, onUpdate }: EvidenceTemplatesP
                     isGeneral: true
                 };
                 const savedFile = await saveGeneralFile(newFile);
-                setGeneralFiles(prev => [savedFile, ...prev]);
+                if (savedFile) {
+                  setGeneralFiles(prev => {
+                    const filtered = prev.filter(f => f && f.path !== savedFile.path);
+                    return [savedFile, ...filtered];
+                  });
+                }
                 resolve(null);
               };
               reader.readAsDataURL(file);
@@ -1287,12 +1313,14 @@ const EvidenceTemplates = ({ budgets: allBudgets, onUpdate }: EvidenceTemplatesP
                     </div>
                 ) : (
                     <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-8">
-                        {generalFiles.map((file, idx) => {
-                            const isImage = file.name.match(/\.(jpeg|jpg|gif|png|webp)$/i);
+                        {generalFiles.filter(Boolean).map((file, idx) => {
+                            const isImage = file.name && file.name.match(/\.(jpeg|jpg|gif|png|webp)$/i);
+                            const animationKey = file.path || `gen-${idx}`;
+
                             return (
                                 <motion.div 
-                                    layoutId={`card-gen-${file.url}-${idx}`}
-                                    key={`gen-${idx}`}
+                                    layoutId={`card-gen-${animationKey}`}
+                                    key={animationKey}
                                     onClick={() => setSelectedFile({ ...file, isImage, idx })}
                                     initial={{ opacity: 0, scale: 0.9, y: 20 }}
                                     animate={{ opacity: 1, scale: 1, y: 0 }}
@@ -1300,11 +1328,11 @@ const EvidenceTemplates = ({ budgets: allBudgets, onUpdate }: EvidenceTemplatesP
                                     className="bg-white rounded-[2.5rem] shadow-xl shadow-blue-900/5 border border-slate-100 overflow-hidden group cursor-pointer flex flex-col relative"
                                     whileHover={{ y: -8 }}
                                 >
-                                    <motion.div layoutId={`image-container-gen-${file.url}-${idx}`} className="relative h-56 bg-slate-50 flex items-center justify-center overflow-hidden border-b border-slate-50">
+                                    <motion.div layoutId={`image-container-gen-${animationKey}`} className="relative h-56 bg-slate-50 flex items-center justify-center overflow-hidden border-b border-slate-50">
                                         {isImage ? (
-                                            <motion.img layoutId={`image-gen-${file.url}-${idx}`} src={file.url} alt={file.name} className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-1000" />
+                                            <motion.img layoutId={`image-gen-${animationKey}`} src={file.url} alt={file.name} className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-1000" />
                                         ) : (
-                                            <motion.div layoutId={`image-gen-${file.url}-${idx}`} className="text-blue-400 flex flex-col items-center group-hover:scale-110 transition-transform duration-1000">
+                                            <motion.div layoutId={`image-gen-${animationKey}`} className="text-blue-400 flex flex-col items-center group-hover:scale-110 transition-transform duration-1000">
                                                 <div className="p-4 bg-white rounded-2xl shadow-lg shadow-blue-900/5">
                                                   <FileText size={48} />
                                                 </div>
@@ -1317,8 +1345,7 @@ const EvidenceTemplates = ({ budgets: allBudgets, onUpdate }: EvidenceTemplatesP
                                             </span>
                                         </div>
                                     </motion.div>
-
-                                    <motion.div layoutId={`info-gen-${file.url}-${idx}`} className="p-8 bg-white flex-1 flex flex-col">
+                                    <motion.div layoutId={`info-gen-${animationKey}`} className="p-8 bg-white flex-1 flex flex-col">
                                         <h4 className="text-base font-black text-slate-800 mb-2 tracking-tight line-clamp-1" title={file.name}>{file.name}</h4>
                                         <p className="text-xs font-semibold text-slate-400 line-clamp-2 mb-6 leading-relaxed flex-1 opacity-80">{file.description}</p>
                                         

@@ -1532,31 +1532,50 @@ export const getGeneralFiles = async (): Promise<any[]> => {
                 return data;
             }
         } catch (e) {
-            console.warn('Gagal mengambil data arsip umum:', e);
+            console.warn('Gagal mengambil data arsip umum dari cloud:', e);
         }
     }
-    const local = localStorage.getItem(GENERAL_EVIDENCE_KEY);
-    return local ? JSON.parse(local) : [];
+    
+    try {
+        const local = localStorage.getItem(GENERAL_EVIDENCE_KEY);
+        if (local) {
+            const parsed = JSON.parse(local);
+            return Array.isArray(parsed) ? parsed : [];
+        }
+    } catch (e) {
+        console.error("Gagal parse data arsip umum lokal:", e);
+    }
+    return [];
 };
 
 export const saveGeneralFile = async (file: any): Promise<any> => {
+    if (!file || !file.path) return null;
+
     if (supabase) {
-        const userId = await getCurrentUserId();
-        if (userId) {
-            const payload = { ...file, user_id: userId, created_at: file.date || new Date().toISOString() };
-            const { data, error } = await supabase
-                .from('general_evidence')
-                .upsert([payload], { onConflict: 'path' })
-                .select();
-            
-            if (!error && data) return data[0];
+        try {
+            const userId = await getCurrentUserId();
+            if (userId) {
+                const payload = { ...file, user_id: userId, created_at: file.date || new Date().toISOString() };
+                const { data, error } = await supabase
+                    .from('general_evidence')
+                    .upsert([payload], { onConflict: 'path' })
+                    .select();
+                
+                if (!error && data && data.length > 0) return data[0];
+            }
+        } catch (e) {
+            console.warn("Gagal simpan arsip ke cloud, beralih ke lokal:", e);
         }
     }
     
     // Local fallback
-    const current = await getGeneralFiles();
-    const updated = [file, ...current.filter(f => f.path !== file.path)];
-    localStorage.setItem(GENERAL_EVIDENCE_KEY, JSON.stringify(updated));
+    try {
+        const current = await getGeneralFiles();
+        const updated = [file, ...current.filter(f => f && f.path !== file.path)];
+        localStorage.setItem(GENERAL_EVIDENCE_KEY, JSON.stringify(updated));
+    } catch (e) {
+        console.warn("Gagal simpan arsip lokal (kemungkinan kuota penuh):", e);
+    }
     return file;
 };
 
