@@ -361,14 +361,18 @@ const PengeluaranView = React.memo(({
             {manualInventoryItems.map((item: any) => (
               <div key={item.id} className="min-w-[220px] max-w-[300px] bg-white border border-slate-200 rounded-2xl p-4 shadow-sm hover:shadow-md transition-all flex flex-col justify-between group">
                 <div>
-                  <h5 className="text-[11px] font-black text-slate-800 line-clamp-2 leading-tight mb-2 group-hover:text-blue-600 transition-colors">{item.name}</h5>
-                  <div className="flex justify-between items-center">
-                    <span className="text-[10px] font-black text-blue-700 bg-blue-100/50 px-2.5 py-1 rounded-lg">
-                      {item.lastYearBalance || 0} {item.unit}
-                    </span>
-                    <span className="text-[8px] font-bold text-slate-400 uppercase tracking-tighter">
-                      Saldo Awal
-                    </span>
+                  <h5 className="text-[11px] font-black text-slate-800 line-clamp-2 leading-tight mb-3 group-hover:text-blue-600 transition-colors h-8">{item.name}</h5>
+                  <div className="space-y-2">
+                    <div className="flex justify-between items-center text-[10px]">
+                      <span className="font-bold text-slate-500">Jumlah:</span>
+                      <span className="font-black text-slate-900">{item.lastYearBalance || 0} {item.unit}</span>
+                    </div>
+                    <div className="flex justify-between items-center text-[10px]">
+                      <span className="font-bold text-slate-500">Nominal:</span>
+                      <span className="font-black text-blue-700 bg-blue-50 px-2 py-0.5 rounded-md">
+                        {formatRupiah((item.lastYearBalance || 0) * (item.price || 0))}
+                      </span>
+                    </div>
                   </div>
                 </div>
                 <div className="flex gap-2 mt-4 pt-4 border-t border-slate-100">
