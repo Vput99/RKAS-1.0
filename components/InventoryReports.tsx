@@ -658,7 +658,7 @@ const PersediaanView = React.memo(({ combinedItems, getItemStats, schoolProfile,
       </div>
     </motion.div>
   );
-};
+});
 
 const MutasiView = React.memo(({ mutationData, schoolProfile, handleMutationOverride, mutationOverrides }: any) => {
   const totalAwal = Object.entries(mutationData).reduce((sum, [cat, vals]: any) => sum + (mutationOverrides[cat]?.awal ?? vals.awal), 0);
