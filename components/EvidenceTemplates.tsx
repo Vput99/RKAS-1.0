@@ -6,7 +6,7 @@ import {
 } from '../lib/pdfGenerators';
 import { FileText, Download, CheckCircle2, ChevronRight, BookOpen, Printer, Users, Bus, FileSignature, Handshake, ClipboardList, Receipt, FileCheck, HardHat, Hammer, X, DollarSign, Plus, Trash2, Search, Sparkles, Loader2, Upload, Eye, AlertCircle, ShoppingCart, Image as ImageIcon, Folder } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { getSchoolProfile, uploadEvidenceFile, getWithdrawalHistory, updateWithdrawalHistory } from '../lib/db';
+import { getSchoolProfile, uploadEvidenceFile, getWithdrawalHistory, updateWithdrawalHistory, getGeneralFiles, saveGeneralFile, deleteGeneralFile } from '../lib/db';
 import { SchoolProfile, Budget, EvidenceFile, WithdrawalHistory } from '../types';
 import { suggestEvidenceList, isAiConfigured } from '../lib/gemini';
 
@@ -41,8 +41,12 @@ const EvidenceTemplates = ({ budgets: allBudgets, onUpdate }: EvidenceTemplatesP
   });
 
   useEffect(() => {
-    localStorage.setItem('rkas_general_evidence_v1', JSON.stringify(generalFiles));
-  }, [generalFiles]);
+    const fetchGeneral = async () => {
+      const data = await getGeneralFiles();
+      setGeneralFiles(data);
+    };
+    fetchGeneral();
+  }, []);
 
   // Grouped Realizations for the Upload Tab
   const groupedRealizations = useMemo(() => {
@@ -1062,36 +1066,85 @@ const EvidenceTemplates = ({ budgets: allBudgets, onUpdate }: EvidenceTemplatesP
     }
   };
 
-  const handleGeneralUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
-      const files = Array.from(e.target.files || []);
-      if (files.length === 0) return;
+  const handleGeneralUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+      const filesArr = Array.from(e.target.files || []);
+      if (filesArr.length === 0) return;
 
-      files.forEach(file => {
-          const reader = new FileReader();
-          reader.onload = (event) => {
-              const dataUrl = event.target?.result as string;
-              const newFile = {
-                  name: file.name,
-                  url: dataUrl,
-                  type: file.type.includes('image') ? 'Gambar / Scan' : 'Dokumen PDF',
-                  size: file.size,
-                  path: `general/${Date.now()}_${file.name}`,
-                  vendor: 'Dokumen Sekolah',
-                  description: 'Arsip Dokumen Pendukung Umum',
-                  amount: 0,
-                  date: new Date().toISOString(),
-                  isGeneral: true
+      setIsLoading(true);
+      const isOnline = !!supabase;
+
+      try {
+        for (const file of filesArr) {
+          if (isOnline) {
+            // Priority: Upload to Cloud Storage
+            const result = await uploadEvidenceFile(file, 'general');
+            if (result.url && result.path) {
+                const newFile = {
+                    name: file.name,
+                    url: result.url,
+                    type: file.type.includes('image') ? 'Gambar / Scan' : 'Dokumen PDF',
+                    size: file.size,
+                    path: result.path,
+                    vendor: 'Dokumen Sekolah',
+                    description: 'Arsip Dokumen Pendukung Umum',
+                    amount: 0,
+                    date: new Date().toISOString(),
+                    isGeneral: true
+                };
+                const savedFile = await saveGeneralFile(newFile);
+                setGeneralFiles(prev => [savedFile, ...prev]);
+            } else {
+                alert(`Gagal mengunggah ${file.name}. Pastikan koneksi internet stabil.`);
+            }
+          } else {
+            // Offline Fallback: DataURL (Limited by LocalStorage quota)
+            if (file.size > 2 * 1024 * 1024) {
+               alert(`File ${file.name} terlalu besar (>2MB). Silakan hubungkan internet/Supabase untuk menyimpan file besar.`);
+               continue;
+            }
+
+            await new Promise((resolve) => {
+              const reader = new FileReader();
+              reader.onload = (event) => {
+                const dataUrl = event.target?.result as string;
+                const newFile = {
+                    name: file.name,
+                    url: dataUrl,
+                    type: file.type.includes('image') ? 'Gambar / Scan' : 'Dokumen PDF',
+                    size: file.size,
+                    path: `general/${Date.now()}_${file.name}`,
+                    vendor: 'Dokumen Sekolah',
+                    description: 'Arsip Dokumen Pendukung Umum',
+                    amount: 0,
+                    date: new Date().toISOString(),
+                    isGeneral: true
+                };
+                const savedFile = await saveGeneralFile(newFile);
+                setGeneralFiles(prev => [savedFile, ...prev]);
+                resolve(null);
               };
-              setGeneralFiles(prev => [...prev, newFile]);
-          };
-          reader.readAsDataURL(file);
-      });
+              reader.readAsDataURL(file);
+            });
+          }
+        }
+      } catch (error) {
+        console.error("General upload failed:", error);
+        alert("Terjadi kesalahan saat mengunggah dokumen.");
+      } finally {
+        setIsLoading(false);
+      }
   };
 
-  const handleDeleteGeneralFile = (e: React.MouseEvent, filePath: string) => {
+  const handleDeleteGeneralFile = async (e: React.MouseEvent, filePath: string) => {
       e.stopPropagation();
       if (!confirm('Apakah Anda yakin ingin menghapus arsip umum ini?')) return;
-      setGeneralFiles(prev => prev.filter(f => f.path !== filePath));
+      
+      const success = await deleteGeneralFile(filePath);
+      if (success) {
+        setGeneralFiles(prev => prev.filter(f => f.path !== filePath));
+      } else {
+        alert("Gagal menghapus file dari cloud.");
+      }
   };
 
   const renderAlbumGallery = () => {
@@ -1216,8 +1269,9 @@ const EvidenceTemplates = ({ budgets: allBudgets, onUpdate }: EvidenceTemplatesP
                             className="hidden" 
                             onChange={handleGeneralUpload}
                         />
-                        <label htmlFor="generalUpload" className="px-8 py-4 bg-blue-600 hover:bg-blue-700 text-white font-black text-xs uppercase tracking-[0.2em] rounded-2xl transition-all flex items-center justify-center gap-3 shadow-xl shadow-blue-500/30 cursor-pointer group hover:scale-105 active:scale-95">
-                            <Upload size={18} className="group-hover:-translate-y-1 transition-transform" /> Tambah Dokumen
+                        <label htmlFor="generalUpload" className={`px-8 py-4 rounded-2xl transition-all flex items-center justify-center gap-3 shadow-xl cursor-pointer group hover:scale-105 active:scale-95 ${isLoading ? 'bg-slate-400 text-white cursor-not-allowed' : 'bg-blue-600 hover:bg-blue-700 text-white shadow-blue-500/30'}`}>
+                            {isLoading ? <Loader2 size={18} className="animate-spin" /> : <Upload size={18} className="group-hover:-translate-y-1 transition-transform" />} 
+                            {isLoading ? 'Memproses...' : 'Tambah Dokumen'}
                         </label>
                     </div>
                 </div>

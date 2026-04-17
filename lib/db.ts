@@ -352,13 +352,20 @@ export const saveRaporData = async (indicators: RaporIndicator[], year: string):
 
 // --- Bank Statement Functions ---
 
-export const uploadEvidenceFile = async (file: File, budgetId: string): Promise<{ url: string | null, path: string | null }> => {
+export const uploadEvidenceFile = async (file: File, budgetId: string = 'general'): Promise<{ url: string | null, path: string | null }> => {
     if (!supabase) return { url: null, path: null };
 
     const userId = await getCurrentUserId();
+    if (!userId) {
+        console.error("Upload failed: No authenticated user");
+        return { url: null, path: null };
+    }
+
     const fileExt = file.name.split('.').pop();
     const fileName = `${Math.random().toString(36).substring(2, 15)}_${Date.now()}.${fileExt}`;
-    const filePath = `${userId}/evidence/${budgetId}/${fileName}`;
+    // Use 'general' as fallback if budgetId is missing or empty
+    const gid = budgetId || 'general';
+    const filePath = `${userId}/evidence/${gid}/${fileName}`;
 
     try {
         const { error: uploadError } = await supabase.storage
@@ -366,8 +373,8 @@ export const uploadEvidenceFile = async (file: File, budgetId: string): Promise<
             .upload(filePath, file);
 
         if (uploadError) {
-            console.error('Upload error:', uploadError);
-            throw uploadError;
+            console.error('Upload error detail:', uploadError);
+            return { url: null, path: null };
         }
 
         const { data } = supabase.storage
@@ -376,7 +383,7 @@ export const uploadEvidenceFile = async (file: File, budgetId: string): Promise<
 
         return { url: data.publicUrl, path: filePath };
     } catch (error) {
-        console.error("Error uploading evidence file:", error);
+        console.error("Exception during evidence upload:", error);
         return { url: null, path: null };
     }
 };
@@ -1501,5 +1508,76 @@ export const deleteLetterAgreement = async (id: string): Promise<boolean> => {
 
     const current = JSON.parse(localStorage.getItem(LETTER_AGREEMENTS_KEY) || '[]') as LetterAgreement[];
     localStorage.setItem(LETTER_AGREEMENTS_KEY, JSON.stringify(current.filter(l => l.id !== id)));
+    return true;
+};
+
+// --- General Evidence (Arsip Umum Sekolah) ---
+const GENERAL_EVIDENCE_KEY = 'rkas_general_evidence_v1';
+
+export const getGeneralFiles = async (): Promise<any[]> => {
+    if (supabase) {
+        try {
+            const userId = await getCurrentUserId();
+            if (!userId) return [];
+
+            const { data, error } = await supabase
+                .from('general_evidence')
+                .select('*')
+                .eq('user_id', userId)
+                .order('created_at', { ascending: false });
+
+            if (!error && data) {
+                // Sync to local
+                localStorage.setItem(GENERAL_EVIDENCE_KEY, JSON.stringify(data));
+                return data;
+            }
+        } catch (e) {
+            console.warn('Gagal mengambil data arsip umum:', e);
+        }
+    }
+    const local = localStorage.getItem(GENERAL_EVIDENCE_KEY);
+    return local ? JSON.parse(local) : [];
+};
+
+export const saveGeneralFile = async (file: any): Promise<any> => {
+    if (supabase) {
+        const userId = await getCurrentUserId();
+        if (userId) {
+            const payload = { ...file, user_id: userId, created_at: file.date || new Date().toISOString() };
+            const { data, error } = await supabase
+                .from('general_evidence')
+                .upsert([payload], { onConflict: 'path' })
+                .select();
+            
+            if (!error && data) return data[0];
+        }
+    }
+    
+    // Local fallback
+    const current = await getGeneralFiles();
+    const updated = [file, ...current.filter(f => f.path !== file.path)];
+    localStorage.setItem(GENERAL_EVIDENCE_KEY, JSON.stringify(updated));
+    return file;
+};
+
+export const deleteGeneralFile = async (path: string): Promise<boolean> => {
+    if (supabase) {
+        const userId = await getCurrentUserId();
+        if (userId) {
+            try {
+                // Remove from storage
+                await supabase.storage.from('rkas_storage').remove([path]);
+                // Remove from DB
+                const { error } = await supabase.from('general_evidence').delete().eq('path', path).eq('user_id', userId);
+                return !error;
+            } catch (e) {
+                console.error("Gagal hapus file dari database:", e);
+            }
+        }
+    }
+    
+    // Local delete
+    const current = await getGeneralFiles();
+    localStorage.setItem(GENERAL_EVIDENCE_KEY, JSON.stringify(current.filter(f => f.path !== path)));
     return true;
 };
