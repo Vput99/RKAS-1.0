@@ -1685,7 +1685,7 @@ const InventoryReports: React.FC<InventoryReportsProps> = ({ budgets, schoolProf
         ['1', '2', '3', '5', '6', '7', '8=(5x7)', '12', '13', '14', '16', '17', '18', '19'].map(n => ({ content: n, styles: { halign: 'center', fontStyle: 'bold', fillColor: [240, 240, 240] } }))
       ];
 
-      Object.entries(groupedItems).forEach(([category, items]) => {
+      Object.entries(procurementGroupedItems).forEach(([category, items]) => {
         if (items.length === 0) return;
         const categoryTotal = items.reduce((sum, item) => sum + item.total, 0);
 
@@ -1914,7 +1914,7 @@ const InventoryReports: React.FC<InventoryReportsProps> = ({ budgets, schoolProf
         [],
         ['No', 'Nama Barang', 'Spesifikasi', 'Jumlah', 'Satuan', 'Harga Satuan', 'Total Nilai', 'Sub Kegiatan Kode', 'Sub Kegiatan Nama', 'Rekening Kode', 'Tgl Perolehan', 'Bentuk Kontrak', 'Penyedia', 'Nomor']
       ];
-      Object.entries(groupedItems).forEach(([category, items]) => {
+      Object.entries(procurementGroupedItems).forEach(([category, items]) => {
         if (items.length === 0) return;
         const categoryTotal = items.reduce((sum, item) => sum + item.total, 0);
 
@@ -2156,6 +2156,21 @@ const InventoryReports: React.FC<InventoryReportsProps> = ({ budgets, schoolProf
     return groups;
   }, [combinedItems]);
 
+  // Khusus untuk Laporan Pengadaan: Filter item yang murni "Sisa Tahun Sebelumnya" (Masuk = 0)
+  const procurementGroupedItems = useMemo(() => {
+    const groups: Record<string, InventoryItem[]> = {};
+    combinedItems.forEach((item: InventoryItem) => {
+      const stats = getItemStats(item);
+      // Jika Masuk (totalIn) adalah 0, berarti ini adalah sisa tahun lalu yang tidak boleh masuk laporan pengadaan
+      if (stats.totalIn <= 0) return;
+
+      const cat = item.category || '99 LAINNYA';
+      if (!groups[cat]) groups[cat] = [];
+      groups[cat].push(item);
+    });
+    return groups;
+  }, [combinedItems, getItemStats]);
+
 
   const mutationData = useMemo(() => {
     const data: Record<string, { awal: number; tambah: number; kurang: number }> = {};
@@ -2315,7 +2330,7 @@ const InventoryReports: React.FC<InventoryReportsProps> = ({ budgets, schoolProf
             <PengadaanView
               inventoryItems={inventoryItems}
               combinedItems={combinedItems}
-              groupedItems={groupedItems}
+              groupedItems={procurementGroupedItems}
               isAnalyzing={isAnalyzing}
               isSaving={isSaving}
               onManualAdd={() => { setEditingItemId(null); setIsManualModalOpen(true); }}
