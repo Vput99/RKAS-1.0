@@ -1685,23 +1685,35 @@ const InventoryReports: React.FC<InventoryReportsProps> = ({ budgets, schoolProf
         ['1', '2', '3', '5', '6', '7', '8=(5x7)', '12', '13', '14', '16', '17', '18', '19'].map(n => ({ content: n, styles: { halign: 'center', fontStyle: 'bold', fillColor: [240, 240, 240] } }))
       ];
 
-      combinedItems.forEach((item, i) => {
+      Object.entries(groupedItems).forEach(([category, items]) => {
+        if (items.length === 0) return;
+        const categoryTotal = items.reduce((sum, item) => sum + item.total, 0);
+
+        // Header Kelompok
         body.push([
-          i + 1,
-          item.name,
-          item.spec,
-          item.quantity,
-          item.unit,
-          formatCurrency(item.price),
-          formatCurrency(item.total),
-          item.subActivityCode || '-',
-          item.subActivityName || '-',
-          item.accountCode || '-',
-          formatDate(item.date),
-          item.contractType || '-',
-          item.vendor || '-',
-          item.docNumber || '-'
+          { content: category.toUpperCase(), colSpan: 6, styles: { fontStyle: 'bold', fillColor: [240, 240, 240], textColor: [51, 65, 85] } },
+          { content: formatCurrency(categoryTotal), styles: { fontStyle: 'bold', fillColor: [240, 240, 240], halign: 'right' } },
+          { content: '', colSpan: 7, styles: { fillColor: [240, 240, 240] } }
         ]);
+
+        items.forEach((item, i) => {
+          body.push([
+            i + 1,
+            item.name,
+            item.spec,
+            item.quantity,
+            item.unit,
+            formatCurrency(item.price),
+            formatCurrency(item.total),
+            item.subActivityCode || '-',
+            item.subActivityName || '-',
+            item.accountCode || '-',
+            formatDate(item.date),
+            item.contractType || '-',
+            item.vendor || '-',
+            item.docNumber || '-'
+          ]);
+        });
       });
     } else if (activeReport === 'pengeluaran') {
       title = 'BUKU PENGELUARAN PERSEDIAAN';
@@ -1790,30 +1802,46 @@ const InventoryReports: React.FC<InventoryReportsProps> = ({ budgets, schoolProf
       title = 'Laporan Mutasi Persediaan';
       headers = [['No', 'Kategori / Nama Barang', 'Saldo Awal', 'Pengadaan', 'Pengeluaran', 'Saldo Akhir', 'Satuan', 'Keterangan']];
 
-      const categories = ['Bahan', 'Suku Cadang', 'Alat/Bahan Kantor', 'Obat-obatan', 'Lainnya'];
-      categories.forEach(cat => {
-        const items = combinedItems.filter(i => {
-          if (cat === 'Alat/Bahan Kantor') return i.category === 'Alat Atau Bahan Untuk Kegiatan Kantor';
-          if (cat === 'Lainnya') return !['Bahan', 'Suku Cadang', 'Alat Atau Bahan Untuk Kegiatan Kantor', 'Obat Obatan'].includes(i.category);
-          return i.category === cat;
-        });
+      Object.entries(mutationData).forEach(([cat, vals]: any) => {
+        const awal = mutationOverrides[cat]?.awal ?? vals.awal;
+        const tambah = mutationOverrides[cat]?.tambah ?? vals.tambah;
+        const kurang = mutationOverrides[cat]?.kurang ?? vals.kurang;
+        const akhir = (awal + tambah) - kurang;
 
-        if (items.length > 0) {
-          body.push([{ content: cat, colSpan: 8, styles: { fontStyle: 'bold', fillColor: [240, 240, 240] } }]);
-          items.forEach((item, i) => {
-            const stats = getItemStats(item);
-            body.push([
-              i + 1,
-              item.name,
-              stats.lastYearBalance,
-              stats.totalIn,
-              stats.totalOut,
-              stats.remaining,
-              item.unit,
-              ''
-            ]);
-          });
-        }
+        // Group header for Mutasi
+        body.push([{ 
+          content: cat.toUpperCase(), 
+          colSpan: 8, 
+          styles: { fontStyle: 'bold', fillColor: [240, 240, 240], textColor: [51, 65, 85] } 
+        }]);
+
+        // Rekap for category
+        body.push([
+          '-',
+          `REKAPITULASI ${cat.toUpperCase()}`,
+          formatCurrency(awal),
+          formatCurrency(tambah),
+          formatCurrency(kurang),
+          formatCurrency(akhir),
+          '-',
+          ''
+        ]);
+
+        // Item details
+        const itemsInCat = combinedItems.filter(i => (i.category || '99 LAINNYA') === cat);
+        itemsInCat.forEach((item, i) => {
+          const stats = getItemStats(item);
+          body.push([
+            i + 1,
+            item.name,
+            formatCurrency(stats.lastYearBalance),
+            formatCurrency(stats.totalIn),
+            formatCurrency(stats.totalOut),
+            formatCurrency(stats.remaining),
+            item.unit,
+            ''
+          ]);
+        });
       });
     } else if (activeReport === 'kib_b') {
       title = 'KIB B - Kartu Inventaris Barang Peralatan Dan Mesin';
@@ -1886,23 +1914,31 @@ const InventoryReports: React.FC<InventoryReportsProps> = ({ budgets, schoolProf
         [],
         ['No', 'Nama Barang', 'Spesifikasi', 'Jumlah', 'Satuan', 'Harga Satuan', 'Total Nilai', 'Sub Kegiatan Kode', 'Sub Kegiatan Nama', 'Rekening Kode', 'Tgl Perolehan', 'Bentuk Kontrak', 'Penyedia', 'Nomor']
       ];
-      combinedItems.forEach((item, i) => {
-        sheetData.push([
-          i + 1,
-          item.name,
-          item.spec,
-          item.quantity,
-          item.unit,
-          item.price,
-          item.total,
-          item.subActivityCode,
-          item.subActivityName,
-          item.accountCode,
-          item.date,
-          item.contractType,
-          item.vendor,
-          item.docNumber
-        ]);
+      Object.entries(groupedItems).forEach(([category, items]) => {
+        if (items.length === 0) return;
+        const categoryTotal = items.reduce((sum, item) => sum + item.total, 0);
+
+        // Header Kelompok Excel
+        sheetData.push([category.toUpperCase(), '', '', '', '', '', categoryTotal, '', '', '', '', '', '', '']);
+
+        items.forEach((item, i) => {
+          sheetData.push([
+            i + 1,
+            item.name,
+            item.spec,
+            item.quantity,
+            item.unit,
+            item.price,
+            item.total,
+            item.subActivityCode,
+            item.subActivityName,
+            item.accountCode,
+            item.date,
+            item.contractType,
+            item.vendor,
+            item.docNumber
+          ]);
+        });
       });
     } else if (activeReport === 'pengeluaran') {
       title = 'BUKU PENGELUARAN PERSEDIAAN';
@@ -1954,6 +1990,38 @@ const InventoryReports: React.FC<InventoryReportsProps> = ({ budgets, schoolProf
             item.unit,
             item.price,
             stats.remaining * item.price
+          ]);
+        });
+      });
+    } else if (activeReport === 'mutasi') {
+      title = 'LAPORAN MUTASI PERSEDIAAN';
+      sheetData = [
+        [title],
+        [schoolProfile?.name || ''],
+        ['No', 'Kategori / Nama Barang', 'Saldo Awal', 'Pengadaan', 'Pengeluaran', 'Saldo Akhir', 'Satuan', 'Keterangan']
+      ];
+
+      Object.entries(mutationData).forEach(([cat, vals]: any) => {
+        const awal = mutationOverrides[cat]?.awal ?? vals.awal;
+        const tambah = mutationOverrides[cat]?.tambah ?? vals.tambah;
+        const kurang = mutationOverrides[cat]?.kurang ?? vals.kurang;
+        const akhir = (awal + tambah) - kurang;
+
+        // Header Kelompok Excel
+        sheetData.push([cat.toUpperCase(), '', awal, tambah, kurang, akhir, '', '']);
+
+        const itemsInCat = combinedItems.filter(i => (i.category || '99 LAINNYA') === cat);
+        itemsInCat.forEach((item, i) => {
+          const stats = getItemStats(item);
+          sheetData.push([
+            i + 1,
+            item.name,
+            stats.lastYearBalance,
+            stats.totalIn,
+            stats.totalOut,
+            stats.remaining,
+            item.unit,
+            ''
           ]);
         });
       });
