@@ -1,3 +1,4 @@
+// Build Trigger: 2026-04-17 09:55
 import React, { useState, useEffect, useMemo, Fragment } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { ShoppingBag, FileText, ClipboardList, RefreshCw, Calendar, ArrowRightLeft, Package, Download, Printer, Sparkles, Loader2, Plus, Trash2, X, ArrowRight, Database, Edit3, CheckCircle, Layers } from 'lucide-react';
