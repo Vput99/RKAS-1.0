@@ -308,7 +308,10 @@ const PengeluaranView = React.memo(({
   schoolProfile,
   onRecordWithdrawal,
   onDeleteWithdrawal,
-  onAddPreviousYear
+  onAddPreviousYear,
+  onEditManual,
+  onDeleteManual,
+  manualInventoryItems
 }: any) => {
   const totalExpenditure = useMemo(() => {
     return withdrawalTransactions.reduce((sum: number, tx: any) => {
@@ -344,6 +347,49 @@ const PengeluaranView = React.memo(({
           </button>
         </div>
       </div>
+
+      {/* Quick Manage Manual Items */}
+      {manualInventoryItems.length > 0 && (
+        <div className="px-6 py-4 bg-slate-50 border-b border-slate-200 overflow-x-auto print:hidden">
+          <div className="flex items-center gap-4 mb-3">
+            <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest flex items-center gap-2">
+              <Database size={12} className="text-blue-500" /> Kelola Saldo Awal & Item Manual
+            </p>
+            <div className="h-[1px] flex-1 bg-slate-200"></div>
+          </div>
+          <div className="flex gap-3 pb-2 scrollbar-hide">
+            {manualInventoryItems.map((item: any) => (
+              <div key={item.id} className="min-w-[220px] max-w-[300px] bg-white border border-slate-200 rounded-2xl p-4 shadow-sm hover:shadow-md transition-all flex flex-col justify-between group">
+                <div>
+                  <h5 className="text-[11px] font-black text-slate-800 line-clamp-2 leading-tight mb-2 group-hover:text-blue-600 transition-colors">{item.name}</h5>
+                  <div className="flex justify-between items-center">
+                    <span className="text-[10px] font-black text-blue-700 bg-blue-100/50 px-2.5 py-1 rounded-lg">
+                      {item.lastYearBalance || 0} {item.unit}
+                    </span>
+                    <span className="text-[8px] font-bold text-slate-400 uppercase tracking-tighter">
+                      Saldo Awal
+                    </span>
+                  </div>
+                </div>
+                <div className="flex gap-2 mt-4 pt-4 border-t border-slate-100">
+                  <button 
+                    onClick={() => onEditManual(item)} 
+                    className="flex-1 py-1.5 rounded-lg text-[9px] font-black bg-blue-50 text-blue-600 hover:bg-blue-600 hover:text-white transition-all flex items-center justify-center gap-1.5"
+                  >
+                    <Edit3 size={10} /> EDIT
+                  </button>
+                  <button 
+                    onClick={() => onDeleteManual(item.id)} 
+                    className="flex-1 py-1.5 rounded-lg text-[9px] font-black bg-red-50 text-red-600 hover:bg-red-600 hover:text-white transition-all flex items-center justify-center gap-1.5"
+                  >
+                    <Trash2 size={10} /> HAPUS
+                  </button>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
 
       <div className="overflow-x-auto p-8 bg-white">
         <div className="flex justify-end mb-1">
@@ -2188,6 +2234,9 @@ const InventoryReports: React.FC<InventoryReportsProps> = ({ budgets, schoolProf
               onRecordWithdrawal={() => setIsWithdrawalModalOpen(true)}
               onDeleteWithdrawal={deleteWithdrawal}
               onAddPreviousYear={() => handleManualAdd(null)}
+              onEditManual={handleEditManual}
+              onDeleteManual={deleteManualItem}
+              manualInventoryItems={manualInventoryItems}
             />
           )}
 
