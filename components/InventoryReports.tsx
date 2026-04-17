@@ -530,7 +530,7 @@ const PengeluaranView = React.memo(({
   );
 });
 
-const PersediaanView = React.memo(({ combinedItems, getItemStats, schoolProfile, handleOverride, itemOverrides }: any) => {
+const PersediaanView = React.memo(({ combinedItems, getItemStats, schoolProfile, handleOverride }: any) => {
   // Group items by category for hierarchical display
   const groupedByCategory = useMemo(() => {
     const groups: Record<string, any[]> = {};
@@ -623,14 +623,14 @@ const PersediaanView = React.memo(({ combinedItems, getItemStats, schoolProfile,
               <td colSpan={11} className="border border-gray-400 p-1.5 uppercase">BARANG PAKAI HABIS</td>
             </tr>
 
-            {Object.entries(groupedByCategory).map(([mainCat, items], catIdx) => (
+            {Object.entries(groupedByCategory).map(([mainCat, items]) => (
               <Fragment key={mainCat}>
                 <tr className="font-bold text-gray-700 bg-gray-50/30">
                   <td className="border border-gray-400 p-1.5 text-center"></td>
                   <td className="border border-gray-400 p-1.5 text-center font-mono">1.1.7.xx</td>
                   <td colSpan={11} className="border border-gray-400 p-1.5 uppercase">{mainCat}</td>
                 </tr>
-                {items.map((item: any, i: number) => {
+                {items.map((item: any) => {
                   const stats = getItemStats(item);
                   return (
                     <tr key={item.id} className="hover:bg-blue-50/20 group transition-colors">
@@ -789,7 +789,7 @@ const MutasiView = React.memo(({ mutationData, schoolProfile, handleMutationOver
               <td colSpan={5} className="border border-gray-400 p-1.5 uppercase">BARANG PAKAI HABIS</td>
             </tr>
 
-            {Object.entries(mutationData).map(([cat, vals]: [string, any], i) => {
+            {Object.entries(mutationData).map(([cat, vals]: [string, any]) => {
               const overrides = mutationOverrides[cat] || {};
               const awal = overrides.awal ?? vals.awal;
               const tambah = overrides.tambah ?? vals.tambah;
@@ -1628,11 +1628,18 @@ const InventoryReports: React.FC<InventoryReportsProps> = ({ budgets, schoolProf
   const getItemStats = (item: InventoryItem) => {
     const overrides = itemOverrides[item.id] || {};
     const lastYearBalance = overrides.lastYearBalance ?? (item.lastYearBalance || 0);
-    const totalIn = item.quantity;
+    
+    // Logika Request USER: jika sisa tahun lalu maka persediaan masuk 0
+    const totalIn = lastYearBalance > 0 ? 0 : item.quantity;
+    
     const transactionsQuantity = withdrawalTransactions
       .filter(tx => tx.inventoryItemId === item.id)
       .reduce((sum, tx) => sum + tx.quantity, 0);
-    const totalOut = overrides.usedQuantity ?? (transactionsQuantity || item.usedQuantity || 0);
+    
+    // Logika Request USER: pengeluaran sesuai dengan buku pengeluaran persediaan
+    // Menggunakan transactionsQuantity (buku) dan mengabaikan fallback usedQuantity (analisa AI)
+    const totalOut = overrides.usedQuantity ?? transactionsQuantity;
+    
     const remaining = (lastYearBalance + totalIn) - totalOut;
 
     return { lastYearBalance, totalIn, totalOut, remaining };
@@ -2072,12 +2079,16 @@ const InventoryReports: React.FC<InventoryReportsProps> = ({ budgets, schoolProf
 
       const overrides = itemOverrides[item.id] || {};
       const sisaLalu = overrides.lastYearBalance ?? (item.lastYearBalance || 0);
-      const masuk = item.quantity;
+      
+      // Logika Request USER: jika sisa tahun lalu maka persediaan masuk 0
+      const masuk = sisaLalu > 0 ? 0 : item.quantity;
 
       const transactionsQuantity = withdrawalTransactions
         .filter(tx => tx.inventoryItemId === item.id)
         .reduce((sum, tx) => sum + tx.quantity, 0);
-      const keluar = overrides.usedQuantity ?? (transactionsQuantity || item.usedQuantity || 0);
+      
+      // Logika Request USER: pengeluaran sesuai dengan buku pengeluaran persediaan
+      const keluar = overrides.usedQuantity ?? transactionsQuantity;
 
       data[cat].awal += sisaLalu * item.price;
       data[cat].tambah += masuk * item.price;
@@ -2250,7 +2261,6 @@ const InventoryReports: React.FC<InventoryReportsProps> = ({ budgets, schoolProf
               getItemStats={getItemStats}
               schoolProfile={schoolProfile}
               handleOverride={handleOverride}
-              itemOverrides={itemOverrides}
             />
           )}
 
