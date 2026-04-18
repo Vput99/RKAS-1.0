@@ -18,7 +18,7 @@ export const getTerbilang = (nilai: number): string => {
 
 export const getCityName = (profile: any, includePrefix = false) => {
     let c = profile?.city || ''; if (!c) return 'Tempat';
-    const titleCase = c.toLowerCase().replace(/(?:^|\s)\w/g, m => m.toUpperCase());
+    const titleCase = c.toLowerCase().replace(/(?:^|\s)\w/g, (m: string) => m.toUpperCase());
     if (includePrefix) return titleCase;
     return titleCase.replace(/^(Kota|Kabupaten|Kab\.?)\s*/i, '') || 'Tempat';
 };

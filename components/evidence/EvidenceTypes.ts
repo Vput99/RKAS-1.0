@@ -1,4 +1,4 @@
-import { Budget, SchoolProfile, EvidenceFile, WithdrawalHistory } from '../../types';
+import { Budget } from '../../types';
 
 export interface EvidenceTemplatesProps {
   budgets: Budget[];

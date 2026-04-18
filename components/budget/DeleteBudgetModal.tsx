@@ -1,4 +1,4 @@
-import { motion, AnimatePresence } from 'framer-motion';
+import { motion } from 'framer-motion';
 import { Trash2 } from 'lucide-react';
 
 interface DeleteBudgetModalProps {

@@ -1,6 +1,6 @@
 import React from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Eye, X, FileText, Grid, Download, Printer, Search, ChevronRight } from 'lucide-react';
+import { Eye, X, FileText, Grid, Download } from 'lucide-react';
 import { MONTHS_FULL, CURRENT_YEAR } from './BudgetTypes';
 import { formatRupiah } from './BudgetUtils';
 import { Budget } from '../../types';

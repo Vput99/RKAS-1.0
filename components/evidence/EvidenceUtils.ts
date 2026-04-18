@@ -1,5 +1,4 @@
-import { Budget, WithdrawalHistory, EvidenceFile } from '../../types';
-import { MONTHS } from '../../lib/evidenceRules';
+import { Budget, WithdrawalHistory } from '../../types';
 
 export const getGroupedRealizations = (
   allBudgets: Budget[],
