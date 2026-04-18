@@ -6,42 +6,48 @@ const drawKopSurat = (doc: any, data: LetterAgreement) => {
   const pw = doc.internal.pageSize.getWidth();
   const margin = 20;
 
-  doc.setLineWidth(1.2);
-  doc.line(margin, 8, pw - margin, 8);
-
-  doc.setLineWidth(0.3);
-  doc.circle(margin + 8, 22, 8);
-  doc.setFontSize(5);
-  doc.setFont('helvetica', 'normal');
-  doc.text('LOGO', margin + 8, 22.5, { align: 'center' });
-
-  const cx = pw / 2 + 5;
-
+  // Header Text logic
   const cityPart = (data.school_address || '').split(',').length > 1
     ? (data.school_address || '').split(',').slice(-2, -1)[0]?.trim().toUpperCase()
     : 'KABUPATEN / KOTA';
-  doc.setFontSize(9);
+
+  // Logo Placeholder
+  doc.setLineWidth(0.5);
+  doc.circle(margin + 12, 22, 10);
+  doc.setFontSize(6);
   doc.setFont('helvetica', 'normal');
-  doc.text(`PEMERINTAH ${cityPart || 'KABUPATEN/KOTA'}`, cx, 13, { align: 'center' });
+  doc.text('LOGO', margin + 12, 22, { align: 'center' });
 
+  // Regional Info
+  const startY = 15;
+  const centerX = pw / 2 + 10; // Offset for logo
+  
+  doc.setFont('times', 'normal');
+  doc.setFontSize(11);
+  doc.text(`PEMERINTAH KABUPATEN / KOTA`, centerX, startY, { align: 'center' });
+  doc.text('DINAS PENDIDIKAN DAN KEBUDAYAAN', centerX, startY + 5, { align: 'center' });
+
+  // School Name (Bold & Large)
+  doc.setFontSize(15);
+  doc.setFont('times', 'bold');
+  doc.text((data.school_name || 'NAMA SEKOLAH').toUpperCase(), centerX, startY + 12, { align: 'center' });
+
+  // Address
+  doc.setCharSpace(0.1);
   doc.setFontSize(9);
-  doc.text('DINAS PENDIDIKAN DAN KEBUDAYAAN', cx, 18, { align: 'center' });
+  doc.setFont('times', 'normal');
+  const alamat = data.school_address || 'Alamat Sekolah Belum Diatur';
+  doc.text(`Alamat: ${alamat}`, centerX, startY + 17, { align: 'center' });
+  doc.setCharSpace(0);
 
-  doc.setFontSize(14);
-  doc.setFont('helvetica', 'bold');
-  doc.text((data.school_name || 'NAMA SEKOLAH').toUpperCase(), cx, 25, { align: 'center' });
+  // Footer Lines (Double line: Thick then Thin)
+  const lineY = startY + 22;
+  doc.setLineWidth(1.2);
+  doc.line(margin, lineY, pw - margin, lineY);
+  doc.setLineWidth(0.3);
+  doc.line(margin, lineY + 1.5, pw - margin, lineY + 1.5);
 
-  doc.setFontSize(8);
-  doc.setFont('helvetica', 'normal');
-  const alamat = data.school_address || 'Alamat Sekolah';
-  doc.text(`Alamat: ${alamat}`, cx, 31, { align: 'center' });
-
-  doc.setLineWidth(1.5);
-  doc.line(margin, 36, pw - margin, 36);
-  doc.setLineWidth(0.4);
-  doc.line(margin, 38, pw - margin, 38);
-
-  return 44; 
+  return lineY + 10; 
 };
 
 const drawPasal = (doc: any, no: string, judul: string, isi: string[], margin: number, pw: number, yRef: { y: number }, data: LetterAgreement) => {
@@ -73,16 +79,20 @@ export const generateEkskulPDF = (data: LetterAgreement) => {
 
   let y = drawKopSurat(doc, data);
 
-  doc.setLineWidth(0.5);
-  doc.rect(margin, y, pw - margin * 2, 22);
+  // MOU Title Box (Double Border)
+  doc.setLineWidth(0.8);
+  doc.rect(margin, y, pw - margin * 2, 24);
+  doc.setLineWidth(0.2);
+  doc.rect(margin + 1, y + 1, pw - margin * 2 - 2, 22);
+
   doc.setFontSize(13);
   doc.setFont('times', 'bold');
-  doc.text('SURAT PERJANJIAN KERJA (MOU)', pw / 2, y + 7, { align: 'center' });
+  doc.text('SURAT PERJANJIAN KERJA (MOU)', pw / 2, y + 8, { align: 'center' });
   doc.setFontSize(11);
-  doc.text('TENAGA PELAKSANA KEGIATAN EKSTRAKURIKULER', pw / 2, y + 13.5, { align: 'center' });
+  doc.text('TENAGA PELAKSANA KEGIATAN EKSTRAKURIKULER', pw / 2, y + 14.5, { align: 'center' });
   doc.setFontSize(10);
-  doc.text(`TAHUN PELAJARAN ${data.fiscal_year}`, pw / 2, y + 19.5, { align: 'center' });
-  y += 27;
+  doc.text(`TAHUN PELAJARAN ${data.fiscal_year}`, pw / 2, y + 20.5, { align: 'center' });
+  y += 32;
 
   doc.setFont('times', 'normal');
   doc.setFontSize(10.5);
@@ -239,16 +249,20 @@ export const generateTukangPDF = (data: LetterAgreement) => {
 
   let y = drawKopSurat(doc, data);
 
-  doc.setLineWidth(0.5);
-  doc.rect(margin, y, pw - margin * 2, 22);
+  // MOU Title Box (Double Border)
+  doc.setLineWidth(0.8);
+  doc.rect(margin, y, pw - margin * 2, 24);
+  doc.setLineWidth(0.2);
+  doc.rect(margin + 1, y + 1, pw - margin * 2 - 2, 22);
+
   doc.setFontSize(13);
   doc.setFont('times', 'bold');
-  doc.text('SURAT PERJANJIAN KERJA (MOU)', pw / 2, y + 7, { align: 'center' });
+  doc.text('SURAT PERJANJIAN KERJA (MOU)', pw / 2, y + 8, { align: 'center' });
   doc.setFontSize(11);
-  doc.text('PEKERJAAN REHABILITASI GEDUNG/BANGUNAN', pw / 2, y + 13.5, { align: 'center' });
+  doc.text('PEKERJAAN REHABILITASI GEDUNG/BANGUNAN', pw / 2, y + 14.5, { align: 'center' });
   doc.setFontSize(10);
-  doc.text(`TAHUN ANGGARAN ${data.fiscal_year}`, pw / 2, y + 19.5, { align: 'center' });
-  y += 27;
+  doc.text(`TAHUN ANGGARAN ${data.fiscal_year}`, pw / 2, y + 20.5, { align: 'center' });
+  y += 32;
 
   doc.setFont('times', 'normal');
   doc.setFontSize(10.5);

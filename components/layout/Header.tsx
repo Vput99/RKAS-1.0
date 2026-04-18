@@ -1,12 +1,10 @@
-import { Menu, User } from 'lucide-react';
-import { SchoolProfile } from '../../types';
+import { Menu, Search, Bell, User } from 'lucide-react';
 import { AppTab } from './Sidebar';
 
 interface HeaderProps {
   isSidebarOpen: boolean;
   setSidebarOpen: (open: boolean) => void;
   activeTab: AppTab;
-  schoolProfile: SchoolProfile | null;
   session: any;
   isOnline: boolean;
 }
@@ -15,49 +13,62 @@ const Header = ({
   isSidebarOpen,
   setSidebarOpen,
   activeTab,
-  schoolProfile,
   session,
   isOnline
 }: HeaderProps) => {
+  const userName = session?.user?.email?.split('@')[0] || 'Admin';
+  const displayName = userName.charAt(0).toUpperCase() + userName.slice(1);
+
   return (
-    <header className="h-[76px] mb-6 bg-white/70 backdrop-blur-2xl border border-white/80 shadow-[0_8px_32px_rgba(0,0,0,0.04)] rounded-[28px] flex items-center justify-between px-6 flex-shrink-0 z-40 transition-all duration-300">
-      <div className="flex items-center gap-4">
+    <header className="h-[80px] mb-6 flex items-center justify-between px-2 flex-shrink-0 z-40 transition-all duration-300">
+      <div className="flex items-center gap-6">
         <button 
           onClick={() => setSidebarOpen(!isSidebarOpen)}
-          className="p-2.5 hover:bg-slate-100/80 hover:text-indigo-600 rounded-xl transition-colors text-slate-500 focus:outline-none focus:ring-2 focus:ring-indigo-500/20"
+          className="lg:hidden p-2.5 hover:bg-white/50 rounded-xl transition-colors text-teal-800"
         >
           <Menu size={24} />
         </button>
-        <h2 className="text-xl font-bold text-slate-800 hidden md:block capitalize tracking-tight">
-          {activeTab === 'spj' ? 'Pencatatan SPJ' :
-           activeTab === 'bku' ? 'Buku Kas Umum' :
-           activeTab === 'inventory' ? 'Stok Opname' :
-           activeTab === 'letters' ? 'Pembuat Surat (MOU/SPK)' :
-           activeTab.replace('-', ' ')}
-        </h2>
+        <div className="flex flex-col">
+          <p className="text-[12px] font-bold text-teal-600/60 tracking-tight mb-0.5">Welcome back, {displayName} 👋</p>
+          <h2 className="text-3xl font-black text-[#015354] capitalize tracking-tight">
+            {activeTab === 'spj' ? 'Pencatatan SPJ' :
+             activeTab === 'bku' ? 'Buku Kas Umum' :
+             activeTab === 'inventory' ? 'Stok Opname' :
+             activeTab === 'letters' ? 'Pembuat Surat' :
+             activeTab.replace('-', ' ')}
+          </h2>
+        </div>
       </div>
       
-      <div className="flex items-center gap-6 ml-auto">
-         <div className="text-right hidden md:block">
-           <p className="text-sm font-bold text-slate-800 tracking-tight">
-              {schoolProfile?.name || 'SDN Belum Diatur'}
-           </p>
-           <div className="flex items-center justify-end gap-3 text-[10px] font-bold mt-1">
-              <span className="text-slate-500 font-medium truncate max-w-[150px]">{session?.user?.email || 'Guest Mode'}</span>
-              <div className="flex items-center gap-1.5 px-2.5 py-1 bg-white/80 rounded-full border border-slate-200 shadow-sm">
-                <span className={`w-1.5 h-1.5 rounded-full ${isOnline ? 'bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.5)]' : 'bg-orange-500 shadow-[0_0_8px_rgba(249,115,22,0.5)]'}`}></span>
-                <span className={`uppercase tracking-widest ${isOnline ? 'text-emerald-600' : 'text-orange-600'}`}>
-                  {isOnline ? 'Online' : 'Offline'}
-                </span>
-              </div>
-           </div>
+      <div className="flex items-center gap-6">
+         <div className="hidden sm:flex items-center gap-2">
+            <button className="p-2.5 text-teal-800/40 hover:text-teal-800 transition-colors">
+              <Search size={20} strokeWidth={2.5} />
+            </button>
+            <button className="p-2.5 text-teal-800/40 hover:text-teal-800 transition-colors relative">
+              <Bell size={20} strokeWidth={2.5} />
+              <div className="absolute top-2.5 right-2.5 w-2 h-2 bg-rose-500 rounded-full border-2 border-[#ecf3f4]"></div>
+            </button>
          </div>
-         
-         <div className="relative group cursor-pointer">
-            <div className="w-12 h-12 bg-gradient-to-tr from-indigo-100 to-purple-100 rounded-2xl flex items-center justify-center text-indigo-700 border border-white shadow-sm group-hover:shadow-lg group-hover:shadow-indigo-500/20 transition-all duration-300 group-hover:-translate-y-0.5 active:scale-95 overflow-hidden">
-               <User size={22} className="drop-shadow-sm" />
+
+         <div className="flex items-center gap-3 pl-6 border-l border-teal-900/10">
+            <div className="text-right hidden md:block">
+              <p className="text-[13px] font-black text-[#015354] tracking-tight truncate max-w-[150px]">
+                 {displayName}
+              </p>
+              <div className="flex items-center justify-end gap-1.5 mt-0.5">
+                 <div className={`w-1.5 h-1.5 rounded-full ${isOnline ? 'bg-emerald-500' : 'bg-orange-500'}`}></div>
+                 <span className="text-[10px] font-black text-teal-600/40 uppercase tracking-widest">
+                   {isOnline ? 'Online' : 'Offline'}
+                 </span>
+              </div>
             </div>
-            <div className="absolute -top-1 -right-1 w-4 h-4 bg-emerald-500 border-2 border-white rounded-full shadow-sm"></div>
+            
+            <div className="relative group cursor-pointer">
+               <div className="w-11 h-11 bg-white rounded-xl flex items-center justify-center text-teal-700 border border-white shadow-sm ring-4 ring-teal-500/5 group-hover:shadow-lg transition-all duration-300">
+                  <User size={20} strokeWidth={2.5} />
+               </div>
+            </div>
          </div>
       </div>
     </header>

@@ -41,20 +41,20 @@ const AppContent = ({
   onProfileUpdate
 }: AppContentProps) => {
   return (
-    <div className="flex-1 overflow-hidden relative rounded-[32px] bg-white/50 backdrop-blur-md border border-white/60 shadow-[0_8px_32px_rgba(0,0,0,0.03)]">
-      <div className="absolute inset-0 overflow-y-auto p-6 md:p-8 scrollbar-hide">
+    <div className="flex-1 overflow-hidden relative rounded-[40px] bg-white/40 backdrop-blur-2xl border border-white/60 shadow-[0_12px_48px_rgba(1,83,84,0.05)]">
+      <div className="absolute inset-0 overflow-y-auto p-4 md:p-6 scrollbar-hide">
         <div className="max-w-7xl mx-auto h-full relative">
           {loading ? (
-            <div className="flex flex-col items-center justify-center h-full gap-4 text-indigo-400">
-              <div className="w-12 h-12 border-4 border-indigo-200 border-t-indigo-600 rounded-full animate-spin"></div>
-              <p className="font-bold tracking-widest uppercase text-xs animate-pulse">Memuat Data...</p>
+            <div className="flex flex-col items-center justify-center h-full gap-4 text-teal-600/40">
+              <div className="w-10 h-10 border-[3px] border-teal-100 border-t-teal-600 rounded-full animate-spin"></div>
+              <p className="font-black tracking-[0.2em] uppercase text-[10px]">Syncing Data...</p>
             </div>
           ) : (
             <AnimatePresence mode="wait">
               <Suspense fallback={
-                <div className="flex flex-col items-center justify-center h-full gap-4 text-indigo-400 animate-in fade-in zoom-in duration-500">
-                  <div className="w-12 h-12 border-4 border-indigo-200 border-t-indigo-600 rounded-full animate-spin"></div>
-                  <p className="font-bold tracking-widest uppercase text-xs animate-pulse">Menyiapkan Tampilan...</p>
+                <div className="flex flex-col items-center justify-center h-full gap-4 text-teal-600/40 animate-in fade-in zoom-in duration-500">
+                  <div className="w-10 h-10 border-[3px] border-teal-100 border-t-teal-600 rounded-full animate-spin"></div>
+                  <p className="font-black tracking-[0.2em] uppercase text-[10px]">Preparing Module...</p>
                 </div>
               }>
                 <motion.div
@@ -62,7 +62,7 @@ const AppContent = ({
                   initial={{ opacity: 0, y: 15, scale: 0.99 }}
                   animate={{ opacity: 1, y: 0, scale: 1 }}
                   exit={{ opacity: 0, y: -15, scale: 0.99 }}
-                  transition={{ duration: 0.3, ease: [0.22, 1, 0.36, 1] }}
+                  transition={{ duration: 0.35, ease: [0.22, 1, 0.36, 1] }}
                   className="min-h-full pb-10"
                 >
                   {activeTab === 'dashboard' && <Dashboard data={data} profile={schoolProfile} />}

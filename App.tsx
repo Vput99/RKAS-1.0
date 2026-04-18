@@ -204,7 +204,6 @@ function App() {
           isSidebarOpen={isSidebarOpen}
           setSidebarOpen={setSidebarOpen}
           activeTab={activeTab}
-          schoolProfile={schoolProfile}
           session={session}
           isOnline={isOnline}
         />
