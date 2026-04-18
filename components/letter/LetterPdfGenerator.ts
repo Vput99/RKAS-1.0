@@ -71,7 +71,7 @@ const drawPasal = (doc: any, no: string, judul: string, isi: string[], margin: n
     }
     const prefix = isi.length > 1 ? `${idx + 1}. ` : '';
     const wrapped = doc.splitTextToSize(prefix + line, pw - margin * 2);
-    doc.text(wrapped, margin, yRef.y, { align: 'justify', lineHeightFactor: 1.5 });
+    doc.text(wrapped, margin, yRef.y, { align: 'left', lineHeightFactor: 1.5 });
     yRef.y += wrapped.length * LINE + 1.5;
   });
   yRef.y += 5;
@@ -196,11 +196,9 @@ export const generateEkskulPDF = (data: LetterAgreement, profile: SchoolProfile 
   ], margin, pw, yRef);
 
   if (yRef.y > 230) { doc.addPage(); yRef.y = 25; }
-
-  const city = (data.school_address || 'Tempat').split(',')[0].trim();
   doc.setFont('times', 'normal');
   doc.setFontSize(11);
-  doc.text(`${city}, ${fmtDate(data.letter_date)}`, pw / 2, yRef.y, { align: 'center' });
+  doc.text(`Kediri, ${fmtDate(data.letter_date)}`, pw - margin - 50, yRef.y, { align: 'center' });
   yRef.y += 8;
 
   const col1 = margin + 20;
@@ -362,11 +360,9 @@ export const generateTukangPDF = (data: LetterAgreement, profile: SchoolProfile 
   ], margin, pw, yRef);
 
   if (yRef.y > 230) { doc.addPage(); yRef.y = 25; }
-
-  const city = (data.school_address || 'Tempat').split(',')[0].trim();
   doc.setFont('times', 'normal');
   doc.setFontSize(11);
-  doc.text(`${city}, ${fmtDate(data.letter_date)}`, pw / 2, yRef.y, { align: 'center' });
+  doc.text(`Kediri, ${fmtDate(data.letter_date)}`, pw - margin - 50, yRef.y, { align: 'center' });
   yRef.y += 8;
 
   const col1 = margin + 20;
