@@ -82,8 +82,8 @@ const LetterMaker = ({ schoolProfile: propProfile }: LetterMakerProps) => {
   };
 
   const handlePrint = (letter: LetterAgreement) => {
-    if (letter.type === 'ekstrakurikuler') generateEkskulPDF(letter);
-    else generateTukangPDF(letter);
+    if (letter.type === 'ekstrakurikuler') generateEkskulPDF(letter, profile);
+    else generateTukangPDF(letter, profile);
   };
 
   const handleExportJSON = (letter: LetterAgreement) => {
