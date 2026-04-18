@@ -27,7 +27,7 @@ const drawKopSurat = (doc: any, data: LetterAgreement, profile: SchoolProfile | 
     doc.setFont('helvetica', 'normal');
     doc.text('LOGO', margin + 12, 22, { align: 'center' });
   }
-  
+
   doc.setFont('times', 'normal');
   doc.setFontSize(11);
   doc.text(`PEMERINTAH KABUPATEN / KOTA`, centerX, startY, { align: 'center' });
@@ -46,14 +46,14 @@ const drawKopSurat = (doc: any, data: LetterAgreement, profile: SchoolProfile | 
   doc.setLineWidth(0.3);
   doc.line(margin, lineY + 1.5, pw - margin, lineY + 1.5);
 
-  return lineY + 10; 
+  return lineY + 10;
 };
 
 const drawPasal = (doc: any, no: string, judul: string, isi: string[], margin: number, pw: number, yRef: { y: number }) => {
   const LINE = 8.25;
-  
-  if (yRef.y > 255) { 
-    doc.addPage(); 
+
+  if (yRef.y > 255) {
+    doc.addPage();
     yRef.y = 25;
   }
 
@@ -65,9 +65,9 @@ const drawPasal = (doc: any, no: string, judul: string, isi: string[], margin: n
   doc.setFont('times', 'normal');
   doc.setFontSize(11);
   isi.forEach((line, idx) => {
-    if (yRef.y > 275) { 
-        doc.addPage(); 
-        doc.setFont('times', 'normal'); doc.setFontSize(11); yRef.y = 25; 
+    if (yRef.y > 275) {
+      doc.addPage();
+      doc.setFont('times', 'normal'); doc.setFontSize(11); yRef.y = 25;
     }
     const prefix = isi.length > 1 ? `${idx + 1}. ` : '';
     const wrapped = doc.splitTextToSize(prefix + line, pw - margin * 2);
@@ -163,16 +163,13 @@ export const generateEkskulPDF = (data: LetterAgreement, profile: SchoolProfile 
 
   drawPasal(doc, '3', 'HONORARIUM', [
     `PIHAK PERTAMA memberikan honorarium kepada PIHAK KEDUA sebesar ${fmt(data.total_amount)} (${getTerbilang(data.total_amount)} Rupiah) setiap bulan.`,
-    'Pembayaran dilakukan setiap bulan setelah PIHAK KEDUA menyerahkan laporan pelaksanaan kegiatan dan daftar hadir peserta kepada PIHAK PERTAMA.',
     'Honorarium dikenakan Pajak Penghasilan (PPh Pasal 21) sesuai dengan peraturan perpajakan yang berlaku.',
   ], margin, pw, yRef);
 
   drawPasal(doc, '4', 'KEWAJIBAN PIHAK KEDUA', [
     'Melaksanakan kegiatan ekstrakurikuler secara profesional, disiplin, dan bertanggung jawab sesuai jadwal yang telah ditetapkan.',
-    'Membuat jurnal kegiatan dan daftar hadir peserta setiap kali pertemuan dan menyerahkannya kepada PIHAK PERTAMA.',
     'Melaporkan perkembangan kegiatan ekstrakurikuler secara berkala kepada Kepala Sekolah.',
     'Menjaga nama baik, kerahasiaan data, dan informasi sekolah, serta tidak menyebarluaskan kepada pihak yang tidak berkepentingan.',
-    'Tidak menuntut diangkat sebagai Aparatur Sipil Negara (ASN) atau Pegawai Pemerintah dengan Perjanjian Kerja (PPPK).',
   ], margin, pw, yRef);
 
   drawPasal(doc, '5', 'LARANGAN', [
@@ -198,7 +195,7 @@ export const generateEkskulPDF = (data: LetterAgreement, profile: SchoolProfile 
   if (yRef.y > 230) { doc.addPage(); yRef.y = 25; }
   doc.setFont('times', 'normal');
   doc.setFontSize(11);
-  doc.text(`Kediri, ${fmtDate(data.letter_date)}`, pw - margin - 50, yRef.y, { align: 'center' });
+  doc.text(`Kediri, ${fmtDate(data.letter_date)}`, pw - margin - 30, yRef.y, { align: 'center' });
   yRef.y += 8;
 
   const col1 = margin + 20;
