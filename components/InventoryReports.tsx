@@ -723,7 +723,7 @@ const PersediaanView = React.memo(({ combinedItems, getItemStats, schoolProfile,
   );
 });
 
-const MutasiView = React.memo(({ mutationData, schoolProfile, handleMutationOverride, mutationOverrides }: any) => {
+const MutasiView = React.memo(({ mutationData, schoolProfile, handleMutationOverride, mutationOverrides, combinedItems }: any) => {
   const totalAwal = Object.entries(mutationData).reduce((sum, [cat, vals]: any) => sum + (mutationOverrides[cat]?.awal ?? vals.awal), 0);
   const totalTambah = Object.entries(mutationData).reduce((sum, [cat, vals]: any) => sum + (mutationOverrides[cat]?.tambah ?? vals.tambah), 0);
   const totalKurang = Object.entries(mutationData).reduce((sum, [cat, vals]: any) => sum + (mutationOverrides[cat]?.kurang ?? vals.kurang), 0);
@@ -811,7 +811,10 @@ const MutasiView = React.memo(({ mutationData, schoolProfile, handleMutationOver
               return (
                 <tr key={cat} className="hover:bg-slate-50 transition-colors group">
                   <td className="border border-gray-400 p-1.5 text-center text-gray-400 italic"></td>
-                  <td className="border border-gray-400 p-1.5 text-center font-mono text-gray-500">1.1.7.xx</td>
+                  <td className="border border-gray-400 p-1.5 text-center font-mono text-gray-500">
+                    {/* Mengambil kode dari item pertama dalam kategori ini */}
+                    {(combinedItems as any[]).find((i: any) => (i.category || '99 LAINNYA') === cat)?.codification?.split('.').slice(0, 4).join('.') || '1.1.7.xx'}
+                  </td>
                   <td className="border border-gray-400 p-1.5 font-bold text-slate-700 uppercase">{cat}</td>
                   <td className="border border-gray-400 p-1.5 text-right relative group/cell">
                     <input
@@ -1639,10 +1642,11 @@ const InventoryReports: React.FC<InventoryReportsProps> = ({ budgets, schoolProf
 
   const getItemStats = (item: InventoryItem) => {
     const overrides = itemOverrides[item.id] || {};
+    // Sisa tahun lalu diambil dari override atau data item
     const lastYearBalance = overrides.lastYearBalance ?? (item.lastYearBalance || 0);
     
-    // Logika Request USER: jika sisa tahun lalu maka persediaan masuk 0
-    const totalIn = lastYearBalance > 0 ? 0 : item.quantity;
+    // Perbaikan Logika: totalIn (Masuk) harus selalu menghitung quantity dari pengadaan tahun berjalan
+    const totalIn = item.quantity;
     
     const transactionsQuantity = withdrawalTransactions
       .filter(tx => tx.inventoryItemId === item.id)
@@ -2218,8 +2222,8 @@ const InventoryReports: React.FC<InventoryReportsProps> = ({ budgets, schoolProf
       const overrides = itemOverrides[item.id] || {};
       const sisaLalu = overrides.lastYearBalance ?? (item.lastYearBalance || 0);
       
-      // Logika Request USER: jika sisa tahun lalu maka persediaan masuk 0
-      const masuk = sisaLalu > 0 ? 0 : item.quantity;
+      // Perbaikan Logika: masuk adalah quantity tahun berjalan
+      const masuk = item.quantity;
 
       const transactionsQuantity = withdrawalTransactions
         .filter(tx => tx.inventoryItemId === item.id)
@@ -2440,6 +2444,7 @@ const InventoryReports: React.FC<InventoryReportsProps> = ({ budgets, schoolProf
 
           {activeReport === 'mutasi' && (
             <MutasiView
+              combinedItems={combinedItems}
               mutationData={mutationData}
               schoolProfile={schoolProfile}
               handleMutationOverride={handleMutationOverride}
