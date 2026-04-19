@@ -34,8 +34,12 @@ export interface WithdrawalTransactionDB {
 
 export const getInventoryItems = async (): Promise<InventoryItemDB[]> => {
     const userId = await getCurrentUserId();
+    if (!userId) return [];
+
+    // Instant local load
+    const local = await db.inventoryItems.where('user_id').equals(userId).toArray();
     
-    if (supabase && userId) {
+    if (supabase) {
         try {
             const { data, error } = await supabase.from('inventory_items')
                 .select('*')
@@ -63,23 +67,23 @@ export const getInventoryItems = async (): Promise<InventoryItemDB[]> => {
                     used_quantity: Number(d.used_quantity || 0),
                     last_year_balance: Number(d.last_year_balance || 0)
                 }));
-                // Sync to IDB
+                // Sync in background
                 await db.inventoryItems.where('user_id').equals(userId).delete();
                 await db.inventoryItems.bulkAdd(mapped.map(m => ({ ...m, user_id: userId })));
                 return mapped;
             }
-        } catch (e) { console.error('Cloud inventory fetch error:', e); }
+        } catch (e) { console.warn('Supabase inventory fetch failed.'); }
     }
 
-    if (userId) {
-        return await db.inventoryItems.where('user_id').equals(userId).toArray();
-    }
-    return [];
+    return local;
 };
 
 export const saveInventoryItem = async (item: InventoryItemDB): Promise<InventoryItemDB | null> => {
     const userId = await getCurrentUserId();
     if (!userId) return null;
+
+    // Save local instantly
+    await db.inventoryItems.put({ ...item, user_id: userId });
 
     if (supabase) {
         const payload = {
@@ -103,16 +107,9 @@ export const saveInventoryItem = async (item: InventoryItemDB): Promise<Inventor
             used_quantity: item.used_quantity || 0,
             last_year_balance: item.last_year_balance || 0
         };
-
-        const { error } = await supabase.from('inventory_items').upsert([payload], { onConflict: 'id' });
-        if (error) {
-            console.error('Inventory save error:', error);
-            alert(`Gagal menyimpan ke cloud: ${error.message}`);
-            return null;
-        }
+        await supabase.from('inventory_items').upsert([payload], { onConflict: 'id' });
     }
     
-    await db.inventoryItems.put({ ...item, user_id: userId });
     return item;
 };
 
@@ -120,18 +117,23 @@ export const deleteInventoryItem = async (id: string): Promise<boolean> => {
     const userId = await getCurrentUserId();
     if (!userId) return false;
 
+    // Delete local instantly
+    await db.inventoryItems.delete(id);
+
     if (supabase) {
         const { error } = await supabase.from('inventory_items').delete().eq('id', id).eq('user_id', userId);
-        if (error) return false;
+        return !error;
     }
-    await db.inventoryItems.delete(id);
     return true;
 };
 
 export const getWithdrawalTransactions = async (): Promise<WithdrawalTransactionDB[]> => {
     const userId = await getCurrentUserId();
+    if (!userId) return [];
+
+    const local = await db.inventoryWithdrawals.where('user_id').equals(userId).toArray();
     
-    if (supabase && userId) {
+    if (supabase) {
         try {
             const { data, error } = await supabase.from('inventory_withdrawals')
                 .select('*')
@@ -147,23 +149,21 @@ export const getWithdrawalTransactions = async (): Promise<WithdrawalTransaction
                     quantity: Number(d.quantity),
                     notes: d.notes || ''
                 }));
-                // Sync to IDB
                 await db.inventoryWithdrawals.where('user_id').equals(userId).delete();
                 await db.inventoryWithdrawals.bulkAdd(mapped.map(m => ({ ...m, user_id: userId })));
                 return mapped;
             }
-        } catch (e) { console.error('Cloud withdrawals fetch error:', e); }
+        } catch (e) { console.warn('Supabase withdrawals fetch failed.'); }
     }
 
-    if (userId) {
-        return await db.inventoryWithdrawals.where('user_id').equals(userId).toArray();
-    }
-    return [];
+    return local;
 };
 
 export const saveWithdrawalTransaction = async (tx: WithdrawalTransactionDB): Promise<WithdrawalTransactionDB | null> => {
     const userId = await getCurrentUserId();
     if (!userId) return null;
+
+    await db.inventoryWithdrawals.put({ ...tx, user_id: userId });
 
     if (supabase) {
         const payload = {
@@ -175,12 +175,9 @@ export const saveWithdrawalTransaction = async (tx: WithdrawalTransactionDB): Pr
             quantity: tx.quantity,
             notes: tx.notes
         };
-
-        const { error } = await supabase.from('inventory_withdrawals').upsert([payload], { onConflict: 'id' });
-        if (error) return null;
+        await supabase.from('inventory_withdrawals').upsert([payload], { onConflict: 'id' });
     }
 
-    await db.inventoryWithdrawals.put({ ...tx, user_id: userId });
     return tx;
 };
 
@@ -188,17 +185,24 @@ export const deleteWithdrawalTransaction = async (id: string): Promise<boolean> 
     const userId = await getCurrentUserId();
     if (!userId) return false;
 
+    await db.inventoryWithdrawals.delete(id);
+
     if (supabase) {
         const { error } = await supabase.from('inventory_withdrawals').delete().eq('id', id).eq('user_id', userId);
-        if (error) return false;
+        return !error;
     }
-    await db.inventoryWithdrawals.delete(id);
     return true;
 };
 
 export const getInventoryOverrides = async (): Promise<Record<string, { usedQuantity?: number; lastYearBalance?: number }>> => {
     const userId = await getCurrentUserId();
     if (!userId) return {};
+
+    const localData = await db.inventoryOverrides.where('user_id').equals(userId).toArray();
+    const localMap: Record<string, { usedQuantity?: number; lastYearBalance?: number }> = {};
+    localData.forEach((d: any) => {
+        localMap[d.item_id] = { usedQuantity: d.usedQuantity, lastYearBalance: d.lastYearBalance };
+    });
 
     if (supabase) {
         try {
@@ -212,20 +216,14 @@ export const getInventoryOverrides = async (): Promise<Record<string, { usedQuan
                         lastYearBalance: d.last_year_balance != null ? Number(d.last_year_balance) : undefined
                     };
                 });
-                // Sync to IDB
                 await db.inventoryOverrides.where('user_id').equals(userId).delete();
                 await db.inventoryOverrides.bulkAdd(Object.entries(map).map(([itemId, vals]) => ({ ...vals, user_id: userId, item_id: itemId })));
                 return map;
             }
-        } catch (e) { console.error('Cloud overrides fetch error:', e); }
+        } catch (e) { console.warn('Supabase overrides fetch failed.'); }
     }
 
-    const localData = await db.inventoryOverrides.where('user_id').equals(userId).toArray();
-    const result: Record<string, { usedQuantity?: number; lastYearBalance?: number }> = {};
-    localData.forEach((d: any) => {
-        result[d.item_id] = { usedQuantity: d.usedQuantity, lastYearBalance: d.lastYearBalance };
-    });
-    return result;
+    return localMap;
 };
 
 export const saveInventoryOverride = async (itemId: string, field: 'usedQuantity' | 'lastYearBalance', value: number): Promise<boolean> => {
@@ -234,10 +232,9 @@ export const saveInventoryOverride = async (itemId: string, field: 'usedQuantity
 
     const current = await getInventoryOverrides();
     const existing = current[itemId] || {};
-    const updatedVals = {
-        ...existing,
-        [field]: value
-    };
+    const updatedVals = { ...existing, [field]: value };
+
+    await db.inventoryOverrides.put({ ...updatedVals, user_id: userId, item_id: itemId });
 
     if (supabase) {
         const payload = {
@@ -250,13 +247,18 @@ export const saveInventoryOverride = async (itemId: string, field: 'usedQuantity
         await supabase.from('inventory_overrides').upsert(payload, { onConflict: 'user_id,item_id' });
     }
 
-    await db.inventoryOverrides.put({ ...updatedVals, user_id: userId, item_id: itemId });
     return true;
 };
 
 export const getMutationOverrides = async (): Promise<Record<string, { awal?: number; tambah?: number; kurang?: number }>> => {
     const userId = await getCurrentUserId();
     if (!userId) return {};
+
+    const localData = await db.inventoryMutationOverrides.where('user_id').equals(userId).toArray();
+    const localMap: Record<string, { awal?: number; tambah?: number; kurang?: number }> = {};
+    localData.forEach((d: any) => {
+        localMap[d.category] = { awal: d.awal, tambah: d.tambah, kurang: d.kurang };
+    });
 
     if (supabase) {
         try {
@@ -271,20 +273,14 @@ export const getMutationOverrides = async (): Promise<Record<string, { awal?: nu
                         kurang: d.kurang != null ? Number(d.kurang) : undefined
                     };
                 });
-                // Sync to IDB
                 await db.inventoryMutationOverrides.where('user_id').equals(userId).delete();
                 await db.inventoryMutationOverrides.bulkAdd(Object.entries(map).map(([cat, vals]) => ({ ...vals, user_id: userId, category: cat })));
                 return map;
             }
-        } catch (e) { console.error('Cloud mutation overrides fetch error:', e); }
+        } catch (e) { console.warn('Supabase mutation overrides fetch failed.'); }
     }
 
-    const localData = await db.inventoryMutationOverrides.where('user_id').equals(userId).toArray();
-    const result: Record<string, { awal?: number; tambah?: number; kurang?: number }> = {};
-    localData.forEach((d: any) => {
-        result[d.category] = { awal: d.awal, tambah: d.tambah, kurang: d.kurang };
-    });
-    return result;
+    return localMap;
 };
 
 export const saveMutationOverride = async (category: string, field: 'awal' | 'tambah' | 'kurang', value: number): Promise<boolean> => {
@@ -293,10 +289,9 @@ export const saveMutationOverride = async (category: string, field: 'awal' | 'ta
 
     const current = await getMutationOverrides();
     const existing = current[category] || {};
-    const updatedVals = {
-        ...existing,
-        [field]: value
-    };
+    const updatedVals = { ...existing, [field]: value };
+
+    await db.inventoryMutationOverrides.put({ ...updatedVals, user_id: userId, category: category });
 
     if (supabase) {
         const payload = {
@@ -310,10 +305,7 @@ export const saveMutationOverride = async (category: string, field: 'awal' | 'ta
         await supabase.from('inventory_mutation_overrides').upsert(payload, { onConflict: 'user_id,category' });
     }
 
-    await db.inventoryMutationOverrides.put({ ...updatedVals, user_id: userId, category: category });
     return true;
 };
 
-export const migrateLocalStorageToSupabase = async (): Promise<void> => {
-    // Migration logic remains for one-time legacy cleanup if needed
-};
+export const migrateLocalStorageToSupabase = async (): Promise<void> => {};
