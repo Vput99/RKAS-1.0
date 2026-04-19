@@ -1,20 +1,21 @@
 import { supabase } from '../supabase';
 import { SchoolProfile } from '../../types';
-import { getCurrentUserId, SCHOOL_PROFILE_KEY, DEFAULT_PROFILE } from './core';
+import { getCurrentUserId } from './auth';
+import { DEFAULT_PROFILE } from './core';
+import { db } from './dexie';
 
 export const getSchoolProfile = async (): Promise<SchoolProfile> => {
-    if (supabase) {
+    const userId = await getCurrentUserId();
+    
+    if (supabase && userId) {
         try {
-            const userId = await getCurrentUserId();
-            if (!userId) return DEFAULT_PROFILE;
-
-            const { data } = await supabase.from('school_profiles')
+            const { data, error } = await supabase.from('school_profiles')
                 .select('*')
-                .eq('user_id', userId) // Explicit Filter
+                .eq('user_id', userId)
                 .single();
 
-            if (data) {
-                return {
+            if (data && !error) {
+                const profile = {
                     name: data.name,
                     npsn: data.npsn,
                     address: data.address,
@@ -23,85 +24,69 @@ export const getSchoolProfile = async (): Promise<SchoolProfile> => {
                     treasurer: data.treasurer,
                     treasurerNip: data.treasurer_nip,
                     fiscalYear: data.fiscal_year,
-                    studentCount: data.student_count,
-                    budgetCeiling: data.budget_ceiling,
-                    city: data.city,
-                    district: data.district,
-                    postalCode: data.postal_code,
-                    bankName: data.bank_name,
-                    bankBranch: data.bank_branch,
-                    bankAddress: data.bank_address,
-                    accountNo: data.account_no,
-                    headerImage: data.header_image
-                };
+                    studentCount: Number(data.student_count),
+                    budgetCeiling: Number(data.budget_ceiling),
+                    bankName: data.bank_name || '',
+                    bankBranch: data.bank_branch || '',
+                    bankAddress: data.bank_address || '',
+                    accountNo: data.account_no || '',
+                    headerImage: data.header_image || ''
+                } as SchoolProfile;
+
+                // Sync to IDB
+                await db.schoolProfiles.where('user_id').equals(userId).delete();
+                await db.schoolProfiles.add({ ...profile, user_id: userId });
+                return profile;
             }
-        } catch (error) {
-            console.log("No profile found for this user yet.");
+        } catch (e) { console.error("Cloud profile fetch error:", e); }
+    }
+
+    if (userId) {
+        const local = await db.schoolProfiles.where('user_id').equals(userId).first();
+        if (local) {
+            const { user_id, ...profile } = local as any;
+            return profile as SchoolProfile;
         }
     }
 
-    const local = localStorage.getItem(SCHOOL_PROFILE_KEY);
-    if (local) return JSON.parse(local);
     return DEFAULT_PROFILE;
 };
 
 export const saveSchoolProfile = async (profile: SchoolProfile): Promise<SchoolProfile> => {
-    if (supabase) {
-        try {
-            const userId = await getCurrentUserId();
-            if (!userId) {
-                await new Promise(r => setTimeout(r, 500));
-                const retryUser = await getCurrentUserId();
-                if (!retryUser) {
-                    console.warn("User not authenticated to save profile");
-                    return profile;
-                }
+    const userId = await getCurrentUserId();
+    
+    if (userId) {
+        if (supabase) {
+            try {
+                const dbPayload = {
+                    user_id: userId,
+                    name: profile.name,
+                    npsn: profile.npsn,
+                    address: profile.address,
+                    headmaster: profile.headmaster,
+                    headmaster_nip: profile.headmasterNip,
+                    treasurer: profile.treasurer,
+                    treasurer_nip: profile.treasurerNip,
+                    fiscal_year: profile.fiscalYear,
+                    student_count: profile.studentCount,
+                    budget_ceiling: profile.budgetCeiling,
+                    bank_name: profile.bankName,
+                    bank_branch: profile.bankBranch,
+                    bank_address: profile.bankAddress,
+                    account_no: profile.accountNo,
+                    header_image: profile.headerImage
+                };
+
+                await supabase.from('school_profiles').upsert(dbPayload, { onConflict: 'user_id' });
+            } catch (error: any) {
+                console.error("Cloud profile save error:", error);
+                alert(`Gagal menyimpan ke cloud: ${error.message}`);
             }
-
-            const confirmedUserId = await getCurrentUserId();
-
-            const dbPayload = {
-                user_id: confirmedUserId,
-                name: profile.name,
-                npsn: profile.npsn,
-                address: profile.address,
-                headmaster: profile.headmaster,
-                headmaster_nip: profile.headmasterNip,
-                treasurer: profile.treasurer,
-                treasurer_nip: profile.treasurerNip,
-                fiscal_year: profile.fiscalYear,
-                student_count: profile.studentCount,
-                budget_ceiling: profile.budgetCeiling,
-                updated_at: new Date().toISOString(),
-                city: profile.city,
-                district: profile.district,
-                postal_code: profile.postalCode,
-                bank_name: profile.bankName,
-                bank_branch: profile.bankBranch,
-                bank_address: profile.bankAddress,
-                account_no: profile.accountNo,
-                header_image: profile.headerImage
-            };
-
-            const { data: existing } = await supabase
-                .from('school_profiles')
-                .select('id')
-                .eq('user_id', confirmedUserId)
-                .maybeSingle();
-
-            if (existing) {
-                const { error } = await supabase.from('school_profiles').update(dbPayload).eq('user_id', confirmedUserId);
-                if (error) throw error;
-            } else {
-                const { error } = await supabase.from('school_profiles').insert([dbPayload]);
-                if (error) throw error;
-            }
-        } catch (error: any) {
-            console.error("Supabase profile save error:", error);
-            alert(`Gagal menyimpan profil: ${error.message}`);
         }
+        
+        await db.schoolProfiles.where('user_id').equals(userId).delete();
+        await db.schoolProfiles.add({ ...profile, user_id: userId });
     }
 
-    localStorage.setItem(SCHOOL_PROFILE_KEY, JSON.stringify(profile));
     return profile;
 };

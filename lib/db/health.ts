@@ -1,5 +1,6 @@
 import { supabase } from '../supabase';
-import { getCurrentUserId, clearLocalData } from './core';
+import { getCurrentUserId } from './auth';
+import { clearLocalData } from './core';
 
 export interface SystemUsage {
     databaseBytes: number;

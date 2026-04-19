@@ -1,35 +1,46 @@
 import { supabase } from '../supabase';
 import { Budget } from '../../types';
-import { getCurrentUserId, LOCAL_KEY, MOCK_DATA } from './core';
+import { getCurrentUserId } from './auth';
+import { MOCK_DATA } from './core';
+import { db } from './dexie';
 
 export const getBudgets = async (): Promise<Budget[]> => {
-    if (supabase) {
-        const userId = await getCurrentUserId();
-        if (!userId) return []; // Security guard
-
+    const userId = await getCurrentUserId();
+    
+    if (supabase && userId) {
         const { data, error } = await supabase.from('budgets')
             .select('*')
             .eq('user_id', userId) // Explicit Filter
             .order('date', { ascending: false });
 
-        if (error) {
-            console.error("Error fetching budgets:", error);
-            return [];
+        if (!error && data) {
+            const budgetData = data as Budget[];
+            // Sync to IndexedDB
+            await db.budgets.where('user_id').equals(userId).delete();
+            await db.budgets.bulkAdd(budgetData.map(b => ({ ...b, user_id: userId })));
+            return budgetData;
         }
-        if (data) return data as Budget[];
+        if (error) console.error("Error fetching budgets from Supabase:", error);
     }
 
-    const local = localStorage.getItem(LOCAL_KEY);
-    if (local) return JSON.parse(local);
+    // Fallback to IndexedDB
+    if (userId) {
+        const localData = await db.budgets.where('user_id').equals(userId).reverse().sortBy('date');
+        if (localData.length > 0) return localData;
+    }
+
     return MOCK_DATA;
 };
 
 export const addBudget = async (item: Omit<Budget, 'id' | 'created_at'>): Promise<Budget | null> => {
-    const newItem = { ...item, id: crypto.randomUUID(), created_at: new Date().toISOString() };
+    const userId = await getCurrentUserId();
+    const newItem = { 
+        ...item, 
+        id: crypto.randomUUID(), 
+        created_at: new Date().toISOString()
+    } as Budget;
 
-    if (supabase) {
-        const userId = await getCurrentUserId();
-
+    if (supabase && userId) {
         const dbPayload = {
             ...item,
             user_id: userId,
@@ -45,53 +56,66 @@ export const addBudget = async (item: Omit<Budget, 'id' | 'created_at'>): Promis
 
         if (error) {
             console.error("Supabase insert error:", error);
-            alert(`Gagal menyimpan data: ${error.message}`);
+            alert(`Gagal menyimpan data ke cloud: ${error.message}`);
             return null;
         }
 
-        return data ? data[0] as Budget : null;
+        const savedItem = data[0] as Budget;
+        await db.budgets.put({ ...savedItem, user_id: userId });
+        return savedItem;
     }
 
-    const current = await getBudgets();
-    const updated = [newItem, ...current];
-    localStorage.setItem(LOCAL_KEY, JSON.stringify(updated));
-    return newItem as Budget;
+    // Offline mode
+    if (userId) {
+        await db.budgets.add({ ...newItem, user_id: userId });
+    }
+    return newItem;
 };
 
 export const updateBudget = async (id: string, updates: Partial<Budget>): Promise<Budget | null> => {
-    if (supabase) {
+    const userId = await getCurrentUserId();
+    
+    if (supabase && userId) {
         const { data, error } = await supabase.from('budgets').update(updates).eq('id', id).select();
         if (error) {
             console.error("Supabase update error:", error);
-            alert(`Gagal mengupdate data: ${error.message}`);
+            alert(`Gagal mengupdate data di cloud: ${error.message}`);
             return null;
         }
-        return data ? data[0] as Budget : null;
+        const updatedItem = data[0] as Budget;
+        await db.budgets.update(id, { ...updatedItem, user_id: userId });
+        return updatedItem;
     }
 
-    const current = await getBudgets();
-    const index = current.findIndex(b => b.id === id);
-    if (index === -1) return null;
-
-    const updatedItem = { ...current[index], ...updates };
-    const newList = [...current];
-    newList[index] = updatedItem;
-    localStorage.setItem(LOCAL_KEY, JSON.stringify(newList));
-    return updatedItem;
+    // Offline mode
+    if (userId) {
+        const existing = await db.budgets.get(id);
+        if (existing) {
+            const updated = { ...existing, ...updates };
+            await db.budgets.put(updated);
+            return updated;
+        }
+    }
+    return null;
 };
 
 export const deleteBudget = async (id: string): Promise<boolean> => {
-    if (supabase) {
+    const userId = await getCurrentUserId();
+    
+    if (supabase && userId) {
         const { error } = await supabase.from('budgets').delete().eq('id', id);
         if (error) {
             console.error("Supabase delete error:", error);
             return false;
         }
+        await db.budgets.delete(id);
         return true;
     }
 
-    const current = await getBudgets();
-    const updated = current.filter(b => b.id !== id);
-    localStorage.setItem(LOCAL_KEY, JSON.stringify(updated));
-    return true;
+    // Offline mode
+    if (userId) {
+        await db.budgets.delete(id);
+        return true;
+    }
+    return false;
 };

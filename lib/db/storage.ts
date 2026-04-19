@@ -1,5 +1,5 @@
 import { supabase } from '../supabase';
-import { getCurrentUserId } from './core';
+import { getCurrentUserId } from './auth';
 
 export const uploadEvidenceFile = async (file: File, budgetId: string = 'general'): Promise<{ url: string | null, path: string | null }> => {
     if (!supabase) return { url: null, path: null };

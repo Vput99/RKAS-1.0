@@ -1,5 +1,6 @@
 import { supabase } from '../supabase';
 import { Budget, TransactionType, SchoolProfile } from '../../types';
+import { db } from './dexie';
 
 // Mock data for Offline Mode
 export const MOCK_DATA: Budget[] = [
@@ -16,16 +17,6 @@ export const MOCK_DATA: Budget[] = [
     },
 ];
 
-export const LOCAL_KEY = 'rkas_local_data_v7';
-export const SCHOOL_PROFILE_KEY = 'rkas_school_profile_v1';
-export const BANK_STATEMENT_KEY = 'rkas_bank_statements_v1';
-export const HISTORY_KEY = 'rkas_withdrawal_history_v1';
-export const CUSTOM_ACCOUNTS_KEY = 'rkas_custom_accounts_v1';
-export const INVENTORY_ITEMS_KEY = 'rkas_manual_inventory_v1';
-export const INVENTORY_WITHDRAWALS_KEY = 'rkas_withdrawal_transactions_v1';
-export const INVENTORY_OVERRIDES_KEY = 'rkas_inventory_overrides_v1';
-export const MUTATION_OVERRIDES_KEY = 'rkas_mutation_overrides_v1';
-
 export const DEFAULT_PROFILE: SchoolProfile = {
     name: 'SD Negeri Contoh (Lokal)',
     npsn: '12345678',
@@ -39,25 +30,20 @@ export const DEFAULT_PROFILE: SchoolProfile = {
     budgetCeiling: 150000000
 };
 
-// Helper: Get Current User ID
-export const getCurrentUserId = async () => {
-    if (!supabase) return null;
-    const { data } = await supabase.auth.getSession();
-    return data.session?.user?.id || null;
-};
-
-// Security: Clear all local data on logout to prevent leakage between schools
-export const clearLocalData = () => {
-    localStorage.removeItem(LOCAL_KEY);
-    localStorage.removeItem(SCHOOL_PROFILE_KEY);
-    localStorage.removeItem(BANK_STATEMENT_KEY);
-    localStorage.removeItem(HISTORY_KEY);
-    localStorage.removeItem(CUSTOM_ACCOUNTS_KEY);
-    localStorage.removeItem(INVENTORY_ITEMS_KEY);
-    localStorage.removeItem(INVENTORY_WITHDRAWALS_KEY);
-    localStorage.removeItem(INVENTORY_OVERRIDES_KEY);
-    localStorage.removeItem(MUTATION_OVERRIDES_KEY);
-    localStorage.removeItem('rkas_active_tab');
+// Security: Clear all local data on logout
+export const clearLocalData = async () => {
+    // Clear legacy localStorage
+    localStorage.clear();
+    
+    // Clear IndexedDB tables
+    try {
+        // Use a more generic way to clear all tables to avoid type issues during circular dependency resolution
+        if (db && db.tables) {
+            await Promise.all(db.tables.map(table => table.clear()));
+        }
+    } catch (e) {
+        console.error("Failed to clear IndexedDB", e);
+    }
 };
 
 export const checkDatabaseConnection = async (): Promise<boolean> => {
@@ -66,7 +52,6 @@ export const checkDatabaseConnection = async (): Promise<boolean> => {
         const { error } = await supabase.from('school_profiles').select('count', { count: 'exact', head: true });
         return !error;
     } catch (e) {
-        console.error("Supabase connection check failed:", e);
         return false;
     }
 };

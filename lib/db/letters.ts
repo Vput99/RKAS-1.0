@@ -1,15 +1,13 @@
 import { supabase } from '../supabase';
 import { LetterAgreement } from '../../types';
-import { getCurrentUserId } from './core';
-
-const LETTER_AGREEMENTS_KEY = 'rkas_letter_agreements_v1';
+import { getCurrentUserId } from './auth';
+import { db } from './dexie';
 
 export const getLetterAgreements = async (): Promise<LetterAgreement[]> => {
-    if (supabase) {
+    const userId = await getCurrentUserId();
+    
+    if (supabase && userId) {
         try {
-            const userId = await getCurrentUserId();
-            if (!userId) return [];
-
             const { data, error } = await supabase
                 .from('letter_agreements')
                 .select('*')
@@ -17,20 +15,27 @@ export const getLetterAgreements = async (): Promise<LetterAgreement[]> => {
                 .order('created_at', { ascending: false });
 
             if (!error && data) {
-                localStorage.setItem(LETTER_AGREEMENTS_KEY, JSON.stringify(data));
-                return data as LetterAgreement[];
+                const letters = data as LetterAgreement[];
+                // Sync to IDB
+                await db.letterAgreements.where('user_id').equals(userId).delete();
+                await db.letterAgreements.bulkAdd(letters.map(l => ({ ...l, user_id: userId })));
+                return letters;
             }
-        } catch (e) {
-            console.warn('letter_agreements fetch error:', e);
-        }
+        } catch (e) { console.warn('Cloud letters fetch error:', e); }
     }
-    const local = localStorage.getItem(LETTER_AGREEMENTS_KEY);
-    return local ? JSON.parse(local) : [];
+
+    if (userId) {
+        return await db.letterAgreements.where('user_id').equals(userId).reverse().sortBy('created_at');
+    }
+    return [];
 };
 
 export const saveLetterAgreement = async (
     data: Omit<LetterAgreement, 'id' | 'created_at' | 'user_id'>
 ): Promise<LetterAgreement | null> => {
+    const userId = await getCurrentUserId();
+    if (!userId) return null;
+
     const newItem: LetterAgreement = {
         ...data,
         id: crypto.randomUUID(),
@@ -38,30 +43,16 @@ export const saveLetterAgreement = async (
     };
 
     if (supabase) {
-        const userId = await getCurrentUserId();
         const payload = { ...newItem, user_id: userId };
-
-        const { data: inserted, error } = await supabase
-            .from('letter_agreements')
-            .insert([payload])
-            .select();
-
+        const { error } = await supabase.from('letter_agreements').insert([payload]);
         if (error) {
-            console.error('Error saving letter agreement:', error);
-            alert(`Gagal menyimpan surat: ${error.message}`);
+            console.error('Error saving letter:', error);
+            alert(`Gagal menyimpan ke cloud: ${error.message}`);
             return null;
-        }
-
-        if (inserted && inserted[0]) {
-            const current = await getLetterAgreements();
-            localStorage.setItem(LETTER_AGREEMENTS_KEY, JSON.stringify([inserted[0], ...current.filter(l => l.id !== inserted[0].id)]));
-            return inserted[0] as LetterAgreement;
         }
     }
 
-    const current = JSON.parse(localStorage.getItem(LETTER_AGREEMENTS_KEY) || '[]') as LetterAgreement[];
-    const updated = [newItem, ...current];
-    localStorage.setItem(LETTER_AGREEMENTS_KEY, JSON.stringify(updated));
+    await db.letterAgreements.add({ ...newItem, user_id: userId });
     return newItem;
 };
 
@@ -69,42 +60,27 @@ export const updateLetterAgreement = async (
     id: string,
     updates: Partial<LetterAgreement>
 ): Promise<boolean> => {
-    if (supabase) {
-        const { error } = await supabase
-            .from('letter_agreements')
-            .update(updates)
-            .eq('id', id);
+    const userId = await getCurrentUserId();
+    if (!userId) return false;
 
-        if (error) {
-            console.error('Error updating letter agreement:', error);
-            return false;
-        }
+    if (supabase) {
+        const { error } = await supabase.from('letter_agreements').update(updates).eq('id', id);
+        if (error) return false;
     }
 
-    const current = JSON.parse(localStorage.getItem(LETTER_AGREEMENTS_KEY) || '[]') as LetterAgreement[];
-    localStorage.setItem(
-        LETTER_AGREEMENTS_KEY,
-        JSON.stringify(current.map(l => l.id === id ? { ...l, ...updates } : l))
-    );
+    await db.letterAgreements.update(id, updates);
     return true;
 };
 
 export const deleteLetterAgreement = async (id: string): Promise<boolean> => {
-    if (supabase) {
-        const userId = await getCurrentUserId();
-        const { error } = await supabase
-            .from('letter_agreements')
-            .delete()
-            .eq('id', id)
-            .eq('user_id', userId);
+    const userId = await getCurrentUserId();
+    if (!userId) return false;
 
-        if (error) {
-            console.error('Error deleting letter agreement:', error);
-            return false;
-        }
+    if (supabase) {
+        const { error } = await supabase.from('letter_agreements').delete().eq('id', id).eq('user_id', userId);
+        if (error) return false;
     }
 
-    const current = JSON.parse(localStorage.getItem(LETTER_AGREEMENTS_KEY) || '[]') as LetterAgreement[];
-    localStorage.setItem(LETTER_AGREEMENTS_KEY, JSON.stringify(current.filter(l => l.id !== id)));
+    await db.letterAgreements.delete(id);
     return true;
 };
