@@ -1,6 +1,18 @@
 import React from 'react';
 import ReactDOM from 'react-dom/client';
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import App from './App';
+
+const queryClient = new QueryClient({
+  defaultOptions: {
+    queries: {
+      staleTime: 1000 * 60 * 5, // 5 minutes
+      gcTime: 1000 * 60 * 30,    // 30 minutes
+      retry: 2,
+      refetchOnWindowFocus: false,
+    },
+  },
+});
 
 const rootElement = document.getElementById('root');
 if (!rootElement) {
@@ -14,14 +26,12 @@ if ('serviceWorker' in navigator) {
       .then((registration) => {
         console.log('SW registered: ', registration);
 
-        // Cek update secara manual, tapi JANGAN reload otomatis
         registration.addEventListener('updatefound', () => {
           const newWorker = registration.installing;
           if (newWorker) {
             newWorker.addEventListener('statechange', () => {
               if (newWorker.state === 'activated') {
                 console.log('SW: New version available, will apply on next visit.');
-                // TIDAK memanggil window.location.reload() agar tidak refresh sendiri
               }
             });
           }
@@ -32,15 +42,12 @@ if ('serviceWorker' in navigator) {
       });
   });
 
-  // GUARD: Cegah reload otomatis saat controller berubah
-  // Ini yang menyebabkan halaman refresh saat pindah tab
   let isFirstController = true;
   navigator.serviceWorker.addEventListener('controllerchange', () => {
     if (isFirstController) {
       isFirstController = false;
-      return; // Skip reload pertama kali (saat halaman baru dibuka)
+      return;
     }
-    // JANGAN reload — biarkan user tetap di halaman yang sama
     console.log('SW: Controller changed, NOT reloading page.');
   });
 }
@@ -48,6 +55,8 @@ if ('serviceWorker' in navigator) {
 const root = ReactDOM.createRoot(rootElement);
 root.render(
   <React.StrictMode>
-    <App />
+    <QueryClientProvider client={queryClient}>
+      <App />
+    </QueryClientProvider>
   </React.StrictMode>
 );
