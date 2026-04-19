@@ -176,10 +176,10 @@ const Dashboard: React.FC<DashboardProps> = ({ data, profile }) => {
       animate="show"
       className="space-y-6 pb-10"
     >
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 auto-rows-auto">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 md:gap-6 auto-rows-auto">
         
         {/* 1. Welcome Card (Full Width) */}
-        <motion.div variants={itemVariants} className="lg:col-span-4 relative overflow-hidden bg-gradient-to-br from-indigo-600 via-purple-600 to-indigo-800 rounded-[2.5rem] p-8 md:p-12 text-white shadow-2xl shadow-indigo-500/30 border border-white/20 group">
+        <motion.div variants={itemVariants} className="md:col-span-2 lg:col-span-4 relative overflow-hidden bg-gradient-to-br from-indigo-600 via-purple-600 to-indigo-800 rounded-[2rem] md:rounded-[2.5rem] p-6 md:p-12 text-white shadow-2xl shadow-indigo-500/30 border border-white/20 group">
            <div className="absolute top-0 right-0 -mt-20 -mr-20 w-80 h-80 bg-white opacity-[0.05] rounded-full blur-[80px] group-hover:opacity-[0.1] transition-opacity duration-700"></div>
            <div className="absolute -bottom-10 -left-10 w-44 h-44 bg-blue-400 opacity-[0.15] rounded-full blur-[60px] animate-blob"></div>
            
@@ -191,10 +191,10 @@ const Dashboard: React.FC<DashboardProps> = ({ data, profile }) => {
                     </div>
                     <span className="px-4 py-1.5 bg-indigo-500/30 backdrop-blur-md rounded-full text-xs font-bold tracking-[0.2em] uppercase border border-indigo-400/30 shadow-sm">Sistem Terintegrasi</span>
                  </div>
-                 <h1 className="text-4xl md:text-5xl font-black mb-4 tracking-tight leading-tight drop-shadow-sm">
+                 <h1 className="text-3xl sm:text-4xl md:text-5xl font-black mb-4 tracking-tight leading-tight drop-shadow-sm">
                     Ringkasan <br/> <span className="text-indigo-200">Keuangan Sekolah</span>
                  </h1>
-                 <p className="text-indigo-100 font-medium text-lg leading-relaxed max-w-lg drop-shadow-sm">
+                 <p className="text-indigo-100 font-medium text-base md:text-lg leading-relaxed max-w-lg drop-shadow-sm">
                     Manajemen anggaran <b className="text-white">{profile?.name || 'sekolah'}</b> yang efisien. Pantau realisasi dana BOSP dan kepatuhan SPJ dalam satu tampilan cerdas.
                  </p>
               </div>
@@ -223,7 +223,7 @@ const Dashboard: React.FC<DashboardProps> = ({ data, profile }) => {
         {/* 2. Key Stats (4 Cards) */}
         
         {/* Income */}
-        <motion.div variants={itemVariants} whileHover={{ y: -5 }} className="lg:col-span-1 glass-panel rounded-[2rem] p-7 shadow-lg shadow-slate-200/50 hover:shadow-xl hover:shadow-emerald-500/10 transition-all duration-300 group">
+        <motion.div variants={itemVariants} whileHover={{ y: -5 }} className="glass-panel rounded-[2rem] p-6 md:p-7 shadow-lg shadow-slate-200/50 hover:shadow-xl hover:shadow-emerald-500/10 transition-all duration-300 group">
            <div className="flex justify-between items-center mb-6">
               <div className="p-4 bg-emerald-100/80 rounded-2xl text-emerald-600 group-hover:bg-emerald-500 group-hover:text-white transition-all duration-500 group-hover:rotate-12 shadow-inner">
                  <ArrowDownRight size={26} strokeWidth={2.5} />
@@ -233,13 +233,13 @@ const Dashboard: React.FC<DashboardProps> = ({ data, profile }) => {
               </div>
            </div>
            <div>
-              <p className="text-sm text-slate-500 font-bold tracking-wider uppercase mb-1">Total Pendapatan</p>
-              <h3 className="text-3xl font-black text-slate-800 tracking-tight">{formatRupiah(stats.income)}</h3>
+              <p className="text-xs md:text-sm text-slate-500 font-bold tracking-wider uppercase mb-1">Total Pendapatan</p>
+              <h3 className="text-2xl sm:text-3xl font-black text-slate-800 tracking-tight">{formatRupiah(stats.income)}</h3>
            </div>
         </motion.div>
 
         {/* Realization */}
-        <motion.div variants={itemVariants} whileHover={{ y: -5 }} className="lg:col-span-1 glass-panel rounded-[2rem] p-7 shadow-lg shadow-slate-200/50 hover:shadow-xl hover:shadow-indigo-500/10 transition-all duration-300 group">
+        <motion.div variants={itemVariants} whileHover={{ y: -5 }} className="glass-panel rounded-[2rem] p-6 md:p-7 shadow-lg shadow-slate-200/50 hover:shadow-xl hover:shadow-indigo-500/10 transition-all duration-300 group">
            <div className="flex justify-between items-center mb-6">
               <div className="p-4 bg-indigo-100/80 rounded-2xl text-indigo-600 group-hover:bg-indigo-500 group-hover:text-white transition-all duration-500 shadow-inner group-hover:-rotate-12">
                  <ArrowUpRight size={26} strokeWidth={2.5} />
@@ -251,8 +251,8 @@ const Dashboard: React.FC<DashboardProps> = ({ data, profile }) => {
               </div>
            </div>
            <div>
-              <p className="text-sm text-slate-500 font-bold tracking-wider uppercase mb-1">Realisasi (SPJ)</p>
-              <h3 className="text-3xl font-black text-slate-800 tracking-tight">{formatRupiah(stats.realizedExpense)}</h3>
+              <p className="text-xs md:text-sm text-slate-500 font-bold tracking-wider uppercase mb-1">Realisasi (SPJ)</p>
+              <h3 className="text-2xl sm:text-3xl font-black text-slate-800 tracking-tight">{formatRupiah(stats.realizedExpense)}</h3>
               <div className="w-full bg-slate-200/50 rounded-full h-2.5 mt-5 overflow-hidden p-[2px] shadow-inner border border-slate-200/50">
                  <motion.div 
                     initial={{ width: 0 }}
@@ -265,58 +265,58 @@ const Dashboard: React.FC<DashboardProps> = ({ data, profile }) => {
         </motion.div>
 
         {/* Cash Balance */}
-        <motion.div variants={itemVariants} whileHover={{ y: -5 }} className="lg:col-span-1 glass-panel rounded-[2rem] p-7 shadow-lg shadow-slate-200/50 hover:shadow-xl hover:shadow-blue-500/10 transition-all duration-300 group">
+        <motion.div variants={itemVariants} whileHover={{ y: -5 }} className="glass-panel rounded-[2rem] p-6 md:p-7 shadow-lg shadow-slate-200/50 hover:shadow-xl hover:shadow-blue-500/10 transition-all duration-300 group">
            <div className="flex justify-between items-center mb-6">
               <div className="p-4 bg-blue-100/80 rounded-2xl text-blue-600 group-hover:bg-blue-500 group-hover:text-white transition-all duration-500 shadow-inner group-hover:scale-110">
                  <Wallet size={26} strokeWidth={2.5} />
               </div>
            </div>
            <div>
-              <p className="text-sm text-slate-500 font-bold tracking-wider uppercase mb-1">Saldo Kas Tersedia</p>
-              <h3 className="text-3xl font-black text-slate-800 tracking-tight">{formatRupiah(stats.cashBalance)}</h3>
-              <p className="text-xs text-blue-500 mt-2 uppercase tracking-[0.15em] font-black">Dana Siap Belanja</p>
+              <p className="text-xs md:text-sm text-slate-500 font-bold tracking-wider uppercase mb-1">Saldo Kas Tersedia</p>
+              <h3 className="text-2xl sm:text-3xl font-black text-slate-800 tracking-tight">{formatRupiah(stats.cashBalance)}</h3>
+              <p className="text-[10px] text-blue-500 mt-2 uppercase tracking-[0.15em] font-black">Dana Siap Belanja</p>
            </div>
         </motion.div>
 
         {/* Target/Remaining */}
-        <motion.div variants={itemVariants} whileHover={{ y: -5 }} className="lg:col-span-1 glass-panel rounded-[2rem] p-7 shadow-lg shadow-slate-200/50 hover:shadow-xl hover:shadow-orange-500/10 transition-all duration-300 group">
+        <motion.div variants={itemVariants} whileHover={{ y: -5 }} className="glass-panel rounded-[2rem] p-6 md:p-7 shadow-lg shadow-slate-200/50 hover:shadow-xl hover:shadow-orange-500/10 transition-all duration-300 group">
            <div className="flex justify-between items-center mb-6">
               <div className="p-4 bg-orange-100/80 rounded-2xl text-orange-600 group-hover:bg-orange-500 group-hover:text-white transition-all duration-500 shadow-inner group-hover:scale-110">
                  <Target size={26} strokeWidth={2.5} />
               </div>
            </div>
            <div>
-              <p className="text-sm text-slate-500 font-bold tracking-wider uppercase mb-1">Sisa Pagu Anggaran</p>
-              <h3 className="text-3xl font-black text-slate-800 tracking-tight">{formatRupiah(stats.plannedExpense - stats.realizedExpense)}</h3>
-              <p className="text-xs text-orange-500 mt-2 uppercase tracking-[0.15em] font-black">Belum Direalisasikan</p>
+              <p className="text-xs md:text-sm text-slate-500 font-bold tracking-wider uppercase mb-1">Sisa Pagu Anggaran</p>
+              <h3 className="text-2xl sm:text-3xl font-black text-slate-800 tracking-tight">{formatRupiah(stats.plannedExpense - stats.realizedExpense)}</h3>
+              <p className="text-[10px] text-orange-500 mt-2 uppercase tracking-[0.15em] font-black">Belum Direalisasikan</p>
            </div>
         </motion.div>
 
         {/* 3. Main Trends Chart (Large Span) */}
-        <motion.div variants={itemVariants} className="lg:col-span-3 glass-panel rounded-[2.5rem] p-8 md:p-10 shadow-xl shadow-slate-200/40 relative overflow-hidden group">
+        <motion.div variants={itemVariants} className="md:col-span-2 lg:col-span-3 glass-panel rounded-[2rem] md:rounded-[2.5rem] p-5 md:p-10 shadow-xl shadow-slate-200/40 relative overflow-hidden group">
            <div className="absolute top-0 right-0 w-64 h-64 bg-indigo-50/50 rounded-full blur-3xl -mr-20 -mt-20 opacity-50 group-hover:opacity-100 transition-opacity"></div>
            
            <div className="flex flex-col md:flex-row items-start md:items-center justify-between mb-10 gap-4 relative z-10">
               <div>
-                 <h4 className="text-2xl font-black text-slate-800 flex items-center gap-3 tracking-tight">
-                    <Activity className="text-indigo-500 drop-shadow-sm" size={28} />
+                 <h4 className="text-xl md:text-2xl font-black text-slate-800 flex items-center gap-3 tracking-tight">
+                    <Activity className="text-indigo-500 drop-shadow-sm" size={24} />
                     Arus Kas Bulanan
                  </h4>
-                 <p className="text-sm font-semibold text-slate-400 mt-1.5 uppercase tracking-widest">Perbandingan Real-time</p>
+                 <p className="text-[10px] md:text-sm font-semibold text-slate-400 mt-1.5 uppercase tracking-[0.1em] md:tracking-widest">Perbandingan Real-time</p>
               </div>
-              <div className="flex items-center gap-4 bg-slate-100/80 p-2.5 rounded-[1.5rem] border border-slate-200/50 shadow-inner backdrop-blur-md">
-                 <div className="flex items-center gap-2.5 px-4 py-2 rounded-[1rem] bg-white shadow-sm border border-slate-100">
-                    <span className="w-3 h-3 rounded-full bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.5)]"></span> 
-                    <span className="text-xs font-black text-slate-700 uppercase tracking-widest">Pendapatan</span>
+              <div className="flex items-center gap-2 md:gap-4 bg-slate-100/80 p-2 rounded-[1.2rem] md:rounded-[1.5rem] border border-slate-200/50 shadow-inner backdrop-blur-md">
+                 <div className="flex items-center gap-1.5 md:gap-2.5 px-3 md:px-4 py-1.5 md:py-2 rounded-[0.8rem] md:rounded-[1rem] bg-white shadow-sm border border-slate-100">
+                    <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.5)]"></span> 
+                    <span className="text-[9px] md:text-xs font-black text-slate-700 uppercase tracking-widest">Masuk</span>
                  </div>
-                 <div className="flex items-center gap-2.5 px-4 py-2 rounded-[1rem] bg-white shadow-sm border border-slate-100">
-                    <span className="w-3 h-3 rounded-full bg-indigo-500 shadow-[0_0_8px_rgba(99,102,241,0.5)]"></span> 
-                    <span className="text-xs font-black text-slate-700 uppercase tracking-widest">Belanja</span>
+                 <div className="flex items-center gap-1.5 md:gap-2.5 px-3 md:px-4 py-1.5 md:py-2 rounded-[0.8rem] md:rounded-[1rem] bg-white shadow-sm border border-slate-100">
+                    <span className="w-2.5 h-2.5 rounded-full bg-indigo-500 shadow-[0_0_8px_rgba(99,102,241,0.5)]"></span> 
+                    <span className="text-[9px] md:text-xs font-black text-slate-700 uppercase tracking-widest">Keluar</span>
                  </div>
               </div>
            </div>
            
-           <div className="h-[380px] w-full relative z-10">
+           <div className="h-[300px] md:h-[380px] w-full relative z-10">
              <ResponsiveContainer width="100%" height="100%">
                <AreaChart data={monthlyTrend} margin={{ top: 10, right: 10, left: 0, bottom: 0 }}>
                  <defs>
@@ -347,7 +347,7 @@ const Dashboard: React.FC<DashboardProps> = ({ data, profile }) => {
         </motion.div>
 
         {/* 4. Pie Chart (Small Span) */}
-        <motion.div variants={itemVariants} className="lg:col-span-1 glass-panel rounded-[2.5rem] p-8 shadow-xl shadow-slate-200/40 flex flex-col relative overflow-hidden group">
+        <motion.div variants={itemVariants} className="md:col-span-2 lg:col-span-1 glass-panel rounded-[2rem] md:rounded-[2.5rem] p-6 md:p-8 shadow-xl shadow-slate-200/40 flex flex-col relative overflow-hidden group">
            <div className="absolute bottom-0 right-0 w-40 h-40 bg-purple-50/50 rounded-full blur-3xl -mr-10 -mb-10 opacity-50 group-hover:opacity-100 transition-opacity"></div>
            
            <div className="mb-6 relative z-10">
@@ -358,7 +358,7 @@ const Dashboard: React.FC<DashboardProps> = ({ data, profile }) => {
               <p className="text-xs text-slate-400 mt-1.5 uppercase tracking-[0.2em] font-black">Realisasi BOSP</p>
            </div>
            
-           <div className="flex-1 min-h-[250px] relative z-10">
+           <div className="flex-1 min-h-[220px] md:min-h-[250px] relative z-10">
              {expenseByComponent.length > 0 ? (
                  <ResponsiveContainer width="100%" height="100%">
                  <PieChart>
@@ -391,8 +391,8 @@ const Dashboard: React.FC<DashboardProps> = ({ data, profile }) => {
              
              {expenseByComponent.length > 0 && (
                  <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none pb-2">
-                     <span className="text-5xl font-black text-slate-800 tracking-tighter">{expenseByComponent.length}</span>
-                     <span className="text-[10px] text-slate-400 font-black uppercase tracking-[0.2em]">Sektor</span>
+                 <span className="text-4xl md:text-5xl font-black text-slate-800 tracking-tighter">{expenseByComponent.length}</span>
+                 <span className="text-[9px] md:text-[10px] text-slate-400 font-black uppercase tracking-[0.2em]">Sektor</span>
                  </div>
              )}
            </div>
@@ -415,7 +415,7 @@ const Dashboard: React.FC<DashboardProps> = ({ data, profile }) => {
         </motion.div>
 
         {/* 5. Larangan Section (Full Width Modern Alert) */}
-        <motion.div variants={itemVariants} className="lg:col-span-4 bg-gradient-to-br from-rose-50/80 to-red-50/80 backdrop-blur-xl rounded-[2.5rem] p-8 md:p-12 border border-rose-200/50 shadow-xl shadow-rose-500/10 overflow-hidden relative group">
+        <motion.div variants={itemVariants} className="md:col-span-2 lg:col-span-4 bg-gradient-to-br from-rose-50/80 to-red-50/80 backdrop-blur-xl rounded-[2rem] md:rounded-[2.5rem] p-6 md:p-12 border border-rose-200/50 shadow-xl shadow-rose-500/10 overflow-hidden relative group">
            <div className="absolute top-0 right-0 w-80 h-80 bg-rose-300/20 blur-[100px] -mr-32 -mt-32 rounded-full pointer-events-none transition-all duration-700 group-hover:bg-rose-300/30"></div>
            
            <div className="flex flex-col md:flex-row items-start md:items-center gap-6 mb-10 pb-8 border-b border-rose-200/50 relative z-10">
