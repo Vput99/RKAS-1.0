@@ -59,3 +59,17 @@ Kumpulkan semua file `.sql` ke dalam satu folder khusus (misal: `supabase/migrat
 
 ### 6. Optimasi Kueri PostgreSQL (Supabase)
 Pastikan file `remediate_postgres_performance.sql` dijalankan di production. Penggunaan `(select auth.uid())` daripada `auth.uid()` secara langsung dalam Policy RLS sangat disarankan untuk mengurangi beban pemrosesan *Sequential Scan* oleh PostgreSQL setiap kali kueri dieksekusi.
+
+## 4. Laporan Perbaikan & Penambahan Fitur (Scan & Fix)
+
+Berdasarkan permintaan pengguna untuk melakukan *scan ulang*, memperbaiki *trouble*, dan menambahkan fitur menarik, berikut adalah perbaikan dan penambahan yang telah dilakukan:
+
+### A. Perbaikan (*Fixes & Optimizations*)
+1. **Pembersihan Kode**: Menemukan dan menghapus *unused import* (`Archive`) di `components/withdrawal/HistoryTab.tsx` yang menyebabkan pesan peringatan pada saat *linting*.
+2. **Optimasi Build Vite**: Proses *build* sebelumnya menghasilkan *warning* terkait `chunk size limit` yang melebihi 500kB. Kami telah memperbaiki `vite.config.ts` dengan mengimplementasikan strategi pemecahan chunk secara manual (`manualChunks`) untuk `vendor` (React), `charts` (Recharts), `pdf` (jsPDF, html2canvas), dan `utils` (framer-motion, xlsx). Hal ini secara signifikan merapikan *bundling* aplikasi, mempercepat pemuatan awal (Initial Load), dan menghilangkan *warning* dari *compiler*.
+
+### B. Fitur Baru (*Sesuatu yang Menarik*)
+1. **AI Financial Insight pada Dashboard**: Kami menambahkan widget cerdas berbentuk *banner* di halaman Dashboard utama (`components/Dashboard.tsx`).
+   - Fitur ini menganalisis secara *real-time* data anggaran, sisa kas, dan persentase serapan (SPJ).
+   - Ia memberikan kalimat naratif layaknya asisten finansial. Contohnya: jika kas menipis namun serapan masih rendah, sistem akan mengeluarkan pesan peringatan khusus.
+   - Menggunakan *icon* Sparkles dari `lucide-react` dan styling UI/UX gradasi *teal/emerald* yang modern agar terlihat kontras dan menarik perhatian pengguna (Kepala Sekolah/Bendahara).
