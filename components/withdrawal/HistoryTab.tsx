@@ -1,4 +1,4 @@
-import { Archive, FileText, RefreshCcw, Trash2 } from 'lucide-react';
+import { FileText, RefreshCcw, Trash2 } from 'lucide-react';
 import { formatRupiah } from './WithdrawalUtils';
 
 interface HistoryTabProps {
