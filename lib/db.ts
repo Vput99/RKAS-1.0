@@ -960,6 +960,55 @@ export const saveInventoryItem = async (item: InventoryItemDB): Promise<Inventor
     return item;
 };
 
+export const bulkSaveInventoryItems = async (items: InventoryItemDB[]): Promise<void> => {
+    if (supabase) {
+        const userId = await getCurrentUserId();
+        const rows = items.map(item => ({
+            id: item.id,
+            user_id: userId,
+            name: item.name,
+            spec: item.spec,
+            quantity: item.quantity,
+            unit: item.unit,
+            price: item.price,
+            total: item.total,
+            sub_activity_code: item.sub_activity_code,
+            sub_activity_name: item.sub_activity_name,
+            account_code: item.account_code,
+            date: item.date || null,
+            contract_type: item.contract_type,
+            vendor: item.vendor,
+            doc_number: item.doc_number,
+            category: item.category,
+            codification: item.codification,
+            used_quantity: item.used_quantity || 0,
+            last_year_balance: item.last_year_balance || 0
+        }));
+
+        // Chunking
+        for (let i = 0; i < rows.length; i += 50) {
+            const chunk = rows.slice(i, i + 50);
+            const { error } = await supabase.from('inventory_items').upsert(chunk, { onConflict: 'id' });
+            if (error) {
+                console.error('Error in bulk save chunk:', error);
+                // Fallback: Delete then insert for this chunk
+                const ids = chunk.map(c => c.id);
+                await supabase.from('inventory_items').delete().in('id', ids).eq('user_id', userId);
+                const { error: insertError } = await supabase.from('inventory_items').insert(chunk);
+                if (insertError) {
+                    throw new Error(`Gagal menyimpan batch inventaris: ${insertError.message}`);
+                }
+            }
+        }
+    }
+
+    const current = await getInventoryItems();
+    const newIds = new Set(items.map(item => item.id));
+    const filteredCurrent = current.filter(item => !newIds.has(item.id));
+    const updated = [...items, ...filteredCurrent];
+    localStorage.setItem(INVENTORY_ITEMS_KEY, JSON.stringify(updated));
+};
+
 export const deleteInventoryItem = async (id: string): Promise<boolean> => {
     if (supabase) {
         const userId = await getCurrentUserId();

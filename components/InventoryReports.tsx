@@ -6,7 +6,7 @@ import { Budget } from '../types';
 import { analyzeInventoryItems, InventoryItem } from '../lib/gemini';
 import { generatePDFHeader, generateSignatures, formatCurrency, defaultTableStyles } from '../lib/pdfUtils';
 import { 
-  getInventoryItems, saveInventoryItem, deleteInventoryItem, 
+  getInventoryItems, saveInventoryItem, bulkSaveInventoryItems, deleteInventoryItem,
   getWithdrawalTransactions, saveWithdrawalTransaction, deleteWithdrawalTransaction, 
   getInventoryOverrides, saveInventoryOverride, getMutationOverrides, saveMutationOverride, 
   migrateLocalStorageToSupabase, getSubKegiatanDB, saveSubKegiatanItem, 
@@ -237,14 +237,14 @@ const InventoryReports: React.FC<InventoryReportsProps> = ({ budgets, schoolProf
       saveManualItems([...resultsToSave, ...manualInventoryItems]);
       setInventoryItems([]);
 
-      for (const item of resultsToSave) {
-        await saveInventoryItem({
-          id: item.id, name: item.name, spec: item.spec, quantity: item.quantity, unit: item.unit, price: item.price, total: item.total,
-          sub_activity_code: item.subActivityCode, sub_activity_name: item.subActivityName, account_code: item.accountCode,
-          date: item.date, contract_type: item.contractType, vendor: item.vendor, doc_number: item.docNumber,
-          category: item.category, codification: item.codification, used_quantity: item.usedQuantity, last_year_balance: item.lastYearBalance
-        });
-      }
+      const itemsToSaveDB = resultsToSave.map(item => ({
+        id: item.id, name: item.name, spec: item.spec, quantity: item.quantity, unit: item.unit, price: item.price, total: item.total,
+        sub_activity_code: item.subActivityCode, sub_activity_name: item.subActivityName, account_code: item.accountCode,
+        date: item.date, contract_type: item.contractType, vendor: item.vendor, doc_number: item.docNumber,
+        category: item.category, codification: item.codification, used_quantity: item.usedQuantity, last_year_balance: item.lastYearBalance
+      }));
+
+      await bulkSaveInventoryItems(itemsToSaveDB);
       setSaveStatus('success'); alert('Berhasil menyimpan semua hasil analisa ke database!');
     } catch (e) { setSaveStatus('error'); alert('Gagal menyimpan beberapa item.'); } finally {
       setIsSaving(false); setTimeout(() => setSaveStatus('idle'), 2000);
