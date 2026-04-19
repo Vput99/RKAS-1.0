@@ -2,7 +2,7 @@ import React, { useMemo } from 'react';
 import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip as RechartsTooltip, XAxis, YAxis, CartesianGrid, AreaChart, Area } from 'recharts';
 import { motion, Variants } from 'framer-motion';
 import { Budget, TransactionType, SchoolProfile } from '../types';
-import { ArrowUpRight, ArrowDownRight, Wallet, Target, PieChart as PieChartIcon, Activity, AlertTriangle, XCircle, FileText } from 'lucide-react';
+import { ArrowUpRight, ArrowDownRight, Wallet, Target, PieChart as PieChartIcon, Activity, AlertTriangle, XCircle, FileText, Sparkles } from 'lucide-react';
 import { generatePDFHeader, generateSignatures, formatCurrency, defaultTableStyles } from '../lib/pdfUtils';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
@@ -145,6 +145,21 @@ const Dashboard: React.FC<DashboardProps> = ({ data, profile }) => {
     return new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', maximumFractionDigits: 0 }).format(num);
   };
 
+  // AI-like Insights based on data
+  const aiInsight = useMemo(() => {
+    if (stats.plannedExpense === 0) return "Belum ada Rencana Anggaran (RKAS) yang diinput. Silakan buat perencanaan terlebih dahulu.";
+
+    if (stats.absorptionRate < 25) {
+      return `Serapan anggaran masih sangat rendah (${stats.absorptionRate.toFixed(1)}%). Segera lakukan realisasi program sesuai dengan RKAS untuk menghindari penumpukan di akhir tahun.`;
+    } else if (stats.absorptionRate > 80 && stats.cashBalance > 0) {
+      return `Bagus! Serapan anggaran sudah mencapai ${stats.absorptionRate.toFixed(1)}%. Pastikan sisa saldo ${formatRupiah(stats.cashBalance)} difokuskan untuk kebutuhan esensial dan pelaporan SPJ diselesaikan tepat waktu.`;
+    } else if (stats.cashBalance <= 0 && stats.plannedExpense > 0) {
+      return "Peringatan: Saldo Kas Kosong atau Minus. Periksa kembali entri penerimaan dan pengeluaran Anda. Pastikan dana cair sebelum melakukan realisasi.";
+    }
+
+    return `Kondisi keuangan stabil. Serapan saat ini ${stats.absorptionRate.toFixed(1)}% dengan sisa pagu ${formatRupiah(stats.plannedExpense - stats.realizedExpense)}. Lanjutkan eksekusi program sesuai timeline BOSP.`;
+  }, [stats]);
+
   const CustomTooltip = ({ active, payload, label }: any) => {
     if (active && payload && payload.length) {
       return (
@@ -217,6 +232,17 @@ const Dashboard: React.FC<DashboardProps> = ({ data, profile }) => {
                     <span className="text-[10px] font-bold text-indigo-100 uppercase tracking-widest">Sistem Online Tersinkron</span>
                  </div>
               </div>
+           </div>
+        </motion.div>
+
+        {/* New AI Insight Banner */}
+        <motion.div variants={itemVariants} className="lg:col-span-4 bg-gradient-to-r from-teal-50 to-emerald-50 rounded-[2rem] p-6 border border-teal-100 shadow-lg shadow-teal-500/5 flex items-start gap-5">
+           <div className="p-3 bg-white rounded-2xl shadow-sm border border-teal-50 text-teal-600 flex-shrink-0">
+              <Sparkles size={24} />
+           </div>
+           <div>
+              <h4 className="text-sm font-bold text-teal-800 uppercase tracking-widest mb-1">AI Financial Insight</h4>
+              <p className="text-teal-900 font-medium leading-relaxed">{aiInsight}</p>
            </div>
         </motion.div>
 
