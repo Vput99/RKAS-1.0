@@ -53,12 +53,24 @@ export const extractDataFromExcel = async (file: File): Promise<any[][]> => {
 export const parseRaporData = (textOrGrid: string | any[][], indicators: RaporIndicator[]): Partial<RaporIndicator>[] => {
     const resultsMap = new Map<string, number>();
     
+    // Keywords to help match indicators when the full label isn't present
+    const keywordMap: Record<string, string[]> = {
+        'A.1': ['literasi'],
+        'A.2': ['numerasi'],
+        'A.3': ['karakter'],
+        'D.1': ['kualitas pembelajaran', 'pembelajaran'],
+        'D.4': ['keamanan'],
+        'D.8': ['kebinekaan']
+    };
+
     if (typeof textOrGrid === 'string') {
         const textLower = textOrGrid.toLowerCase();
         indicators.forEach(ind => {
             const id = ind.id.toLowerCase();
             const label = ind.label.toLowerCase();
-            if (textLower.includes(label) || textLower.includes(id)) {
+            const keywords = keywordMap[ind.id] || [];
+            
+            if (textLower.includes(label) || textLower.includes(id) || keywords.some(k => textLower.includes(k))) {
                 resultsMap.set(ind.id, 0); 
             }
         });
@@ -74,19 +86,38 @@ export const parseRaporData = (textOrGrid: string | any[][], indicators: RaporIn
                 indicators.forEach(ind => {
                     const id = ind.id.toLowerCase();
                     const label = ind.label.toLowerCase();
+                    const keywords = keywordMap[ind.id] || [];
                     
+                    // Match logic:
+                    // 1. Exact ID or ID starting the cell (A.1, A.1. etc)
                     const isIdMatch = cellStr === id || cellStr.startsWith(id + '.') || cellStr.startsWith(id + ' ');
-                    const isLabelMatch = cellStr.includes(label);
+                    
+                    // 2. Full label is contained in cell or cell contains a primary keyword
+                    const isLabelMatch = cellStr.includes(label) || (cellStr.length > 3 && keywords.some(k => cellStr.includes(k)));
 
                     if (isIdMatch || isLabelMatch) {
+                        // We found an indicator row! Now look for the score.
                         for (let i = 0; i < row.length; i++) {
+                            // Skip the cell that matched the label/ID itself
                             if (i === cellIdx) continue;
+                            
                             const val = row[i];
                             if (val === null || val === undefined || val === '') continue;
-                            const score = typeof val === 'number' ? val : parseFloat(String(val).replace(',', '.'));
+
+                            // Clean the value: remove percentages, spaces, and handle comma-as-decimal
+                            const cleanVal = String(val).replace('%', '').replace(/\s/g, '').replace(',', '.');
+                            const score = parseFloat(cleanVal);
                             
                             if (!isNaN(score) && score !== 0) {
+                                // Rule: If the number is in the first column (i=0) and it's an integer < 1000, 
+                                // it's likely a row number or "No.", not the score. Skip it.
+                                if (i === 0 && Number.isInteger(score) && score < 1000) continue;
+                                
+                                // Rapor Pendidikan scores are usually 0-100 or 1-4.
+                                // We'll take the first plausible number we find that isn't a row number.
                                 const current = resultsMap.get(ind.id) || 0;
+                                
+                                // If the score found is 0-100, it's almost certainly the percentage score we want
                                 if (score > current || current === 0) {
                                     resultsMap.set(ind.id, score);
                                 }
