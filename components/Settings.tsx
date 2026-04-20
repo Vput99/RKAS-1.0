@@ -213,22 +213,41 @@ const Settings: React.FC<SettingsProps> = () => {
           </div>
           {isConnected ? <Wifi className="text-emerald-500" size={20} /> : <WifiOff className="text-orange-500" size={20} />}
         </div>
-        <div className="bg-white/60 backdrop-blur-md rounded-3xl shadow-lg border border-white p-5 flex flex-col gap-2">
+        <div className="bg-white/60 backdrop-blur-md rounded-3xl shadow-lg border border-white p-5 flex flex-col gap-3">
           <div className="flex items-center gap-3">
              <div className="bg-indigo-100 p-2 rounded-xl text-indigo-600"><BrainCircuit size={20} /></div>
-             <p className="text-[10px] text-slate-400 font-black uppercase tracking-widest">AI API Key (Gemini)</p>
+             <p className="text-[10px] text-slate-400 font-black uppercase tracking-widest">AI Performance & Model</p>
           </div>
-          <input 
-            type="password" 
-            placeholder="Masukkan API Key..." 
-            defaultValue={localStorage.getItem('GEMINI_API_KEY') || ''}
-            onChange={(e) => {
-              localStorage.setItem('GEMINI_API_KEY', e.target.value);
-              setSaved(true);
-              setTimeout(() => setSaved(false), 2000);
-            }}
-            className="w-full px-3 py-1.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-mono focus:ring-2 focus:ring-indigo-500 outline-none" 
-          />
+          <div className="space-y-2">
+            <label className="block text-[10px] font-bold text-slate-500 uppercase ml-1">AI API Key (Gemini)</label>
+            <input 
+              type="password" 
+              placeholder="Masukkan API Key..." 
+              defaultValue={localStorage.getItem('GEMINI_API_KEY') || ''}
+              onChange={(e) => {
+                localStorage.setItem('GEMINI_API_KEY', e.target.value);
+                setSaved(true);
+                setTimeout(() => setSaved(false), 2000);
+              }}
+              className="w-full px-3 py-1.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-mono focus:ring-2 focus:ring-indigo-500 outline-none" 
+            />
+            
+            <label className="block text-[10px] font-bold text-slate-500 uppercase ml-1 mt-2">Model Selection</label>
+            <select 
+              defaultValue={localStorage.getItem('GEMINI_MODEL') || 'gemini-2.0-flash'}
+              onChange={(e) => {
+                localStorage.setItem('GEMINI_MODEL', e.target.value);
+                setSaved(true);
+                setTimeout(() => setSaved(false), 2000);
+              }}
+              className="w-full px-3 py-1.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-bold text-slate-700 focus:ring-2 focus:ring-indigo-500 outline-none appearance-none cursor-pointer"
+            >
+              <option value="gemini-1.5-flash-latest">Gemini 1.5 Flash (Legacy)</option>
+              <option value="gemini-2.0-flash">Gemini 2.0 Flash (Stable)</option>
+              <option value="gemini-3-flash-preview">Gemini 3 Flash (Preview)</option>
+            </select>
+            <p className="text-[9px] text-slate-400 font-medium px-1 italic">*Gunakan Gemini 3 Flash untuk analisis PDF yang lebih akurat.</p>
+          </div>
         </div>
       </div>
 

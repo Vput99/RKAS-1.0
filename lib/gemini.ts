@@ -60,6 +60,11 @@ const getAiInstance = () => {
 // Export status check for UI
 export const isAiConfigured = () => !!getActiveApiKey();
 
+// Internal helper to get target model
+const getAiModel = () => {
+  return localStorage.getItem('GEMINI_MODEL') || 'gemini-2.0-flash';
+};
+
 // Helper to robustly parse JSON from AI response
 const parseAIResponse = (text: string | undefined) => {
   if (!text) return null;
@@ -223,7 +228,7 @@ export const analyzeBudgetEntry = async (description: string, availableAccounts:
 
     // Use stable Gemini model for budget analysis
     const response = await ai.models.generateContent({
-      model: 'gemini-1.5-flash',
+      model: getAiModel(),
       contents: [{ parts: [{ text: description }] }],
       config: {
         systemInstruction: `Anda adalah Auditor Senior BOSP & Ahli Implementasi ARKAS (Indonesia).
@@ -281,7 +286,7 @@ ${relevantAccountsList}
 
 REWRITE: Tulis ulang "suggestion" menjadi nama kegiatan formal seperti di ARKAS.`,
         responseMimeType: "application/json",
-        responseJsonSchema: {
+        responseSchema: {
           type: Type.OBJECT,
           properties: {
             bosp_component: { type: Type.STRING },
@@ -339,7 +344,7 @@ export const suggestEvidenceList = async (description: string, accountCode: stri
 
   try {
     const response = await ai.models.generateContent({
-      model: 'gemini-1.5-flash',
+      model: getAiModel(),
       contents: [{
         parts: [{
           text: `Tugas: Berikan daftar bukti fisik SPJ BOSP 2026 yang lengkap dan baku.
@@ -427,7 +432,7 @@ export const chatWithFinancialAdvisor = async (query: string, context: string, a
     }
 
     const response = await ai.models.generateContent({
-      model: 'gemini-1.5-flash',
+      model: getAiModel(),
       contents: [{ parts: [{ text: query }] }]
     });
     return response.text;
@@ -508,7 +513,7 @@ export const analyzeRaporQuality = async (indicators: RaporIndicator[], targetYe
 
   try {
     const response = await ai.models.generateContent({
-      model: 'gemini-1.5-flash',
+      model: getAiModel(),
       contents: [{ parts: [{ text: prompt }] }],
       config: {
         responseMimeType: "application/json",
@@ -525,7 +530,7 @@ export const analyzeRaporQuality = async (indicators: RaporIndicator[], targetYe
     if (error.message?.includes('429')) {
       alert("Terlalu banyak permintaan (Rate Limit). Mohon tunggu 1 menit lalu coba lagi.");
     } else if (error.message?.includes('403')) {
-      alert("API Key tidak valid atau tidak memiliki akses ke model Gemini 1.5 Flash.");
+      alert("API Key tidak valid atau tidak memiliki akses ke model AI yang dipilih.");
     } else {
       alert("Analisis AI Gagal: " + (error.message || "Unknown error"));
     }
@@ -634,7 +639,7 @@ export const analyzeRaporPDF = async (pdfBase64: string, targetYear: string): Pr
     };
 
     const response = await ai.models.generateContent({
-      model: 'gemini-1.5-flash',
+      model: getAiModel(),
       contents: [{
         parts: [
           { text: prompt },
@@ -747,7 +752,7 @@ export const analyzeInventoryItems = async (budgets: any[]): Promise<InventoryIt
 
   try {
     const response = await ai.models.generateContent({
-      model: 'gemini-1.5-flash',
+      model: getAiModel(),
       contents: [{ parts: [{ text: prompt }] }],
       config: {
         responseMimeType: "application/json",
