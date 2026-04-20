@@ -34,6 +34,7 @@ const DEFAULT_INDICATORS: RaporIndicator[] = [
 const RaporPendidikan: React.FC<RaporPendidikanProps> = ({ onAddBudget, budgetData, profile }) => {
   const [indicators, setIndicators] = useState<RaporIndicator[]>(DEFAULT_INDICATORS);
   const [recommendations, setRecommendations] = useState<PBDRecommendation[]>([]);
+  const [generalAnalysis, setGeneralAnalysis] = useState<string>('');
   const [loading, setLoading] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [activeView, setActiveView] = useState<'input' | 'analysis' | 'report'>('input');
@@ -105,7 +106,8 @@ const RaporPendidikan: React.FC<RaporPendidikanProps> = ({ onAddBudget, budgetDa
         setLoading(false);
         return;
     }
-    setRecommendations(results);
+    setRecommendations(results.recommendations);
+    setGeneralAnalysis(results.generalAnalysis || '');
     setActiveView('analysis');
     setLoading(false);
   };
@@ -196,7 +198,8 @@ const RaporPendidikan: React.FC<RaporPendidikanProps> = ({ onAddBudget, budgetDa
               setLoading(true);
               const results = await analyzeRaporQuality(updatedIndicators, targetYear);
               if (results) {
-                  setRecommendations(results);
+                  setRecommendations(results.recommendations);
+                  setGeneralAnalysis(results.generalAnalysis || '');
                   setActiveView('report');
               }
               setLoading(false);
@@ -240,6 +243,9 @@ const RaporPendidikan: React.FC<RaporPendidikanProps> = ({ onAddBudget, budgetDa
                           return found ? { ...p, score: found.score, category: found.category as any } : p;
                       });
                       setIndicators(updatedIndicators);
+                  }
+                  if (result.data.generalAnalysis) {
+                      setGeneralAnalysis(result.data.generalAnalysis);
                   }
                   if (result.data.recommendations && result.data.recommendations.length > 0) {
                       setRecommendations(result.data.recommendations);
@@ -396,6 +402,7 @@ const RaporPendidikan: React.FC<RaporPendidikanProps> = ({ onAddBudget, budgetDa
             setActiveView={setActiveView}
             isActivityInBudget={isActivityInBudget}
             setSelectedRec={setSelectedRec}
+            generalAnalysis={generalAnalysis}
           />
       )}
 

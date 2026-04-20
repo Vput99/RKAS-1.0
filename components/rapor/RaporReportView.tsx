@@ -13,6 +13,7 @@ interface RaporReportViewProps {
   setActiveView: (view: 'input' | 'analysis' | 'report') => void;
   isActivityInBudget: (rec: PBDRecommendation) => boolean;
   setSelectedRec: (rec: PBDRecommendation) => void;
+  generalAnalysis?: string;
 }
 
 const RaporReportView: React.FC<RaporReportViewProps> = ({
@@ -25,7 +26,8 @@ const RaporReportView: React.FC<RaporReportViewProps> = ({
   isAddingToBudget,
   setActiveView,
   isActivityInBudget,
-  setSelectedRec
+  setSelectedRec,
+  generalAnalysis
 }) => {
   const avgScore = (indicators.reduce((acc, curr) => acc + (curr.score || 0), 0) / indicators.length).toFixed(1);
 
@@ -66,6 +68,19 @@ const RaporReportView: React.FC<RaporReportViewProps> = ({
             <div className="absolute top-0 right-0 w-64 h-64 bg-white/5 rounded-full -mr-16 -mt-16 blur-3xl"></div>
             <div className="absolute bottom-0 left-0 w-32 h-32 bg-blue-400/10 rounded-full -ml-8 -mb-8 blur-2xl"></div>
         </div>
+
+        {/* General AI Analysis */}
+        {generalAnalysis && (
+            <div className="bg-white rounded-2xl shadow-sm border border-blue-100 overflow-hidden mb-8">
+                <div className="bg-blue-50 px-6 py-4 flex items-center gap-2 border-b border-blue-100">
+                    <BrainCircuit className="text-blue-600" size={24} />
+                    <h4 className="font-bold text-blue-800">Analisis Umum AI (AI General Review)</h4>
+                </div>
+                <div className="p-6 text-gray-700 leading-relaxed whitespace-pre-line text-sm">
+                    {generalAnalysis}
+                </div>
+            </div>
+        )}
 
         {/* Strengths & Weaknesses */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">

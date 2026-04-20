@@ -434,12 +434,12 @@ export const chatWithFinancialAdvisor = async (query: string, context: string, a
   }
 }
 
-export const analyzeRaporQuality = async (indicators: RaporIndicator[], targetYear: string): Promise<PBDRecommendation[] | null> => {
+export const analyzeRaporQuality = async (indicators: RaporIndicator[], targetYear: string): Promise<{ recommendations: PBDRecommendation[], generalAnalysis: string } | null> => {
   const ai = getAiInstance();
   if (!ai) return null;
 
   const weakIndicators = indicators.filter(i => i.category === 'Kurang' || i.category === 'Sedang');
-  if (weakIndicators.length === 0) return [];
+  if (weakIndicators.length === 0) return { recommendations: [], generalAnalysis: 'Semua indikator sudah mencapai kategori Baik. Terus pertahankan dan tingkatkan kualitas pembelajaran.' };
 
   // Reduce context slightly to ensure it fits and processes faster
   const accountContext = Object.entries(AccountCodes)
@@ -464,17 +464,23 @@ export const analyzeRaporQuality = async (indicators: RaporIndicator[], targetYe
     DAFTAR KODE REKENING STANDAR (Gunakan Kode Ini):
     ${accountContext}
 
-    OUTPUT WAJIB: JSON Array of PBDRecommendation objects.
-    PENTING: Untuk setiap rekomendasi, berikan 'componentAnalysis' (penyebab nilai kurang/sedang berdasarkan data) and 'analysisSteps' (array berisi 3-5 langkah konkret perbaikan non-belanja).`;
+    OUTPUT WAJIB: JSON Object dengan format { generalAnalysis: string, recommendations: PBDRecommendation[] }.
+    PENTING:
+    1. 'generalAnalysis' harus berisi review menyeluruh, penjelasan, analisis, dan solusi umum tentang kondisi rapor pendidikan ini.
+    2. Untuk setiap rekomendasi, berikan 'componentAnalysis' (penyebab nilai kurang/sedang berdasarkan data) and 'analysisSteps' (array berisi 3-5 langkah konkret perbaikan non-belanja).`;
 
   const schema = {
-    type: Type.ARRAY,
-    items: {
-      type: Type.OBJECT,
-      properties: {
-        indicatorId: { type: Type.STRING },
-        activityName: { type: Type.STRING },
-        description: { type: Type.STRING },
+    type: Type.OBJECT,
+    properties: {
+      generalAnalysis: { type: Type.STRING },
+      recommendations: {
+        type: Type.ARRAY,
+        items: {
+          type: Type.OBJECT,
+          properties: {
+            indicatorId: { type: Type.STRING },
+            activityName: { type: Type.STRING },
+            description: { type: Type.STRING },
         bospComponent: { type: Type.STRING },
         snpStandard: { type: Type.STRING },
         estimatedCost: { type: Type.NUMBER },
@@ -501,6 +507,9 @@ export const analyzeRaporQuality = async (indicators: RaporIndicator[], targetYe
       },
       required: ['indicatorId', 'activityName', 'description', 'bospComponent', 'snpStandard', 'estimatedCost', 'priority', 'items', 'componentAnalysis', 'analysisSteps']
     }
+      }
+    },
+    required: ['generalAnalysis', 'recommendations']
   };
 
   try {
@@ -514,7 +523,7 @@ export const analyzeRaporQuality = async (indicators: RaporIndicator[], targetYe
     });
 
     const result = parseAIResponse(response.text);
-    if (Array.isArray(result)) return result;
+    if (result && Array.isArray(result.recommendations)) return result;
   } catch (error: any) {
     console.error("Gemini analysis failed:", error);
     // Show a more helpful message through console if possible, 
@@ -534,7 +543,7 @@ export const analyzeRaporQuality = async (indicators: RaporIndicator[], targetYe
 // Updated return type to include error message
 export const analyzeRaporPDF = async (pdfBase64: string, targetYear: string): Promise<{
   success: boolean;
-  data?: { indicators: RaporIndicator[], recommendations: PBDRecommendation[] };
+  data?: { indicators: RaporIndicator[], recommendations: PBDRecommendation[], generalAnalysis: string };
   error?: string;
 }> => {
   const ai = getAiInstance();
@@ -552,7 +561,8 @@ export const analyzeRaporPDF = async (pdfBase64: string, targetYear: string): Pr
     2. AMBIL skor untuk 6 Indikator Prioritas (Literasi, Numerasi, Karakter, Kualitas Pembelajaran, Keamanan, Kebinekaan).
     3. CARI juga "Sub-Indikator" pendukung (Misal: Literasi Membaca Teks Informasi, Numerasi Domain Geometri) jika ada di teks untuk memperkuat analisis.
     4. ANALISIS trend (apakah naik atau turun dibanding tahun lalu).
-    5. BERIKAN Rekomendasi PBD Strategis untuk RKAS ${targetYear} berdasarkan kelemahan yang ditemukan.
+    5. BUATKAN Analisis Umum (generalAnalysis) yang me-review, menjelaskan, menganalisa secara keseluruhan, dan memberi solusi strategis umum tentang masalah yang ada di Rapor Pendidikan tersebut.
+    6. BERIKAN Rekomendasi PBD Strategis untuk RKAS ${targetYear} berdasarkan kelemahan yang ditemukan.
     
     KRITERIA REKOMENDASI (MAXIMIZE):
     - Satu indikator lemah minimal 1 paket kegiatan besar.
@@ -562,6 +572,7 @@ export const analyzeRaporPDF = async (pdfBase64: string, targetYear: string): Pr
 
       OUTPUT JSON FORMAT:
       {
+        "generalAnalysis": "Penjelasan menyeluruh tentang performa rapor...",
         "indicators": [{ "id": "A.1", "label": "Kemampuan Literasi", "score": 85, "category": "Baik" }, ...],
         "recommendations": [
           { 
@@ -580,6 +591,7 @@ export const analyzeRaporPDF = async (pdfBase64: string, targetYear: string): Pr
     const schema = {
       type: Type.OBJECT,
       properties: {
+        generalAnalysis: { type: Type.STRING },
         indicators: {
           type: Type.ARRAY,
           items: {
