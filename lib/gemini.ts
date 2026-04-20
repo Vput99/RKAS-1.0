@@ -430,25 +430,28 @@ export const analyzeRaporQuality = async (indicators: RaporIndicator[], targetYe
 
   // Reduce context slightly to ensure it fits and processes faster
   const accountContext = Object.entries(AccountCodes)
-    .slice(0, 100)
     .map(([c, n]) => `- ${c}: ${n}`)
     .join('\n');
 
-  const prompt = `Role: Expert School Budget Consultant (BOSP Indonesia).
-            
-    Task: Analyze the following "Weak" Rapor Pendidikan indicators and recommend specific, actionable RKAS budget activities to improve them for Fiscal Year ${targetYear}.
+  const prompt = `Anda adalah Konsultan Senior PBD & Ahli Perencanaan RKAS (Indonesia).
     
-    Weak Indicators: ${JSON.stringify(weakIndicators)}
+    TUGAS:
+    Analisis data Rapor Pendidikan berikut (fokus pada indikator yang "Kurang" atau "Sedang").
+    Berikan rekomendasi kegiatan "Benahi" yang konkret, strategis, dan sesuai dengan Juknis BOSP terbaru.
     
-    Guidelines:
-    1. Create 1-2 activities per indicator.
-    2. For each activity, break it down into concrete budget items (e.g., "Makan Minum", "Honor Narasumber", "ATK").
-    3. You MUST select a valid 'accountCode' for each item from the list below. If no exact match, pick the closest one starting with '5.'.
+    Data Indikator: ${JSON.stringify(weakIndicators)}
+    Target Tahun Anggaran: ${targetYear}
     
-    Available Account Codes:
+    PEDOMAN ANALISIS MAX:
+    1. Untuk setiap indikator yang lemah, buatkan 1-3 paket kegiatan yang komprehensif.
+    2. Pisahkan setiap kegiatan menjadi item rincian belanja (misal: Honor Narasumber, Transport Peserta, Konsumsi, ATK, Bahan Praktik).
+    3. Pastikan pemilihan 'accountCode' TEPAT sasaran menggunakan daftar kode di bawah.
+    4. Berikan 'description' yang berisi justifikasi logis kenapa kegiatan ini bisa meningkatkan skor indikator tersebut.
+    
+    DAFTAR KODE REKENING STANDAR (Gunakan Kode Ini):
     ${accountContext}
 
-    Output: JSON Array of PBDRecommendation objects.`;
+    OUTPUT WAJIB: JSON Array of PBDRecommendation objects.`;
 
   const schema = {
     type: Type.ARRAY,
@@ -483,7 +486,7 @@ export const analyzeRaporQuality = async (indicators: RaporIndicator[], targetYe
 
   try {
     const response = await ai.models.generateContent({
-      model: 'gemini-3-flash-preview',
+      model: 'gemini-1.5-pro',
       contents: prompt,
       config: {
         responseMimeType: "application/json",
@@ -509,35 +512,29 @@ export const analyzeRaporPDF = async (pdfBase64: string, targetYear: string): Pr
   if (!ai) return { success: false, error: "API Key belum dikonfigurasi di Settings." };
 
   const accountContext = Object.entries(AccountCodes)
-    .slice(0, 100)
     .map(([c, n]) => `- ${c}: ${n}`)
     .join('\n');
 
   try {
-    const prompt = `Role: Expert School Data Analyst (BOSP Indonesia).
-
-    Task:
-    1. READ and ANALYZE the attached "Rapor Pendidikan" PDF.
-    2. EXTRACT scores for key indicators:
-       - A.1 Kemampuan Literasi
-       - A.2 Kemampuan Numerasi
-       - A.3 Karakter
-       - D.1 Kualitas Pembelajaran
-       - D.4 Iklim Keamanan Sekolah
-       - D.8 Iklim Kebinekaan
-    3. Categorize each score: >=70 (Baik), 50-69 (Sedang), <50 (Kurang).
-    4. Based on the WEAKEST indicators (Kurang/Sedang), GENERATE specific RKAS budget recommendations for FY ${targetYear}.
+    const prompt = `Anda adalah Pakar Analisis Data Pendidikan (Auditor Senior BOSP).
     
-    Guidelines for Recommendations:
-    - Focus on 'Benahi' activities.
-    - Provide concrete budget items (e.g., "Workshop Guru", "Pengadaan Buku Non-Teks", "Honor Narasumber").
-    - Select valid Account Codes from:
+    TUGAS UTAMA:
+    1. BACA dan EKSTRAK seluruh skor dari PDF "Rapor Pendidikan" (utamakan halaman DASHBOARD atau RINGKASAN).
+    2. AMBIL skor untuk 6 Indikator Prioritas (Literasi, Numerasi, Karakter, Kualitas Pembelajaran, Keamanan, Kebinekaan).
+    3. CARI juga "Sub-Indikator" pendukung (Misal: Literasi Membaca Teks Informasi, Numerasi Domain Geometri) jika ada di teks untuk memperkuat analisis.
+    4. ANALISIS trend (apakah naik atau turun dibanding tahun lalu).
+    5. BERIKAN Rekomendasi PBD Strategis untuk RKAS ${targetYear} berdasarkan kelemahan yang ditemukan.
+    
+    KRITERIA REKOMENDASI (MAXIMIZE):
+    - Satu indikator lemah minimal 1 paket kegiatan besar.
+    - Rincikan item belanja (Honor, ATK, Bahan, Jasa).
+    - Gunakan Kode Rekening Resmi berikut:
       ${accountContext}
 
-    Output JSON Format:
+    OUTPUT JSON FORMAT:
     {
-      "indicators": [{ "id": "A.1", "label": "Kemampuan Literasi", "score": 80, "category": "Baik" }, ...],
-      "recommendations": [{ "indicatorId": "A.2", "activityName": "...", "items": [...] }]
+      "indicators": [{ "id": "A.1", "label": "Kemampuan Literasi", "score": 85, "category": "Baik" }, ...],
+      "recommendations": [{ "indicatorId": "A.2", "activityName": "...", "description": "Justifikasi logis...", "items": [...], "priority": "Tinggi" }]
     }`;
 
     // Schema for complex output
@@ -588,7 +585,7 @@ export const analyzeRaporPDF = async (pdfBase64: string, targetYear: string): Pr
     };
 
     const response = await ai.models.generateContent({
-      model: 'gemini-3-flash-preview',
+      model: 'gemini-1.5-pro',
       contents: {
         parts: [
           { text: prompt },
