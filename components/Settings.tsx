@@ -5,7 +5,7 @@ import {
   Save, School, Users, Wallet, Calendar, Database, Wifi, WifiOff, 
   CheckCircle2, CreditCard, Image as ImageIcon, Upload, Plus, 
   Trash2, List, FileSpreadsheet, RefreshCcw, UserCircle, LogOut, 
-  FileText, AlertTriangle, Settings as SettingsIcon 
+  FileText, AlertTriangle, Settings as SettingsIcon, BrainCircuit
 } from 'lucide-react';
 import { 
   checkDatabaseConnection, getStoredAccounts, saveCustomAccount, 
@@ -196,7 +196,7 @@ const Settings: React.FC<SettingsProps> = () => {
       </div>
 
       {/* Info Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
         <div className="bg-white/60 backdrop-blur-md rounded-3xl shadow-lg border border-white p-5 flex items-center gap-4">
           <div className="bg-blue-100 p-3 rounded-2xl text-blue-600"><UserCircle size={28} /></div>
           <div>
@@ -212,6 +212,23 @@ const Settings: React.FC<SettingsProps> = () => {
             <h3 className="font-black text-sm">{isConnected ? 'Terhubung Cloud' : 'Mode Offline'}</h3>
           </div>
           {isConnected ? <Wifi className="text-emerald-500" size={20} /> : <WifiOff className="text-orange-500" size={20} />}
+        </div>
+        <div className="bg-white/60 backdrop-blur-md rounded-3xl shadow-lg border border-white p-5 flex flex-col gap-2">
+          <div className="flex items-center gap-3">
+             <div className="bg-indigo-100 p-2 rounded-xl text-indigo-600"><BrainCircuit size={20} /></div>
+             <p className="text-[10px] text-slate-400 font-black uppercase tracking-widest">AI API Key (Gemini)</p>
+          </div>
+          <input 
+            type="password" 
+            placeholder="Masukkan API Key..." 
+            defaultValue={localStorage.getItem('GEMINI_API_KEY') || ''}
+            onChange={(e) => {
+              localStorage.setItem('GEMINI_API_KEY', e.target.value);
+              setSaved(true);
+              setTimeout(() => setSaved(false), 2000);
+            }}
+            className="w-full px-3 py-1.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-mono focus:ring-2 focus:ring-indigo-500 outline-none" 
+          />
         </div>
       </div>
 

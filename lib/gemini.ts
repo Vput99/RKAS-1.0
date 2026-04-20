@@ -44,12 +44,21 @@ const getEnv = (key: string) => {
   return '';
 };
 
-const apiKey = getEnv('API_KEY') || getEnv('VITE_API_KEY') || '';
+// Internal helper to get active API Key
+const getActiveApiKey = () => {
+    // Priority: Env -> LocalStorage
+    return getEnv('VITE_API_KEY') || getEnv('API_KEY') || localStorage.getItem('GEMINI_API_KEY') || '';
+};
+
+// Use proxy or dynamic initialization to handle key changes without refresh
+const getAiInstance = () => {
+    const key = getActiveApiKey();
+    if (!key) return null;
+    return new GoogleGenAI({ apiKey: key });
+};
 
 // Export status check for UI
-export const isAiConfigured = () => !!apiKey;
-
-const ai = apiKey ? new GoogleGenAI({ apiKey }) : null;
+export const isAiConfigured = () => !!getActiveApiKey();
 
 // Helper to robustly parse JSON from AI response
 const parseAIResponse = (text: string | undefined) => {
@@ -192,6 +201,7 @@ export const analyzeBudgetEntry = async (description: string, availableAccounts:
   is_eligible: boolean,
   warning: string
 }> => {
+  const ai = getAiInstance();
   if (!ai) {
     return {
       bosp_component: BOSPComponent.LAINNYA,
@@ -212,10 +222,9 @@ export const analyzeBudgetEntry = async (description: string, availableAccounts:
     const relevantAccountsList = filterRelevantAccounts(description, availableAccounts);
 
     // Use stable Gemini model for budget analysis
-    const response = await ai.models.generateContent({
-      model: 'gemini-1.5-flash',
-      contents: description,
-      config: {
+    const response = await ai.getGenerativeModel({ model: 'gemini-1.5-flash' }).generateContent({
+      contents: [{ role: 'user', parts: [{ text: description }] }],
+      generationConfig: {
         systemInstruction: `Anda adalah Auditor Senior BOSP & Ahli Implementasi ARKAS (Indonesia).
 Tugas Anda adalah memetakan narasi kegiatan sekolah ke dalam Standar Nasional Pendidikan (SNP) dan Kode Rekening Belanja yang sesuai dengan Juknis BOSP 2026.
 
@@ -291,7 +300,8 @@ REWRITE: Tulis ulang "suggestion" menjadi nama kegiatan formal seperti di ARKAS.
       }
     });
 
-    const result = parseAIResponse(response.text);
+    const text = response.response.text();
+    const result = parseAIResponse(text);
     return result || {
       bosp_component: BOSPComponent.LAINNYA,
       snp_standard: SNPStandard.LAINNYA,
@@ -327,9 +337,17 @@ export const suggestEvidenceList = async (description: string, accountCode: stri
   if (!ai) return [];
 
   try {
-    const response = await ai.models.generateContent({
+    const response = await ai.getGenerativeModel({ 
       model: 'gemini-1.5-flash',
-      contents: `Tugas: Berikan daftar bukti fisik SPJ BOSP 2026 yang lengkap dan baku.
+      generationConfig: {
+        responseMimeType: "application/json",
+        responseSchema: {
+          type: Type.ARRAY,
+          items: { type: Type.STRING }
+        }
+      }
+    }).generateContent({
+      contents: [{ role: 'user', parts: [{ text: `Tugas: Berikan daftar bukti fisik SPJ BOSP 2026 yang lengkap dan baku.
       
       ATURAN KHUSUS SIPLAH:
       Jika pengeluaran menggunakan SIPLah (Barang/Bahan/Modal), Anda WAJIB memberikan daftar standar berikut:
@@ -376,17 +394,11 @@ export const suggestEvidenceList = async (description: string, accountCode: stri
       Input Pengeluaran: "${description}"
       Kode Rekening: "${accountCode}"
       
-      Kembalikan dalam format JSON Array of strings.`,
-      config: {
-        responseMimeType: "application/json",
-        responseSchema: {
-          type: Type.ARRAY,
-          items: { type: Type.STRING }
-        }
-      }
+      Kembalikan dalam format JSON Array of strings.` }] }]
     });
 
-    const result = parseAIResponse(response.text);
+    const text = response.response.text();
+    const result = parseAIResponse(text);
     return Array.isArray(result) ? result : [];
   } catch (error) {
     console.error("Gemini Error:", error);
@@ -395,6 +407,7 @@ export const suggestEvidenceList = async (description: string, accountCode: stri
 };
 
 export const chatWithFinancialAdvisor = async (query: string, context: string, attachment?: { data: string, mimeType: string }) => {
+  const ai = getAiInstance();
   if (!ai) return "Fitur AI belum aktif.";
 
   try {
@@ -411,11 +424,10 @@ export const chatWithFinancialAdvisor = async (query: string, context: string, a
       });
     }
 
-    const response = await ai.models.generateContent({
-      model: 'gemini-3-flash-preview',
+    const response = await ai.getGenerativeModel({ model: 'gemini-1.5-flash' }).generateContent({
       contents: { parts },
     });
-    return response.text;
+    return response.response.text();
   } catch (e) {
     console.error("Chat Error:", e);
     return "Maaf, terjadi gangguan saat menganalisis permintaan Anda. Coba lagi nanti.";
@@ -423,6 +435,7 @@ export const chatWithFinancialAdvisor = async (query: string, context: string, a
 }
 
 export const analyzeRaporQuality = async (indicators: RaporIndicator[], targetYear: string): Promise<PBDRecommendation[] | null> => {
+  const ai = getAiInstance();
   if (!ai) return null;
 
   const weakIndicators = indicators.filter(i => i.category === 'Kurang' || i.category === 'Sedang');
@@ -491,16 +504,18 @@ export const analyzeRaporQuality = async (indicators: RaporIndicator[], targetYe
   };
 
   try {
-    const response = await ai.models.generateContent({
+    const response = await ai.getGenerativeModel({ 
       model: 'gemini-1.5-pro',
-      contents: prompt,
-      config: {
+      generationConfig: {
         responseMimeType: "application/json",
         responseSchema: schema
       }
+    }).generateContent({
+      contents: [{ role: 'user', parts: [{ text: prompt }] }]
     });
 
-    const result = parseAIResponse(response.text);
+    const text = response.response.text();
+    const result = parseAIResponse(text);
     if (Array.isArray(result)) return result;
   } catch (error) {
     console.error("Gemini analysis failed:", error);
@@ -605,21 +620,23 @@ export const analyzeRaporPDF = async (pdfBase64: string, targetYear: string): Pr
       }
     };
 
-    const response = await ai.models.generateContent({
+    const response = await ai.getGenerativeModel({ 
       model: 'gemini-1.5-pro',
+      generationConfig: {
+        responseMimeType: "application/json",
+        responseSchema: schema
+      }
+    }).generateContent({
       contents: {
         parts: [
           { text: prompt },
           { inlineData: { mimeType: 'application/pdf', data: pdfBase64 } }
         ]
-      },
-      config: {
-        responseMimeType: "application/json",
-        responseSchema: schema
       }
     });
 
-    const result = parseAIResponse(response.text);
+    const text = response.response.text();
+    const result = parseAIResponse(text);
 
     if (!result) {
       return { success: false, error: "AI tidak mengembalikan format JSON yang valid. Mungkin file PDF tidak terbaca atau kosong." };
@@ -717,16 +734,18 @@ export const analyzeInventoryItems = async (budgets: any[]): Promise<InventoryIt
   };
 
   try {
-    const response = await ai.models.generateContent({
-      model: 'gemini-3-flash-preview',
-      contents: prompt,
-      config: {
+    const response = await ai.getGenerativeModel({ 
+      model: 'gemini-1.5-flash',
+      generationConfig: {
         responseMimeType: "application/json",
         responseSchema: schema
       }
+    }).generateContent({
+      contents: [{ role: 'user', parts: [{ text: prompt }] }]
     });
 
-    const result = parseAIResponse(response.text);
+    const text = response.response.text();
+    const result = parseAIResponse(text);
     return (Array.isArray(result) ? result : []).map((item: any, idx: number) => ({
       ...item,
       id: item.id || `inv-${Date.now()}-${idx}`
