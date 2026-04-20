@@ -222,9 +222,10 @@ export const analyzeBudgetEntry = async (description: string, availableAccounts:
     const relevantAccountsList = filterRelevantAccounts(description, availableAccounts);
 
     // Use stable Gemini model for budget analysis
-    const response = await ai.getGenerativeModel({ model: 'gemini-1.5-flash' }).generateContent({
-      contents: [{ role: 'user', parts: [{ text: description }] }],
-      generationConfig: {
+    const response = await ai.models.generateContent({
+      model: 'gemini-1.5-flash',
+      contents: [{ parts: [{ text: description }] }],
+      config: {
         systemInstruction: `Anda adalah Auditor Senior BOSP & Ahli Implementasi ARKAS (Indonesia).
 Tugas Anda adalah memetakan narasi kegiatan sekolah ke dalam Standar Nasional Pendidikan (SNP) dan Kode Rekening Belanja yang sesuai dengan Juknis BOSP 2026.
 
@@ -300,8 +301,7 @@ REWRITE: Tulis ulang "suggestion" menjadi nama kegiatan formal seperti di ARKAS.
       }
     });
 
-    const text = response.response.text();
-    const result = parseAIResponse(text);
+    const result = parseAIResponse(response.text);
     return result || {
       bosp_component: BOSPComponent.LAINNYA,
       snp_standard: SNPStandard.LAINNYA,
@@ -334,20 +334,13 @@ REWRITE: Tulis ulang "suggestion" menjadi nama kegiatan formal seperti di ARKAS.
 };
 
 export const suggestEvidenceList = async (description: string, accountCode: string = ''): Promise<string[]> => {
+  const ai = getAiInstance();
   if (!ai) return [];
 
   try {
-    const response = await ai.getGenerativeModel({ 
+    const response = await ai.models.generateContent({
       model: 'gemini-1.5-flash',
-      generationConfig: {
-        responseMimeType: "application/json",
-        responseSchema: {
-          type: Type.ARRAY,
-          items: { type: Type.STRING }
-        }
-      }
-    }).generateContent({
-      contents: [{ role: 'user', parts: [{ text: `Tugas: Berikan daftar bukti fisik SPJ BOSP 2026 yang lengkap dan baku.
+      contents: [{ parts: [{ text: `Tugas: Berikan daftar bukti fisik SPJ BOSP 2026 yang lengkap dan baku.
       
       ATURAN KHUSUS SIPLAH:
       Jika pengeluaran menggunakan SIPLah (Barang/Bahan/Modal), Anda WAJIB memberikan daftar standar berikut:
@@ -394,11 +387,17 @@ export const suggestEvidenceList = async (description: string, accountCode: stri
       Input Pengeluaran: "${description}"
       Kode Rekening: "${accountCode}"
       
-      Kembalikan dalam format JSON Array of strings.` }] }]
+      Kembalikan dalam format JSON Array of strings.` }] }],
+      config: {
+        responseMimeType: "application/json",
+        responseSchema: {
+          type: Type.ARRAY,
+          items: { type: Type.STRING }
+        }
+      }
     });
 
-    const text = response.response.text();
-    const result = parseAIResponse(text);
+    const result = parseAIResponse(response.text);
     return Array.isArray(result) ? result : [];
   } catch (error) {
     console.error("Gemini Error:", error);
@@ -424,10 +423,11 @@ export const chatWithFinancialAdvisor = async (query: string, context: string, a
       });
     }
 
-    const response = await ai.getGenerativeModel({ model: 'gemini-1.5-flash' }).generateContent({
-      contents: { parts },
+    const response = await ai.models.generateContent({
+      model: 'gemini-1.5-flash',
+      contents: [{ parts: [{ text: query }] }]
     });
-    return response.response.text();
+    return response.text;
   } catch (e) {
     console.error("Chat Error:", e);
     return "Maaf, terjadi gangguan saat menganalisis permintaan Anda. Coba lagi nanti.";
@@ -465,7 +465,7 @@ export const analyzeRaporQuality = async (indicators: RaporIndicator[], targetYe
     ${accountContext}
 
     OUTPUT WAJIB: JSON Array of PBDRecommendation objects.
-    PENTING: Untuk setiap rekomendasi, berikan 'componentAnalysis' (penyebab nilai kurang/sedang berdasarkan data) dan 'analysisSteps' (array berisi 3-5 langkah konkret perbaikan non-belanja).`;
+    PENTING: Untuk setiap rekomendasi, berikan 'componentAnalysis' (penyebab nilai kurang/sedang berdasarkan data) and 'analysisSteps' (array berisi 3-5 langkah konkret perbaikan non-belanja).`;
 
   const schema = {
     type: Type.ARRAY,
@@ -499,26 +499,33 @@ export const analyzeRaporQuality = async (indicators: RaporIndicator[], targetYe
           }
         }
       },
-      required: ['indicatorId', 'activityName', 'description', 'bospComponent', 'snpStandard', 'estimatedCost', 'priority', 'items']
+      required: ['indicatorId', 'activityName', 'description', 'bospComponent', 'snpStandard', 'estimatedCost', 'priority', 'items', 'componentAnalysis', 'analysisSteps']
     }
   };
 
   try {
-    const response = await ai.getGenerativeModel({ 
-      model: 'gemini-1.5-pro',
-      generationConfig: {
+    const response = await ai.models.generateContent({
+      model: 'gemini-1.5-flash',
+      contents: [{ parts: [{ text: prompt }] }],
+      config: {
         responseMimeType: "application/json",
         responseSchema: schema
       }
-    }).generateContent({
-      contents: [{ role: 'user', parts: [{ text: prompt }] }]
     });
 
-    const text = response.response.text();
-    const result = parseAIResponse(text);
+    const result = parseAIResponse(response.text);
     if (Array.isArray(result)) return result;
-  } catch (error) {
+  } catch (error: any) {
     console.error("Gemini analysis failed:", error);
+    // Show a more helpful message through console if possible, 
+    // or we can handle it in the UI.
+    if (error.message?.includes('429')) {
+        alert("Terlalu banyak permintaan (Rate Limit). Mohon tunggu 1 menit lalu coba lagi.");
+    } else if (error.message?.includes('403')) {
+        alert("API Key tidak valid atau tidak memiliki akses ke model Gemini 1.5 Flash.");
+    } else {
+        alert("Analisis AI Gagal: " + (error.message || "Unknown error"));
+    }
   }
 
   return null;
@@ -530,6 +537,7 @@ export const analyzeRaporPDF = async (pdfBase64: string, targetYear: string): Pr
   data?: { indicators: RaporIndicator[], recommendations: PBDRecommendation[] };
   error?: string;
 }> => {
+  const ai = getAiInstance();
   if (!ai) return { success: false, error: "API Key belum dikonfigurasi di Settings." };
 
   const accountContext = Object.entries(AccountCodes)
@@ -620,23 +628,21 @@ export const analyzeRaporPDF = async (pdfBase64: string, targetYear: string): Pr
       }
     };
 
-    const response = await ai.getGenerativeModel({ 
-      model: 'gemini-1.5-pro',
-      generationConfig: {
-        responseMimeType: "application/json",
-        responseSchema: schema
-      }
-    }).generateContent({
-      contents: {
+    const response = await ai.models.generateContent({
+      model: 'gemini-1.5-flash',
+      contents: [{
         parts: [
           { text: prompt },
           { inlineData: { mimeType: 'application/pdf', data: pdfBase64 } }
         ]
+      }],
+      config: {
+        responseMimeType: "application/json",
+        responseSchema: schema
       }
     });
 
-    const text = response.response.text();
-    const result = parseAIResponse(text);
+    const result = parseAIResponse(response.text);
 
     if (!result) {
       return { success: false, error: "AI tidak mengembalikan format JSON yang valid. Mungkin file PDF tidak terbaca atau kosong." };
@@ -659,6 +665,7 @@ export const analyzeRaporPDF = async (pdfBase64: string, targetYear: string): Pr
 
 
 export const analyzeInventoryItems = async (budgets: any[]): Promise<InventoryItem[]> => {
+  const ai = getAiInstance();
   if (!ai) return [];
 
   // Filter only relevant budgets (expenses with realizations)
@@ -685,7 +692,7 @@ export const analyzeInventoryItems = async (budgets: any[]): Promise<InventoryIt
 
   const prompt = `Role: Logistik & Pengadaan Aset Sekolah (Indonesia).
   
-  Task: Analisis data pengeluaran berikut dan uraikan menjadi item-item persediaan untuk "Laporan Pengadaan BMD".
+  Task: Analisis data pengeluaran berikut and uraikan menjadi item-item persediaan untuk "Laporan Pengadaan BMD".
   
   Reference Classification (Based on Official List):
   - Bahan bangunan, bahan kimia, Bahan dalam proses, isi tabung gas, bahan lainya
@@ -734,18 +741,16 @@ export const analyzeInventoryItems = async (budgets: any[]): Promise<InventoryIt
   };
 
   try {
-    const response = await ai.getGenerativeModel({ 
+    const response = await ai.models.generateContent({
       model: 'gemini-1.5-flash',
-      generationConfig: {
+      contents: [{ parts: [{ text: prompt }] }],
+      config: {
         responseMimeType: "application/json",
         responseSchema: schema
       }
-    }).generateContent({
-      contents: [{ role: 'user', parts: [{ text: prompt }] }]
     });
 
-    const text = response.response.text();
-    const result = parseAIResponse(text);
+    const result = parseAIResponse(response.text);
     return (Array.isArray(result) ? result : []).map((item: any, idx: number) => ({
       ...item,
       id: item.id || `inv-${Date.now()}-${idx}`
