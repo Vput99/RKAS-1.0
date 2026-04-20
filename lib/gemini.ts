@@ -46,15 +46,15 @@ const getEnv = (key: string) => {
 
 // Internal helper to get active API Key
 const getActiveApiKey = () => {
-    // Priority: Env -> LocalStorage
-    return getEnv('VITE_API_KEY') || getEnv('API_KEY') || localStorage.getItem('GEMINI_API_KEY') || '';
+  // Priority: Env -> LocalStorage
+  return getEnv('VITE_API_KEY') || getEnv('API_KEY') || localStorage.getItem('GEMINI_API_KEY') || '';
 };
 
 // Use proxy or dynamic initialization to handle key changes without refresh
 const getAiInstance = () => {
-    const key = getActiveApiKey();
-    if (!key) return null;
-    return new GoogleGenAI({ apiKey: key });
+  const key = getActiveApiKey();
+  if (!key) return null;
+  return new GoogleGenAI({ apiKey: key });
 };
 
 // Export status check for UI
@@ -340,7 +340,9 @@ export const suggestEvidenceList = async (description: string, accountCode: stri
   try {
     const response = await ai.models.generateContent({
       model: 'gemini-1.5-flash',
-      contents: [{ parts: [{ text: `Tugas: Berikan daftar bukti fisik SPJ BOSP 2026 yang lengkap dan baku.
+      contents: [{
+        parts: [{
+          text: `Tugas: Berikan daftar bukti fisik SPJ BOSP 2026 yang lengkap dan baku.
       
       ATURAN KHUSUS SIPLAH:
       Jika pengeluaran menggunakan SIPLah (Barang/Bahan/Modal), Anda WAJIB memberikan daftar standar berikut:
@@ -387,7 +389,8 @@ export const suggestEvidenceList = async (description: string, accountCode: stri
       Input Pengeluaran: "${description}"
       Kode Rekening: "${accountCode}"
       
-      Kembalikan dalam format JSON Array of strings.` }] }],
+      Kembalikan dalam format JSON Array of strings.` }]
+      }],
       config: {
         responseMimeType: "application/json",
         responseSchema: {
@@ -480,7 +483,7 @@ export const analyzeRaporQuality = async (indicators: RaporIndicator[], targetYe
         estimatedCost: { type: Type.NUMBER },
         priority: { type: Type.STRING },
         componentAnalysis: { type: Type.STRING },
-        analysisSteps: { 
+        analysisSteps: {
           type: Type.ARRAY,
           items: { type: Type.STRING }
         },
@@ -520,11 +523,11 @@ export const analyzeRaporQuality = async (indicators: RaporIndicator[], targetYe
     // Show a more helpful message through console if possible, 
     // or we can handle it in the UI.
     if (error.message?.includes('429')) {
-        alert("Terlalu banyak permintaan (Rate Limit). Mohon tunggu 1 menit lalu coba lagi.");
+      alert("Terlalu banyak permintaan (Rate Limit). Mohon tunggu 1 menit lalu coba lagi.");
     } else if (error.message?.includes('403')) {
-        alert("API Key tidak valid atau tidak memiliki akses ke model Gemini 1.5 Flash.");
+      alert("API Key tidak valid atau tidak memiliki akses ke model Gemini 1.5 Flash.");
     } else {
-        alert("Analisis AI Gagal: " + (error.message || "Unknown error"));
+      alert("Analisis AI Gagal: " + (error.message || "Unknown error"));
     }
   }
 
@@ -534,7 +537,7 @@ export const analyzeRaporQuality = async (indicators: RaporIndicator[], targetYe
 // Updated return type to include error message
 export const analyzeRaporPDF = async (pdfBase64: string, targetYear: string): Promise<{
   success: boolean;
-  data?: { indicators: RaporIndicator[], recommendations: PBDRecommendation[] };
+  data?: { indicators: RaporIndicator[], recommendations: PBDRecommendation[], generalAnalysis: string };
   error?: string;
 }> => {
   const ai = getAiInstance();
@@ -552,7 +555,8 @@ export const analyzeRaporPDF = async (pdfBase64: string, targetYear: string): Pr
     2. AMBIL skor untuk 6 Indikator Prioritas (Literasi, Numerasi, Karakter, Kualitas Pembelajaran, Keamanan, Kebinekaan).
     3. CARI juga "Sub-Indikator" pendukung (Misal: Literasi Membaca Teks Informasi, Numerasi Domain Geometri) jika ada di teks untuk memperkuat analisis.
     4. ANALISIS trend (apakah naik atau turun dibanding tahun lalu).
-    5. BERIKAN Rekomendasi PBD Strategis untuk RKAS ${targetYear} berdasarkan kelemahan yang ditemukan.
+    5. BUATKAN Analisis Umum (generalAnalysis) yang me-review, menjelaskan, menganalisa secara keseluruhan, dan memberi solusi strategis umum tentang masalah yang ada di Rapor Pendidikan tersebut.
+    6. BERIKAN Rekomendasi PBD Strategis untuk RKAS ${targetYear} berdasarkan kelemahan yang ditemukan.
     
     KRITERIA REKOMENDASI (MAXIMIZE):
     - Satu indikator lemah minimal 1 paket kegiatan besar.
@@ -562,6 +566,7 @@ export const analyzeRaporPDF = async (pdfBase64: string, targetYear: string): Pr
 
       OUTPUT JSON FORMAT:
       {
+        "generalAnalysis": "Penjelasan menyeluruh tentang performa rapor...",
         "indicators": [{ "id": "A.1", "label": "Kemampuan Literasi", "score": 85, "category": "Baik" }, ...],
         "recommendations": [
           { 
@@ -580,7 +585,7 @@ export const analyzeRaporPDF = async (pdfBase64: string, targetYear: string): Pr
     const schema = {
       type: Type.OBJECT,
       properties: {
-        indicators: {
+        generalAnalysis: { type: Type.STRING }, indicators: {
           type: Type.ARRAY,
           items: {
             type: Type.OBJECT,
@@ -605,9 +610,9 @@ export const analyzeRaporPDF = async (pdfBase64: string, targetYear: string): Pr
               estimatedCost: { type: Type.NUMBER },
               priority: { type: Type.STRING },
               componentAnalysis: { type: Type.STRING },
-              analysisSteps: { 
-                type: Type.ARRAY, 
-                items: { type: Type.STRING } 
+              analysisSteps: {
+                type: Type.ARRAY,
+                items: { type: Type.STRING }
               },
               items: {
                 type: Type.ARRAY,
