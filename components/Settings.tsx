@@ -37,7 +37,6 @@ const Settings: React.FC<SettingsProps> = () => {
 
   // Custom Accounts State
   const [customAccounts, setCustomAccounts] = useState<Record<string, string>>({});
-  const [isAccountLoading, setIsAccountLoading] = useState(false);
   const [newCode, setNewCode] = useState('');
   const [newName, setNewName] = useState('');
 
@@ -64,10 +63,8 @@ const Settings: React.FC<SettingsProps> = () => {
   };
 
   const loadAccounts = async () => {
-    setIsAccountLoading(true);
     const accounts = await getStoredAccounts();
     setCustomAccounts(accounts);
-    setIsAccountLoading(false);
   };
 
   const checkConnection = async () => {
@@ -111,19 +108,15 @@ const Settings: React.FC<SettingsProps> = () => {
   const handleAddAccount = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!newCode || !newName) return;
-    setIsAccountLoading(true);
     const updated = await saveCustomAccount(newCode, newName);
     setCustomAccounts(updated);
     setNewCode(''); setNewName('');
-    setIsAccountLoading(false);
   };
 
   const handleDeleteAccount = async (code: string) => {
     if (confirm(`Hapus rekening ${code}?`)) {
-      setIsAccountLoading(true);
       const updated = await deleteCustomAccount(code);
       setCustomAccounts(updated);
-      setIsAccountLoading(false);
     }
   };
 
@@ -152,20 +145,16 @@ const Settings: React.FC<SettingsProps> = () => {
   const handleConfirmImport = async () => {
     const newMap: Record<string, string> = {};
     previewData.forEach(item => { newMap[item.code] = item.name; });
-    setIsAccountLoading(true);
     const updated = await bulkSaveCustomAccounts(newMap);
     setCustomAccounts(updated);
     setBulkText(''); setPreviewData([]); setImportMode('input');
-    setIsAccountLoading(false);
     alert(`Berhasil mengimpor ${previewData.length} rekening.`);
   };
 
   const handleInitializeFromDefaults = async () => {
     if (confirm("Salin standar BOSP?")) {
-      setIsAccountLoading(true);
       const updated = await initializeUserAccounts();
       setCustomAccounts(updated);
-      setIsAccountLoading(false);
     }
   };
 
