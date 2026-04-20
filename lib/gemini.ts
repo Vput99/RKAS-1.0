@@ -451,7 +451,8 @@ export const analyzeRaporQuality = async (indicators: RaporIndicator[], targetYe
     DAFTAR KODE REKENING STANDAR (Gunakan Kode Ini):
     ${accountContext}
 
-    OUTPUT WAJIB: JSON Array of PBDRecommendation objects.`;
+    OUTPUT WAJIB: JSON Array of PBDRecommendation objects.
+    PENTING: Untuk setiap rekomendasi, berikan 'componentAnalysis' (penyebab nilai kurang/sedang berdasarkan data) dan 'analysisSteps' (array berisi 3-5 langkah konkret perbaikan non-belanja).`;
 
   const schema = {
     type: Type.ARRAY,
@@ -465,6 +466,11 @@ export const analyzeRaporQuality = async (indicators: RaporIndicator[], targetYe
         snpStandard: { type: Type.STRING },
         estimatedCost: { type: Type.NUMBER },
         priority: { type: Type.STRING },
+        componentAnalysis: { type: Type.STRING },
+        analysisSteps: { 
+          type: Type.ARRAY,
+          items: { type: Type.STRING }
+        },
         items: {
           type: Type.ARRAY,
           items: {
@@ -531,11 +537,21 @@ export const analyzeRaporPDF = async (pdfBase64: string, targetYear: string): Pr
     - Gunakan Kode Rekening Resmi berikut:
       ${accountContext}
 
-    OUTPUT JSON FORMAT:
-    {
-      "indicators": [{ "id": "A.1", "label": "Kemampuan Literasi", "score": 85, "category": "Baik" }, ...],
-      "recommendations": [{ "indicatorId": "A.2", "activityName": "...", "description": "Justifikasi logis...", "items": [...], "priority": "Tinggi" }]
-    }`;
+      OUTPUT JSON FORMAT:
+      {
+        "indicators": [{ "id": "A.1", "label": "Kemampuan Literasi", "score": 85, "category": "Baik" }, ...],
+        "recommendations": [
+          { 
+            "indicatorId": "A.2", 
+            "activityName": "...", 
+            "description": "Justifikasi logis...", 
+            "componentAnalysis": "Analisis kualitatif kenapa nilai ini didapat...",
+            "analysisSteps": ["Langkah 1...", "Langkah 2..."],
+            "items": [...], 
+            "priority": "Tinggi" 
+          }
+        ]
+      }`;
 
     // Schema for complex output
     const schema = {
@@ -565,6 +581,11 @@ export const analyzeRaporPDF = async (pdfBase64: string, targetYear: string): Pr
               snpStandard: { type: Type.STRING },
               estimatedCost: { type: Type.NUMBER },
               priority: { type: Type.STRING },
+              componentAnalysis: { type: Type.STRING },
+              analysisSteps: { 
+                type: Type.ARRAY, 
+                items: { type: Type.STRING } 
+              },
               items: {
                 type: Type.ARRAY,
                 items: {

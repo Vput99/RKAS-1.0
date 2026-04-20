@@ -249,6 +249,10 @@ export interface PBDRecommendation {
 
     // Detailed Breakdown
     items: PBDBudgetItem[];
+
+    // NEW: AI Analysis Feedback
+    analysisSteps?: string[]; // Steps to improve score
+    componentAnalysis?: string; // Qualitative analysis of the component score
 }
 
 export interface WithdrawalHistory {
