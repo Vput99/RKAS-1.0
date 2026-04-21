@@ -25,19 +25,25 @@ export const getSystemUsage = async (): Promise<SystemUsage> => {
         const userId = await getCurrentUserId();
         if (!userId) return DEFAULT_USAGE;
 
-        const [budgets, history, reports, bank, accounts] = await Promise.all([
+        const [budgets, history, reports, bank] = await Promise.all([
             supabase.from('budgets').select('id, realizations').eq('user_id', userId),
             supabase.from('withdrawal_history').select('id, file_path').eq('user_id', userId),
             supabase.from('rapor_pendidikan').select('id').eq('user_id', userId),
-            supabase.from('bank_statements').select('id, file_path').eq('user_id', userId),
-            supabase.from('account_codes').select('id').eq('user_id', userId)
+            supabase.from('bank_statements').select('id, file_path').eq('user_id', userId)
         ]);
+
+        let accountCount = 0;
+        try {
+            const accounts = await supabase.from('account_codes').select('id').eq('user_id', userId);
+            accountCount = accounts.data?.length || 0;
+        } catch (e) {
+            console.warn("account_codes query failed:", e);
+        }
 
         const budgetCount = budgets.data?.length || 0;
         const historyCount = history.data?.length || 0;
         const reportCount = reports.data?.length || 0;
         const bankCount = bank.data?.length || 0;
-        const accountCount = accounts.data?.length || 0;
 
         const dbSize = (budgetCount * 5000) + (historyCount * 10000) + (reportCount * 1000) + (bankCount * 2000) + (accountCount * 500);
 
