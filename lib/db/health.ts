@@ -19,11 +19,10 @@ export const getSystemUsage = async (): Promise<SystemUsage> => {
         fileCount: 0
     };
 
-    if (!supabase) return DEFAULT_USAGE;
+    const userId = await getCurrentUserId();
+    if (!supabase || !userId) return DEFAULT_USAGE;
 
     try {
-        const userId = await getCurrentUserId();
-        if (!userId) return DEFAULT_USAGE;
 
         const [budgets, history, reports, bank] = await Promise.all([
             supabase.from('budgets').select('id, realizations').eq('user_id', userId),

@@ -5,40 +5,49 @@ import { db } from './dexie';
 
 export const getStoredAccounts = async (): Promise<Record<string, string>> => {
     const userId = await getCurrentUserId();
-    
-    if (supabase && userId) {
-        try {
-            const { data, error } = await supabase
-                .from('account_codes')
-                .select('*')
-                .or(`user_id.is.null,user_id.eq.${userId}`)
-                .order('code', { ascending: true });
 
-            if (data && !error) {
-                const dbMap: Record<string, string> = {};
-                const sorted = [...data].sort((a, b) => {
-                    if (a.user_id === b.user_id) return 0;
-                    return a.user_id === null ? -1 : 1;
-                });
-                sorted.forEach((item: any) => { dbMap[item.code] = item.name; });
-
-                if (Object.keys(dbMap).length > 0) {
-                    // Sync to IDB
-                    await db.accountCodes.where('user_id').equals(userId).delete();
-                    await db.accountCodes.bulkAdd(Object.entries(dbMap).map(([code, name]) => ({ code, name, user_id: userId })));
-                    return dbMap;
-                }
+    if (!supabase || !userId) {
+        if (userId) {
+            const localData = await db.accountCodes.where('user_id').equals(userId).toArray();
+            if (localData.length > 0) {
+                const map: Record<string, string> = {};
+                localData.forEach((d: { code: string; name: string }) => { map[d.code] = d.name; });
+                return { ...AccountCodes, ...map };
             }
-        } catch (e) { console.error("Cloud accounts fetch error:", e); }
+        }
+        return AccountCodes;
     }
 
-    if (userId) {
-        const localData = await db.accountCodes.where('user_id').equals(userId).toArray();
-        if (localData.length > 0) {
-            const map: Record<string, string> = {};
-            localData.forEach((d: { code: string; name: string }) => { map[d.code] = d.name; });
-            return { ...AccountCodes, ...map };
+    try {
+        const { data, error } = await supabase
+            .from('account_codes')
+            .select('*')
+            .or(`user_id.is.null,user_id.eq.${userId}`)
+            .order('code', { ascending: true });
+
+        if (data && !error) {
+            const dbMap: Record<string, string> = {};
+            const sorted = [...data].sort((a, b) => {
+                if (a.user_id === b.user_id) return 0;
+                return a.user_id === null ? -1 : 1;
+            });
+            sorted.forEach((item: any) => { dbMap[item.code] = item.name; });
+
+            if (Object.keys(dbMap).length > 0) {
+                await db.accountCodes.where('user_id').equals(userId).delete();
+                await db.accountCodes.bulkAdd(Object.entries(dbMap).map(([code, name]) => ({ code, name, user_id: userId })));
+                return dbMap;
+            }
+        } else if (error) {
+            console.warn("Cloud accounts fetch error:", error.message);
         }
+    } catch (e) { console.error("Cloud accounts fetch error:", e); }
+
+    const localData = await db.accountCodes.where('user_id').equals(userId).toArray();
+    if (localData.length > 0) {
+        const map: Record<string, string> = {};
+        localData.forEach((d: { code: string; name: string }) => { map[d.code] = d.name; });
+        return { ...AccountCodes, ...map };
     }
 
     return AccountCodes;
