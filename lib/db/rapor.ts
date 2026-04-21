@@ -1,5 +1,5 @@
 import { supabase } from '../supabase';
-import { RaporIndicator } from '../../types';
+import { RaporIndicator, PBDRecommendation } from '../../types';
 import { getCurrentUserId } from './auth';
 import { db } from './dexie';
 
@@ -14,16 +14,19 @@ export const getRaporData = async (year: string): Promise<RaporIndicator[] | nul
             .eq('year', year);
 
         if (!error && data && data.length > 0) {
-            const indicators = data.map(item => ({
+            const indicators: RaporIndicator[] = data.map(item => ({
                 id: item.indicator_id,
                 label: item.label,
                 score: Number(item.score),
-                category: item.category
+                category: item.category as any
             }));
             
             // Cache to IDB
             await db.raporPendidikan.where({ user_id: userId, year: year }).delete();
-            await db.raporPendidikan.bulkAdd(indicators.map(ind => ({ ...ind, user_id: userId, year: year })));
+            await db.raporPendidikan.bulkAdd(indicators.map(ind => {
+                const { id, ...rest } = ind;
+                return { ...rest, indicator_id: id, user_id: userId, year: year } as any;
+            }));
             
             return indicators;
         }
@@ -31,7 +34,14 @@ export const getRaporData = async (year: string): Promise<RaporIndicator[] | nul
 
     if (userId) {
         const local = await db.raporPendidikan.where({ user_id: userId, year: year }).toArray();
-        if (local.length > 0) return local;
+        if (local.length > 0) {
+            return local.map(item => ({
+                id: (item as any).indicator_id,
+                label: item.label,
+                score: item.score,
+                category: item.category as any
+            }));
+        }
     }
     
     return null;
@@ -58,12 +68,18 @@ export const saveRaporData = async (indicators: RaporIndicator[], year: string):
 
         if (!error) {
             await db.raporPendidikan.where({ user_id: userId, year: year }).delete();
-            await db.raporPendidikan.bulkAdd(indicators.map(ind => ({ ...ind, user_id: userId, year: year })));
+            await db.raporPendidikan.bulkAdd(indicators.map(ind => {
+                const { id, ...rest } = ind;
+                return { ...rest, indicator_id: id, user_id: userId, year: year } as any;
+            }));
             return true;
         }
     } else {
         await db.raporPendidikan.where({ user_id: userId, year: year }).delete();
-        await db.raporPendidikan.bulkAdd(indicators.map(ind => ({ ...ind, user_id: userId, year: year })));
+        await db.raporPendidikan.bulkAdd(indicators.map(ind => {
+            const { id, ...rest } = ind;
+            return { ...rest, indicator_id: id, user_id: userId, year: year } as any;
+        }));
         return true;
     }
 
@@ -90,7 +106,7 @@ export const getRaporRecommendations = async (year: string): Promise<PBDRecommen
                 bospComponent: item.bosp_component,
                 snpStandard: item.snp_standard,
                 estimatedCost: Number(item.estimated_cost),
-                priority: item.priority,
+                priority: item.priority as any,
                 componentAnalysis: item.component_analysis,
                 analysisSteps: item.analysis_steps || [],
                 items: item.items || []
@@ -113,7 +129,7 @@ export const saveRaporRecommendations = async (recommendations: PBDRecommendatio
             user_id: userId,
             year: year,
             indicator_id: rec.indicatorId,
-            activity_name: rec.activityName,
+            activity_name: rec.activityName || rec.activityName,
             title: rec.title,
             description: rec.description,
             bosp_component: rec.bospComponent,
