@@ -40,7 +40,7 @@ export const isAiConfigured = () => !!getActiveApiKey();
 
 // Internal helper to get target model
 export const getAiModel = () => {
-  return localStorage.getItem('GEMINI_MODEL') || 'gemini-1.5-flash';
+  return localStorage.getItem('GEMINI_MODEL') || 'gemini-3-flash-preview';
 };
 
 // Helper to robustly parse JSON from AI response

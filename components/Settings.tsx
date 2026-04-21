@@ -234,7 +234,7 @@ const Settings: React.FC<SettingsProps> = () => {
             
             <label className="block text-[10px] font-bold text-slate-500 uppercase ml-1 mt-2">Model Selection</label>
             <select 
-              defaultValue={localStorage.getItem('GEMINI_MODEL') || 'gemini-1.5-flash-8b'}
+              defaultValue={localStorage.getItem('GEMINI_MODEL') || 'gemini-3-flash-preview'}
               onChange={(e) => {
                 localStorage.setItem('GEMINI_MODEL', e.target.value);
                 setSaved(true);
