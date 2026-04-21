@@ -441,5 +441,27 @@ export interface RoolstaatDaftar {
     rows: RoolstaatRow[];
 }
 
+export interface InventoryItem {
+    id: string;
+    name: string;
+    spec: string;
+    quantity: number;
+    unit: string;
+    price: number;
+    total: number;
+    subActivityCode?: string;
+    subActivityName?: string;
+    accountCode: string;
+    date: string;
+    contractType?: string;
+    vendor?: string;
+    docNumber: string;
+    category: string; // 'ATK', 'Kebersihan', etc. with optional subcategories like 'ATK - Kertas'
+    codification?: string;
+    lastYearBalance?: number;
+    usedQuantity?: number;
+}
+
+
 
 
