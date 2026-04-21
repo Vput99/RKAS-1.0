@@ -260,17 +260,24 @@ export const analyzeRaporExcel = async (excelBase64: string, targetYear: string)
     let excelContentText = "";
 
     workbook.SheetNames.forEach(sheetName => {
-      const worksheet = workbook.Sheets[sheetName];
-      const csvData = utils.sheet_to_csv(worksheet);
-      if (csvData.trim().length > 0) {
-        excelContentText += `\nSHEET: ${sheetName}\n${csvData}\n`;
+      // Prioritize "LAPORAN RAPOR" or "Dashboard" sheets
+      const isRelevant = sheetName.toUpperCase().includes('LAPORAN') || 
+                         sheetName.toUpperCase().includes('RINGKASAN') ||
+                         sheetName.toUpperCase().includes('REKOM');
+      
+      if (isRelevant) {
+        const worksheet = workbook.Sheets[sheetName];
+        const csvData = utils.sheet_to_csv(worksheet);
+        if (csvData.trim().length > 0) {
+          excelContentText += `\nSHEET: ${sheetName}\n${csvData}\n`;
+        }
       }
     });
 
     // Limit context size to avoid token limits (approx 40k chars)
     const truncatedContent = excelContentText.slice(0, 40000);
 
-    const prompt = `Anda adalah Pakar Analisis Data Pendidikan & Auditor Senior BOSP (Indonesia).
+    const prompt = `Anda adalah Pakar Analisis Data Pendidikan (Indonesia).
     
     Target Tahun Anggaran: ${targetYear}
 
@@ -278,25 +285,29 @@ export const analyzeRaporExcel = async (excelBase64: string, targetYear: string)
     ${truncatedContent}
 
     TUGAS UTAMA:
-    1. BACA dan ANALISIS data dari ekstraksi Excel Rapor Pendidikan tersebut.
-    2. AMBIL skor untuk 6 Indikator Prioritas:
+    1. CARI dan EKSTRAK skor UNTUK 6 Indikator Prioritas UTAMA:
        - A.1 Kemampuan Literasi
        - A.2 Kemampuan Numerasi  
        - A.3 Karakter
        - D.1 Kualitas Pembelajaran
        - D.4 Iklim Keamanan Sekolah
        - D.8 Iklim Kebinekaan
-    3. ANALISIS faktor penyebab mengapa nilai tersebut MERAH (Kurang/Sedang):
-       - Identifikasi root cause dari kelemahan berdasarkan data detail yang ada
-    4. BUATKAN ringkasan analisis (generalAnalysis) yang menjelaskan kondisi saat ini dan rekomendasi strategis untuk RKAS ${targetYear}.
-    5. BUATKAN rekomendasi PBD dengan Anggaran:
-       - Setiap indikator yang "Kurang" (Skor < 50) atau "Sedang" (Skor 50-69) wajib ada minimal 1 paket kegiatan.
-       - Gunakan kode rekening dari daftar di bawah.
+    
+    ATURAN EKSTRAKSI DATA:
+    - Ambil skor dari kolom "Skor Rapor [Tahun Terbaru]" (Contoh: Jika ada 2024 dan 2025, ambil 2025).
+    - Fokus pada baris INDIKATOR UTAMA (A.1, A.2, dst). JANGAN ambil skor dari sub-indikator (seperti A.1.1, A.2.1) jika itu merusak akurasi skor utama.
+    - Pastikan skor dikonversi menjadi angka (Hapus tanda % jika ada).
+    - JIKA data A.1 tertulis "84,21%", maka skornya adalah 84.21.
+
+    2. ANALISIS faktor penyebab mengapa nilai tersebut MERAH/KUNING:
+       - Identifikasi akar masalah dari detail sub-indikator yang nilainya rendah.
+    3. BUATKAN ringkasan analisis (generalAnalysis) strategis.
+    4. BUATKAN rekomendasi PBD dengan Anggaran menggunakan kode rekening yang tersedia.
     
     DAFTAR KODE REKENING:
     ${accountContext}
 
-    KRITERIA NILAI:
+    KRITERIA WARNA (BERDASARKAN SKOR):
     - Score >= 70 = Hijau ("Baik")
     - Score 50-69 = Kuning ("Sedang")  
     - Score < 50 = Merah ("Kurang")
