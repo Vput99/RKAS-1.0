@@ -450,68 +450,12 @@ export const analyzeRaporQuality = async (indicators: RaporIndicator[], targetYe
   if (weakIndicators.length === 0) return [];
 
   // Reduce context slightly to ensure it fits and processes faster
-  const accountContext = Object.entries(AccountCodes)
+const accountContext = Object.entries(AccountCodes)
     .map(([c, n]) => `- ${c}: ${n}`)
     .join('\n');
 
-  const prompt = `Anda adalah Konsultan Senior PBD & Ahli Perencanaan RKAS (Indonesia).
-    
-    TUGAS:
-    Analisis data Rapor Pendidikan berikut (fokus pada indikator yang "Kurang" atau "Sedang").
-    Berikan rekomendasi kegiatan "Benahi" yang konkret, strategis, dan sesuai dengan Juknis BOSP terbaru.
-    
-    Data Indikator: ${JSON.stringify(weakIndicators)}
-    Target Tahun Anggaran: ${targetYear}
-    
-    PEDOMAN ANALISIS MAX:
-    1. Untuk setiap indikator yang lemah, buatkan 1-3 paket kegiatan yang komprehensif.
-    2. Pisahkan setiap kegiatan menjadi item rincian belanja (misal: Honor Narasumber, Transport Peserta, Konsumsi, ATK, Bahan Praktik).
-    3. Pastikan pemilihan 'accountCode' TEPAT sasaran menggunakan daftar kode di bawah.
-    4. Berikan 'description' yang berisi justifikasi logis kenapa kegiatan ini bisa meningkatkan skor indikator tersebut.
-    
-    DAFTAR KODE REKENING STANDAR (Gunakan Kode Ini):
-    ${accountContext}
-
-    OUTPUT WAJIB: JSON Array of PBDRecommendation objects.
-    PENTING: Untuk setiap rekomendasi, berikan 'componentAnalysis' (penyebab nilai kurang/sedang berdasarkan data) and 'analysisSteps' (array berisi 3-5 langkah konkret perbaikan non-belanja).`;
-
-  const schema = {
-    type: Type.ARRAY,
-    items: {
-      type: Type.OBJECT,
-      properties: {
-        indicatorId: { type: Type.STRING },
-        activityName: { type: Type.STRING },
-        description: { type: Type.STRING },
-        bospComponent: { type: Type.STRING },
-        snpStandard: { type: Type.STRING },
-        estimatedCost: { type: Type.NUMBER },
-        priority: { type: Type.STRING },
-        componentAnalysis: { type: Type.STRING },
-        analysisSteps: {
-          type: Type.ARRAY,
-          items: { type: Type.STRING }
-        },
-        items: {
-          type: Type.ARRAY,
-          items: {
-            type: Type.OBJECT,
-            properties: {
-              name: { type: Type.STRING },
-              quantity: { type: Type.NUMBER },
-              unit: { type: Type.STRING },
-              price: { type: Type.NUMBER },
-              accountCode: { type: Type.STRING }
-            },
-            required: ['name', 'quantity', 'unit', 'price', 'accountCode']
-          }
-        }
-      },
-      required: ['indicatorId', 'activityName', 'description', 'bospComponent', 'snpStandard', 'estimatedCost', 'priority', 'items', 'componentAnalysis', 'analysisSteps']
-    }
-  };
-
   try {
+    console.log("Analyzing Excel file, base64 length:", excelBase64.length);
     const response = await ai.models.generateContent({
       model: getAiModel(),
       contents: [{ parts: [{ text: prompt }] }],
@@ -825,6 +769,7 @@ export const analyzeRaporExcel = async (excelBase64: string, targetYear: string)
       }
     });
 
+    console.log("AI Response:", response.text);
     const result = parseAIResponse(response.text);
 
     if (!result) {
@@ -835,8 +780,10 @@ export const analyzeRaporExcel = async (excelBase64: string, targetYear: string)
 
   } catch (error: any) {
     console.error("Excel Analysis Error:", error);
-    let errorMessage = "Terjadi kesalahan saat menganalisis dengan AI.";
+    let errorMessage = `Terjadi kesalahan saat menganalisis dengan AI: ${error.message || 'Unknown error'}`;
     if (error.message?.includes('429')) errorMessage = "Limit API Habis.";
+    if (error.message?.includes('400')) errorMessage = "Request tidak valid. Pastikan file Excel valid.";
+    if (error.message?.includes('403')) errorMessage = "API Key tidak memiliki akses.";
     if (error.message?.includes('400')) errorMessage = "Format File Excel tidak valid atau rusak.";
     return { success: false, error: errorMessage };
   }
