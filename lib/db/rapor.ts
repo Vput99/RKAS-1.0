@@ -69,3 +69,70 @@ export const saveRaporData = async (indicators: RaporIndicator[], year: string):
 
     return false;
 };
+
+export const getRaporRecommendations = async (year: string): Promise<PBDRecommendation[] | null> => {
+    const userId = await getCurrentUserId();
+    if (!userId) return null;
+
+    if (supabase) {
+        const { data, error } = await supabase
+            .from('rapor_recommendations')
+            .select('*')
+            .eq('user_id', userId)
+            .eq('year', year);
+
+        if (!error && data && data.length > 0) {
+            return data.map(item => ({
+                indicatorId: item.indicator_id,
+                activityName: item.activity_name,
+                title: item.title,
+                description: item.description,
+                bospComponent: item.bosp_component,
+                snpStandard: item.snp_standard,
+                estimatedCost: Number(item.estimated_cost),
+                priority: item.priority,
+                componentAnalysis: item.component_analysis,
+                analysisSteps: item.analysis_steps || [],
+                items: item.items || []
+            }));
+        }
+    }
+
+    return null;
+};
+
+export const saveRaporRecommendations = async (recommendations: PBDRecommendation[], year: string): Promise<boolean> => {
+    const userId = await getCurrentUserId();
+    if (!userId) return false;
+
+    if (supabase) {
+        // Clear previous recommendations for this year
+        await supabase.from('rapor_recommendations').delete().eq('user_id', userId).eq('year', year);
+
+        const insertData = recommendations.map(rec => ({
+            user_id: userId,
+            year: year,
+            indicator_id: rec.indicatorId,
+            activity_name: rec.activityName,
+            title: rec.title,
+            description: rec.description,
+            bosp_component: rec.bospComponent,
+            snp_standard: rec.snpStandard,
+            estimated_cost: rec.estimatedCost,
+            priority: rec.priority,
+            component_analysis: rec.componentAnalysis,
+            analysis_steps: rec.analysisSteps,
+            items: rec.items,
+            updated_at: new Date().toISOString()
+        }));
+
+        const { error } = await supabase
+            .from('rapor_recommendations')
+            .insert(insertData);
+
+        return !error;
+    }
+
+    return true;
+};
+

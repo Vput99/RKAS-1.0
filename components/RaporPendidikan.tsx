@@ -1,8 +1,7 @@
-
 import React, { useState, useEffect, useRef } from 'react';
 import { RaporIndicator, PBDRecommendation, TransactionType, Budget, SchoolProfile } from '../types';
 import { analyzeRaporQuality, analyzeRaporPDF, analyzeRaporExcel, isAiConfigured } from '../lib/gemini';
-import { getRaporData, saveRaporData } from '../lib/db';
+import { getRaporData, saveRaporData, getRaporRecommendations, saveRaporRecommendations } from '../lib/db';
 import { generatePDFHeader, generateSignatures, defaultTableStyles } from '../lib/pdfUtils';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
@@ -36,7 +35,7 @@ const RaporPendidikan: React.FC<RaporPendidikanProps> = ({ onAddBudget, budgetDa
     const [recommendations, setRecommendations] = useState<PBDRecommendation[]>([]);
     const [loading, setLoading] = useState(false);
     const [isSaving, setIsSaving] = useState(false);
-    const [activeView, setActiveView] = useState<'input' | 'analysis' | 'report'>('input');
+    const [activeView, setActiveView] = useState<'input' | 'analysis' | 'report' | 'history'>('input');
     const [inputMethod, setInputMethod] = useState<'upload' | 'manual'>('upload');
     const [targetYear, setTargetYear] = useState('2027');
 
@@ -69,6 +68,11 @@ const RaporPendidikan: React.FC<RaporPendidikanProps> = ({ onAddBudget, budgetDa
         } else {
             setIndicators(DEFAULT_INDICATORS);
         }
+
+        // Also load recommendations
+        const savedRecs = await getRaporRecommendations(targetYear);
+        if (savedRecs) setRecommendations(savedRecs);
+        else setRecommendations([]);
     };
 
     const handleSaveRapor = async () => {
@@ -106,6 +110,7 @@ const RaporPendidikan: React.FC<RaporPendidikanProps> = ({ onAddBudget, budgetDa
             return;
         }
         setRecommendations(results);
+        await saveRaporRecommendations(results, targetYear);
         setActiveView('analysis');
         setLoading(false);
     };
@@ -195,8 +200,14 @@ const RaporPendidikan: React.FC<RaporPendidikanProps> = ({ onAddBudget, budgetDa
           if (result.success && result.data) {
               setIndicators(result.data.indicators);
               setRecommendations(result.data.recommendations);
+              
+              // Save to Database
+              const dataYear = (parseInt(targetYear) - 1).toString();
+              await saveRaporData(result.data.indicators, dataYear);
+              await saveRaporRecommendations(result.data.recommendations, targetYear);
+
               setActiveView('report');
-              alert("Berhasil menganalisis file Excel Rapor Pendidikan.");
+              alert("Berhasil menganalisis file Excel Rapor Pendidikan dan menyimpan ke Cloud.");
           } else {
               alert(`Gagal menganalisis: ${result.error}`);
           }
@@ -238,7 +249,12 @@ const RaporPendidikan: React.FC<RaporPendidikanProps> = ({ onAddBudget, budgetDa
                     }
                     if (result.data.recommendations && result.data.recommendations.length > 0) {
                         setRecommendations(result.data.recommendations);
+                        
+                        // Save Recommendations to Database
+                        await saveRaporRecommendations(result.data.recommendations, targetYear);
+                        
                         setActiveView('report');
+                        alert("Berhasil menganalisis PDF dan menyimpan ke Cloud.");
                     } else {
                         alert("AI berhasil membaca nilai, namun tidak menemukan rekomendasi kegiatan spesifik.");
                     }
@@ -353,6 +369,34 @@ const RaporPendidikan: React.FC<RaporPendidikanProps> = ({ onAddBudget, budgetDa
                 setTargetYear={setTargetYear}
             />
 
+            {/* Sub-Navigation */}
+            <div className="flex items-center gap-1 bg-white/50 backdrop-blur-md p-1 rounded-2xl border border-white/80 w-fit shadow-sm">
+                <button 
+                    onClick={() => setActiveView('input')}
+                    className={`px-6 py-2 rounded-xl text-xs font-black uppercase tracking-widest transition-all ${activeView === 'input' ? 'bg-blue-600 text-white shadow-lg shadow-blue-200' : 'text-slate-400 hover:text-slate-600 hover:bg-white/80'}`}
+                >
+                    Identifikasi
+                </button>
+                <button 
+                    onClick={() => setActiveView('report')}
+                    className={`px-6 py-2 rounded-xl text-xs font-black uppercase tracking-widest transition-all ${activeView === 'report' ? 'bg-blue-600 text-white shadow-lg shadow-blue-200' : 'text-slate-400 hover:text-slate-600 hover:bg-white/80'}`}
+                >
+                    Refleksi
+                </button>
+                <button 
+                    onClick={() => setActiveView('analysis')}
+                    className={`px-6 py-2 rounded-xl text-xs font-black uppercase tracking-widest transition-all ${activeView === 'analysis' ? 'bg-blue-600 text-white shadow-lg shadow-blue-200' : 'text-slate-400 hover:text-slate-600 hover:bg-white/80'}`}
+                >
+                    Analisis PBD
+                </button>
+                <button 
+                    onClick={() => setActiveView('history')}
+                    className={`px-6 py-2 rounded-xl text-xs font-black uppercase tracking-widest transition-all ${activeView === 'history' ? 'bg-blue-600 text-white shadow-lg shadow-blue-200' : 'text-slate-400 hover:text-slate-600 hover:bg-white/80'}`}
+                >
+                    Hasil AI
+                </button>
+            </div>
+
             {activeView === 'input' && (
                 <RaporInputView
                     inputMethod={inputMethod}
@@ -402,6 +446,48 @@ const RaporPendidikan: React.FC<RaporPendidikanProps> = ({ onAddBudget, budgetDa
                     isActivityInBudget={isActivityInBudget}
                     setSelectedRec={setSelectedRec}
                 />
+            )}
+
+            {activeView === 'history' && (
+                <div className="bg-white/60 backdrop-blur-md rounded-[2.5rem] border border-white p-8 shadow-xl">
+                    <div className="mb-8">
+                        <h3 className="text-xl font-black text-slate-800 tracking-tight">Katalog Hasil Analisis AI</h3>
+                        <p className="text-sm text-slate-500">Daftar rekomendasi kegiatan yang dihasilkan oleh kecerdasan buatan untuk tahun {targetYear}.</p>
+                    </div>
+                    
+                    {recommendations.length > 0 ? (
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            {recommendations.map((rec, idx) => (
+                                <div key={idx} className="p-5 bg-white rounded-3xl border border-slate-100 shadow-sm hover:shadow-md transition-all">
+                                    <div className="flex justify-between items-start mb-3">
+                                        <span className="px-2 py-1 bg-blue-50 text-blue-600 text-[10px] font-black rounded-lg uppercase">{rec.indicatorId}</span>
+                                        <span className={`px-2 py-1 text-[10px] font-black rounded-lg uppercase ${rec.priority === 'Tinggi' ? 'bg-rose-50 text-rose-600' : 'bg-slate-50 text-slate-500'}`}>
+                                            {rec.priority}
+                                        </span>
+                                    </div>
+                                    <h4 className="font-bold text-slate-800 mb-2">{rec.activityName}</h4>
+                                    <p className="text-xs text-slate-500 line-clamp-2 mb-4">{rec.description}</p>
+                                    <div className="flex justify-between items-center">
+                                        <span className="text-[10px] font-bold text-slate-400">Est. Biaya: {new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', maximumFractionDigits: 0 }).format(rec.estimatedCost)}</span>
+                                        <button 
+                                            onClick={() => {
+                                                setSelectedRec(rec);
+                                                setActiveView('analysis');
+                                            }}
+                                            className="text-[10px] font-black text-blue-600 uppercase tracking-widest hover:underline"
+                                        >
+                                            Detail & Rincian
+                                        </button>
+                                    </div>
+                                </div>
+                            ))}
+                        </div>
+                    ) : (
+                        <div className="text-center py-20 bg-slate-50/50 rounded-[2rem] border border-dashed border-slate-200">
+                             <p className="text-slate-400 text-sm italic">Belum ada hasil analisis AI untuk periode ini. Silakan lakukan identifikasi di menu Identifikasi.</p>
+                        </div>
+                    )}
+                </div>
             )}
 
             {selectedRec && (
