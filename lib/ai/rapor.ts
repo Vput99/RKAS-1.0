@@ -1,4 +1,4 @@
-import * as XLSX from 'xlsx';
+import { read, utils } from 'xlsx';
 import { Type } from "@google/genai";
 import { AccountCodes, RaporIndicator, PBDRecommendation } from "../../types";
 import { getAiInstance, getAiModel, parseAIResponse } from "./core";
@@ -256,12 +256,12 @@ export const analyzeRaporExcel = async (excelBase64: string, targetYear: string)
   try {
     // 1. Parse Excel locally to extract data
     // Rapor Pendidikan files can be complex, so we extract all sheets
-    const workbook = XLSX.read(excelBase64, { type: 'base64' });
+    const workbook = read(excelBase64, { type: 'base64' });
     let excelContentText = "";
 
     workbook.SheetNames.forEach(sheetName => {
       const worksheet = workbook.Sheets[sheetName];
-      const csvData = XLSX.utils.sheet_to_csv(worksheet);
+      const csvData = utils.sheet_to_csv(worksheet);
       if (csvData.trim().length > 0) {
         excelContentText += `\nSHEET: ${sheetName}\n${csvData}\n`;
       }

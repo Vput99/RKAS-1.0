@@ -212,9 +212,9 @@ const RaporPendidikan: React.FC<RaporPendidikanProps> = ({ onAddBudget, budgetDa
                   alert(`Gagal menganalisis: ${result.error}`);
               }
               setSelectedFile(null);
-          } catch (error) {
+          } catch (error: any) {
               console.error("Excel processing error:", error);
-              alert("Gagal memproses file Excel.");
+              alert(`Gagal memproses file Excel: ${error?.message || 'Unknown Error'}`);
           } finally {
               setIsUploading(false);
           }
