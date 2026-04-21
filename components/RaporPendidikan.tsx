@@ -1,12 +1,12 @@
 
 import React, { useState, useEffect, useRef } from 'react';
 import { RaporIndicator, PBDRecommendation, TransactionType, Budget, SchoolProfile } from '../types';
-import { analyzeRaporQuality, analyzeRaporPDF, isAiConfigured } from '../lib/gemini';
+import { analyzeRaporQuality, analyzeRaporPDF, analyzeRaporExcel, isAiConfigured } from '../lib/gemini';
 import { getRaporData, saveRaporData } from '../lib/db';
 import { generatePDFHeader, generateSignatures, defaultTableStyles } from '../lib/pdfUtils';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
-import { extractDataFromExcel, parseRaporData } from '../lib/fileProcessor';
+
 
 // Modular Components
 import RaporHeader from './rapor/RaporHeader';
@@ -176,43 +176,38 @@ const RaporPendidikan: React.FC<RaporPendidikanProps> = ({ onAddBudget, budgetDa
         }
     };
 
-    const handleProcessExcel = async () => {
-        if (!selectedFile) return;
-        setIsUploading(true);
+  const handleProcessExcel = async () => {
+      if (!selectedFile) return;
+      if (!isAiConfigured()) {
+        alert("Fitur AI belum aktif. Masukkan API Key di pengaturan.");
+        return;
+      }
+      setIsUploading(true);
 
-        try {
-            const grid = await extractDataFromExcel(selectedFile);
-            console.log("Excel Data Extracted:", grid);
+      try {
+          const arrayBuffer = await selectedFile.arrayBuffer();
+          const base64 = btoa(
+            new Uint8Array(arrayBuffer).reduce((data, byte) => data + String.fromCharCode(byte), '')
+          );
 
-            const extractedResults = parseRaporData(grid, DEFAULT_INDICATORS);
+          const result = await analyzeRaporExcel(base64, targetYear);
 
-            if (extractedResults.length > 0) {
-                const updatedIndicators = indicators.map(p => {
-                    const found = extractedResults.find(r => r.id === p.id);
-                    return found ? { ...p, score: found.score || 0, category: getCategory(found.score || 0) as any } : p;
-                });
-                setIndicators(updatedIndicators);
-
-                setLoading(true);
-                const results = await analyzeRaporQuality(updatedIndicators, targetYear);
-                if (results) {
-                    setRecommendations(results);
-                    setActiveView('report');
-                }
-                setLoading(false);
-
-                alert(`Berhasil mengimpor ${extractedResults.length} indikator dari Excel.`);
-                setSelectedFile(null);
-            } else {
-                alert("Tidak menemukan data indikator Rapor Pendidikan yang valid dalam file Excel ini.");
-            }
-            setIsUploading(false);
-        } catch (error) {
-            console.error("Excel processing error:", error);
-            alert("Gagal memproses file Excel.");
-            setIsUploading(false);
-        }
-    };
+          if (result.success && result.data) {
+              setIndicators(result.data.indicators);
+              setRecommendations(result.data.recommendations);
+              setActiveView('report');
+              alert("Berhasil menganalisis file Excel Rapor Pendidikan.");
+          } else {
+              alert(`Gagal menganalisis: ${result.error}`);
+          }
+          setSelectedFile(null);
+          setIsUploading(false);
+      } catch (error) {
+          console.error("Excel processing error:", error);
+          alert("Gagal memproses file Excel.");
+          setIsUploading(false);
+      }
+  };
 
     const handleProcessPdf = async () => {
         if (!selectedFile) return;
