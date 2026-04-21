@@ -693,6 +693,8 @@ export const analyzeRaporExcel = async (excelBase64: string, targetYear: string)
   try {
     const prompt = `Anda adalah Pakar Analisis Data Pendidikan & Auditor Senior BOSP (Indonesia).
     
+    Target Tahun Anggaran: ${targetYear}
+
     TUGAS UTAMA:
     1. BACA dan EKSTRAK SELURUH data dari file Excel Rapor Pendidikan (semua sheet, termasuk sheet Dashboard, Ringkasan, Detail, dll).
     2. AMBIL skor untuk 6 Indikator Prioritas:
@@ -708,7 +710,7 @@ export const analyzeRaporExcel = async (excelBase64: string, targetYear: string)
     4. BUATKAN ringkasan analisis (generalAnalysis) yang menjelaskan:
        - Kondisi saat ini berdasarkan data
        - Penyebab utama nilai merah
-       - Rekomendasi strategis untuk RKAS
+       - Rekomendasi strategis untuk RKAS ${targetYear}
     5. BUATKAN rekomendasi PBD dengan Anggaran untuk mengatasi nilai merah:
        - Setiap indikator yang "Kurang" atau "Sedang" wajib ada 1 paket kegiatan
        - Rincikan item belanja denganperkiraan biaya (quantity × price)
