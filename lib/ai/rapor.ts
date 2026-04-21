@@ -1,4 +1,4 @@
-
+import * as XLSX from 'xlsx';
 import { Type } from "@google/genai";
 import { AccountCodes, RaporIndicator, PBDRecommendation } from "../../types";
 import { getAiInstance, getAiModel, parseAIResponse } from "./core";
@@ -254,12 +254,31 @@ export const analyzeRaporExcel = async (excelBase64: string, targetYear: string)
     .join('\n');
 
   try {
+    // 1. Parse Excel locally to extract data
+    // Rapor Pendidikan files can be complex, so we extract all sheets
+    const workbook = XLSX.read(excelBase64, { type: 'base64' });
+    let excelContentText = "";
+
+    workbook.SheetNames.forEach(sheetName => {
+      const worksheet = workbook.Sheets[sheetName];
+      const csvData = XLSX.utils.sheet_to_csv(worksheet);
+      if (csvData.trim().length > 0) {
+        excelContentText += `\nSHEET: ${sheetName}\n${csvData}\n`;
+      }
+    });
+
+    // Limit context size to avoid token limits (approx 40k chars)
+    const truncatedContent = excelContentText.slice(0, 40000);
+
     const prompt = `Anda adalah Pakar Analisis Data Pendidikan & Auditor Senior BOSP (Indonesia).
     
     Target Tahun Anggaran: ${targetYear}
 
+    DATA EKSTRAKSI EXCEL (Dalam Format CSV):
+    ${truncatedContent}
+
     TUGAS UTAMA:
-    1. BACA dan EKSTRAK SELURUH data dari file Excel Rapor Pendidikan (semua sheet, termasuk sheet Dashboard, Ringkasan, Detail, dll).
+    1. BACA dan ANALISIS data dari ekstraksi Excel Rapor Pendidikan tersebut.
     2. AMBIL skor untuk 6 Indikator Prioritas:
        - A.1 Kemampuan Literasi
        - A.2 Kemampuan Numerasi  
@@ -268,16 +287,11 @@ export const analyzeRaporExcel = async (excelBase64: string, targetYear: string)
        - D.4 Iklim Keamanan Sekolah
        - D.8 Iklim Kebinekaan
     3. ANALISIS faktor penyebab mengapa nilai tersebut MERAH (Kurang/Sedang):
-       - Cari data pendukung: jumlah siswa, persentase keterlibatan, hasil проб assessments
-       - Identifikasiroot cause dari kelemahan
-    4. BUATKAN ringkasan analisis (generalAnalysis) yang menjelaskan:
-       - Kondisi saat ini berdasarkan data
-       - Penyebab utama nilai merah
-       - Rekomendasi strategis untuk RKAS ${targetYear}
-    5. BUATKAN rekomendasi PBD dengan Anggaran untuk mengatasi nilai merah:
-       - Setiap indikator yang "Kurang" atau "Sedang" wajib ada 1 paket kegiatan
-       - Rincikan item belanja denganperkiraan biaya (quantity × price)
-       - Gunakan kode rekening yang sesuai dengan Juknis BOSP
+       - Identifikasi root cause dari kelemahan berdasarkan data detail yang ada
+    4. BUATKAN ringkasan analisis (generalAnalysis) yang menjelaskan kondisi saat ini dan rekomendasi strategis untuk RKAS ${targetYear}.
+    5. BUATKAN rekomendasi PBD dengan Anggaran:
+       - Setiap indikator yang "Kurang" (Skor < 50) atau "Sedang" (Skor 50-69) wajib ada minimal 1 paket kegiatan.
+       - Gunakan kode rekening dari daftar di bawah.
     
     DAFTAR KODE REKENING:
     ${accountContext}
@@ -289,30 +303,24 @@ export const analyzeRaporExcel = async (excelBase64: string, targetYear: string)
 
     OUTPUT JSON WAJIB:
     {
-      "generalAnalysis": "Ringkasan analisis kondisi sekolah berdasarkan data rapor...",
+      "generalAnalysis": "...",
       "indicators": [
         { "id": "A.1", "label": "Kemampuan Literasi", "score": 45, "category": "Kurang" },
-        { "id": "A.2", "label": "Kemampuan Numerasi", "score": 72, "category": "Baik" },
-        { "id": "A.3", "label": "Karakter", "score": 55, "category": "Sedang" },
-        { "id": "D.1", "label": "Kualitas Pembelajaran", "score": 40, "category": "Kurang" },
-        { "id": "D.4", "label": "Iklim Keamanan Sekolah", "score": 80, "category": "Baik" },
-        { "id": "D.8", "label": "Iklim Kebinekaan", "score": 65, "category": "Sedang" }
+        ...
       ],
       "recommendations": [
         {
           "indicatorId": "A.1",
-          "activityName": "Pengembangan Program Literasi Sekolah",
-          "description": "Justifikasi kenapa nilai literasi rendah berdasarkan data rapor...",
-          "componentAnalysis": "Analisis penyebab nilai rendah...",
-          "analysisSteps": ["Langkah 1...", "Langkah 2...", "Langkah 3..."],
+          "activityName": "...",
+          "description": "...",
+          "componentAnalysis": "...",
+          "analysisSteps": ["Langkah 1...", "Langkah 2..."],
           "bospComponent": "BOSP",
-          "snpStandard": "1. Pengembangan Kompetensi Lulusan",
+          "snpStandard": "...",
           "estimatedCost": 15000000,
           "priority": "Tinggi",
           "items": [
-            { "name": "Honor Narasumber Literasi", "quantity": 10, "unit": "OJ", "price": 500000, "accountCode": "5.1.02.02.01.0003" },
-            { "name": "Bahan Praktik Membaca", "quantity": 100, "unit": "Bks", "price": 25000, "accountCode": "5.1.02.01.01.0005" },
-            { "name": "Konsumsi Peserta", "quantity": 50, "unit": "Pax", "price": 35000, "accountCode": "5.1.02.01.01.0055" }
+            { "name": "...", "quantity": 10, "unit": "OJ", "price": 500000, "accountCode": "5.1.02.02.01.0003" }
           ]
         }
       ]
@@ -376,12 +384,7 @@ export const analyzeRaporExcel = async (excelBase64: string, targetYear: string)
 
     const response = await ai.models.generateContent({
       model: getAiModel(),
-      contents: [{
-        parts: [
-          { text: prompt },
-          { inlineData: { mimeType: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet', data: excelBase64 } }
-        ]
-      }],
+      contents: [{ parts: [{ text: prompt }] }],
       config: {
         responseMimeType: "application/json",
         responseSchema: schema
@@ -397,9 +400,8 @@ export const analyzeRaporExcel = async (excelBase64: string, targetYear: string)
     console.error("Excel Analysis Error:", error);
     let errorMessage = `Terjadi kesalahan saat menganalisis dengan AI: ${error.message || 'Unknown error'}`;
     if (error.message?.includes('429')) errorMessage = "Limit API Habis.";
-    if (error.message?.includes('400')) errorMessage = "Request tidak valid. Pastikan file Excel valid.";
+    if (error.message?.includes('400')) errorMessage = "Format Request atau File Tidak Didukung.";
     if (error.message?.includes('403')) errorMessage = "API Key tidak memiliki akses.";
-    if (error.message?.includes('400')) errorMessage = "Format File Excel tidak valid atau rusak.";
     return { success: false, error: errorMessage };
   }
 };
