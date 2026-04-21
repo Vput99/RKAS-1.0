@@ -189,35 +189,41 @@ const RaporPendidikan: React.FC<RaporPendidikanProps> = ({ onAddBudget, budgetDa
       }
       setIsUploading(true);
 
-      try {
-          const arrayBuffer = await selectedFile.arrayBuffer();
-          const base64 = btoa(
-            new Uint8Array(arrayBuffer).reduce((data, byte) => data + String.fromCharCode(byte), '')
-          );
-
-          const result = await analyzeRaporExcel(base64, targetYear);
-
-          if (result.success && result.data) {
-              setIndicators(result.data.indicators);
-              setRecommendations(result.data.recommendations);
+      const reader = new FileReader();
+      reader.onload = async () => {
+          try {
+              const resultStr = reader.result as string;
+              const base64 = resultStr.split(',')[1];
               
-              // Save to Database
-              const dataYear = (parseInt(targetYear) - 1).toString();
-              await saveRaporData(result.data.indicators, dataYear);
-              await saveRaporRecommendations(result.data.recommendations, targetYear);
+              const result = await analyzeRaporExcel(base64, targetYear);
 
-              setActiveView('report');
-              alert("Berhasil menganalisis file Excel Rapor Pendidikan dan menyimpan ke Cloud.");
-          } else {
-              alert(`Gagal menganalisis: ${result.error}`);
+              if (result.success && result.data) {
+                  setIndicators(result.data.indicators);
+                  setRecommendations(result.data.recommendations);
+                  
+                  // Save to Database
+                  const dataYear = (parseInt(targetYear) - 1).toString();
+                  await saveRaporData(result.data.indicators, dataYear);
+                  await saveRaporRecommendations(result.data.recommendations, targetYear);
+
+                  setActiveView('report');
+                  alert("Berhasil menganalisis file Excel Rapor Pendidikan dan menyimpan ke Cloud.");
+              } else {
+                  alert(`Gagal menganalisis: ${result.error}`);
+              }
+              setSelectedFile(null);
+          } catch (error) {
+              console.error("Excel processing error:", error);
+              alert("Gagal memproses file Excel.");
+          } finally {
+              setIsUploading(false);
           }
-          setSelectedFile(null);
+      };
+      reader.onerror = () => {
+          alert("Gagal membaca file.");
           setIsUploading(false);
-      } catch (error) {
-          console.error("Excel processing error:", error);
-          alert("Gagal memproses file Excel.");
-          setIsUploading(false);
-      }
+      };
+      reader.readAsDataURL(selectedFile);
   };
 
     const handleProcessPdf = async () => {
