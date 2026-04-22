@@ -33,6 +33,7 @@ const Auth: React.FC<AuthProps> = ({ onLoginSuccess }) => {
          if (isLogin) {
             const { error } = await supabase.auth.signInWithPassword({ email, password });
             if (error) throw error;
+            window.location.reload();
          } else {
             if (!schoolName.trim()) throw new Error("Nama Sekolah wajib diisi.");
             const { data: authData, error: authError } = await supabase.auth.signUp({ email, password });
@@ -55,6 +56,7 @@ const Auth: React.FC<AuthProps> = ({ onLoginSuccess }) => {
                if (sessionData.session) await saveSchoolProfile(initialProfile);
             }
             alert('Registrasi Sekolah Berhasil! Anda akan otomatis login.');
+            window.location.reload();
          }
       } catch (err: any) {
          setError(err.message || 'Terjadi kesalahan');
