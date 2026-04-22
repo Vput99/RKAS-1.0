@@ -41,9 +41,8 @@ const AppContent = ({
   onProfileUpdate
 }: AppContentProps) => {
   return (
-    <div className="flex-1 overflow-hidden relative rounded-[40px] bg-white/40 backdrop-blur-2xl border border-white/60 shadow-[0_12px_48px_rgba(1,83,84,0.05)]">
-      <div className="absolute inset-0 overflow-y-auto p-4 md:p-6 scrollbar-hide">
-        <div className="max-w-7xl mx-auto h-full relative">
+    <div className="flex-1 relative rounded-[40px] glass-card border border-white/60 p-4 md:p-8 animate-fade-in-up">
+      <div className="max-w-7xl mx-auto h-full relative">
           {loading ? (
             <div className="flex flex-col items-center justify-center h-full gap-4 text-teal-600/40">
               <div className="w-10 h-10 border-[3px] border-teal-100 border-t-teal-600 rounded-full animate-spin"></div>
@@ -82,7 +81,6 @@ const AppContent = ({
             </AnimatePresence>
           )}
         </div>
-      </div>
     </div>
   );
 };
