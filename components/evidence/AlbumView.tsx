@@ -111,7 +111,20 @@ const AlbumView: React.FC<AlbumViewProps> = ({
             key="month" initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -20 }}
             className="space-y-12"
           >
-            {albumView.month !== null && Object.entries(groupedAlbum[albumView.month] || {}).map(([vendor, group]: any) => (
+            {albumView.month !== null && Object.entries(groupedAlbum[albumView.month] || {}).map(([vendor, group]: any) => {
+              const formatVendorName = (name: string) => {
+                if (name.startsWith('history-')) {
+                  const parts = name.split('-');
+                  if (parts.length >= 6) {
+                    const idx = parts[parts.length - 1];
+                    const shortId = parts[1].substring(0, 6).toUpperCase();
+                    return `Transaksi #${idx} (Ref: ${shortId})`;
+                  }
+                }
+                return name;
+              };
+              
+              return (
               <div key={vendor} className="animate-fade-in-up">
                 <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-6 mb-8 px-4">
                    <div className="flex items-center gap-6">
@@ -119,7 +132,7 @@ const AlbumView: React.FC<AlbumViewProps> = ({
                          <ShoppingCart size={24} />
                       </div>
                       <div>
-                         <h3 className="text-2xl lg:text-3xl font-black text-slate-800 tracking-tight leading-none mb-2">{vendor}</h3>
+                         <h3 className="text-2xl lg:text-3xl font-black text-slate-800 tracking-tight leading-none mb-2 break-all">{formatVendorName(vendor)}</h3>
                          <div className="flex flex-wrap items-center gap-2">
                             <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest bg-slate-100/50 px-3 py-1 rounded-lg font-sans">Arsip Transaksi Terverifikasi</span>
                             <span className="text-[10px] font-black text-teal-600 uppercase tracking-widest bg-teal-50 px-3 py-1 rounded-lg border border-teal-100 font-sans">{group.files.length} File Digital</span>
@@ -134,43 +147,49 @@ const AlbumView: React.FC<AlbumViewProps> = ({
                 </div>
 
                 <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6 lg:gap-8">
-                  {group.files.map((file: any, idx: number) => (
+                  {group.files.map((file: any, idx: number) => {
+                    const isValidDate = file.created_at && !isNaN(new Date(file.created_at).getTime());
+                    return (
                     <motion.div 
                       key={idx}
                       whileHover={{ y: -8 }}
-                      className="group glass-card p-6 lg:p-8 rounded-[2.5rem] border border-white hover:border-teal-200 transition-all duration-700 hover:shadow-2xl hover:shadow-teal-900/5 relative overflow-hidden text-left"
+                      className="group glass-card p-6 lg:p-8 rounded-[2.5rem] border border-white hover:border-teal-200 transition-all duration-700 hover:shadow-2xl hover:shadow-teal-900/5 relative overflow-hidden text-left flex flex-col h-full"
                     >
                       <div className="absolute top-0 right-0 p-8 opacity-5 group-hover:scale-150 transition-transform duration-1000 -rotate-12 pointer-events-none transition-opacity group-hover:opacity-10"><FileText size={120} /></div>
                       
-                      <div className="flex items-start justify-between mb-8 relative z-10">
-                         <div className={`w-14 h-14 rounded-2xl flex items-center justify-center shadow-lg transition-all duration-700 ${file.name.toLowerCase().includes('pdf') ? 'bg-rose-50 text-rose-500 shadow-rose-200/50' : 'bg-emerald-50 text-emerald-500 shadow-emerald-200/50'}`}>
+                      <div className="flex items-start justify-between mb-6 relative z-10 gap-4">
+                         <div className={`w-14 h-14 shrink-0 rounded-2xl flex items-center justify-center shadow-lg transition-all duration-700 ${file.name.toLowerCase().includes('pdf') ? 'bg-rose-50 text-rose-500 shadow-rose-200/50' : 'bg-emerald-50 text-emerald-500 shadow-emerald-200/50'}`}>
                             <FileText size={28} />
                          </div>
-                         <div className="flex flex-col items-end gap-2 text-right">
-                            <span className="px-3 py-1 bg-white border border-slate-100 text-[9px] font-black text-slate-400 rounded-lg shadow-sm font-sans italic uppercase tracking-tighter">{file.type}</span>
-                            <span className="text-[8px] font-black text-slate-300 uppercase tracking-widest font-sans">{new Date(file.created_at).toLocaleDateString('id-ID')}</span>
+                         <div className="flex flex-col items-end gap-2 text-right min-w-0">
+                            <span className="px-3 py-1 bg-white border border-slate-100 text-[9px] font-black text-slate-400 rounded-lg shadow-sm font-sans italic uppercase tracking-tighter truncate max-w-[140px]" title={file.type || 'Berkas'}>
+                              {file.type || 'Berkas'}
+                            </span>
+                            <span className="text-[8px] font-black text-slate-300 uppercase tracking-widest font-sans">
+                              {isValidDate ? new Date(file.created_at).toLocaleDateString('id-ID') : 'Tanggal Tidak Valid'}
+                            </span>
                          </div>
                       </div>
 
-                      <h5 className="text-base lg:text-lg font-black text-slate-800 leading-snug mb-2 line-clamp-1 group-hover:text-teal-600 transition-colors font-sans">{file.name}</h5>
-                      <p className="text-[10px] font-bold text-slate-400 mb-10 italic">Disimpan via SIPLah/Direct Upload</p>
+                      <h5 className="text-base lg:text-lg font-black text-slate-800 leading-snug mb-2 line-clamp-2 min-h-[3rem] group-hover:text-teal-600 transition-colors font-sans" title={file.name}>{file.name}</h5>
+                      <p className="text-[10px] font-bold text-slate-400 mb-8 italic">Disimpan via SIPLah/Direct Upload</p>
 
-                      <div className="flex items-center gap-3 pt-6 border-t border-slate-50 relative z-10">
+                      <div className="mt-auto flex items-center gap-3 pt-6 border-t border-slate-50 relative z-10">
                         <button onClick={() => setSelectedFile(file)} className="flex-1 btn-primary-glass border-none text-white p-3 lg:p-4 rounded-xl text-[10px] font-black uppercase tracking-widest flex items-center justify-center gap-2.5 transition-all active:scale-95 shadow-lg shadow-teal-500/20">
                           <Eye size={16} /> Lihat
                         </button>
-                        <a href={file.url} download target="_blank" rel="noopener noreferrer" className="flex items-center justify-center w-12 h-12 lg:w-14 lg:h-14 bg-white border border-slate-100 rounded-xl text-slate-400 hover:bg-slate-900 hover:text-white transition-all shadow-sm active:scale-95">
+                        <a href={file.url} download target="_blank" rel="noopener noreferrer" className="flex items-center justify-center w-12 h-12 lg:w-14 lg:h-14 shrink-0 bg-white border border-slate-100 rounded-xl text-slate-400 hover:bg-slate-900 hover:text-white transition-all shadow-sm active:scale-95">
                           <Download size={18} />
                         </a>
-                        <button onClick={(e) => handleDeleteFromAlbum(e, file)} className="flex items-center justify-center w-12 h-12 lg:w-14 lg:h-14 bg-white border border-slate-100 rounded-xl text-slate-300 hover:bg-rose-500 hover:text-white transition-all shadow-sm active:scale-95 text-rose-500">
+                        <button onClick={(e) => handleDeleteFromAlbum(e, file)} className="flex items-center justify-center w-12 h-12 lg:w-14 lg:h-14 shrink-0 bg-white border border-slate-100 rounded-xl text-slate-300 hover:bg-rose-500 hover:text-white transition-all shadow-sm active:scale-95 text-rose-500">
                           <Trash2 size={18} />
                         </button>
                       </div>
                     </motion.div>
-                  ))}
+                  )})}
                 </div>
               </div>
-            ))}
+            )})}
           </motion.div>
         ) : (
           <motion.div 
