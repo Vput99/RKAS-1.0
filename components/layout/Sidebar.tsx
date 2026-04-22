@@ -1,8 +1,8 @@
-import { memo, useState } from 'react';
+import { useState } from 'react';
 import { 
   LayoutDashboard, Wallet, FileCheck, Settings as SettingsIcon, LogOut, 
-  Download, School, TrendingUp, Landmark, FileText, ShoppingBag, FilePenLine,
-  ChevronDown, Bell, Search, User, Menu, BookOpen, FileBarChart
+  School, TrendingUp, Landmark, FileText, ShoppingBag, FilePenLine,
+  ChevronDown, Bell, Search, User, Menu, BookOpen, FileBarChart, X
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 
@@ -25,6 +25,7 @@ interface SidebarProps {
 const Sidebar = ({
   activeTab,
   setActiveTab,
+  isSidebarOpen,
   setSidebarOpen,
   handleLogout,
   session,
