@@ -119,7 +119,7 @@ function App() {
   if (!session) return <Auth onLoginSuccess={() => setSession({user: {email: 'guest'}})} />;
 
   return (
-    <div className="flex h-screen bg-transparent overflow-hidden font-sans">
+    <div className="flex flex-col h-screen bg-transparent overflow-hidden font-sans">
       <Sidebar 
         activeTab={activeTab}
         setActiveTab={setActiveTab}
@@ -130,28 +130,26 @@ function App() {
         isIOS={isIOS}
         handleInstallClick={handleInstallClick}
         handleLogout={handleLogout}
+        session={session}
+        isOnline={isOnline}
       />
 
-      <main className="flex-1 flex flex-col h-full overflow-hidden relative pb-4 lg:pb-6 pr-4 lg:pr-6 pt-4 lg:pt-6">
-        <Header 
-          isSidebarOpen={isSidebarOpen}
-          setSidebarOpen={setSidebarOpen}
-          activeTab={activeTab}
-          session={session}
-          isOnline={isOnline}
-        />
-
-        <AppContent 
-          activeTab={activeTab}
-          setActiveTab={setActiveTab}
-          data={budgets}
-          schoolProfile={schoolProfile}
-          loading={budgetsLoading || profileLoading}
-          onAdd={async (item) => { await addBudgetMutation.mutateAsync(item); }}
-          onUpdate={async (id, updates) => { await updateBudgetMutation.mutateAsync({ id, updates }); }}
-          onDelete={async (id) => { await deleteBudgetMutation.mutateAsync(id); }}
-          onProfileUpdate={() => {}}
-        />
+      <main className="flex-1 flex flex-col h-full overflow-hidden relative">
+        <div className="flex-1 overflow-y-auto scrollbar-hide px-4 lg:px-8 pb-8">
+          <div className="max-w-[1600px] mx-auto pt-6">
+            <AppContent 
+              activeTab={activeTab}
+              setActiveTab={setActiveTab}
+              data={budgets}
+              schoolProfile={schoolProfile}
+              loading={budgetsLoading || profileLoading}
+              onAdd={async (item) => { await addBudgetMutation.mutateAsync(item); }}
+              onUpdate={async (id, updates) => { await updateBudgetMutation.mutateAsync({ id, updates }); }}
+              onDelete={async (id) => { await deleteBudgetMutation.mutateAsync(id); }}
+              onProfileUpdate={() => {}}
+            />
+          </div>
+        </div>
       </main>
 
       <Suspense fallback={null}>

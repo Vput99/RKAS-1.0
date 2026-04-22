@@ -23,7 +23,7 @@
             },
             colors: {
               primary: {
-                50: '#f0fdfa',
+                50: '#f0fdf9',
                 100: '#ccfbf1',
                 200: '#99f6e4',
                 300: '#5eead4',
@@ -35,28 +35,45 @@
                 900: '#134e4a',
                 950: '#042f2e',
               },
-              coach: {
+              accent: {
+                50: '#f0f9ff',
+                100: '#e0f2fe',
+                200: '#bae6fd',
+                300: '#7dd3fc',
+                400: '#38bdf8',
+                500: '#0ea5e9',
+                600: '#0284c7',
+                700: '#0369a1',
+                800: '#075985',
+                900: '#0c4a6e',
+              },
+              glass: {
                 dark: '#015354',
                 medium: '#008b8c',
                 light: '#4cade9',
-                bg: '#ecf3f4',
-                card: '#f9fbfc',
+                bg: '#f8fafc',
+                card: 'rgba(255, 255, 255, 0.7)',
               }
             },
             animation: {
-              'blob': 'blob 10s infinite',
-              'fade-in-up': 'fade-in-up 0.4s ease-out forwards',
+              'blob': 'blob 12s infinite',
+              'fade-in-up': 'fade-in-up 0.5s cubic-bezier(0.16, 1, 0.3, 1) forwards',
+              'pulse-soft': 'pulse-soft 4s ease-in-out infinite',
             },
             keyframes: {
               blob: {
                 '0%': { transform: 'translate(0px, 0px) scale(1)' },
-                '33%': { transform: 'translate(30px, -50px) scale(1.1)' },
-                '66%': { transform: 'translate(-20px, 20px) scale(0.9)' },
+                '33%': { transform: 'translate(40px, -60px) scale(1.15)' },
+                '66%': { transform: 'translate(-30px, 30px) scale(0.95)' },
                 '100%': { transform: 'translate(0px, 0px) scale(1)' },
               },
               'fade-in-up': {
-                from: { opacity: '0', transform: 'translateY(10px)' },
+                from: { opacity: '0', transform: 'translateY(20px)' },
                 to: { opacity: '1', transform: 'translateY(0)' },
+              },
+              'pulse-soft': {
+                '0%, 100%': { opacity: '1' },
+                '50%': { opacity: '0.8' },
               }
             }
           }
@@ -66,57 +83,76 @@
     <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
     <style>
       :root {
-        --bg-main: #ecf3f4;
-        --glass: rgba(249, 251, 252, 0.7);
-        --glass-border: rgba(255, 255, 255, 0.8);
-        --glass-shadow: 0 8px 32px 0 rgba(1, 83, 84, 0.03);
+        --bg-main: #f8fafc;
+        --glass: rgba(255, 255, 255, 0.65);
+        --glass-border: rgba(255, 255, 255, 0.9);
+        --glass-shadow: 0 12px 40px -12px rgba(13, 148, 136, 0.1);
+        --primary-gradient: linear-gradient(135deg, #0d9488 0%, #14b8a6 100%);
+        --accent-gradient: linear-gradient(135deg, #0284c7 0%, #38bdf8 100%);
       }
 
       body {
         font-family: 'Plus Jakarta Sans', 'Inter', sans-serif;
         background-color: var(--bg-main);
-        color: #015354;
+        color: #0f172a;
         scroll-behavior: smooth;
         -webkit-font-smoothing: antialiased;
         -moz-osx-font-smoothing: grayscale;
+        overflow-x: hidden;
       }
 
-      /* Custom Scrollbar */
-      ::-webkit-scrollbar {
-        width: 6px;
-        height: 6px;
-      }
-      ::-webkit-scrollbar-track {
-        background: transparent;
-      }
-      ::-webkit-scrollbar-thumb {
-        background: #cbd5e1;
-        border-radius: 12px;
-      }
-      ::-webkit-scrollbar-thumb:hover {
-        background: #94a3b8;
-      }
-
-      /* Utility Classes */
+      /* Premium Glassmorphism */
       .glass-card {
         background: var(--glass);
-        backdrop-filter: blur(16px);
-        -webkit-backdrop-filter: blur(16px);
+        backdrop-filter: blur(24px) saturate(180%);
+        -webkit-backdrop-filter: blur(24px) saturate(180%);
         border: 1px solid var(--glass-border);
         box-shadow: var(--glass-shadow);
       }
       
       .glass-panel {
-        background: rgba(249, 251, 252, 0.9);
-        backdrop-filter: blur(20px);
-        -webkit-backdrop-filter: blur(20px);
-        border: 1px solid rgba(255, 255, 255, 0.6);
+        background: rgba(255, 255, 255, 0.85);
+        backdrop-filter: blur(24px);
+        -webkit-backdrop-filter: blur(24px);
+        border: 1px solid rgba(255, 255, 255, 0.4);
       }
 
-      .coach-active-pill {
-        background: linear-gradient(to right, #0d9488, #2dd4bf);
-        box-shadow: 0 4px 15px -3px rgba(13, 148, 136, 0.3);
+      .btn-primary-glass {
+        background: var(--primary-gradient);
+        box-shadow: 0 10px 25px -5px rgba(13, 148, 136, 0.4);
+        transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
       }
+
+      .btn-primary-glass:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 15px 30px -8px rgba(13, 148, 136, 0.5);
+      }
+
+      .nav-active-glass {
+        background: rgba(13, 148, 136, 0.1);
+        border-right: 3px solid #0d9488;
+        color: #0d9488;
+      }
+
+      /* Custom Scrollbar */
+      ::-webkit-scrollbar {
+        width: 8px;
+        height: 8px;
+      }
+      ::-webkit-scrollbar-track {
+        background: transparent;
+      }
+      ::-webkit-scrollbar-thumb {
+        background: #e2e8f0;
+        border-radius: 20px;
+      }
+      ::-webkit-scrollbar-thumb:hover {
+        background: #cbd5e1;
+      }
+
+      .animate-delay-100 { animation-delay: 100ms; }
+      .animate-delay-200 { animation-delay: 200ms; }
+      .animate-delay-300 { animation-delay: 300ms; }
     </style>
   <script type="importmap">
 {
@@ -140,10 +176,10 @@
 </head>
   <body class="selection:bg-teal-500 selection:text-white">
     <!-- Dynamic Background Elements -->
-    <div class="fixed inset-0 z-[-1] overflow-hidden bg-[#ecf3f4]">
-      <div class="absolute top-0 -left-4 w-[500px] h-[500px] bg-teal-200/30 rounded-full mix-blend-multiply filter blur-3xl animate-blob"></div>
-      <div class="absolute top-1/2 -right-4 w-[600px] h-[600px] bg-blue-200/30 rounded-full mix-blend-multiply filter blur-3xl animate-blob animation-delay-2000"></div>
-      <div class="absolute -bottom-8 left-20 w-[400px] h-[400px] bg-emerald-200/30 rounded-full mix-blend-multiply filter blur-3xl animate-blob animation-delay-4000"></div>
+    <div class="fixed inset-0 z-[-1] overflow-hidden bg-[#f8fafc]">
+      <div class="absolute -top-24 -left-24 w-[600px] h-[600px] bg-teal-200/20 rounded-full mix-blend-multiply filter blur-3xl animate-blob"></div>
+      <div class="absolute top-1/4 -right-24 w-[700px] h-[700px] bg-sky-200/20 rounded-full mix-blend-multiply filter blur-3xl animate-blob animation-delay-2000"></div>
+      <div class="absolute -bottom-24 left-1/4 w-[500px] h-[500px] bg-indigo-200/20 rounded-full mix-blend-multiply filter blur-3xl animate-blob animation-delay-4000"></div>
     </div>
     
     <div id="root"></div>
