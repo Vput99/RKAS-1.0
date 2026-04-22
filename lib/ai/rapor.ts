@@ -127,28 +127,53 @@ export const analyzeRaporPDF = async (pdfBase64: string, targetYear: string): Pr
     
     TUGAS UTAMA:
     1. BACA dan EKSTRAK seluruh skor dari PDF "Rapor Pendidikan" (utamakan halaman DASHBOARD atau RINGKASAN).
-    2. AMBIL skor untuk 6 Indikator Prioritas (Literasi, Numerasi, Karakter, Kualitas Pembelajaran, Keamanan, Kebinekaan).
-    3. CARI juga "Sub-Indikator" pendukung (Misal: Literasi Membaca Teks Informasi, Numerasi Domain Geometri) jika ada di teks untuk memperkuat analisis.
-    4. ANALISIS trend (apakah naik atau turun dibanding tahun lalu).
-    5. BUATKAN Analisis Umum (generalAnalysis) yang me-review, menjelaskan, menganalisa secara keseluruhan, dan memberi solusi strategis umum tentang masalah yang ada di Rapor Pendidikan tersebut.
-    6. BERIKAN Rekomendasi PBD Strategis untuk RKAS ${targetYear} berdasarkan kelemahan yang ditemukan.
+    2. AMBIL skor untuk 6 Indikator Prioritas UTAMA:
+       - Kemampuan Literasi (A.1)
+       - Kemampuan Numerasi (A.2)
+       - Karakter (A.3)
+       - Kualitas Pembelajaran (D.1)
+       - Iklim Keamanan Sekolah (D.4)
+       - Iklim Kebinekaan (D.8)
     
-    KRITERIA REKOMENDASI (MAXIMIZE):
-    - Satu indikator lemah minimal 1 paket kegiatan besar.
+    PANDUAN EKSTRAKSI (SANGAT PENTING):
+    - Fokus pada nilai yang disebut "Capaian" atau "Skor Rapor" tahun terbaru (${targetYear}) DAN tahun sebelumnya (Year-1).
+    - JANGAN tertukar antara nilai Capaian dan nilai Perubahan/Delta.
+    - Pastikan nilai adalah angka 0-100.
+    - Tentukan trend: "naik" jika skor naik, "turun" jika turun, "tetap" jika sama (dibanding tahun sebelumnya).
+    - Jika indikator tidak ada nilainya secara eksplisit, coba cari di halaman detail indikator tersebut.
+    - AMBIL juga "Sub-Indikator" pendukung (Misal: Literasi Membaca Teks Informasi, Numerasi Domain Geometri) jika ada di teks untuk memperkuat analisis rekomendasi.
+
+    3. ANALISIS trend. Jika trend adalah "turun", berikan solusi strategis (comparisonSolution) untuk mengatasi penurunan tersebut.
+    4. BUATKAN Analisis Umum (generalAnalysis) yang me-review performa rapor tahun ini dibanding tahun lalu.
+    5. BERIKAN Rekomendasi PBD Strategis untuk RKAS ${targetYear} berdasarkan kelemahan (skor rendah) atau penurunan trend.
+    
+    KRITERIA REKOMENDASI:
+    - Satu indikator lemah atau TURUN minimal 1 paket kegiatan besar.
     - Rincikan item belanja (Honor, ATK, Bahan, Jasa).
-    - Gunakan Kode Rekening Resmi berikut:
-       ${accountContext}
+    - Gunakan Kode Rekening Resmi dari daftar berikut:
+      ${accountContext}
+    - Pastikan kategori ditentukan dengan benar: >= 70 "Baik", 50-69 "Sedang", < 50 "Kurang".
 
       OUTPUT JSON FORMAT:
       {
-        "generalAnalysis": "Penjelasan menyeluruh tentang performa rapor...",
-        "indicators": [{ "id": "A.1", "label": "Kemampuan Literasi", "score": 85, "category": "Baik" }, ...],
+        "generalAnalysis": "Penjelasan menyeluruh tentang performa rapor tahun ini dibanding tahun lalu...",
+        "indicators": [
+          { 
+            "id": "A.1", 
+            "label": "Kemampuan Literasi", 
+            "score": 85, 
+            "prevScore": 80, 
+            "trend": "naik", 
+            "category": "Baik" 
+          }, ...
+        ],
         "recommendations": [
           { 
             "indicatorId": "A.2", 
             "activityName": "...", 
             "description": "Justifikasi logis...", 
-            "componentAnalysis": "Analisis kualitatif kenapa nilai ini didapat...",
+            "comparisonSolution": "Karena nilai turun dari X ke Y, maka sekolah harus...",
+            "componentAnalysis": "Analisis kualitatif...",
             "analysisSteps": ["Langkah 1...", "Langkah 2..."],
             "items": [...], 
             "priority": "Tinggi" 
@@ -159,7 +184,8 @@ export const analyzeRaporPDF = async (pdfBase64: string, targetYear: string): Pr
     const schema = {
       type: Type.OBJECT,
       properties: {
-        generalAnalysis: { type: Type.STRING }, indicators: {
+        generalAnalysis: { type: Type.STRING },
+        indicators: {
           type: Type.ARRAY,
           items: {
             type: Type.OBJECT,
@@ -167,6 +193,8 @@ export const analyzeRaporPDF = async (pdfBase64: string, targetYear: string): Pr
               id: { type: Type.STRING },
               label: { type: Type.STRING },
               score: { type: Type.NUMBER },
+              prevScore: { type: Type.NUMBER },
+              trend: { type: Type.STRING },
               category: { type: Type.STRING }
             }
           }
@@ -179,6 +207,7 @@ export const analyzeRaporPDF = async (pdfBase64: string, targetYear: string): Pr
               indicatorId: { type: Type.STRING },
               activityName: { type: Type.STRING },
               description: { type: Type.STRING },
+              comparisonSolution: { type: Type.STRING },
               bospComponent: { type: Type.STRING },
               snpStandard: { type: Type.STRING },
               estimatedCost: { type: Type.NUMBER },
@@ -259,23 +288,48 @@ export const analyzeRaporExcel = async (excelBase64: string, targetYear: string)
     const workbook = read(excelBase64, { type: 'base64' });
     let excelContentText = "";
 
-    workbook.SheetNames.forEach(sheetName => {
-      // Prioritize "LAPORAN RAPOR" or "Dashboard" sheets
-      const isRelevant = sheetName.toUpperCase().includes('LAPORAN') || 
-                         sheetName.toUpperCase().includes('RINGKASAN') ||
-                         sheetName.toUpperCase().includes('REKOM');
+    // Sort sheets to prioritize high-value ones
+    const sortedSheets = [...workbook.SheetNames].sort((a, b) => {
+      const aUp = a.toUpperCase();
+      const bUp = b.toUpperCase();
+      const priorityKeywords = ['RAPOR', 'PBD', 'RINGKASAN', 'IDENTIFIKASI', 'DASHBOARD'];
+      const secondaryKeywords = ['LAPORAN', 'REKOM', 'HASIL', 'DATA'];
       
-      if (isRelevant) {
+      const isAPriority = priorityKeywords.some(k => aUp.includes(k));
+      const isBPriority = priorityKeywords.some(k => bUp.includes(k));
+      const isASecondary = secondaryKeywords.some(k => aUp.includes(k));
+      const isBSecondary = secondaryKeywords.some(k => bUp.includes(k));
+      
+      if (isAPriority && !isBPriority) return -1;
+      if (!isAPriority && isBPriority) return 1;
+      if (isASecondary && !isBSecondary) return -1;
+      if (!isASecondary && isBSecondary) return 1;
+      return 0;
+    });
+
+    sortedSheets.forEach(sheetName => {
+      const sheetUp = sheetName.toUpperCase();
+      const isPossiblyRelevant = 
+        sheetUp.includes('RAPOR') || 
+        sheetUp.includes('RINGKASAN') || 
+        sheetUp.includes('REKOM') || 
+        sheetUp.includes('IDENTIFIKASI') ||
+        sheetUp.includes('PBD') ||
+        sheetUp.includes('LAPORAN') ||
+        sheetUp.includes('DASHBOARD');
+      
+      if (isPossiblyRelevant) {
         const worksheet = workbook.Sheets[sheetName];
-        const csvData = utils.sheet_to_csv(worksheet);
+        // Using sheet_to_csv with blankrows false to save space
+        const csvData = utils.sheet_to_csv(worksheet, { blankrows: false });
         if (csvData.trim().length > 0) {
-          excelContentText += `\nSHEET: ${sheetName}\n${csvData}\n`;
+          excelContentText += `\n--- SHEET: ${sheetName} ---\n${csvData}\n`;
         }
       }
     });
 
-    // Limit context size to avoid token limits (approx 40k chars)
-    const truncatedContent = excelContentText.slice(0, 40000);
+    // Increase limit to 140,000 characters
+    const truncatedContent = excelContentText.slice(0, 140000);
 
     const prompt = `Anda adalah Pakar Analisis Data Pendidikan (Indonesia).
     
@@ -286,37 +340,38 @@ export const analyzeRaporExcel = async (excelBase64: string, targetYear: string)
 
     TUGAS UTAMA:
     1. CARI dan EKSTRAK skor UNTUK 6 Indikator Prioritas UTAMA:
-       - A.1 Kemampuan Literasi
-       - A.2 Kemampuan Numerasi  
-       - A.3 Karakter
-       - D.1 Kualitas Pembelajaran
-       - D.4 Iklim Keamanan Sekolah
-       - D.8 Iklim Kebinekaan
+       ID | Nama Indikator
+       A.1 | Kemampuan Literasi
+       A.2 | Kemampuan Numerasi  
+       A.3 | Karakter
+       D.1 | Kualitas Pembelajaran
+       D.4 | Iklim Keamanan Sekolah
+       D.8 | Iklim Kebinekaan
     
-    ATURAN EKSTRAKSI DATA:
-    - Ambil skor dari kolom "Skor Rapor [Tahun Terbaru]" (Contoh: Jika ada 2024 dan 2025, ambil 2025).
-    - Fokus pada baris INDIKATOR UTAMA (A.1, A.2, dst). JANGAN ambil skor dari sub-indikator (seperti A.1.1, A.2.1) jika itu merusak akurasi skor utama.
-    - Pastikan skor dikonversi menjadi angka (Hapus tanda % jika ada).
-    - JIKA data A.1 tertulis "84,21%", maka skornya adalah 84.21.
+    PANDUAN EKSTRAKSI DATA (SANGAT PENTING):
+    - Temukan baris yang mengandung kode indikator tersebut (misal: "A.1").
+    - EKSTRAK dua nilai: Skor Tahun ${targetYear} (Terbaru) dan Skor Tahun Sebelumnya.
+    - Biasanya ada kolom seperti "Skor Rapor [Tahun]" atau kolom bersebelahan.
+    - Bandingkan keduanya dan tentukan trend: "naik", "turun", atau "tetap".
+    - JANGAN ambil nilai "Delta" atau "Perubahan" sebagai skor utama.
+    - Konversi ke angka desimal (titik sebagai pemisah). Hapus tanda '%' jika ada (misal: "84,21%" menjadi 84.21).
+    - JANGAN ambil skor dari sub-indikator (A.1.1, A.2.1, dst) sebagai skor indikator utama.
+    - Pastikan kategori ditentukan: >= 70 "Baik", 50-69 "Sedang", < 50 "Kurang".
 
-    2. ANALISIS faktor penyebab mengapa nilai tersebut MERAH/KUNING:
-       - Identifikasi akar masalah dari detail sub-indikator yang nilainya rendah.
-    3. BUATKAN ringkasan analisis (generalAnalysis) strategis.
-    4. BUATKAN rekomendasi PBD dengan Anggaran menggunakan kode rekening yang tersedia.
+    2. ANALISIS KHUSUS PENURUNAN:
+       - Jika trend adala "turun", wajib memberikan solusi/langkah strategis (comparisonSolution).
+       - Identifikasi akar masalah dari detail sub-indikator.
+    3. BUATKAN ringkasan analisis (generalAnalysis) strategis membandingkan capaian tahun ini vs tahun lalu.
+    4. BUATKAN rekomendasi PBD dengan Rincian Anggaran (Budget Paten) menggunakan kode rekening yang tersedia.
     
     DAFTAR KODE REKENING:
     ${accountContext}
-
-    KRITERIA WARNA (BERDASARKAN SKOR):
-    - Score >= 70 = Hijau ("Baik")
-    - Score 50-69 = Kuning ("Sedang")  
-    - Score < 50 = Merah ("Kurang")
 
     OUTPUT JSON WAJIB:
     {
       "generalAnalysis": "...",
       "indicators": [
-        { "id": "A.1", "label": "Kemampuan Literasi", "score": 45, "category": "Kurang" },
+        { "id": "A.1", "label": "Kemampuan Literasi", "score": 45, "prevScore": 60, "trend": "turun", "category": "Kurang" },
         ...
       ],
       "recommendations": [
@@ -324,6 +379,7 @@ export const analyzeRaporExcel = async (excelBase64: string, targetYear: string)
           "indicatorId": "A.1",
           "activityName": "...",
           "description": "...",
+          "comparisonSolution": "Solusi khusus karena nilai turun...",
           "componentAnalysis": "...",
           "analysisSteps": ["Langkah 1...", "Langkah 2..."],
           "bospComponent": "BOSP",
@@ -349,9 +405,11 @@ export const analyzeRaporExcel = async (excelBase64: string, targetYear: string)
               id: { type: Type.STRING },
               label: { type: Type.STRING },
               score: { type: Type.NUMBER },
+              prevScore: { type: Type.NUMBER },
+              trend: { type: Type.STRING },
               category: { type: Type.STRING }
             },
-            required: ['id', 'label', 'score', 'category']
+            required: ['id', 'label', 'score', 'trend', 'category']
           }
         },
         recommendations: {
@@ -362,6 +420,7 @@ export const analyzeRaporExcel = async (excelBase64: string, targetYear: string)
               indicatorId: { type: Type.STRING },
               activityName: { type: Type.STRING },
               description: { type: Type.STRING },
+              comparisonSolution: { type: Type.STRING },
               componentAnalysis: { type: Type.STRING },
               analysisSteps: {
                 type: Type.ARRAY,

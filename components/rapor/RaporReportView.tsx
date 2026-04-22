@@ -1,5 +1,5 @@
 import React from 'react';
-import { BrainCircuit, SlidersHorizontal, CheckCircle, AlertTriangle, X, Plus, Check, Loader2 } from 'lucide-react';
+import { BrainCircuit, SlidersHorizontal, CheckCircle, AlertTriangle, X, Plus, Check, Loader2, TrendingUp, TrendingDown, Minus } from 'lucide-react';
 import { RaporIndicator, PBDRecommendation } from '../../types';
 
 interface RaporReportViewProps {
@@ -82,9 +82,26 @@ const RaporReportView: React.FC<RaporReportViewProps> = ({
                             <div key={ind.id} className="bg-green-50/50 p-3 rounded-xl border border-green-100 flex items-center justify-between">
                                 <div className="flex items-center gap-3">
                                     <div className="w-8 h-8 bg-white text-green-600 rounded-full flex items-center justify-center font-bold text-xs ring-1 ring-green-100 shadow-sm">{ind.id}</div>
-                                    <span className="font-medium text-gray-700">{ind.label}</span>
+                                    <div className="flex flex-col">
+                                        <span className="font-medium text-gray-700 leading-tight">{ind.label}</span>
+                                        {ind.prevScore !== undefined && (
+                                            <span className="text-[10px] text-gray-400">Tahun lalu: {ind.prevScore}</span>
+                                        )}
+                                    </div>
                                 </div>
-                                <div className="text-green-700 font-bold">{ind.score}</div>
+                                <div className="flex items-center gap-3">
+                                    {ind.trend && (
+                                        <span className={`flex items-center gap-0.5 text-[10px] font-black px-1.5 py-0.5 rounded-full ${
+                                            ind.trend === 'naik' ? 'bg-green-100 text-green-600' : 
+                                            ind.trend === 'turun' ? 'bg-red-100 text-red-600' : 
+                                            'bg-gray-100 text-gray-400'
+                                        }`}>
+                                            {ind.trend === 'naik' ? <TrendingUp size={10} /> : ind.trend === 'turun' ? <TrendingDown size={10} /> : <Minus size={10} />}
+                                            {ind.trend.toUpperCase()}
+                                        </span>
+                                    )}
+                                    <div className="text-green-700 font-bold">{ind.score}</div>
+                                </div>
                             </div>
                         )) : (
                             <div className="text-center py-6 text-gray-400 italic text-sm">Belum ada indikator yang masuk kategori 'Baik'.</div>
@@ -107,13 +124,35 @@ const RaporReportView: React.FC<RaporReportViewProps> = ({
                                 <div className="flex items-center justify-between">
                                     <div className="flex items-center gap-3">
                                         <div className="w-8 h-8 bg-white text-red-600 rounded-full flex items-center justify-center font-bold text-xs ring-1 ring-red-100 shadow-sm">{ind.id}</div>
-                                        <span className="font-medium text-gray-700">{ind.label}</span>
+                                        <div className="flex flex-col">
+                                            <span className="font-medium text-gray-700 leading-tight">{ind.label}</span>
+                                            {ind.prevScore !== undefined && (
+                                                <span className="text-[10px] text-gray-400">Tahun lalu: {ind.prevScore}</span>
+                                            )}
+                                        </div>
                                     </div>
-                                    <div className={`font-bold ${ind.score < 50 ? 'text-red-700' : 'text-orange-600'}`}>{ind.score}</div>
+                                    <div className="flex items-center gap-3">
+                                        {ind.trend && (
+                                            <span className={`flex items-center gap-0.5 text-[10px] font-black px-1.5 py-0.5 rounded-full ${
+                                                ind.trend === 'naik' ? 'bg-green-100 text-green-600' : 
+                                                ind.trend === 'turun' ? 'bg-red-100 text-red-600' : 
+                                                'bg-gray-100 text-gray-400'
+                                            }`}>
+                                                {ind.trend === 'naik' ? <TrendingUp size={10} /> : ind.trend === 'turun' ? <TrendingDown size={10} /> : <Minus size={10} />}
+                                                {ind.trend.toUpperCase()}
+                                            </span>
+                                        )}
+                                        <div className={`font-bold ${ind.score < 50 ? 'text-red-700' : 'text-orange-600'}`}>{ind.score}</div>
+                                    </div>
                                 </div>
                                 {recommendations.find(r => r.indicatorId === ind.id)?.componentAnalysis && (
-                                    <div className="text-[11px] text-red-600/80 italic line-clamp-2 pl-11 border-l-2 border-red-200 ml-4 py-0.5">
-                                        AI Analysis: {recommendations.find(r => r.indicatorId === ind.id)?.componentAnalysis}
+                                    <div className="text-[11px] text-red-600/80 italic p-2 bg-white/40 rounded-lg border-l-2 border-red-200 ml-1 mt-1">
+                                        <strong>AI Analysis:</strong> {recommendations.find(r => r.indicatorId === ind.id)?.componentAnalysis}
+                                    </div>
+                                )}
+                                {recommendations.find(r => r.indicatorId === ind.id)?.comparisonSolution && (
+                                    <div className="text-[11px] text-orange-600 p-2 bg-orange-50/50 rounded-lg border-l-2 border-orange-200 ml-1">
+                                        <strong>Solusi Penurunan:</strong> {recommendations.find(r => r.indicatorId === ind.id)?.comparisonSolution}
                                     </div>
                                 )}
                             </div>

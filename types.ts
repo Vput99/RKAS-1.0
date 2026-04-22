@@ -222,6 +222,8 @@ export interface RaporIndicator {
     id: string;
     label: string;
     score: number;
+    prevScore?: number;
+    trend?: 'naik' | 'turun' | 'tetap';
     category: 'Baik' | 'Sedang' | 'Kurang';
 }
 
@@ -253,6 +255,7 @@ export interface PBDRecommendation {
     // NEW: AI Analysis Feedback
     analysisSteps?: string[]; // Steps to improve score
     componentAnalysis?: string; // Qualitative analysis of the component score
+    comparisonSolution?: string; // NEW: Solusi spesifik jika nilai turun
 }
 
 export interface WithdrawalHistory {

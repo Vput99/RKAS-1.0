@@ -27,7 +27,13 @@ const BudgetBreakdownModal: React.FC<BudgetBreakdownModalProps> = ({
             <div className="p-6">
                 <div className="mb-4">
                     <h4 className="font-bold text-gray-800">{selectedRec.activityName}</h4>
-                    <p className="text-sm text-gray-500">Item berikut akan ditambahkan ke Draft Anggaran:</p>
+                    {selectedRec.comparisonSolution && (
+                        <div className="mt-2 p-3 bg-orange-50 border border-orange-100 rounded-lg">
+                            <p className="text-[11px] text-orange-700 font-bold mb-1 uppercase tracking-wider">Solusi Strategis Penurunan:</p>
+                            <p className="text-xs text-orange-600 italic">"{selectedRec.comparisonSolution}"</p>
+                        </div>
+                    )}
+                    <p className="text-sm text-gray-500 mt-4">Item berikut akan ditambahkan ke Draft Anggaran:</p>
                 </div>
                 <div className="bg-gray-50 rounded-lg border border-gray-200 overflow-hidden mb-6">
                     <table className="w-full text-left text-sm">

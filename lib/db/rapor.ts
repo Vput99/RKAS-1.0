@@ -18,6 +18,8 @@ export const getRaporData = async (year: string): Promise<RaporIndicator[] | nul
                 id: item.indicator_id,
                 label: item.label,
                 score: Number(item.score),
+                prevScore: item.prev_score ? Number(item.prev_score) : undefined,
+                trend: item.trend as any,
                 category: item.category as any
             }));
             
@@ -39,6 +41,8 @@ export const getRaporData = async (year: string): Promise<RaporIndicator[] | nul
                 id: (item as any).indicator_id,
                 label: item.label,
                 score: item.score,
+                prevScore: item.prevScore,
+                trend: item.trend,
                 category: item.category as any
             }));
         }
@@ -58,6 +62,8 @@ export const saveRaporData = async (indicators: RaporIndicator[], year: string):
             indicator_id: ind.id,
             label: ind.label,
             score: ind.score,
+            prev_score: ind.prevScore,
+            trend: ind.trend,
             category: ind.category,
             updated_at: new Date().toISOString()
         }));
@@ -108,6 +114,7 @@ export const getRaporRecommendations = async (year: string): Promise<PBDRecommen
                 estimatedCost: Number(item.estimated_cost),
                 priority: item.priority as any,
                 componentAnalysis: item.component_analysis,
+                comparisonSolution: item.comparison_solution,
                 analysisSteps: item.analysis_steps || [],
                 items: item.items || []
             }));
@@ -137,6 +144,7 @@ export const saveRaporRecommendations = async (recommendations: PBDRecommendatio
             estimated_cost: rec.estimatedCost,
             priority: rec.priority,
             component_analysis: rec.componentAnalysis,
+            comparison_solution: rec.comparisonSolution,
             analysis_steps: rec.analysisSteps,
             items: rec.items,
             updated_at: new Date().toISOString()
