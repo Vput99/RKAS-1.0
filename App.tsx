@@ -5,7 +5,6 @@ import { useBudgets, useAddBudget, useUpdateBudget, useDeleteBudget, useSchoolPr
 
 // Layout Components
 import Sidebar, { AppTab } from './components/layout/Sidebar';
-import Header from './components/layout/Header';
 import AppContent from './components/layout/AppContent';
 import LoadingScreen from './components/layout/LoadingScreen';
 import InstallPrompt from './components/layout/InstallPrompt';
@@ -135,7 +134,7 @@ function App() {
       />
 
       <main className="flex-1 flex flex-col h-full overflow-hidden relative">
-        <div className="flex-1 overflow-y-auto scrollbar-hide px-4 lg:px-8 pb-8">
+        <div className="flex-1 overflow-y-auto scrollbar-hide px-4 lg:px-8 pb-24 lg:pb-8">
           <div className="max-w-[1600px] mx-auto pt-6">
             <AppContent 
               activeTab={activeTab}

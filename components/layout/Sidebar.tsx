@@ -246,6 +246,34 @@ const Sidebar = ({
           </>
         )}
       </AnimatePresence>
+
+      {/* Mobile Bottom Navigation */}
+      <div className="fixed bottom-0 left-0 right-0 bg-white border-t border-slate-200 lg:hidden flex justify-around items-center h-16 px-2 z-[60] shadow-[0_-4px_10px_-4px_rgba(0,0,0,0.1)] pb-safe">
+        {[
+          { id: 'dashboard', label: 'Home', icon: LayoutDashboard },
+          { id: 'income', label: 'BOS', icon: Wallet },
+          { id: 'spj', label: 'SPJ', icon: FileCheck },
+          { id: 'reports', label: 'Laporan', icon: FileBarChart },
+        ].map((item) => (
+          <button
+            key={item.id}
+            onClick={() => setActiveTab(item.id as AppTab)}
+            className={`flex flex-col items-center justify-center w-full h-full gap-1 ${
+              activeTab === item.id ? 'text-teal-600' : 'text-slate-400 hover:text-slate-600'
+            }`}
+          >
+            <item.icon size={20} className={activeTab === item.id ? 'animate-bounce' : ''} />
+            <span className="text-[10px] font-bold">{item.label}</span>
+          </button>
+        ))}
+        <button
+          onClick={() => setSidebarOpen(true)}
+          className={`flex flex-col items-center justify-center w-full h-full gap-1 text-slate-400 hover:text-slate-600`}
+        >
+          <Menu size={20} />
+          <span className="text-[10px] font-bold">Lainnya</span>
+        </button>
+      </div>
     </nav>
   );
 };
