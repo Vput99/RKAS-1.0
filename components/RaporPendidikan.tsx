@@ -34,7 +34,7 @@ const DEFAULT_INDICATORS: RaporIndicator[] = [
 const RaporPendidikan: React.FC<RaporPendidikanProps> = ({ onAddBudget, budgetData, profile }) => {
   const [indicators, setIndicators] = useState<RaporIndicator[]>(DEFAULT_INDICATORS);
   const [recommendations, setRecommendations] = useState<PBDRecommendation[]>([]);
-  const [generalAnalysis, setGeneralAnalysis] = useState<string>('');
+  const [generalAnalysis, setGeneralAnalysis] = useState<string | undefined>(undefined);
   const [loading, setLoading] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [activeView, setActiveView] = useState<'input' | 'analysis' | 'report'>('input');
@@ -107,7 +107,7 @@ const RaporPendidikan: React.FC<RaporPendidikanProps> = ({ onAddBudget, budgetDa
         return;
     }
     setRecommendations(results.recommendations);
-    setGeneralAnalysis(results.generalAnalysis || '');
+    setGeneralAnalysis(results.generalAnalysis);
     setActiveView('analysis');
     setLoading(false);
   };
@@ -199,7 +199,7 @@ const RaporPendidikan: React.FC<RaporPendidikanProps> = ({ onAddBudget, budgetDa
               const results = await analyzeRaporQuality(updatedIndicators, targetYear);
               if (results) {
                   setRecommendations(results.recommendations);
-                  setGeneralAnalysis(results.generalAnalysis || '');
+                  setGeneralAnalysis(results.generalAnalysis);
                   setActiveView('report');
               }
               setLoading(false);
@@ -244,11 +244,9 @@ const RaporPendidikan: React.FC<RaporPendidikanProps> = ({ onAddBudget, budgetDa
                       });
                       setIndicators(updatedIndicators);
                   }
-                  if (result.data.generalAnalysis) {
-                      setGeneralAnalysis(result.data.generalAnalysis);
-                  }
                   if (result.data.recommendations && result.data.recommendations.length > 0) {
                       setRecommendations(result.data.recommendations);
+                      setGeneralAnalysis(result.data.generalAnalysis);
                       setActiveView('report'); 
                   } else {
                       alert("AI berhasil membaca nilai, namun tidak menemukan rekomendasi kegiatan spesifik.");
@@ -413,6 +411,7 @@ const RaporPendidikan: React.FC<RaporPendidikanProps> = ({ onAddBudget, budgetDa
             setActiveView={setActiveView}
             isActivityInBudget={isActivityInBudget}
             setSelectedRec={setSelectedRec}
+            generalAnalysis={generalAnalysis}
           />
       )}
 

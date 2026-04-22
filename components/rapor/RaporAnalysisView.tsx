@@ -1,5 +1,5 @@
 import React from 'react';
-import { BrainCircuit, CheckCircle, Printer, Check, Plus } from 'lucide-react';
+import { BrainCircuit, CheckCircle, Printer, Check, Plus, Sparkles } from 'lucide-react';
 import { PBDRecommendation } from '../../types';
 
 interface RaporAnalysisViewProps {
@@ -8,6 +8,7 @@ interface RaporAnalysisViewProps {
   setActiveView: (view: 'input' | 'analysis' | 'report') => void;
   isActivityInBudget: (rec: PBDRecommendation) => boolean;
   setSelectedRec: (rec: PBDRecommendation) => void;
+  generalAnalysis?: string;
 }
 
 const RaporAnalysisView: React.FC<RaporAnalysisViewProps> = ({
@@ -15,7 +16,8 @@ const RaporAnalysisView: React.FC<RaporAnalysisViewProps> = ({
   handleExportPDF,
   setActiveView,
   isActivityInBudget,
-  setSelectedRec
+  setSelectedRec,
+  generalAnalysis
 }) => {
   return (
     <div className="space-y-6 animate-fade-in">
@@ -32,6 +34,18 @@ const RaporAnalysisView: React.FC<RaporAnalysisViewProps> = ({
                 </button>
             </div>
         </div>
+
+        {generalAnalysis && (
+            <div className="bg-white rounded-2xl shadow-sm border border-indigo-100 overflow-hidden mb-6">
+                <div className="bg-indigo-50 px-6 py-4 flex items-center gap-2 border-b border-indigo-100">
+                    <Sparkles className="text-indigo-600" size={20} />
+                    <h4 className="font-bold text-indigo-800">Analisis Umum AI (AI General Review)</h4>
+                </div>
+                <div className="p-6 text-gray-700 leading-relaxed whitespace-pre-line text-sm">
+                    {generalAnalysis}
+                </div>
+            </div>
+        )}
         <div className="grid grid-cols-1 gap-4">
             {recommendations.length === 0 ? (
                 <div className="p-8 bg-white rounded-xl text-center text-gray-500 border border-gray-200">
