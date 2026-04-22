@@ -36,7 +36,20 @@ const AlbumView: React.FC<AlbumViewProps> = ({
   }
 
   const isRoot = albumView.month === null;
-  const isMonthView = albumView.month !== null && albumView.month > 0;
+  const isMonthView = albumView.month !== null && albumView.month > 0 && albumView.transactionKey === null;
+  const isTransactionView = albumView.month !== null && albumView.month > 0 && albumView.transactionKey !== null;
+
+  const formatVendorName = (name: string) => {
+    if (name.startsWith('history-')) {
+      const parts = name.split('-');
+      if (parts.length >= 6) {
+        const idx = parts[parts.length - 1];
+        const shortId = parts[1].substring(0, 6).toUpperCase();
+        return `Transaksi #${idx} (Ref: ${shortId})`;
+      }
+    }
+    return name;
+  };
 
   return (
     <div className="space-y-8 animate-fade-in-up">
@@ -45,7 +58,7 @@ const AlbumView: React.FC<AlbumViewProps> = ({
          <button 
            onClick={() => setAlbumView({ month: null, transactionKey: null })}
            className={`px-5 lg:px-8 py-3 lg:py-4 rounded-2xl text-[10px] lg:text-xs font-black uppercase tracking-widest transition-all duration-500 flex items-center gap-3 ${
-             isRoot ? 'btn-primary-glass text-white shadow-xl shadow-teal-500/30' : 'bg-white text-slate-400 hover:bg-slate-50'
+             isRoot ? 'btn-primary-glass text-white shadow-xl shadow-teal-500/30' : 'bg-white text-slate-400 border border-slate-100 hover:bg-slate-50'
            }`}
          >
            <BookOpen size={16} /> Digital Vault
@@ -55,9 +68,23 @@ const AlbumView: React.FC<AlbumViewProps> = ({
            <>
              <ChevronRight size={16} className="text-slate-300" />
              <button 
+               onClick={() => setAlbumView({ month: albumView.month, transactionKey: null })}
+               className={`px-5 lg:px-8 py-3 lg:py-4 rounded-2xl text-[10px] lg:text-xs font-black uppercase tracking-widest border flex items-center gap-3 transition-all ${
+                 isMonthView || albumView.month === -1 ? 'bg-teal-50 text-teal-600 border-teal-100 shadow-sm' : 'bg-white text-slate-400 border-slate-100 hover:bg-slate-50'
+               }`}
+             >
+               <Folder size={16} /> {albumView.month !== null && albumView.month > 0 ? MONTHS[albumView.month - 1] : 'General Documents'}
+             </button>
+           </>
+         )}
+
+         {isTransactionView && (
+           <>
+             <ChevronRight size={16} className="text-slate-300" />
+             <button 
                className="px-5 lg:px-8 py-3 lg:py-4 bg-teal-50 text-teal-600 rounded-2xl text-[10px] lg:text-xs font-black uppercase tracking-widest border border-teal-100 shadow-sm flex items-center gap-3"
              >
-               <Folder size={16} /> {isMonthView ? (albumView.month !== null ? MONTHS[albumView.month - 1] : '') : 'General Documents'}
+               <ShoppingCart size={16} /> <span className="truncate max-w-[150px] lg:max-w-none">{formatVendorName(albumView.transactionKey!)}</span>
              </button>
            </>
          )}
@@ -100,7 +127,7 @@ const AlbumView: React.FC<AlbumViewProps> = ({
                  <h4 className="text-xl lg:text-2xl font-black text-slate-800 tracking-tight leading-none mb-3">{MONTHS[Number(month) - 1]}</h4>
                  <p className="text-[11px] font-bold text-slate-400 mb-6 italic">Arsip digital realisasi bulan {MONTHS[Number(month) - 1]}.</p>
                  <div className="mt-auto pt-6 border-t border-slate-50 flex items-center justify-between">
-                    <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest px-3 py-1 bg-slate-50 rounded-lg group-hover:text-slate-600 transition-colors">{Object.keys(transactions).length} SPJ Vendor</span>
+                    <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest px-3 py-1 bg-slate-50 rounded-lg group-hover:text-slate-600 transition-colors">{Object.keys(transactions).length} Folder SPJ</span>
                     <div className="w-8 h-8 rounded-full bg-slate-50 flex items-center justify-center text-slate-300 group-hover:bg-slate-900 group-hover:text-white transition-all"><ChevronRight size={16} /></div>
                  </div>
                </button>
@@ -109,20 +136,36 @@ const AlbumView: React.FC<AlbumViewProps> = ({
         ) : isMonthView ? (
           <motion.div 
             key="month" initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -20 }}
+            className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6 lg:gap-8"
+          >
+            {albumView.month !== null && Object.entries(groupedAlbum[albumView.month] || {}).map(([vendor, group]: any) => (
+              <button 
+                key={vendor}
+                onClick={() => setAlbumView({ month: albumView.month, transactionKey: vendor })}
+                className="group flex flex-col p-6 lg:p-8 glass-card rounded-[2.5rem] border border-white hover:border-teal-200 transition-all duration-700 hover:shadow-2xl hover:shadow-teal-900/5 relative overflow-hidden text-left h-full"
+              >
+                <div className="absolute top-0 right-0 p-6 opacity-5 group-hover:scale-150 transition-transform duration-1000 -rotate-12"><ShoppingCart size={100} /></div>
+                <div className="w-14 h-14 lg:w-16 lg:h-16 bg-white rounded-2xl shadow-xl shadow-teal-900/5 text-teal-600 flex items-center justify-center mb-10 group-hover:bg-teal-600 group-hover:text-white transition-all duration-700 border border-teal-50 shrink-0">
+                   <ShoppingCart size={28} />
+                </div>
+                <h4 className="text-lg lg:text-xl font-black text-slate-800 tracking-tight leading-none mb-3 break-words line-clamp-3" title={formatVendorName(vendor)}>{formatVendorName(vendor)}</h4>
+                <p className="text-[11px] font-bold text-slate-400 mb-6 italic">{group.files.length} dokumen terkait</p>
+                <div className="mt-auto pt-6 border-t border-slate-50 flex items-center justify-between">
+                   <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest px-3 py-1 bg-slate-50 rounded-lg group-hover:text-slate-600 transition-colors">{formatCurrency(group.totalAmount)}</span>
+                   <div className="w-8 h-8 rounded-full bg-slate-50 flex items-center justify-center text-slate-300 group-hover:bg-teal-600 group-hover:text-white transition-all shrink-0"><ChevronRight size={16} /></div>
+                </div>
+              </button>
+            ))}
+          </motion.div>
+        ) : isTransactionView ? (
+          <motion.div 
+            key="transaction" initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -20 }}
             className="space-y-12"
           >
-            {albumView.month !== null && Object.entries(groupedAlbum[albumView.month] || {}).map(([vendor, group]: any) => {
-              const formatVendorName = (name: string) => {
-                if (name.startsWith('history-')) {
-                  const parts = name.split('-');
-                  if (parts.length >= 6) {
-                    const idx = parts[parts.length - 1];
-                    const shortId = parts[1].substring(0, 6).toUpperCase();
-                    return `Transaksi #${idx} (Ref: ${shortId})`;
-                  }
-                }
-                return name;
-              };
+            {(() => {
+              const vendor = albumView.transactionKey!;
+              const group = groupedAlbum[albumView.month!]?.[vendor];
+              if (!group) return null;
               
               return (
               <div key={vendor} className="animate-fade-in-up">
@@ -189,7 +232,8 @@ const AlbumView: React.FC<AlbumViewProps> = ({
                   )})}
                 </div>
               </div>
-            )})}
+              );
+            })()}
           </motion.div>
         ) : (
           <motion.div 
