@@ -12,96 +12,96 @@ const TemplateView: React.FC<TemplateViewProps> = ({
   activeCategory, setActiveCategory, renderTemplateButtons
 }) => {
   return (
-    <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
-       <div className="lg:col-span-4 space-y-6">
-          <div className="bg-white/40 backdrop-blur-md p-6 rounded-[2rem] border border-white/80 shadow-xl shadow-blue-900/5">
+    <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start animate-fade-in-up">
+       {/* Left: Categories */}
+       <div className="lg:col-span-5 space-y-6">
+          <div className="glass-card p-6 rounded-[2.5rem] border border-white/80 shadow-xl shadow-teal-900/5">
             <p className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] mb-4 ml-2">Kategori Belanja</p>
-            <div className="space-y-3">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               {TEMPLATE_CATEGORIES.map((cat) => (
                   <button
                      key={cat.id}
                      onClick={() => setActiveCategory(cat.id)}
-                     className={`w-full text-left p-4 rounded-2xl border transition-all duration-300 flex items-center justify-between group relative overflow-hidden ${
+                     className={`text-left p-4 rounded-2xl border transition-all duration-300 flex flex-col gap-4 group relative overflow-hidden ${
                          activeCategory === cat.id 
-                         ? 'bg-blue-600 text-white border-blue-600 shadow-xl shadow-blue-500/40 scale-[1.02]' 
-                         : 'bg-white border-slate-100 text-slate-700 hover:border-blue-200 hover:bg-blue-50/50 hover:shadow-lg'
+                         ? 'btn-primary-glass text-white shadow-xl shadow-teal-500/40 scale-[1.02]' 
+                         : 'bg-white border-slate-100 text-slate-700 hover:border-teal-200 hover:bg-teal-50/50 hover:shadow-lg'
                      }`}
                   >
-                     <div className="flex items-center gap-4 relative z-10">
-                        <div className={`p-3 rounded-xl transition-colors duration-300 ${activeCategory === cat.id ? 'bg-white/20 text-white shadow-inner' : `${cat.bg} ${cat.color} group-hover:scale-110`}`}>
-                           <cat.icon size={20} />
-                        </div>
-                        <div className="flex-1">
-                           <p className="font-black text-sm tracking-tight">{cat.title}</p>
-                           <p className={`text-[10px] font-semibold line-clamp-1 mt-0.5 ${activeCategory === cat.id ? 'text-blue-100' : 'text-slate-400'}`}>
-                              {cat.description}
-                           </p>
-                        </div>
+                     <div className={`w-12 h-12 rounded-xl flex items-center justify-center transition-all duration-300 ${activeCategory === cat.id ? 'bg-white/20 text-white shadow-inner' : `bg-teal-50 text-teal-600 group-hover:scale-110 shadow-sm border border-teal-100/50`}`}>
+                        <cat.icon size={22} />
                      </div>
-                     <ChevronRight size={18} className={`relative z-10 transition-all duration-300 ${activeCategory === cat.id ? 'text-white translate-x-0' : 'text-slate-200 group-hover:text-blue-400 group-hover:translate-x-1'}`} />
-                     {activeCategory === cat.id && (
-                       <div className="absolute top-0 right-0 -mt-4 -mr-4 w-16 h-16 bg-white/10 rounded-full blur-xl" />
-                     )}
+                     <div>
+                        <p className="font-black text-sm tracking-tight">{cat.title}</p>
+                        <p className={`text-[10px] font-semibold line-clamp-2 mt-1 leading-relaxed ${activeCategory === cat.id ? 'text-teal-100' : 'text-slate-400'}`}>
+                           {cat.description}
+                        </p>
+                     </div>
+                     <ChevronRight size={18} className={`absolute top-4 right-4 transition-all duration-300 ${activeCategory === cat.id ? 'text-white translate-x-0' : 'text-slate-200 group-hover:text-teal-400 group-hover:translate-x-1 opacity-0 group-hover:opacity-100'}`} />
                   </button>
               ))}
             </div>
           </div>
-          <div className="bg-slate-900 text-white p-6 rounded-[2rem] border border-slate-800 shadow-2xl relative overflow-hidden group">
-              <div className="absolute top-0 right-0 w-32 h-32 bg-blue-500/10 rounded-full blur-3xl -mr-16 -mt-16 group-hover:bg-blue-500/20 transition-colors"></div>
-              <h4 className="text-sm font-black text-white mb-4 flex items-center gap-2 relative z-10">
-                  <div className="p-1.5 bg-slate-800 rounded-lg"><Printer size={16} className="text-blue-400" /></div>
-                  Cetak Cepat
+          
+          <div className="bg-slate-900 text-white p-8 rounded-[3rem] border border-slate-800 shadow-2xl relative overflow-hidden group">
+              <div className="absolute top-0 right-0 w-32 h-32 bg-teal-500/10 rounded-full blur-3xl -mr-16 -mt-16 group-hover:bg-teal-500/20 transition-colors"></div>
+              <h4 className="text-sm font-black text-white mb-6 flex items-center gap-3 relative z-10 uppercase tracking-widest">
+                  <div className="p-2 bg-slate-800 rounded-xl"><Printer size={18} className="text-teal-400" /></div>
+                  Pustaka Dokumen
               </h4>
-              <div className="space-y-2 relative z-10">
+              <div className="space-y-2 relative z-10 max-h-[300px] overflow-y-auto pr-2 custom-scrollbar">
                   {renderTemplateButtons()}
               </div>
-              <p className="text-[9px] text-slate-500 mt-6 font-bold uppercase tracking-widest text-center opacity-70">Pilih kategori untuk daftar cetak</p>
+              <p className="text-[9px] text-slate-500 mt-8 font-bold uppercase tracking-widest text-center opacity-60 italic">Pilih kategori untuk memfilter pustaka</p>
           </div>
        </div>
 
-       <div className="lg:col-span-8">
+       {/* Right: Requirements */}
+       <div className="lg:col-span-7">
           {activeCategory ? (
               (() => {
                   const cat = TEMPLATE_CATEGORIES.find(c => c.id === activeCategory);
                   if (!cat) return null;
                   return (
-                      <div className="bg-white rounded-[2.5rem] shadow-2xl shadow-blue-900/5 border border-slate-100 overflow-hidden animate-in fade-in slide-in-from-right-4 duration-500">
-                          <div className={`p-10 border-b border-slate-100 relative overflow-hidden ${cat.bg}`}>
-                              <div className="absolute top-0 right-0 w-64 h-64 bg-white/20 rounded-full blur-3xl -mr-32 -mt-32"></div>
-                              <div className="relative z-10">
-                                <div className="flex items-center gap-4 mb-4">
-                                    <div className={`p-4 rounded-2xl bg-white shadow-xl ${cat.color}`}>
-                                      <cat.icon size={28} />
+                      <div className="glass-card rounded-[3rem] shadow-2xl shadow-teal-900/5 border border-white overflow-hidden animate-in fade-in slide-in-from-right-4 duration-500">
+                          <div className={`p-10 border-b border-slate-100/50 bg-teal-50/30 relative overflow-hidden`}>
+                              <div className="absolute top-0 right-0 w-64 h-64 bg-teal-200/10 rounded-full blur-3xl -mr-32 -mt-32"></div>
+                              <div className="relative z-10 flex items-center justify-between">
+                                 <div className="flex items-center gap-5">
+                                    <div className="p-4 rounded-2xl bg-white shadow-xl text-teal-600 border border-teal-50">
+                                      <cat.icon size={32} />
                                     </div>
                                     <div>
-                                      <span className={`px-3 py-1 bg-white/50 backdrop-blur-sm rounded-lg text-[9px] font-black uppercase tracking-widest border border-white/50 mb-2 inline-block ${cat.color}`}>Kategori Terpilih</span>
+                                      <span className="px-3 py-1 bg-teal-600 text-white rounded-lg text-[9px] font-black uppercase tracking-widest mb-2 inline-block shadow-lg shadow-teal-500/20">Panduan Audit</span>
                                       <h3 className="text-2xl font-black text-slate-800 tracking-tight">{cat.title}</h3>
                                     </div>
-                                </div>
-                                <p className="text-sm font-semibold text-slate-600 leading-relaxed max-w-2xl">{cat.description}</p>
+                                 </div>
                               </div>
                           </div>
                           <div className="p-10">
                               <div className="flex items-center justify-between mb-8">
                                 <h4 className="font-black text-slate-800 flex items-center gap-3">
-                                    <div className="p-2 bg-emerald-50 text-emerald-500 rounded-xl"><CheckCircle2 size={20} /></div>
-                                    Checklist Audit BOSP 2026
+                                    <div className="p-2 bg-emerald-50 text-emerald-500 rounded-xl shadow-inner"><CheckCircle2 size={20} /></div>
+                                    Checklist Standar BOSP
                                 </h4>
-                                <span className="text-[10px] bg-slate-100 text-slate-500 px-3 py-1.5 rounded-full font-black uppercase tracking-widest border border-slate-200">Wajib Dilengkapi</span>
+                                <span className="text-[10px] bg-emerald-100 text-emerald-600 px-4 py-2 rounded-xl font-black uppercase tracking-widest border border-emerald-200">Wajib Ada</span>
                               </div>
-                              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                              <div className="grid grid-cols-1 gap-4">
                                   {cat.requirements.map((req, idx) => (
-                                      <div key={idx} className="group flex items-start gap-4 p-5 bg-slate-50/50 hover:bg-white hover:shadow-xl hover:shadow-blue-900/5 rounded-2xl border border-transparent hover:border-blue-100 transition-all duration-300">
-                                          <div className="min-w-[32px] h-8 flex items-center justify-center bg-white text-blue-600 shadow-sm rounded-xl text-xs font-black mt-0.5 group-hover:bg-blue-600 group-hover:text-white transition-colors duration-300">{idx + 1}</div>
+                                      <div key={idx} className="group flex items-start gap-4 p-5 bg-slate-50/50 hover:bg-white hover:shadow-xl hover:shadow-teal-900/5 rounded-2xl border border-transparent hover:border-teal-100 transition-all duration-300">
+                                          <div className="min-w-[32px] h-8 flex items-center justify-center bg-white text-teal-600 shadow-sm rounded-xl text-xs font-black mt-0.5 group-hover:btn-primary-glass group-hover:text-white transition-all duration-500">{idx + 1}</div>
                                           <p className="text-sm font-bold text-slate-600 group-hover:text-slate-800 transition-colors leading-snug">{req}</p>
                                       </div>
                                   ))}
                               </div>
-                              <div className="mt-12 p-6 bg-blue-50/50 rounded-2xl border border-blue-100 flex items-center gap-4">
-                                 <div className="p-3 bg-blue-600 text-white rounded-xl shadow-lg shadow-blue-500/30"><Sparkles size={20} /></div>
-                                 <div className="flex-1">
-                                    <p className="text-xs font-black text-blue-600 uppercase tracking-widest mb-1">Tips Kelengkapan</p>
-                                    <p className="text-[11px] font-bold text-slate-500">Pastikan semua dokumen di atas memiliki stempel basah dan tanda tangan asli sebelum di-scan.</p>
+                              <div className="mt-12 p-8 bg-slate-900 text-white rounded-[2.5rem] shadow-2xl relative overflow-hidden group">
+                                 <div className="absolute top-0 right-0 p-8 opacity-10 group-hover:scale-125 transition-transform duration-1000"><Sparkles size={120} className="text-teal-400" /></div>
+                                 <div className="flex items-center gap-4 relative z-10">
+                                   <div className="p-4 bg-teal-600 text-white rounded-2xl shadow-xl shadow-teal-500/30"><Sparkles size={24} /></div>
+                                   <div className="flex-1">
+                                      <p className="text-xs font-black text-teal-400 uppercase tracking-widest mb-1">Tips Kelengkapan</p>
+                                      <p className="text-[11px] font-bold text-slate-300 leading-relaxed italic opacity-80">"Pastikan setiap berkas hasil scan memiliki resolusi tinggi (&gt;300 DPI) untuk memudahkan proses verifikasi audit Inspektorat."</p>
+                                   </div>
                                  </div>
                               </div>
                           </div>
@@ -109,16 +109,19 @@ const TemplateView: React.FC<TemplateViewProps> = ({
                   );
               })()
           ) : (
-              <div className="h-full min-h-[500px] flex flex-col items-center justify-center bg-slate-50 rounded-[2.5rem] border-2 border-dashed border-slate-200 text-center p-12 group">
-                  <div className="bg-white p-8 rounded-full shadow-xl shadow-slate-200/50 mb-6 group-hover:scale-110 transition-transform duration-500">
-                      <FileText size={56} className="text-slate-300 group-hover:text-blue-400 transition-colors" />
+              <div className="h-full min-h-[600px] flex flex-col items-center justify-center glass-card rounded-[3rem] border-2 border-dashed border-teal-200/50 text-center p-12 group transition-all duration-700 hover:bg-white/60 hover:border-teal-300">
+                  <div className="relative mb-8">
+                      <div className="absolute inset-0 bg-teal-500 rounded-full blur-3xl opacity-10 group-hover:scale-150 transition-transform duration-1000"></div>
+                      <div className="relative bg-white p-10 rounded-full shadow-2xl shadow-teal-200/50 group-hover:rotate-6 transition-transform duration-500">
+                          <FileText size={64} className="text-slate-300 group-hover:text-teal-500 transition-colors" />
+                      </div>
                   </div>
-                  <h3 className="text-xl font-black text-slate-700 mb-3 tracking-tight">Kategori Belum Dipilih</h3>
-                  <p className="text-sm font-semibold text-slate-400 max-w-xs leading-relaxed">Silakan pilih jenis belanja di panel kiri untuk melihat detail dokumen pendukung yang dibutuhkan untuk audit.</p>
-                  <div className="mt-8 flex gap-2">
-                    <div className="w-2 h-2 rounded-full bg-slate-200 animate-bounce delay-0"></div>
-                    <div className="w-2 h-2 rounded-full bg-slate-200 animate-bounce delay-150"></div>
-                    <div className="w-2 h-2 rounded-full bg-slate-200 animate-bounce delay-300"></div>
+                  <h3 className="text-2xl font-black text-slate-700 mb-3 tracking-tight">Kategori Belum Dipilih</h3>
+                  <p className="text-sm font-semibold text-slate-400 max-w-xs leading-relaxed italic">Silakan pilih jenis belanja di panel kiri untuk melihat panduan audit dan berkas wajib yang dibutuhkan.</p>
+                  <div className="mt-10 flex gap-3">
+                    <div className="w-2.5 h-2.5 rounded-full bg-teal-200 animate-bounce delay-0 shadow-sm"></div>
+                    <div className="w-2.5 h-2.5 rounded-full bg-teal-200 animate-bounce delay-150 shadow-sm"></div>
+                    <div className="w-2.5 h-2.5 rounded-full bg-teal-200 animate-bounce delay-300 shadow-sm"></div>
                   </div>
               </div>
            )}
