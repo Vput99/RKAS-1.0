@@ -116,11 +116,11 @@ const TransactionTable: React.FC<TransactionTableProps> = ({ type, data, onAdd, 
              <div className="p-2.5 bg-blue-100/80 rounded-xl text-blue-600 shadow-inner">
                 <FileText size={20} strokeWidth={2.5} />
              </div>
-             <span className="px-3 py-1 bg-blue-50 text-blue-600 text-[10px] font-black uppercase tracking-widest rounded-lg border border-blue-100/50 shadow-sm">
+             <span className="px-3 py-1 bg-blue-50 text-blue-600 text-[10px] font-bold uppercase tracking-widest rounded-lg border border-blue-100/50 shadow-sm">
                 Manajemen
              </span>
           </div>
-          <h2 className="text-3xl font-black text-slate-800 tracking-tight capitalize">Data {type}</h2>
+          <h2 className="text-2xl lg:text-3xl font-bold text-slate-800 tracking-tight capitalize">Data {type}</h2>
           <p className="text-sm font-semibold text-slate-500 mt-1">Kelola pencatatan aliran dana {type} secara efisien.</p>
         </div>
         
@@ -202,7 +202,7 @@ const TransactionTable: React.FC<TransactionTableProps> = ({ type, data, onAdd, 
                         {new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', maximumFractionDigits: 0 }).format(item.amount)}
                       </td>
                       <td className="px-6 py-5 text-center">
-                        <span className={`px-3 py-1.5 rounded-xl text-[10px] font-black uppercase tracking-widest shadow-sm border ${
+                        <span className={`px-3 py-1.5 rounded-xl text-[10px] font-bold uppercase tracking-widest shadow-sm border ${
                           item.status === 'approved' ? 'bg-emerald-50 text-emerald-600 border-emerald-200' :
                           item.status === 'rejected' ? 'bg-rose-50 text-rose-600 border-rose-200' :
                           'bg-amber-50 text-amber-600 border-amber-200'
@@ -251,7 +251,7 @@ const TransactionTable: React.FC<TransactionTableProps> = ({ type, data, onAdd, 
 
               <div className="px-8 py-6 border-b border-slate-100 flex justify-between items-center relative z-10">
                 <div>
-                   <h3 className="text-2xl font-black text-slate-800 tracking-tight">
+                   <h3 className="text-xl lg:text-2xl font-bold text-slate-800 tracking-tight">
                      {type === TransactionType.INCOME ? 'Tambah Sumber Dana' : 'Tambah Kegiatan RKAS'}
                    </h3>
                    <p className="text-xs font-semibold text-slate-500 uppercase tracking-widest mt-1">Form Input Data Baru</p>
@@ -274,7 +274,7 @@ const TransactionTable: React.FC<TransactionTableProps> = ({ type, data, onAdd, 
                          <Sparkles size={24} strokeWidth={2.5} />
                       </div>
                       <div className="w-full">
-                        <p className="text-sm text-indigo-900 mb-1 font-black uppercase tracking-widest">Validasi Otomatis AI</p>
+                        <p className="text-sm text-indigo-900 mb-1 font-bold uppercase tracking-widest">Validasi Otomatis AI</p>
                         <p className="text-xs font-semibold text-indigo-700/70 mb-4 leading-relaxed">
                           Ketik rencana belanja, AI akan memetakan otomatis ke Komponen BOSP, Kode Rekening, dan mengecek kesesuaian dengan Juknis.
                         </p>
@@ -331,7 +331,7 @@ const TransactionTable: React.FC<TransactionTableProps> = ({ type, data, onAdd, 
 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                   <div className="md:col-span-2">
-                    <label className="block text-xs font-black text-slate-700 uppercase tracking-widest mb-2">Uraian Transaksi</label>
+                    <label className="block text-xs font-bold text-slate-700 uppercase tracking-widest mb-2">Uraian Transaksi</label>
                     <input 
                       required
                       type="text" 
@@ -343,7 +343,7 @@ const TransactionTable: React.FC<TransactionTableProps> = ({ type, data, onAdd, 
                   </div>
 
                   <div className="md:col-span-2">
-                    <label className="block text-xs font-black text-slate-700 uppercase tracking-widest mb-2">Tanggal Transaksi</label>
+                    <label className="block text-xs font-bold text-slate-700 uppercase tracking-widest mb-2">Tanggal Transaksi</label>
                     <input 
                       required
                       type="date" 
@@ -354,7 +354,7 @@ const TransactionTable: React.FC<TransactionTableProps> = ({ type, data, onAdd, 
                   </div>
 
                   <div>
-                    <label className="block text-xs font-black text-slate-700 uppercase tracking-widest mb-2">Nominal (Rp)</label>
+                    <label className="block text-xs font-bold text-slate-700 uppercase tracking-widest mb-2">Nominal (Rp)</label>
                     <div className="relative">
                        <span className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 font-bold">Rp</span>
                        <input 
@@ -369,7 +369,7 @@ const TransactionTable: React.FC<TransactionTableProps> = ({ type, data, onAdd, 
                   </div>
 
                   <div>
-                    <label className="block text-xs font-black text-slate-700 uppercase tracking-widest mb-2">
+                    <label className="block text-xs font-bold text-slate-700 uppercase tracking-widest mb-2">
                       {type === TransactionType.INCOME ? 'Jenis Penerimaan' : 'Komponen BOSP'}
                     </label>
                     <select 
@@ -391,7 +391,7 @@ const TransactionTable: React.FC<TransactionTableProps> = ({ type, data, onAdd, 
                   </div>
 
                   <div className="md:col-span-2">
-                    <label className="block text-xs font-black text-slate-700 uppercase tracking-widest mb-2">Standar Nasional Pendidikan (SNP)</label>
+                    <label className="block text-xs font-bold text-slate-700 uppercase tracking-widest mb-2">Standar Nasional Pendidikan (SNP)</label>
                     <select 
                       value={category} 
                       onChange={(e) => setCategory(e.target.value)}

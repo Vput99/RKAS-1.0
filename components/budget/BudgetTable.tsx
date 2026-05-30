@@ -29,7 +29,7 @@ const BudgetTable = ({
 
             {/* Period Header */}
             <motion.div variants={itemVariants} className="mb-5">
-                <h2 className="text-2xl font-black text-slate-800 tracking-tight">
+                <h2 className="text-2xl font-bold text-slate-800 tracking-tight">
                     Periode Anggaran {CURRENT_YEAR}
                 </h2>
             </motion.div>
@@ -57,7 +57,7 @@ const BudgetTable = ({
                                 {month}
                                 {count > 0 && (
                                     <span
-                                        className={`ml-1.5 inline-flex items-center justify-center text-[9px] font-black w-4 h-4 rounded-full ${isActive
+                                        className={`ml-1.5 inline-flex items-center justify-center text-[9px] font-bold w-4 h-4 rounded-full ${isActive
                                             ? 'bg-blue-600 text-white'
                                             : 'bg-slate-200 text-slate-600'
                                             }`}
@@ -93,16 +93,16 @@ const BudgetTable = ({
                         </colgroup>
                         <thead>
                             <tr className="bg-slate-50/80 border-b border-slate-200/60">
-                                <th className="px-3 py-3 text-[10px] font-black uppercase tracking-widest text-slate-500">#</th>
-                                <th className="px-3 py-3 text-[10px] font-black uppercase tracking-widest text-slate-500">Kegiatan</th>
-                                <th className="px-3 py-3 text-[10px] font-black uppercase tracking-widest text-slate-500">Rekening Belanja</th>
-                                <th className="px-3 py-3 text-[10px] font-black uppercase tracking-widest text-slate-500">Uraian</th>
-                                <th className="px-3 py-3 text-[10px] font-black uppercase tracking-widest text-slate-500 text-right">Jml</th>
-                                <th className="px-3 py-3 text-[10px] font-black uppercase tracking-widest text-slate-500 text-center">Satuan</th>
-                                <th className="px-3 py-3 text-[10px] font-black uppercase tracking-widest text-slate-500 text-right">Harga Satuan</th>
-                                <th className="px-3 py-3 text-[10px] font-black uppercase tracking-widest text-slate-500 text-right">Total</th>
-                                <th className="px-3 py-3 text-[10px] font-black uppercase tracking-widest text-slate-500 text-center">Status</th>
-                                <th className="px-3 py-3 text-[10px] font-black uppercase tracking-widest text-slate-500 text-center">Aksi</th>
+                                <th className="px-3 py-3 text-[10px] font-bold uppercase tracking-widest text-slate-500">#</th>
+                                <th className="px-3 py-3 text-[10px] font-bold uppercase tracking-widest text-slate-500">Kegiatan</th>
+                                <th className="px-3 py-3 text-[10px] font-bold uppercase tracking-widest text-slate-500">Rekening Belanja</th>
+                                <th className="px-3 py-3 text-[10px] font-bold uppercase tracking-widest text-slate-500">Uraian</th>
+                                <th className="px-3 py-3 text-[10px] font-bold uppercase tracking-widest text-slate-500 text-right">Jml</th>
+                                <th className="px-3 py-3 text-[10px] font-bold uppercase tracking-widest text-slate-500 text-center">Satuan</th>
+                                <th className="px-3 py-3 text-[10px] font-bold uppercase tracking-widest text-slate-500 text-right">Harga Satuan</th>
+                                <th className="px-3 py-3 text-[10px] font-bold uppercase tracking-widest text-slate-500 text-right">Total</th>
+                                <th className="px-3 py-3 text-[10px] font-bold uppercase tracking-widest text-slate-500 text-center">Status</th>
+                                <th className="px-3 py-3 text-[10px] font-bold uppercase tracking-widest text-slate-500 text-center">Aksi</th>
                             </tr>
                         </thead>
                         <tbody className="divide-y divide-slate-100/70">
@@ -164,7 +164,7 @@ const BudgetTable = ({
                                             <td className="px-3 py-3">
                                                 {item.account_code ? (
                                                     <div>
-                                                        <span className="text-[10px] font-black font-mono text-blue-700 bg-blue-50 border border-blue-100 px-1.5 py-0.5 rounded block w-fit">
+                                                        <span className="text-[10px] font-bold font-mono text-blue-700 bg-blue-50 border border-blue-100 px-1.5 py-0.5 rounded block w-fit">
                                                             {item.account_code}
                                                         </span>
                                                         <span className="text-[10px] text-slate-400 font-medium mt-0.5 block truncate leading-tight">
@@ -211,7 +211,7 @@ const BudgetTable = ({
                                                 {formatRupiah(item.unit_price || 0)}
                                             </td>
                                             <td className="px-3 py-3 text-right">
-                                                <span className="font-black font-mono text-blue-700 tabular-nums text-sm">
+                                                <span className="font-bold font-mono text-blue-700 tabular-nums text-sm">
                                                     {formatRupiah((item.month_quantities?.[String(activeMonth)] ?? Math.round((item.quantity ?? 0) / Math.max(item.realization_months?.length || 1, 1))) * (item.unit_price || 0))}
                                                 </span>
                                             </td>
@@ -221,7 +221,7 @@ const BudgetTable = ({
                                                         (r.target_month ?? r.month) === activeMonth
                                                     );
                                                     return realized ? (
-                                                        <span className="inline-flex items-center gap-1 px-2 py-1 rounded-full text-[10px] font-black bg-emerald-100 text-emerald-700 border border-emerald-200">
+                                                        <span className="inline-flex items-center gap-1 px-2 py-1 rounded-full text-[10px] font-bold bg-emerald-100 text-emerald-700 border border-emerald-200">
                                                             <CheckCircle size={10} strokeWidth={3} />
                                                             Realisasi
                                                         </span>
@@ -263,11 +263,11 @@ const BudgetTable = ({
                         {monthExpenses.length > 0 && (
                             <tfoot>
                                 <tr className="bg-gradient-to-r from-slate-50 to-blue-50/80 border-t-2 border-blue-100">
-                                    <td colSpan={7} className="px-3 py-2.5 text-[10px] font-black uppercase tracking-widest text-slate-500 text-right">
+                                    <td colSpan={7} className="px-3 py-2.5 text-[10px] font-bold uppercase tracking-widest text-slate-500 text-right">
                                         Total {MONTHS_FULL[activeMonth - 1]}
                                     </td>
                                     <td className="px-3 py-2.5 text-right">
-                                        <span className="font-black font-mono text-blue-700 tabular-nums text-sm">
+                                        <span className="font-bold font-mono text-blue-700 tabular-nums text-sm">
                                             {formatRupiah(monthExpenses.reduce((s, i) =>
                                                 s + Math.round((i.amount) / Math.max(i.realization_months?.length || 1, 1))
                                                 , 0))}
@@ -288,10 +288,10 @@ const BudgetTable = ({
                     className="mt-4 bg-gradient-to-r from-blue-600 via-blue-700 to-indigo-700 rounded-2xl p-5 flex justify-between items-center shadow-xl shadow-blue-700/20 border border-blue-500/30"
                 >
                     <div>
-                        <p className="text-[10px] font-black uppercase tracking-widest text-blue-200 mb-1">
+                        <p className="text-[10px] font-bold uppercase tracking-widest text-blue-200 mb-1">
                             Total Seluruh Anggaran
                         </p>
-                        <p className="text-3xl font-black text-white font-mono tracking-tight">
+                        <p className="text-2xl lg:text-3xl font-bold text-white font-mono tracking-tight">
                             {formatRupiah(totalBudgeted)}
                         </p>
                     </div>
