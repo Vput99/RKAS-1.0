@@ -118,7 +118,7 @@ function App() {
   if (!session) return <Auth onLoginSuccess={() => setSession({user: {email: 'guest'}})} />;
 
   return (
-    <div className="flex flex-col h-screen bg-transparent overflow-hidden font-sans">
+    <div className="flex flex-col h-[100dvh] bg-transparent overflow-hidden font-sans">
       <Sidebar 
         activeTab={activeTab}
         setActiveTab={setActiveTab}
