@@ -216,7 +216,7 @@ const PengeluaranView = React.memo(({
                           {tx.notes || '-'}
                           <button 
                             onClick={() => onDeleteWithdrawal(tx.id)} 
-                            className="absolute right-1 top-1 text-red-400 opacity-0 group-hover:opacity-100 transition-opacity print:hidden"
+                            className="absolute right-1 top-1 text-red-400 lg:opacity-0 lg:group-hover:opacity-100 opacity-100 transition-opacity print:hidden"
                           >
                             <Trash2 size={10} />
                           </button>

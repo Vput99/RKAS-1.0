@@ -149,7 +149,7 @@ const LetterListView: React.FC<LetterListViewProps> = ({
                     <span className="flex items-center gap-1"><DollarSign size={10} /> {fmt(letter.total_amount)}</span>
                   </div>
                 </div>
-                <div className="flex items-center gap-1.5 opacity-0 group-hover:opacity-100 transition-all flex-shrink-0">
+                <div className="flex items-center gap-1.5 lg:opacity-0 lg:group-hover:opacity-100 opacity-100 transition-all flex-shrink-0">
                   <button onClick={() => handleEdit(letter)} title="Edit" className="p-2 rounded-xl hover:bg-indigo-50 text-slate-400 hover:text-indigo-600 transition-colors">
                     <FilePen size={15} />
                   </button>

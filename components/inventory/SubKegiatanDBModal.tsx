@@ -118,7 +118,7 @@ const SubKegiatanDBModal = ({
                       {sk.kode}
                     </span>
                     <span className="flex-1 text-sm font-bold text-slate-700">{sk.nama}</span>
-                    <div className="flex gap-1.5 opacity-0 group-hover:opacity-100 transition-opacity">
+                    <div className="flex gap-1.5 lg:opacity-0 lg:group-hover:opacity-100 opacity-100 transition-opacity">
                       <button
                         type="button"
                         onClick={() => { setSkEditId(sk.id); setSkForm({ kode: sk.kode, nama: sk.nama }); }}
