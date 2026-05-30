@@ -39,7 +39,25 @@ const AlbumView: React.FC<AlbumViewProps> = ({
   const isMonthView = albumView.month !== null && albumView.month > 0 && albumView.transactionKey === null;
   const isTransactionView = albumView.month !== null && albumView.month > 0 && albumView.transactionKey !== null;
 
-  const formatVendorName = (name: string) => {
+  const formatVendorName = (name: string, group?: any) => {
+    if (group) {
+      const vendorName = group.vendor || 'Tanpa Toko/Vendor';
+      const descriptions = Array.from(new Set(group.files?.map((f: any) => f.description).filter(Boolean))) as string[];
+      const description = descriptions.join(', ');
+
+      if (name.startsWith('history-')) {
+        if (description && description !== 'Pencairan') {
+          return `${description} (${vendorName})`;
+        }
+        return vendorName;
+      }
+
+      if (description && vendorName !== 'Tanpa Toko/Vendor') {
+        return `${description} (${vendorName})`;
+      }
+      return vendorName;
+    }
+
     if (name.startsWith('history-')) {
       const parts = name.split('-');
       if (parts.length >= 6) {
@@ -84,7 +102,13 @@ const AlbumView: React.FC<AlbumViewProps> = ({
              <button 
                className="px-5 lg:px-8 py-3 lg:py-4 bg-teal-50 text-teal-600 rounded-2xl text-[10px] lg:text-xs font-black uppercase tracking-widest border border-teal-100 shadow-sm flex items-center gap-3"
              >
-               <ShoppingCart size={16} /> <span className="truncate max-w-[150px] lg:max-w-none">{formatVendorName(albumView.transactionKey!)}</span>
+               <ShoppingCart size={16} /> <span className="truncate max-w-[150px] lg:max-w-none">
+                 {(() => {
+                   const vendorKey = albumView.transactionKey!;
+                   const group = groupedAlbum[albumView.month!]?.[vendorKey];
+                   return formatVendorName(vendorKey, group);
+                 })()}
+               </span>
              </button>
            </>
          )}
@@ -148,7 +172,7 @@ const AlbumView: React.FC<AlbumViewProps> = ({
                 <div className="w-14 h-14 lg:w-16 lg:h-16 bg-white rounded-2xl shadow-xl shadow-teal-900/5 text-teal-600 flex items-center justify-center mb-10 group-hover:bg-teal-600 group-hover:text-white transition-all duration-700 border border-teal-50 shrink-0">
                    <ShoppingCart size={28} />
                 </div>
-                <h4 className="text-lg lg:text-xl font-black text-slate-800 tracking-tight leading-none mb-3 break-words line-clamp-3" title={formatVendorName(vendor)}>{formatVendorName(vendor)}</h4>
+                <h4 className="text-lg lg:text-xl font-black text-slate-800 tracking-tight leading-none mb-3 break-words line-clamp-3" title={formatVendorName(vendor, group)}>{formatVendorName(vendor, group)}</h4>
                 <p className="text-[11px] font-bold text-slate-400 mb-6 italic">{group.files.length} dokumen terkait</p>
                 <div className="mt-auto pt-6 border-t border-slate-50 flex items-center justify-between">
                    <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest px-3 py-1 bg-slate-50 rounded-lg group-hover:text-slate-600 transition-colors">{formatCurrency(group.totalAmount)}</span>
@@ -175,7 +199,7 @@ const AlbumView: React.FC<AlbumViewProps> = ({
                          <ShoppingCart size={24} />
                       </div>
                       <div>
-                         <h3 className="text-2xl lg:text-3xl font-black text-slate-800 tracking-tight leading-none mb-2 break-all">{formatVendorName(vendor)}</h3>
+                         <h3 className="text-2xl lg:text-3xl font-black text-slate-800 tracking-tight leading-none mb-2 break-all">{formatVendorName(vendor, group)}</h3>
                          <div className="flex flex-wrap items-center gap-2">
                             <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest bg-slate-100/50 px-3 py-1 rounded-lg font-sans">Arsip Transaksi Terverifikasi</span>
                             <span className="text-[10px] font-black text-teal-600 uppercase tracking-widest bg-teal-50 px-3 py-1 rounded-lg border border-teal-100 font-sans">{group.files.length} File Digital</span>
