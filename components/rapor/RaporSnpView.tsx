@@ -33,7 +33,7 @@ const RaporSnpView: React.FC<RaporSnpViewProps> = ({ indicators, targetYear, onA
   const handleExportPDF = () => {
     if (!snpData) return;
     const doc = new jsPDF('l', 'mm', 'a4');
-    let title = '', headers: any[][] = [], body: any[][] = [];
+    let title = '', headers: any[][] = [], body: any[][] = [], columnStyles: any = {};
 
     if (activeTab === 'rapor') {
       title = `Analisis Rapor Pendidikan Tahun ${parseInt(targetYear) - 1}`;
@@ -99,6 +99,17 @@ const RaporSnpView: React.FC<RaporSnpViewProps> = ({ indicators, targetYear, onA
         row.alasan
       ]);
       
+      columnStyles = {
+        0: { cellWidth: 10, halign: 'center' }, // No
+        1: { cellWidth: 25 }, // SNP
+        2: { cellWidth: 40 }, // Identifikasi
+        3: { cellWidth: 40 }, // Akar Masalah
+        4: { cellWidth: 20, halign: 'center' }, // Prioritas
+        5: { cellWidth: 20, halign: 'center' }, // Urgensi
+        6: { cellWidth: 15, halign: 'center' }, // Jumlah
+        7: { cellWidth: 'auto' } // Alasan
+      };
+      
     } else if (activeTab === 'rkt') {
       title = `Rencana Kerja Tahunan (RKT) Tahun ${targetYear}`;
       headers = [[
@@ -122,6 +133,19 @@ const RaporSnpView: React.FC<RaporSnpViewProps> = ({ indicators, targetYear, onA
         { content: 'TOTAL ESTIMASI BIAYA', colSpan: 9, styles: { halign: 'right', fontStyle: 'bold', fillColor: [240, 240, 240] } },
         { content: formatRupiah(totalRkt), styles: { halign: 'right', fontStyle: 'bold', fillColor: [240, 240, 240] } }
       ]);
+      
+      columnStyles = {
+        0: { cellWidth: 8, halign: 'center' },  // No
+        1: { cellWidth: 22 }, // Nama SNP
+        2: { cellWidth: 30 }, // Identifikasi
+        3: { cellWidth: 30 }, // Akar Masalah
+        4: { cellWidth: 35 }, // Kegiatan Benahi
+        5: { cellWidth: 'auto' }, // Penjelasan Implementasi
+        6: { cellWidth: 12, halign: 'center' }, // Butuh Biaya?
+        7: { cellWidth: 18, halign: 'center' }, // Kode ARKAS
+        8: { cellWidth: 35 }, // Kegiatan ARKAS/Non ARKAS
+        9: { cellWidth: 22, halign: 'right' } // Estimasi Biaya
+      };
       
     } else if (activeTab === 'rkas') {
       title = `Rancangan ARKAS (RKAS) Tahun ${targetYear}`;
@@ -157,6 +181,22 @@ const RaporSnpView: React.FC<RaporSnpViewProps> = ({ indicators, targetYear, onA
         { content: 'GRAND TOTAL ANGGARAN RKAS', colSpan: 11, styles: { halign: 'right', fontStyle: 'bold', fillColor: [240, 240, 240] } },
         { content: formatRupiah(totalRkas), colSpan: 2, styles: { halign: 'right', fontStyle: 'bold', fillColor: [240, 240, 240] } }
       ]);
+      
+      columnStyles = {
+        0: { cellWidth: 8, halign: 'center' },  // No
+        1: { cellWidth: 20 }, // Nama SNP
+        2: { cellWidth: 25 }, // Kegiatan Benahi
+        3: { cellWidth: 'auto' }, // Penjelasan Implementasi
+        4: { cellWidth: 16, halign: 'center' }, // Kode ARKAS
+        5: { cellWidth: 35 }, // Kegiatan ARKAS
+        6: { cellWidth: 14 }, // Bulan
+        7: { cellWidth: 30 }, // Uraian Kegiatan
+        8: { cellWidth: 8, halign: 'center' }, // Vol
+        9: { cellWidth: 12, halign: 'center' }, // Satuan
+        10: { cellWidth: 20, halign: 'right' }, // Harga Satuan
+        11: { cellWidth: 22, halign: 'right' }, // Total
+        12: { cellWidth: 12, halign: 'center' } // Sumber
+      };
     }
 
     const startY = generatePDFHeader(doc, profile, title);
@@ -165,8 +205,9 @@ const RaporSnpView: React.FC<RaporSnpViewProps> = ({ indicators, targetYear, onA
       startY, 
       head: headers, 
       body: body, 
-      styles: { fontSize: 7 }, 
-      headStyles: { fillColor: [79, 70, 229] }
+      columnStyles: columnStyles,
+      styles: { fontSize: 7, cellPadding: 2, overflow: 'linebreak' }, 
+      headStyles: { fillColor: [79, 70, 229], halign: 'center', valign: 'middle' }
     });
     
     const finalY = (doc as any).lastAutoTable.finalY || startY + 50;
