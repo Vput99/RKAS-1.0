@@ -252,6 +252,10 @@ const RaporPendidikan: React.FC<RaporPendidikanProps> = ({ onAddBudget, budgetDa
                             return found ? { ...p, score: found.score, category: found.category as any } : p;
                         });
                         setIndicators(updatedIndicators);
+                        
+                        // Save extracted indicators to database
+                        const dataYear = (parseInt(targetYear) - 1).toString();
+                        await saveRaporData(updatedIndicators, dataYear);
                     }
                     if (result.data.recommendations && result.data.recommendations.length > 0) {
                         setRecommendations(result.data.recommendations);
@@ -295,7 +299,7 @@ const RaporPendidikan: React.FC<RaporPendidikanProps> = ({ onAddBudget, budgetDa
                     account_code: item.accountCode,
                     status: 'draft',
                     date: new Date().toISOString(),
-                    realization_months: [new Date().getMonth() + 2],
+                    realization_months: [Math.min(12, new Date().getMonth() + 2)],
                     notes: `PBD Indikator ${selectedRec.indicatorId}`
                 });
             }
@@ -336,7 +340,7 @@ const RaporPendidikan: React.FC<RaporPendidikanProps> = ({ onAddBudget, budgetDa
                         account_code: item.accountCode,
                         status: 'draft',
                         date: new Date().toISOString(),
-                        realization_months: [new Date().getMonth() + 2],
+                        realization_months: [Math.min(12, new Date().getMonth() + 2)],
                         notes: `PBD Indikator ${rec.indicatorId}`
                     });
                 }
