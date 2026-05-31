@@ -3,6 +3,7 @@ import { supabase } from '../lib/supabase';
 import { Lock, Mail, Loader2, UserPlus, LogIn, School, Building2 } from 'lucide-react';
 import { saveSchoolProfile } from '../lib/db';
 import { motion, AnimatePresence } from 'framer-motion';
+import LogoRKAS from './LogoRKAS';
 
 interface AuthProps {
    onLoginSuccess: () => void;
@@ -90,10 +91,10 @@ const Auth: React.FC<AuthProps> = ({ onLoginSuccess }) => {
                   initial={{ scale: 0, opacity: 0, rotate: -20 }}
                   animate={{ scale: 1, opacity: 1, rotate: 0 }}
                   transition={{ type: "spring", stiffness: 200, damping: 20 }}
-                  className="w-28 h-28 bg-white/10 backdrop-blur-2xl rounded-[2rem] flex items-center justify-center text-white mb-8 mx-auto border border-white/20 shadow-2xl relative overflow-hidden group"
+                  className="w-28 h-28 bg-slate-900/60 backdrop-blur-2xl rounded-[2rem] flex items-center justify-center mb-8 mx-auto border border-slate-700/30 shadow-2xl relative overflow-hidden group"
                >
-                  <div className="absolute inset-0 bg-gradient-to-tr from-blue-500/20 to-transparent opacity-0 group-hover:opacity-100 transition-opacity"></div>
-                  <School size={56} className="text-blue-300 drop-shadow-lg" />
+                  <div className="absolute inset-0 bg-gradient-to-tr from-blue-500/10 to-transparent opacity-0 group-hover:opacity-100 transition-opacity"></div>
+                  <LogoRKAS className="w-24 h-24" />
                </motion.div>
 
                <motion.h2
@@ -150,8 +151,8 @@ const Auth: React.FC<AuthProps> = ({ onLoginSuccess }) => {
 
                {/* Mobile Header */}
                <div className="lg:hidden text-center mb-10">
-                  <div className="w-20 h-20 bg-gradient-to-br from-blue-600 to-indigo-700 rounded-[2rem] flex items-center justify-center text-white mx-auto mb-5 shadow-xl shadow-blue-900/20 border border-white/20">
-                     <School size={40} />
+                  <div className="w-20 h-20 bg-slate-900 rounded-[2rem] flex items-center justify-center mx-auto mb-5 shadow-xl shadow-blue-900/20 border border-slate-700/50">
+                     <LogoRKAS className="w-16 h-16" />
                   </div>
                   <h1 className="text-3xl font-black text-slate-800 tracking-tight">RKAS Pintar SD</h1>
                </div>

@@ -5,6 +5,7 @@ import {
   ChevronDown, Bell, Search, User, Menu, BookOpen, FileBarChart, X
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
+import LogoRKAS from '../LogoRKAS';
 
 export type AppTab = 'dashboard' | 'income' | 'planning' | 'spj' | 'reports' | 'rapor' | 'settings' | 'withdrawal' | 'evidence' | 'inventory' | 'bku' | 'letters';
 
@@ -75,8 +76,8 @@ const Sidebar = ({
       {/* Left: Logo */}
       <div className="flex items-center gap-8">
         <div className="flex items-center gap-3">
-          <div className="w-10 h-10 btn-primary-glass rounded-xl flex items-center justify-center text-white shadow-lg">
-            <School size={22} strokeWidth={2.5} />
+          <div className="w-10 h-10 rounded-xl overflow-hidden flex items-center justify-center shadow-lg bg-slate-900 border border-slate-700/50 hover:scale-105 transition-all">
+            <LogoRKAS className="w-9 h-9" />
           </div>
           <div className="hidden xl:block">
             <h1 className="text-lg font-black text-slate-900 leading-none">RKAS <span className="text-teal-600">Pintar</span></h1>
@@ -201,8 +202,8 @@ const Sidebar = ({
             >
               <div className="flex items-center justify-between mb-8">
                 <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 btn-primary-glass rounded-xl flex items-center justify-center text-white">
-                    <School size={22} />
+                  <div className="w-10 h-10 rounded-xl overflow-hidden flex items-center justify-center shadow-lg bg-slate-900 border border-slate-700/50">
+                    <LogoRKAS className="w-9 h-9" />
                   </div>
                   <span className="font-black text-slate-900">RKAS Pintar</span>
                 </div>

@@ -90,7 +90,9 @@ export const analyzeRaporQuality = async (indicators: RaporIndicator[], targetYe
       contents: [{ parts: [{ text: prompt }] }],
       config: {
         responseMimeType: "application/json",
-        responseSchema: schema
+        responseSchema: schema,
+        temperature: 0.0,
+        maxOutputTokens: 8192
       }
     });
 
@@ -246,7 +248,9 @@ export const analyzeRaporPDF = async (pdfBase64: string, targetYear: string): Pr
       }],
       config: {
         responseMimeType: "application/json",
-        responseSchema: schema
+        responseSchema: schema,
+        temperature: 0.0,
+        maxOutputTokens: 8192
       }
     });
 
@@ -464,7 +468,9 @@ export const analyzeRaporExcel = async (excelBase64: string, targetYear: string)
       contents: [{ parts: [{ text: prompt }] }],
       config: {
         responseMimeType: "application/json",
-        responseSchema: schema
+        responseSchema: schema,
+        temperature: 0.0,
+        maxOutputTokens: 8192
       }
     });
 
@@ -524,11 +530,12 @@ TUGAS UTAMA: Buatkan 4 dokumen analisis SNP lengkap:
 ═══════════════════════════════════════════
 1. ANALISIS RAPOR PENDIDIKAN (Sheet "Analisis Rapor")
 ═══════════════════════════════════════════
-- PENTING (COPAS DATA ASLI TANPA PERUBAHAN): Untuk tabel "Analisis Rapor", jika terdapat "DATA MENTAH DETAIL RAPOR PENDIDIKAN ASLI (CSV)" di atas, Anda wajib langsung menyalin (copy-paste) seluruh data indikator utama beserta seluruh sub-indikator aslinya yang relevan dari data tersebut. Jangan mengubah nama indikator, jangan mengubah skor tahun ini, jangan mengubah skor tahun lalu, jangan mengubah delta, jangan mengubah pencapaian capaian, dan jangan mengubah keterangan. AI hanya memindahkan (copas) data assessment yang tertulis di berkas asli secara persis tanpa modifikasi atau analisis tambahan pada angka-angkanya.
-- Jika data CSV tidak tersedia, barulah Anda boleh menggunakan data 6 indikator utama di atas dan membuat sub-indikator simulasi realistis.
+- PENTING (COPAS SELURUH DATA UTUH - JANGAN HANYA 1 STANDAR): Untuk tabel "Analisis Rapor", jika terdapat "DATA MENTAH DETAIL RAPOR PENDIDIKAN ASLI (CSV)" di atas, Anda wajib langsung menyalin (copy-paste) seluruh data indikator utama (seperti A.1, A.2, A.3, D.1, D.4, D.8, dst) beserta sub-indikator aslinya yang relevan dari data tersebut. JANGAN HANYA MENGAMBIL 1 STANDAR/SNP SAJA (misalnya hanya Standar Kompetensi Lulusan A saja). Tampilkan seluruh standar (A, B, C, D, dst) secara seimbang, lengkap, dan profesional. Jangan mengubah nama indikator, jangan mengubah skor tahun ini, jangan mengubah skor tahun lalu, jangan mengubah delta, jangan mengubah pencapaian capaian, dan jangan mengubah keterangan. AI hanya memindahkan (copas) data assessment secara persis tanpa modifikasi.
+- Jika data CSV tidak tersedia, Anda wajib menyertakan seluruh 6 indikator prioritas di atas (A.1, A.2, A.3, D.1, D.4, D.8) beserta sub-indikator simulasinya yang relevan. Jangan dikurangi atau hanya mengambil sebagian saja!
 - Kolom wajib: no, indikator, skorTahunIni, skorTahunLalu, delta, pencapaianSkor, definisiCapaian, keterangan.
-- pencapaianSkor harus deskriptif: contoh "Baik (84,21% peserta didik sudah mencapai batas kompetensi minimum untuk literasi membaca)".
-- definisiCapaian harus kualitatif: contoh "Sebagian besar peserta didik telah mencapai batas kompetensi minimum untuk literasi".
+- Batasi panjang teks deskriptif pencapaianSkor dan definisiCapaian maksimal 1 kalimat ringkas untuk menghemat ruang output JSON agar tidak terpotong.
+- pencapaianSkor: contoh "Baik (84,21% siswa mencapai batas minimum)".
+- definisiCapaian: contoh "Sebagian besar siswa telah mencapai batas minimum".
 - Keterangan berisi highlight penting, misal: "Naik 1.50" atau "Turun 14.72".
 - Sub-indikator dimasukkan ke dalam field "children" pada indikator induknya.
 
@@ -746,7 +753,9 @@ OUTPUT JSON WAJIB:
       contents: [{ parts: [{ text: prompt }] }],
       config: {
         responseMimeType: 'application/json',
-        responseSchema: schema
+        responseSchema: schema,
+        temperature: 0.0,
+        maxOutputTokens: 8192
       }
     });
 
