@@ -465,6 +465,76 @@ export interface InventoryItem {
     usedQuantity?: number;
 }
 
+// ─── Analisa SNP (Standar Nasional Pendidikan) ───────────────────────────────
 
+export interface SnpRaporRow {
+    no: string;             // e.g. "A.1", "A.1.1"
+    indikator: string;      // Nama indikator
+    skorTahunIni: number;   // Capaian skor tahun terbaru
+    skorTahunLalu: number;  // Capaian skor tahun sebelumnya
+    delta: number;          // Perubahan (bisa negatif)
+    pencapaianSkor: string; // e.g. "Baik (84.21% peserta didik sudah mencapai...)"
+    definisiCapaian: string; // Penjelasan kualitatif
+    keterangan: string;     // Highlight / catatan
+    children?: SnpRaporRow[]; // Sub-indikator
+}
 
+export interface SnpPrioritasRow {
+    no: number;
+    snp: string;            // e.g. "Standar Kelulusan"
+    indikatorId: string;    // e.g. "A.1"
+    indikatorLabel: string; // e.g. "Kemampuan Literasi"
+    akarMasalahId: string;  // e.g. "A.1.1"
+    akarMasalahLabel: string; // e.g. "Kompetensi membaca teks informasi"
+    tingkatPrioritas: number; // 1-3 (3 paling tinggi)
+    tingkatUrgensi: number;   // 1-3 (3 paling tinggi)
+    jumlah: number;           // tingkatPrioritas + tingkatUrgensi
+    alasan: string;           // Alasan pemberian bobot dan pemilihan
+}
 
+export interface SnpRktRow {
+    no: number;
+    snp: string;                  // e.g. "Standar Kelulusan"
+    indikatorId: string;          // e.g. "A.1"
+    indikatorLabel: string;       // e.g. "Kemampuan Literasi"
+    akarMasalahId: string;        // e.g. "A.1.1"
+    akarMasalahLabel: string;      // e.g. "Kompetensi membaca teks informasi"
+    kegiatanBenahi: string;       // Kegiatan untuk menyelesaikan akar masalah
+    penjelasanImplementasi: string; // Rincian kegiatan yang lebih spesifik
+    butuhBiaya: boolean;          // true (Ya) / false (Tidak)
+    kodeArkas?: string;           // Kode kegiatan ARKAS jika butuh biaya (e.g. "04.05.14")
+    kegiatanArkas: string;        // Padanan nama kegiatan ARKAS / Non ARKAS
+    estimasiBiaya: number;        // Estimasi biaya total jika butuhBiaya = true
+}
+
+export interface SnpRkasItem {
+    uraian: string;         // Uraian Kegiatan ARKAS
+    bulan: string;          // Bulan Dianggarkan (e.g., "Agustus")
+    volume: number;         // Jumlah
+    satuan: string;         // Satuan
+    hargaSatuan: number;    // Harga Satuan
+    jumlah: number;         // Total (volume * hargaSatuan)
+    sumberAnggaran: string; // Sumber Anggaran (e.g., "BOSP")
+    kodeRekening: string;   // Kode Rekening Belanja
+}
+
+export interface SnpRkasRow {
+    no: number;
+    snp: string;                  // Nama SNP
+    kegiatanBenahi: string;       // Kegiatan Benahi
+    penjelasanImplementasi: string; // Penjelasan Implementasi Kegiatan
+    kodeArkas: string;            // Kode ARKAS
+    kegiatanArkas: string;        // Kegiatan ARKAS
+    totalBiaya: number;           // Total Biaya
+    items: SnpRkasItem[];         // Detail rincian belanja
+}
+
+export interface SnpAnalysisData {
+    year: string;
+    generatedAt: string;
+    ringkasan: string;      // Ringkasan analisis umum
+    rapor: SnpRaporRow[];
+    prioritas: SnpPrioritasRow[];
+    rkt: SnpRktRow[];
+    rkas: SnpRkasRow[];
+}

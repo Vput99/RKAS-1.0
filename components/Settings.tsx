@@ -234,7 +234,7 @@ const Settings: React.FC<SettingsProps> = () => {
             
             <label className="block text-[10px] font-bold text-slate-500 uppercase ml-1 mt-2">Model Selection</label>
             <select 
-              defaultValue={localStorage.getItem('GEMINI_MODEL') || 'gemini-2.0-flash'}
+              defaultValue={localStorage.getItem('GEMINI_MODEL') || 'gemini-3.5-flash'}
               onChange={(e) => {
                 localStorage.setItem('GEMINI_MODEL', e.target.value);
                 setSaved(true);
@@ -242,11 +242,12 @@ const Settings: React.FC<SettingsProps> = () => {
               }}
               className="w-full px-3 py-1.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-bold text-slate-700 focus:ring-2 focus:ring-indigo-500 outline-none appearance-none cursor-pointer"
             >
-              <option value="gemini-1.5-flash">Gemini 1.5 Flash (Stable)</option>
-              <option value="gemini-2.0-flash-lite">Gemini 2.0 Flash Lite (Fast)</option>
-              <option value="gemini-2.0-flash">Gemini 2.0 Flash (Recommended)</option>
+              <option value="gemini-3.5-flash">Gemini 3.5 Flash (Recommended)</option>
+              <option value="gemini-3.1-pro">Gemini 3.1 Pro (Reasoning)</option>
+              <option value="gemini-3.1-flash-lite">Gemini 3.1 Flash Lite (Fast)</option>
+              <option value="gemini-3-flash">Gemini 3 Flash (Stable)</option>
             </select>
-            <p className="text-[9px] text-slate-400 font-medium px-1 italic">*Gunakan Gemini 2.0 Flash untuk analisis PDF yang lebih cepat dan akurat.</p>
+            <p className="text-[9px] text-slate-400 font-medium px-1 italic">*Gunakan Gemini 3.5 Flash untuk analisis PDF yang lebih cepat dan akurat.</p>
           </div>
         </div>
       </div>

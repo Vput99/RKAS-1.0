@@ -14,6 +14,7 @@ import RaporVisualization from './rapor/RaporVisualization';
 import RaporReportView from './rapor/RaporReportView';
 import RaporAnalysisView from './rapor/RaporAnalysisView';
 import BudgetBreakdownModal from './rapor/BudgetBreakdownModal';
+import RaporSnpView from './rapor/RaporSnpView';
 
 interface RaporPendidikanProps {
     onAddBudget: (item: any) => Promise<void>;
@@ -35,7 +36,7 @@ const RaporPendidikan: React.FC<RaporPendidikanProps> = ({ onAddBudget, budgetDa
     const [recommendations, setRecommendations] = useState<PBDRecommendation[]>([]);
     const [loading, setLoading] = useState(false);
     const [isSaving, setIsSaving] = useState(false);
-    const [activeView, setActiveView] = useState<'input' | 'analysis' | 'report' | 'history'>('input');
+    const [activeView, setActiveView] = useState<'input' | 'analysis' | 'report' | 'history' | 'snp'>('input');
     const [inputMethod, setInputMethod] = useState<'upload' | 'manual'>('upload');
     const [targetYear, setTargetYear] = useState('2027');
 
@@ -405,6 +406,12 @@ const RaporPendidikan: React.FC<RaporPendidikanProps> = ({ onAddBudget, budgetDa
                 >
                     Hasil AI
                 </button>
+                <button 
+                    onClick={() => setActiveView('snp')}
+                    className={`px-6 py-2 rounded-xl text-xs font-black uppercase tracking-widest transition-all ${activeView === 'snp' ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-200' : 'text-slate-400 hover:text-slate-600 hover:bg-white/80'}`}
+                >
+                    Analisa SNP
+                </button>
             </div>
 
             {activeView === 'input' && (
@@ -498,6 +505,15 @@ const RaporPendidikan: React.FC<RaporPendidikanProps> = ({ onAddBudget, budgetDa
                         </div>
                     )}
                 </div>
+            )}
+
+            {activeView === 'snp' && (
+                <RaporSnpView
+                    indicators={indicators}
+                    targetYear={targetYear}
+                    onAddBudget={onAddBudget}
+                    profile={profile}
+                />
             )}
 
             {selectedRec && (

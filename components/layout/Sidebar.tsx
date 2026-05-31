@@ -70,7 +70,8 @@ const Sidebar = ({
   ];
 
   return (
-    <nav className="w-full glass-panel border-b border-white/60 sticky top-0 z-[60] px-4 lg:px-8 h-20 flex items-center justify-between shadow-sm">
+    <>
+      <nav className="w-full glass-panel border-b border-white/60 sticky top-0 z-[60] px-4 lg:px-8 h-20 flex items-center justify-between shadow-sm">
       {/* Left: Logo */}
       <div className="flex items-center gap-8">
         <div className="flex items-center gap-3">
@@ -182,6 +183,7 @@ const Sidebar = ({
           </button>
         </div>
       </div>
+    </nav>
 
       {/* Mobile Drawer */}
       <AnimatePresence>
@@ -274,7 +276,7 @@ const Sidebar = ({
           <span className="text-[10px] font-bold">Lainnya</span>
         </button>
       </div>
-    </nav>
+    </>
   );
 };
 

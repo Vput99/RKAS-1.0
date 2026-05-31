@@ -25,7 +25,8 @@ export const getEnv = (key: string) => {
 // Internal helper to get active API Key
 export const getActiveApiKey = () => {
   // Priority: Env -> LocalStorage
-  return getEnv('VITE_API_KEY') || getEnv('API_KEY') || localStorage.getItem('GEMINI_API_KEY') || '';
+  const key = getEnv('VITE_API_KEY') || getEnv('API_KEY') || localStorage.getItem('GEMINI_API_KEY') || '';
+  return key.trim();
 };
 
 // Use proxy or dynamic initialization to handle key changes without refresh
@@ -40,7 +41,13 @@ export const isAiConfigured = () => !!getActiveApiKey();
 
 // Internal helper to get target model
 export const getAiModel = () => {
-  return localStorage.getItem('GEMINI_MODEL') || 'gemini-2.0-flash';
+  const model = localStorage.getItem('GEMINI_MODEL') || 'gemini-3.5-flash';
+  // Auto-migrate deprecated/old models (1.5, 2.0) to gemini-3.5-flash
+  if (model.includes('1.5') || model.includes('2.0')) {
+    localStorage.setItem('GEMINI_MODEL', 'gemini-3.5-flash');
+    return 'gemini-3.5-flash';
+  }
+  return model;
 };
 
 // Helper to robustly parse JSON from AI response

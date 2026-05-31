@@ -160,3 +160,27 @@ export const saveRaporRecommendations = async (recommendations: PBDRecommendatio
     return true;
 };
 
+
+// ─── SNP Analysis (localStorage-based) ───────────────────────────────────────
+
+import { SnpAnalysisData } from '../../types';
+
+const SNP_STORAGE_KEY = 'RKAS_SNP_ANALYSIS';
+
+export const getSnpAnalysis = (year: string): SnpAnalysisData | null => {
+    try {
+        const raw = localStorage.getItem(`${SNP_STORAGE_KEY}_${year}`);
+        if (raw) return JSON.parse(raw);
+    } catch (e) {
+        console.error('Failed to load SNP analysis from localStorage:', e);
+    }
+    return null;
+};
+
+export const saveSnpAnalysis = (analysis: SnpAnalysisData, year: string): void => {
+    try {
+        localStorage.setItem(`${SNP_STORAGE_KEY}_${year}`, JSON.stringify(analysis));
+    } catch (e) {
+        console.error('Failed to save SNP analysis to localStorage:', e);
+    }
+};
