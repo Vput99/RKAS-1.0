@@ -149,7 +149,7 @@ const RaporInputView: React.FC<RaporInputViewProps> = ({
                               <Save size={14} /> Simpan Draft
                           </button>
                       </div>
-                      {indicators.map((ind) => (
+                      {indicators.filter(ind => ind.id.split('.').length === 2).map((ind) => (
                           <div key={ind.id} className="flex items-center gap-4">
                               <div className="w-10 text-xs font-bold text-gray-500">{ind.id}</div>
                               <div className="flex-1">

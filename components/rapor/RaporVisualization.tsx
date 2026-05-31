@@ -8,18 +8,20 @@ interface RaporVisualizationProps {
 }
 
 const RaporVisualization: React.FC<RaporVisualizationProps> = ({ indicators, getColor }) => {
+  const chartData = indicators.filter(ind => ind.id.split('.').length === 2);
+
   return (
     <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6 flex flex-col items-center justify-center text-center h-full min-h-[400px]">
         <h3 className="font-bold text-gray-700 mb-6">Visualisasi Mutu Sekolah</h3>
         <div className="w-full h-64">
            <ResponsiveContainer width="100%" height="100%">
-               <BarChart data={indicators}>
+               <BarChart data={chartData}>
                    <CartesianGrid strokeDasharray="3 3" vertical={false} />
                    <XAxis dataKey="id" tick={{fontSize: 12}} />
                    <YAxis domain={[0, 100]} />
                    <Tooltip contentStyle={{ borderRadius: '8px', border: 'none', boxShadow: '0 4px 12px rgba(0,0,0,0.1)' }} cursor={{fill: '#f3f4f6'}} />
                    <Bar dataKey="score" radius={[4, 4, 0, 0]}>
-                       {indicators.map((entry, index) => (
+                       {chartData.map((entry, index) => (
                            <Cell key={`cell-${index}`} fill={getColor(entry.category)} />
                        ))}
                    </Bar>

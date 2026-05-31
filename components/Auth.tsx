@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { supabase } from '../lib/supabase';
-import { Lock, Mail, Loader2, UserPlus, LogIn, School, Building2 } from 'lucide-react';
+import { Lock, Mail, Loader2, UserPlus, LogIn, Building2 } from 'lucide-react';
 import { saveSchoolProfile } from '../lib/db';
 import { motion, AnimatePresence } from 'framer-motion';
 import LogoRKAS from './LogoRKAS';

@@ -27,6 +27,8 @@ const RaporSnpView: React.FC<RaporSnpViewProps> = ({ indicators, targetYear, onA
   const [expandedRows, setExpandedRows] = useState<Set<string>>(new Set());
   const [addedRkas, setAddedRkas] = useState<Set<number>>(new Set());
   const [isAddingAll, setIsAddingAll] = useState(false);
+  const [debugRawText, setDebugRawText] = useState<string>('');
+  const [analysisProgress, setAnalysisProgress] = useState<{ step: number; total: number; label: string }>({ step: 0, total: 3, label: '' });
 
   const handleExportPDF = () => {
     if (!snpData) return;
@@ -312,19 +314,27 @@ const RaporSnpView: React.FC<RaporSnpViewProps> = ({ indicators, targetYear, onA
       return;
     }
     setLoading(true);
+    setDebugRawText('');
+    setAnalysisProgress({ step: 0, total: 3, label: 'Mempersiapkan analisis...' });
     try {
-      const result = await analyzeRaporSnp(indicators, targetYear);
+      const result = await analyzeRaporSnp(indicators, targetYear, (step, total, label) => {
+        setAnalysisProgress({ step, total, label });
+      });
       if (result.success && result.data) {
         setSnpData(result.data);
         saveSnpAnalysis(result.data, targetYear);
         setActiveTab('rapor');
       } else {
         alert(`Gagal menganalisis SNP: ${result.error}`);
+        if (result.rawText) {
+          setDebugRawText(result.rawText);
+        }
       }
     } catch (error: any) {
       alert(`Error: ${error.message}`);
     } finally {
       setLoading(false);
+      setAnalysisProgress({ step: 0, total: 3, label: '' });
     }
   };
 
@@ -472,6 +482,19 @@ const RaporSnpView: React.FC<RaporSnpViewProps> = ({ indicators, targetYear, onA
         <div className="absolute top-0 right-0 w-48 h-48 bg-white/5 rounded-full -mr-12 -mt-12 blur-3xl"></div>
         <div className="absolute bottom-0 left-0 w-24 h-24 bg-purple-400/10 rounded-full -ml-6 -mb-6 blur-2xl"></div>
       </div>
+
+      {/* Debug Raw Text */}
+      {debugRawText && (
+        <div className="bg-rose-50 border border-rose-100 rounded-2xl p-5 space-y-2">
+          <h4 className="text-xs font-black text-rose-600 uppercase tracking-widest">DEBUG: Respon Mentah AI</h4>
+          <p className="text-xs text-rose-500">Berikut adalah respon mentah dari Gemini yang gagal diparse sebagai JSON:</p>
+          <textarea
+            readOnly
+            value={debugRawText}
+            className="w-full h-80 p-3 bg-slate-900 text-slate-100 font-mono text-xs rounded-xl border border-rose-200 outline-none"
+          />
+        </div>
+      )}
 
       {/* Ringkasan */}
       {snpData && snpData.ringkasan && (
@@ -842,7 +865,49 @@ const RaporSnpView: React.FC<RaporSnpViewProps> = ({ indicators, targetYear, onA
         <div className="bg-white/60 backdrop-blur-md rounded-[2.5rem] border border-white p-16 shadow-xl text-center">
           <Loader2 size={48} className="text-indigo-600 animate-spin mx-auto mb-6" />
           <h3 className="text-lg font-black text-slate-800 mb-2">Sedang Menganalisis SNP...</h3>
-          <p className="text-sm text-slate-400">AI sedang menyusun Analisis Rapor, Prioritas Masalah, RKT, dan RKAS. Mohon tunggu sebentar.</p>
+          
+          {/* Progress Bar */}
+          <div className="max-w-md mx-auto mb-4">
+            <div className="flex items-center justify-between text-xs font-bold text-slate-500 mb-2">
+              <span>Tahap {analysisProgress.step}/{analysisProgress.total}</span>
+              <span>{Math.round((analysisProgress.step / analysisProgress.total) * 100)}%</span>
+            </div>
+            <div className="w-full h-3 bg-slate-200 rounded-full overflow-hidden">
+              <div
+                className="h-full bg-gradient-to-r from-indigo-500 to-purple-500 rounded-full transition-all duration-700 ease-out"
+                style={{ width: `${(analysisProgress.step / analysisProgress.total) * 100}%` }}
+              />
+            </div>
+          </div>
+
+          {/* Step Label */}
+          <p className="text-sm text-indigo-600 font-bold mb-1">{analysisProgress.label}</p>
+
+          {/* Step Indicators */}
+          <div className="flex items-center justify-center gap-3 mt-4">
+            {[
+              { step: 1, label: 'Prioritas' },
+              { step: 2, label: 'RKT' },
+              { step: 3, label: 'RKAS' }
+            ].map(({ step, label }) => (
+              <div key={step} className="flex items-center gap-1.5">
+                <div className={`w-6 h-6 rounded-full flex items-center justify-center text-[10px] font-black transition-all duration-500 ${
+                  analysisProgress.step > step
+                    ? 'bg-emerald-500 text-white shadow-sm'
+                    : analysisProgress.step === step
+                    ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-200 animate-pulse'
+                    : 'bg-slate-200 text-slate-400'
+                }`}>
+                  {analysisProgress.step > step ? '✓' : step}
+                </div>
+                <span className={`text-xs font-bold ${
+                  analysisProgress.step >= step ? 'text-slate-700' : 'text-slate-300'
+                }`}>{label}</span>
+              </div>
+            ))}
+          </div>
+
+          <p className="text-[11px] text-slate-400 mt-4">Setiap tahap diproses secara terpisah untuk hasil yang lebih akurat.</p>
         </div>
       )}
     </div>

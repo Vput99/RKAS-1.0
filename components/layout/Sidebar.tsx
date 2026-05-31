@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { 
   LayoutDashboard, Wallet, FileCheck, Settings as SettingsIcon, LogOut, 
-  School, TrendingUp, Landmark, FileText, ShoppingBag, FilePenLine,
+  TrendingUp, Landmark, FileText, ShoppingBag, FilePenLine,
   ChevronDown, Bell, Search, User, Menu, BookOpen, FileBarChart, X
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';

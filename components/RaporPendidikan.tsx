@@ -60,11 +60,14 @@ const RaporPendidikan: React.FC<RaporPendidikanProps> = ({ onAddBudget, budgetDa
     const loadSavedRapor = async () => {
         const dataYear = (parseInt(targetYear) - 1).toString();
         const savedData = await getRaporData(dataYear);
-        if (savedData) {
-            const merged = DEFAULT_INDICATORS.map(def => {
-                const found = savedData.find(s => s.id === def.id);
-                return found ? found : def;
+        if (savedData && savedData.length > 0) {
+            const merged = [...savedData];
+            DEFAULT_INDICATORS.forEach(def => {
+                if (!merged.some(m => m.id === def.id)) {
+                    merged.push(def);
+                }
             });
+            merged.sort((a, b) => a.id.localeCompare(b.id, undefined, { numeric: true, sensitivity: 'base' }));
             setIndicators(merged);
         } else {
             setIndicators(DEFAULT_INDICATORS);
@@ -246,17 +249,33 @@ const RaporPendidikan: React.FC<RaporPendidikanProps> = ({ onAddBudget, budgetDa
                 const base64String = resultStr.split(',')[1];
                 const result = await analyzeRaporPDF(base64String, targetYear);
                 if (result.success && result.data) {
-                    let updatedIndicators = [...indicators];
                     if (result.data.indicators && result.data.indicators.length > 0) {
-                        updatedIndicators = indicators.map(p => {
-                            const found = result.data!.indicators.find(r => r.id === p.id);
-                            return found ? { ...p, score: found.score, category: found.category as any } : p;
+                        const resultInds = result.data.indicators;
+                        const merged = [...resultInds];
+                        DEFAULT_INDICATORS.forEach(def => {
+                            if (!merged.some(m => m.id === def.id)) {
+                                merged.push(def);
+                            }
                         });
-                        setIndicators(updatedIndicators);
+                        merged.sort((a, b) => a.id.localeCompare(b.id, undefined, { numeric: true, sensitivity: 'base' }));
+                        setIndicators(merged);
                         
                         // Save extracted indicators to database
                         const dataYear = (parseInt(targetYear) - 1).toString();
-                        await saveRaporData(updatedIndicators, dataYear);
+                        await saveRaporData(merged, dataYear);
+
+                        // Generate CSV-like representation from indicators and save to localStorage
+                        try {
+                            const csvText = merged.map(ind => {
+                                const prev = ind.prevScore !== undefined ? ind.prevScore : ind.score;
+                                const delta = ind.score - prev;
+                                const trendStr = delta > 0 ? 'Naik' : delta < 0 ? 'Turun' : 'Tetap';
+                                return `"${ind.id}","${ind.label}","${ind.score}","${prev}","${delta}","${ind.category}","","${trendStr}"`;
+                            }).join('\n');
+                            localStorage.setItem('RAW_RAPOR_TEXT', csvText);
+                        } catch (e) {
+                            console.warn("Failed to save RAW_RAPOR_TEXT for PDF", e);
+                        }
                     }
                     if (result.data.recommendations && result.data.recommendations.length > 0) {
                         setRecommendations(result.data.recommendations);
