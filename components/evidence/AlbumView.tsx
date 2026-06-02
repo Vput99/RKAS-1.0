@@ -363,9 +363,32 @@ const AlbumView: React.FC<AlbumViewProps> = ({
               <div className="p-6 border-t border-slate-100 flex items-center justify-end gap-3 bg-white">
                  <button 
                    onClick={() => {
-                     const printWindow = window.open(selectedFile.url, '_blank');
-                     if (printWindow) {
-                       printWindow.onload = () => printWindow.print();
+                     const isPdf = selectedFile.url.toLowerCase().endsWith('.pdf');
+                     if (isPdf) {
+                       window.open(selectedFile.url, '_blank');
+                     } else {
+                       const printWindow = window.open('', '_blank');
+                       if (printWindow) {
+                         printWindow.document.write(`
+                           <html>
+                             <head>
+                               <title>Cetak Lampiran</title>
+                               <style>
+                                 body { margin: 0; display: flex; justify-content: center; align-items: center; min-height: 100vh; background: #f8fafc; }
+                                 img { max-width: 100%; max-height: 100vh; object-fit: contain; }
+                                 @media print {
+                                   body { background: white; }
+                                   @page { margin: 0; }
+                                 }
+                               </style>
+                             </head>
+                             <body>
+                               <img src="${selectedFile.url}" onload="window.print();" />
+                             </body>
+                           </html>
+                         `);
+                         printWindow.document.close();
+                       }
                      }
                    }} 
                    className="px-8 py-3 bg-teal-600 text-white rounded-xl text-[10px] font-black uppercase tracking-widest flex items-center gap-2 hover:bg-teal-700 transition-all"
