@@ -4,6 +4,7 @@ import { ChevronRight, Folder, FileText, Download, Eye, Trash2, BookOpen, Upload
 import { MONTHS } from '../../lib/evidenceRules';
 import { AlbumViewState } from './EvidenceTypes';
 import { formatCurrency } from '../../lib/pdfUtils';
+import jsPDF from 'jspdf';
 
 interface AlbumViewProps {
   albumView: AlbumViewState;
@@ -362,32 +363,35 @@ const AlbumView: React.FC<AlbumViewProps> = ({
               </div>
               <div className="p-6 border-t border-slate-100 flex items-center justify-end gap-3 bg-white">
                  <button 
-                   onClick={() => {
+                   onClick={async () => {
                      const isPdf = selectedFile.url.toLowerCase().endsWith('.pdf');
                      if (isPdf) {
                        window.open(selectedFile.url, '_blank');
                      } else {
-                       const printWindow = window.open('', '_blank');
-                       if (printWindow) {
-                         printWindow.document.write(`
-                           <html>
-                             <head>
-                               <title>Cetak Lampiran</title>
-                               <style>
-                                 body { margin: 0; display: flex; justify-content: center; align-items: center; min-height: 100vh; background: #f8fafc; }
-                                 img { max-width: 100%; max-height: 100vh; object-fit: contain; }
-                                 @media print {
-                                   body { background: white; }
-                                   @page { margin: 0; }
-                                 }
-                               </style>
-                             </head>
-                             <body>
-                               <img src="${selectedFile.url}" onload="window.print();" />
-                             </body>
-                           </html>
-                         `);
-                         printWindow.document.close();
+                       try {
+                         const img = new Image();
+                         img.crossOrigin = 'Anonymous';
+                         img.src = selectedFile.url;
+                         await new Promise((resolve, reject) => {
+                           img.onload = resolve;
+                           img.onerror = reject;
+                         });
+                         
+                         const pdf = new jsPDF({
+                           orientation: img.width > img.height ? 'landscape' : 'portrait',
+                           unit: 'px',
+                           format: [img.width, img.height]
+                         });
+                         
+                         // Determine image type from URL extension or default to JPEG
+                         const imgType = selectedFile.url.toLowerCase().endsWith('.png') ? 'PNG' : 'JPEG';
+                         pdf.addImage(img, imgType, 0, 0, img.width, img.height);
+                         
+                         const pdfUrl = pdf.output('bloburl');
+                         window.open(pdfUrl, '_blank');
+                       } catch (e) {
+                         console.error('Gagal mengkonversi gambar ke PDF:', e);
+                         alert('Gagal menyiapkan berkas untuk dicetak. Mohon coba unduh berkas terlebih dahulu.');
                        }
                      }
                    }} 
