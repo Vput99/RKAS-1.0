@@ -1,6 +1,6 @@
 import React from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { ChevronRight, Folder, FileText, Download, Eye, Trash2, BookOpen, Upload, ShoppingCart, FileBarChart, X } from 'lucide-react';
+import { ChevronRight, Folder, FileText, Download, Eye, Trash2, BookOpen, Upload, ShoppingCart, FileBarChart, X, Printer } from 'lucide-react';
 import { MONTHS } from '../../lib/evidenceRules';
 import { AlbumViewState } from './EvidenceTypes';
 import { formatCurrency } from '../../lib/pdfUtils';
@@ -361,6 +361,17 @@ const AlbumView: React.FC<AlbumViewProps> = ({
                  )}
               </div>
               <div className="p-6 border-t border-slate-100 flex items-center justify-end gap-3 bg-white">
+                 <button 
+                   onClick={() => {
+                     const printWindow = window.open(selectedFile.url, '_blank');
+                     if (printWindow) {
+                       printWindow.onload = () => printWindow.print();
+                     }
+                   }} 
+                   className="px-8 py-3 bg-teal-600 text-white rounded-xl text-[10px] font-black uppercase tracking-widest flex items-center gap-2 hover:bg-teal-700 transition-all"
+                 >
+                    <Printer size={16} /> Cetak
+                 </button>
                  <a href={selectedFile.url} download target="_blank" rel="noopener noreferrer" className="px-8 py-3 bg-slate-900 text-white rounded-xl text-[10px] font-black uppercase tracking-widest flex items-center gap-2 hover:bg-slate-800 transition-all">
                     <Download size={16} /> Unduh Berkas
                  </a>
