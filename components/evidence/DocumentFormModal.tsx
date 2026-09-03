@@ -54,6 +54,52 @@ const DocumentFormModal: React.FC<DocumentFormModalProps> = ({
                 </>
             )}
 
+            {currentTemplateType === 'notulen_rapat' && (
+                <>
+                  <div>
+                      <label className="block text-xs font-bold text-gray-500">Agenda / Nama Kegiatan Rapat</label>
+                      <input type="text" name="activityName" value={formData.activityName || formData.description} onChange={handleInputChange} className="w-full border rounded px-2 py-1 text-sm" placeholder="Rapat Penyusunan RKAS / Evaluasi Belajar..." />
+                  </div>
+                  <div className="grid grid-cols-2 gap-3">
+                      <div>
+                          <label className="block text-xs font-bold text-gray-500">Pimpinan Rapat</label>
+                          <input type="text" name="ksName" value={formData.ksName} onChange={handleInputChange} className="w-full border rounded px-2 py-1 text-sm" placeholder="Nama Kepala Sekolah" />
+                      </div>
+                      <div>
+                          <label className="block text-xs font-bold text-gray-500">Notulis Rapat</label>
+                          <input type="text" name="trName" value={formData.trName} onChange={handleInputChange} className="w-full border rounded px-2 py-1 text-sm" placeholder="Nama Notulis / Sekretaris" />
+                      </div>
+                  </div>
+                  <div>
+                      <label className="block text-xs font-bold text-gray-500">Hasil Rapat / Ringkasan Keputusan</label>
+                      <textarea name="reportResult" value={formData.reportResult} onChange={handleInputChange} className="w-full border rounded px-2 py-1 text-sm h-28" placeholder="1. Pembukaan rapat&#10;2. Menyepakati rincian kegiatan..." />
+                  </div>
+                </>
+            )}
+
+            {currentTemplateType === 'nota_konsumsi' && (
+                <>
+                  <div>
+                      <label className="block text-xs font-bold text-gray-500">Nama Kegiatan / Acara</label>
+                      <input type="text" name="activityName" value={formData.activityName || formData.description} onChange={handleInputChange} className="w-full border rounded px-2 py-1 text-sm" placeholder="Konsumsi Rapat Evaluasi Pembelajaran..." />
+                  </div>
+                  <div className="grid grid-cols-2 gap-3">
+                      <div>
+                          <label className="block text-xs font-bold text-gray-500">Penyedia / Katering (UMKM)</label>
+                          <input type="text" name="receiver" value={formData.receiver} onChange={handleInputChange} className="w-full border rounded px-2 py-1 text-sm" placeholder="Nama Katering / Rumah Makan" />
+                      </div>
+                      <div>
+                          <label className="block text-xs font-bold text-gray-500">Total Nominal Belanja (Rp)</label>
+                          <input type="number" name="amount" value={formData.amount} onChange={handleInputChange} className="w-full border rounded px-2 py-1 text-sm font-bold" />
+                      </div>
+                  </div>
+                  <div>
+                      <label className="block text-xs font-bold text-gray-500">Terbilang (Otomatis)</label>
+                      <input type="text" name="terbilang" value={formData.terbilang} onChange={handleInputChange} className="w-full border rounded px-2 py-1 text-sm bg-gray-50" readOnly />
+                  </div>
+                </>
+            )}
+
             {currentTemplateType === 'sk' && (
                 <>
                   <div>
