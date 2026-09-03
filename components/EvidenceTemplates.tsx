@@ -3,9 +3,10 @@ import { createPortal } from 'react-dom';
 import { 
   generateKuitansi, generateDaftarHadir, generateSK, generateSPK, 
   generateMOU, generateAbsensiTukang, generateUpahTukang, 
-  generateSuratTugas, generateSPPD, generateDaftarTransport, generateLaporanSPPD 
+  generateSuratTugas, generateSPPD, generateDaftarTransport, generateLaporanSPPD,
+  generateNotulenRapat, generateNotaKonsumsi
 } from '../lib/pdfGenerators';
-import { FileSignature, Handshake, ClipboardList, Receipt, HardHat, Hammer, Bus, FileCheck, DollarSign } from 'lucide-react';
+import { FileSignature, Handshake, ClipboardList, Receipt, HardHat, Hammer, Bus, FileCheck, DollarSign, Utensils, FileText } from 'lucide-react';
 
 import { supabase } from '../lib/supabase';
 import { getSchoolProfile, uploadEvidenceFile, getWithdrawalHistory, updateWithdrawalHistory, getGeneralFiles, saveGeneralFile, deleteGeneralFile } from '../lib/db';
@@ -309,6 +310,8 @@ const EvidenceTemplates = ({ budgets: allBudgets, onUpdate }: EvidenceTemplatesP
           case 'sppd': generateSPPD(formData); break;
           case 'daftar_transport': generateDaftarTransport(formData); break;
           case 'laporan_sppd': generateLaporanSPPD(formData); break;
+          case 'notulen_rapat': generateNotulenRapat(formData); break;
+          case 'nota_konsumsi': generateNotaKonsumsi(formData); break;
       }
       setIsPrintModalOpen(false);
   };
@@ -319,6 +322,7 @@ const EvidenceTemplates = ({ budgets: allBudgets, onUpdate }: EvidenceTemplatesP
           honor: [ { t: 'sk', l: 'SK Penetapan', i: FileSignature, c: 'text-blue-500' }, { t: 'mou', l: 'MOU Tenaga Ekstra', i: Handshake, c: 'text-teal-500' }, { t: 'daftar_hadir', l: 'Daftar Hadir', i: ClipboardList, c: 'text-green-500' }, { t: 'kuitansi', l: 'Kuitansi Honor', i: Receipt, c: 'text-purple-500' } ],
           jasa: [ { t: 'spk_fisik', l: 'SPK Konstruksi', i: HardHat, c: 'text-purple-500' }, { t: 'absensi_tukang', l: 'Absensi Tukang', i: ClipboardList, c: 'text-orange-500' }, { t: 'upah_tukang', l: 'Daftar Upah', i: Hammer, c: 'text-blue-500' }, { t: 'kuitansi', l: 'Kuitansi Pembayaran', i: Receipt, c: 'text-red-500' } ],
           peradin: [ { t: 'surat_tugas', l: 'Surat Tugas', i: FileSignature, c: 'text-blue-500' }, { t: 'sppd', l: 'SPPD', i: Bus, c: 'text-green-500' }, { t: 'daftar_transport', l: 'Daftar Transport', i: DollarSign, c: 'text-teal-600' }, { t: 'laporan_sppd', l: 'Laporan Perjalanan', i: FileCheck, c: 'text-orange-500' }, { t: 'kuitansi', l: 'Kuitansi Transport', i: Receipt, c: 'text-purple-500' } ],
+          mamin: [ { t: 'notulen_rapat', l: 'Notulen / Laporan Rapat', i: FileText, c: 'text-amber-600' }, { t: 'daftar_hadir', l: 'Daftar Hadir Rapat', i: ClipboardList, c: 'text-green-500' }, { t: 'nota_konsumsi', l: 'Nota Rincian Menu Konsumsi', i: Utensils, c: 'text-orange-500' }, { t: 'kuitansi', l: 'Kuitansi Konsumsi', i: Receipt, c: 'text-purple-500' } ],
           default: [ { t: 'kuitansi', l: 'Kuitansi Umum', i: Receipt, c: 'text-blue-500' }, { t: 'daftar_hadir', l: 'Daftar Hadir', i: ClipboardList, c: 'text-green-500' }, { t: 'sk', l: 'SK / Surat Tugas', i: FileSignature, c: 'text-orange-500' } ]
       };
       const activeBtns = (btns as any)[activeCategory] || btns.default;

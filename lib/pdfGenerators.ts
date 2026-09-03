@@ -837,3 +837,209 @@ export const generateLaporanSPPD = (data: any) => {
 
     doc.save('Laporan_SPPD.pdf');
 };
+
+/**
+ * Fungsi untuk mencetak **Notulen / Ringkasan Hasil Rapat (BOSP 2026)**.
+ * Berisi agenda rapat, pemimpin rapat, notulis, susunan acara,
+ * poin-poin hasil rapat/kesepakatan, serta kolom tanda tangan Pemimpin & Notulis.
+ * @param data Data agenda, pimpinan, notulis, hasil rapat, tanggal & sekolah
+ */
+export const generateNotulenRapat = (data: any) => {
+    const doc = new jsPDF();
+    const margin = 20;
+
+    // KOP
+    doc.setFont('times', 'bold');
+    doc.setFontSize(12);
+    doc.text('PEMERINTAH KABUPATEN/KOTA', 105, margin, { align: 'center' });
+    doc.text('DINAS PENDIDIKAN', 105, margin + 5, { align: 'center' });
+    doc.setFontSize(14);
+    doc.text((data.schoolName || 'SEKOLAH').toUpperCase(), 105, margin + 12, { align: 'center' });
+    doc.setLineWidth(0.5);
+    doc.line(margin, margin + 18, 190, margin + 18);
+
+    let y = margin + 28;
+    doc.setFontSize(14);
+    doc.text('NOTULEN RAPAT', 105, y, { align: 'center' });
+
+    doc.setFontSize(11);
+    doc.setFont('times', 'normal');
+    y += 12;
+
+    doc.text('Hari / Tanggal', margin, y);
+    doc.text(':', margin + 40, y);
+    doc.text(data.date || '-', margin + 45, y);
+
+    y += 6;
+    doc.text('Waktu Pelaksanaan', margin, y);
+    doc.text(':', margin + 40, y);
+    doc.text(data.meetingTime || '08.00 WIB s/d Selesai', margin + 45, y);
+
+    y += 6;
+    doc.text('Tempat Rapat', margin, y);
+    doc.text(':', margin + 40, y);
+    doc.text(data.projectLocation || data.schoolName || '-', margin + 45, y);
+
+    y += 6;
+    doc.text('Acara / Agenda', margin, y);
+    doc.text(':', margin + 40, y);
+    const splitAgenda = doc.splitTextToSize(data.activityName || data.description || 'Rapat Koordinasi Kegiatan Sekolah', 125);
+    doc.text(splitAgenda, margin + 45, y);
+    y += (splitAgenda.length * 6);
+
+    y += 2;
+    doc.text('Pimpinan Rapat', margin, y);
+    doc.text(':', margin + 40, y);
+    doc.text(data.meetingLeader || data.ksName || '-', margin + 45, y);
+
+    y += 6;
+    doc.text('Notulis', margin, y);
+    doc.text(':', margin + 40, y);
+    doc.text(data.notulisName || data.trName || '-', margin + 45, y);
+
+    y += 6;
+    doc.text('Jumlah Peserta Hadir', margin, y);
+    doc.text(':', margin + 40, y);
+    doc.text(`${data.attendeeCount || (data.officials ? data.officials.length : '15')} Orang (Daftar Hadir Terlampir)`, margin + 45, y);
+
+    y += 10;
+    doc.setFont('times', 'bold');
+    doc.text('HASIL RAPAT / KESEPAKATAN :', margin, y);
+
+    y += 6;
+    doc.setFont('times', 'normal');
+    const meetingResult = data.reportResult || data.meetingResult ||
+        '1. Pembukaan rapat oleh Pimpinan Rapat.\n2. Pembahasan rencana pelaksanaan kegiatan BOSP.\n3. Menyepakati penyediaan konsumsi rapat sesuai standar BOSP 2026.\n4. Penutup dan doa bersama.';
+
+    const splitResults = doc.splitTextToSize(meetingResult, 170);
+    doc.text(splitResults, margin, y);
+
+    y += (splitResults.length * 6) + 15;
+
+    doc.text(`${data.city || 'Tempat'}, ${data.date}`, 140, y);
+    y += 6;
+    doc.text('Mengetahui,', margin + 15, y);
+    doc.text('Notulis Rapat,', 140, y);
+
+    y += 5;
+    doc.text('Pimpinan Rapat / Headmaster', margin + 15, y);
+
+    y += 25;
+    doc.setFont('times', 'bold');
+    doc.text(`( ${data.meetingLeader || data.ksName || '...........................'} )`, margin + 15, y);
+    doc.text(`( ${data.notulisName || data.trName || '...........................'} )`, 140, y);
+
+    doc.setFont('times', 'normal');
+    doc.text(`NIP. ${data.ksNip || '...........................'}`, margin + 15, y + 5);
+    doc.text(`NIP. ${data.trNip || '...........................'}`, 140, y + 5);
+
+    doc.save(`Notulen_Rapat_${(data.date || '').replace(/ /g, '_')}.pdf`);
+};
+
+/**
+ * Fungsi untuk mencetak **Nota / Bon Rincian Menu Konsumsi & Daftar Penerimaan (BOSP 2026)**.
+ * Dokumen pertanggungjawaban belanja makan dan minum rapat/kegiatan yang merinci
+ * jumlah porsi, harga satuan, pajak daerah/PPh, serta rincian menu.
+ * @param data Data penyedia/toko konsumsi, rincian item/porsi, harga, total, dan penandatangan
+ */
+export const generateNotaKonsumsi = (data: any) => {
+    const doc = new jsPDF();
+    const margin = 20;
+
+    doc.setFont('times', 'bold');
+    doc.setFontSize(14);
+    doc.text('NOTA RINCIAN BELANJA KONSUMSI / MAMIN', 105, margin, { align: 'center' });
+    doc.setFontSize(11);
+    doc.setFont('times', 'normal');
+    doc.text(`Sesuai Ketentuan Juknis BOSP Tahun 2026`, 105, margin + 6, { align: 'center' });
+
+    doc.setLineWidth(0.3);
+    doc.line(margin, margin + 10, 190, margin + 10);
+
+    let y = margin + 18;
+    doc.text(`Nama Sekolah / Satdik : ${data.schoolName || '-'}`, margin, y);
+    doc.text(`No. Nota / Bukti       : ${data.spkNumber || '.....................'}`, 130, y);
+
+    y += 6;
+    doc.text(`Nama Kegiatan        : ${data.activityName || data.description || 'Rapat / Kegiatan Sekolah'}`, margin, y);
+    doc.text(`Tanggal Transaksi    : ${data.date}`, 130, y);
+
+    y += 6;
+    doc.text(`Penyedia / Katering  : ${data.receiver || data.contractorName || 'Katering / Rumah Makan Local UMKM'}`, margin, y);
+
+    // Items table
+    const totalVal = parseCurrency(data.amount);
+    const count = data.attendeeCount || 15;
+
+    const items = (data.maminItems && data.maminItems.length > 0) ? data.maminItems : (
+        totalVal > 0 ? [
+            { menu: `Paket Makan Siang & Snack (${data.activityName || data.description || 'Konsumsi Kegiatan'})`, qty: count, unit: 'Paket / Box', price: Math.floor(totalVal / count) }
+        ] : [
+            { menu: 'Makan Siang Prasmanan / Box (Nasi, Lauk Utama, Sayur, Buah)', qty: count, unit: 'Porsi', price: 25000 },
+            { menu: 'Snack Rapat (Kue 3 Macam + Mineral)', qty: count, unit: 'Kotak', price: 10000 }
+        ]
+    );
+
+    let totalNominal = 0;
+    const body = items.map((it: any, idx: number) => {
+        const qty = Number(it.qty) || 1;
+        const price = parseCurrency(it.price) || 0;
+        const subtotal = qty * price;
+        totalNominal += subtotal;
+        return [
+            idx + 1,
+            it.menu,
+            `${qty} ${it.unit || 'Porsi'}`,
+            new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', maximumFractionDigits: 0 }).format(price),
+            new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', maximumFractionDigits: 0 }).format(subtotal)
+        ];
+    });
+
+    const displayTotal = totalVal > 0 ? totalVal : totalNominal;
+
+    body.push([
+        { content: 'TOTAL JUMLAH BELANJA KONSUMSI', colSpan: 4, styles: { halign: 'right', fontStyle: 'bold' } },
+        { content: new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', maximumFractionDigits: 0 }).format(displayTotal), styles: { halign: 'right', fontStyle: 'bold' } }
+    ]);
+
+    autoTable(doc, {
+        startY: y + 8,
+        head: [['No', 'Rincian Menu Konsumsi', 'Banyaknya', 'Harga Satuan', 'Jumlah (Rp)']],
+        body: body,
+        theme: 'grid',
+        styles: { font: 'times', fontSize: 10, cellPadding: 3, lineWidth: 0.1, lineColor: 0 },
+        columnStyles: {
+            0: { cellWidth: 10, halign: 'center' },
+            1: { cellWidth: 80 },
+            2: { cellWidth: 25, halign: 'center' },
+            3: { cellWidth: 25, halign: 'right' },
+            4: { cellWidth: 30, halign: 'right' }
+        }
+    });
+
+    const finalY = (doc as any).lastAutoTable.finalY + 8;
+
+    doc.setFont('times', 'bolditalic');
+    doc.text(`Terbilang: # ${getTerbilang(displayTotal)} #`, margin, finalY);
+
+    const signY = finalY + 12;
+    doc.setFont('times', 'normal');
+    doc.text('Setuju Dibayar,', margin, signY);
+    doc.text('Lunas Dibayar,', 85, signY);
+    doc.text(`${data.city || 'Tempat'}, ${data.date}`, 145, signY - 5);
+    doc.text('Penyedia / Katering,', 145, signY);
+
+    doc.text('Kepala Sekolah', margin, signY + 5);
+    doc.text('Bendahara Sekolah', 85, signY + 5);
+
+    doc.setFont('times', 'bold');
+    doc.text(`( ${data.ksName || '...........................'} )`, margin, signY + 28);
+    doc.text(`( ${data.trName || '...........................'} )`, 85, signY + 28);
+    doc.text(`( ${data.receiver || data.contractorName || '...........................'} )`, 145, signY + 28);
+
+    doc.setFont('times', 'normal');
+    doc.text(`NIP. ${data.ksNip || '...........................'}`, margin, signY + 33);
+    doc.text(`NIP. ${data.trNip || '...........................'}`, 85, signY + 33);
+
+    doc.save(`Nota_Konsumsi_${(data.date || '').replace(/ /g, '_')}.pdf`);
+};
